@@ -2,6 +2,7 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
 import { mapUserModel, type UserModel } from '@/models/userModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
+import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 interface PurchaseDto {
   id: string
@@ -95,8 +96,8 @@ export async function getPurchases(req: GetPurchasesRequest): Promise<GetPurchas
     params.append(key, String(value))
   }
 
-  appendParam('rangeStartDate', req.rangeStartDate)
-  appendParam('rangeEndDate', req.rangeEndDate)
+  appendParam('rangeStartDate', toUtcDateTimeString(req.rangeStartDate))
+  appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
   appendParam('page', req.page)
   appendParam('limit', clampPageSize(req.limit))
   req.supplierIds?.forEach((id) => appendParam('supplierIds', id))
@@ -133,7 +134,10 @@ export async function deletePurchase(id: string) {
 }
 
 export async function createPurchase(req: CreatePurchaseRequest): Promise<CreatePurchaseResponse> {
-  const resp = await api.post<{ purchase: PurchaseDto }>('/main/purchases', req)
+  const resp = await api.post<{ purchase: PurchaseDto }>('/main/purchases', {
+    ...req,
+    purchaseDate: toUtcDateTimeString(req.purchaseDate),
+  })
   return {
     purchase: mapPurchaseModel(resp.data.purchase),
   }

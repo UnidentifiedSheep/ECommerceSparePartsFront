@@ -22,6 +22,13 @@ export function formatLocalDateTime(value?: string | null, fallback = '-') {
   }).format(date)
 }
 
+export function toUtcDateTimeString(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toISOString()
+}
+
 function padDatePart(value: number) {
   return String(value).padStart(2, '0')
 }

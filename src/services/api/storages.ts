@@ -7,6 +7,7 @@ import type { StorageType } from '@/enums/storageType.ts'
 import type { LogisticPricingType } from '@/enums/logisticPricingType.ts'
 import type { RouteType } from '@/enums/routeType.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
+import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 interface PatchField<T> {
   isSet: boolean
@@ -283,14 +284,20 @@ export async function getStorageContent(req: GetStorageContentRequest): Promise<
 }
 
 export async function addStorageContent(req: AddStorageContentRequest) {
-  await api.post('/main/storages/content', req)
+  await api.post('/main/storages/content', {
+    ...req,
+    storageContent: req.storageContent.map((item) => ({
+      ...item,
+      purchaseDate: toUtcDateTimeString(item.purchaseDate),
+    })),
+  })
 }
 
 export async function editStorageContent(req: EditStorageContentRequest) {
   const model: Record<string, PatchField<unknown>> = {}
 
   if (req.count !== undefined) model.count = patchField(req.count)
-  if (req.purchaseDatetime !== undefined) model.purchaseDatetime = patchField(req.purchaseDatetime)
+  if (req.purchaseDatetime !== undefined) model.purchaseDatetime = patchField(toUtcDateTimeString(req.purchaseDatetime))
   if (req.buyPrice !== undefined) model.buyPrice = patchField(req.buyPrice)
   if (req.currencyId !== undefined) model.currencyId = patchField(req.currencyId)
 

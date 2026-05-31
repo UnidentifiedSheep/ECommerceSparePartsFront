@@ -1,5 +1,6 @@
 import api, { clampPageSize } from '@/services/api/api.ts'
 import { analyticsApiPrefix } from '@/config/apiConfig.ts'
+import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 export type CalculationStatus =
   | 'Calculating'
@@ -178,7 +179,16 @@ export async function getMetricCalculationJobs(
 export async function createCalculationJob(
   req: CreateCalculationJobRequest,
 ): Promise<CreateCalculationJobResponse> {
-  const resp = await api.post<CreateCalculationJobResponse>(analyticsUrl('/jobs'), req)
+  const resp = await api.post<CreateCalculationJobResponse>(analyticsUrl('/jobs'), {
+    ...req,
+    metricPayload: req.metricPayload
+      ? {
+          ...req.metricPayload,
+          rangeStart: toUtcDateTimeString(req.metricPayload.rangeStart),
+          rangeEnd: toUtcDateTimeString(req.metricPayload.rangeEnd),
+        }
+      : undefined,
+  })
   return resp.data
 }
 
