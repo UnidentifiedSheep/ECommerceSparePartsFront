@@ -1,6 +1,6 @@
 import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/signalr'
-import api from '@/services/api/api.ts'
 import { useAuthStore } from '@/stores/authStore.ts'
+import { analyticsApiPrefix, apiBaseUrl } from '@/config/apiConfig.ts'
 import type { CalculationStatus } from '@/services/api/analytics.ts'
 
 export interface MetricCalculationJobUpdatedEvent {
@@ -10,10 +10,8 @@ export interface MetricCalculationJobUpdatedEvent {
   errorMessage: string | null
 }
 
-const analyticsPrefix = (import.meta.env.VITE_ANALYTICS_API_PREFIX ?? '/analytics').replace(/\/$/, '')
-
 function hubUrl(): string {
-  return `${String(api.defaults.baseURL).replace(/\/$/, '')}${analyticsPrefix}/hubs/calculation-jobs`
+  return `${apiBaseUrl}${analyticsApiPrefix}/hubs/calculation-jobs`
 }
 
 export async function startMetricCalculationHub(

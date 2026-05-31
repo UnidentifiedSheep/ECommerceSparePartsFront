@@ -1,6 +1,7 @@
 import axios, { AxiosHeaders, type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { ApiError, type ErrorResponse } from '@/models/errorModel.ts'
+import { apiBaseUrl } from '@/config/apiConfig.ts'
 
 export interface RefreshRequest {
   refreshToken: string
@@ -55,7 +56,7 @@ function setAuthHeader(config: InternalAxiosRequestConfig, token: string) {
 }
 
 const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: apiBaseUrl,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

@@ -1,4 +1,5 @@
 import api, { clampPageSize } from '@/services/api/api.ts'
+import { analyticsApiPrefix } from '@/config/apiConfig.ts'
 
 export type CalculationStatus =
   | 'Calculating'
@@ -118,10 +119,8 @@ const statusByNumber: Record<number, CalculationStatus> = {
   4: 'AwaitingWorker',
 }
 
-const analyticsPrefix = (import.meta.env.VITE_ANALYTICS_API_PREFIX ?? '/analytics').replace(/\/$/, '')
-
 function analyticsUrl(path: string): string {
-  return `${analyticsPrefix}${path}`
+  return `${analyticsApiPrefix}${path}`
 }
 
 function mapCalculationJob(dto: CalculationJobDto): CalculationJobModel {
