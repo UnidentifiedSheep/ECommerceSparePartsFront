@@ -1,7 +1,6 @@
 import axios, { AxiosHeaders, type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { ApiError, type ErrorResponse } from '@/models/errorModel.ts'
-import { apiBaseUrl } from '@/config/apiConfig.ts'
 
 export interface RefreshRequest {
   refreshToken: string
@@ -19,6 +18,8 @@ export function clampPageSize(value: number): number {
 
 let authStore: ReturnType<typeof useAuthStore> | null = null
 let refreshPromise: Promise<RefreshResponse> | null = null
+export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
+export const analyticsApiPrefix = '/analytics'
 
 function initAuthStore() {
   if (authStore === null) {

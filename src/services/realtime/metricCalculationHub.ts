@@ -1,6 +1,6 @@
 import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/signalr'
 import { useAuthStore } from '@/stores/authStore.ts'
-import { analyticsApiPrefix, apiBaseUrl } from '@/config/apiConfig.ts'
+import { analyticsApiPrefix, apiBaseUrl } from '@/services/api/api.ts'
 import type { CalculationStatus } from '@/services/api/analytics.ts'
 
 export interface MetricCalculationJobUpdatedEvent {

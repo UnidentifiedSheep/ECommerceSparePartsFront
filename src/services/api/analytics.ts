@@ -1,5 +1,4 @@
-import api, { clampPageSize } from '@/services/api/api.ts'
-import { analyticsApiPrefix } from '@/config/apiConfig.ts'
+import api, { analyticsApiPrefix, clampPageSize } from '@/services/api/api.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 export type CalculationStatus =
