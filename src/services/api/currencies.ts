@@ -10,6 +10,25 @@ export interface GetCurrenciesResponse {
   currencies: CurrencyModel[]
 }
 
+export interface CurrencyRateHistoryModel {
+  id: number
+  fromCurrencyId: number
+  toCurrencyId: number
+  prevRate: number
+  newRate: number
+  createdAt: string
+}
+
+export interface GetCurrencyHistoryRequest {
+  currencyId: number
+  page: number
+  size: number
+}
+
+export interface GetCurrencyHistoryResponse {
+  history: CurrencyRateHistoryModel[]
+}
+
 export interface CreateCurrencyRequest {
   shortName: string
   name: string
@@ -25,6 +44,16 @@ export async function getCurrencies(req: GetCurrenciesRequest): Promise<GetCurre
   const resp = await api.get<GetCurrenciesResponse>('/main/currencies', {
     params: {
       ...req,
+      size: clampPageSize(req.size),
+    },
+  })
+  return resp.data
+}
+
+export async function getCurrencyHistory(req: GetCurrencyHistoryRequest): Promise<GetCurrencyHistoryResponse> {
+  const resp = await api.get<GetCurrencyHistoryResponse>(`/main/currencies/${req.currencyId}/history`, {
+    params: {
+      page: req.page,
       size: clampPageSize(req.size),
     },
   })

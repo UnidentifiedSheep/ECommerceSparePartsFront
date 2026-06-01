@@ -18,8 +18,13 @@
           />
         </div>
 
-        <div class="pb-8">
-          <label for="password" class="block text-gray-700 font-semibold">Пароль</label>
+        <div class="pb-3">
+          <div class="flex items-center justify-between gap-3">
+            <label for="password" class="block text-gray-700 font-semibold">Пароль</label>
+            <RouterLink to="/recovery" class="text-sm text-blue-600 hover:text-blue-700">
+              Забыли пароль?
+            </RouterLink>
+          </div>
           <el-input
             v-model="password"
             type="password"
@@ -31,7 +36,7 @@
           />
         </div>
 
-        <div class="flex justify-center">
+        <div class="flex justify-center pt-5">
           <el-button
             @click="handleLogin"
             type="primary"
@@ -49,6 +54,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
 import { login } from '@/services/api/authApi.ts'

@@ -11,7 +11,24 @@ export interface LoginResponse {
   deviceId: string
 }
 
+export interface PasswordRecoveryRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  newPassword: string
+}
+
 export async function login(req: LoginRequest): Promise<LoginResponse> {
   const resp = await api.post<LoginResponse>('/main/auth/login', req)
   return resp.data
+}
+
+export async function sendPasswordRecoveryEmail(req: PasswordRecoveryRequest): Promise<void> {
+  await api.post('/main/auth/password/recovery', req)
+}
+
+export async function resetPassword(req: ResetPasswordRequest): Promise<void> {
+  await api.post('/main/auth/password/reset', req)
 }

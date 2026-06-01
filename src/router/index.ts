@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AuthView from '@/views/AuthView.vue'
 import AnalyticsView from '@/views/AnalyticsView.vue'
 import CurrenciesView from '@/views/CurrenciesView.vue'
+import PasswordRecoveryView from '@/views/PasswordRecoveryView.vue'
+import PasswordResetView from '@/views/PasswordResetView.vue'
 import PermissionsView from '@/views/PermissionsView.vue'
 import ProductDetailsView from '@/views/ProductDetailsView.vue'
 import ProductsView from '@/views/ProductsView.vue'
@@ -86,6 +88,16 @@ const routes = [
         path: '',
         name: 'auth',
         component: AuthView,
+      },
+      {
+        path: '/recovery',
+        name: 'password-recovery',
+        component: PasswordRecoveryView,
+      },
+      {
+        path: '/reset',
+        name: 'password-reset',
+        component: PasswordResetView,
       },
     ],
   },

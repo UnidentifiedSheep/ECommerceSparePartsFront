@@ -38,8 +38,16 @@
           </div>
         </template>
 
-        <el-table v-loading="isLoading" :data="filteredCurrencies" stripe>
-          <el-table-column prop="id" label="ID" min-width="90" />
+        <el-table
+          v-loading="isLoading"
+          :data="filteredCurrencies"
+          stripe
+          highlight-current-row
+          row-key="id"
+          :current-row-key="selectedCurrency?.id"
+          class="currencies-table"
+          @row-click="selectCurrency"
+        >
           <el-table-column prop="name" label="Название" min-width="220" />
           <el-table-column prop="shortName" label="Короткое имя" min-width="160" />
           <el-table-column prop="code" label="Код" min-width="120" />
@@ -54,12 +62,59 @@
       </el-card>
 
       <section class="min-h-[420px] min-w-0 rounded-md border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 px-4 py-3">
-          <h2 class="text-lg font-semibold text-slate-900">История</h2>
-          <p class="text-sm text-slate-500">Здесь будет история валют и курсов.</p>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900">История курса</h2>
+            <p class="text-sm text-slate-500">
+              {{ selectedCurrency ? selectedCurrency.name : 'Выберите валюту в списке' }}
+            </p>
+          </div>
+          <el-tag v-if="selectedCurrency" effect="plain">
+            {{ selectedCurrency.code }}
+          </el-tag>
         </div>
         <div class="p-4">
-          <el-empty description="История пока не подключена" />
+          <el-table
+            v-if="selectedCurrency"
+            v-loading="isHistoryLoading"
+            :data="currencyHistory"
+            empty-text="История курса пуста"
+            class="currency-history-table"
+          >
+            <el-table-column label="Пара" min-width="180">
+              <template #default="{ row }">
+                <span class="font-medium text-slate-800">{{ currencyPairLabel(row) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Было" min-width="130">
+              <template #default="{ row }">
+                <span class="tabular-nums text-slate-600">{{ formatRate(row.prevRate) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Стало" min-width="130">
+              <template #default="{ row }">
+                <span class="tabular-nums text-slate-900">{{ formatRate(row.newRate) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Изменение" min-width="130">
+              <template #default="{ row }">
+                <span :class="rateDeltaClass(row)">
+                  {{ formatRateDelta(row) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Дата" min-width="170">
+              <template #default="{ row }">
+                <span class="text-slate-600">{{ formatDate(row.createdAt) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <el-empty v-else description="Выберите валюту" />
+        </div>
+
+        <div v-if="selectedCurrency" class="border-t border-slate-200 px-4 py-3">
+          <ZeroPagination v-model:page="historyPage" v-model:size="historyLimit" :has-next="historyHasNext" />
         </div>
       </section>
     </div>
@@ -102,17 +157,25 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import {
   createCurrency,
   getCurrencies,
+  getCurrencyHistory,
   updateCurrencyRates,
   type CreateCurrencyRequest,
+  type CurrencyRateHistoryModel,
 } from '@/services/api/currencies.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 
 const currencies = ref<CurrencyModel[]>([])
+const currencyHistory = ref<CurrencyRateHistoryModel[]>([])
+const selectedCurrency = ref<CurrencyModel>()
 const searchTerm = ref('')
 const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
+const historyPage = ref(0)
+const historyLimit = ref(20)
+const historyHasNext = ref(false)
 const isLoading = ref(false)
+const isHistoryLoading = ref(false)
 const isCreating = ref(false)
 const isUpdatingRates = ref(false)
 const createDialogOpen = ref(false)
@@ -171,9 +234,68 @@ async function loadCurrencies(resetPage: boolean) {
 
     currencies.value = resp.currencies
     hasNext.value = resp.currencies.length === limit.value
+    if (!selectedCurrency.value && resp.currencies.length > 0) {
+      await selectCurrency(resp.currencies[0] as CurrencyModel)
+    }
   } finally {
     isLoading.value = false
   }
+}
+
+async function loadCurrencyHistory(resetPage: boolean) {
+  if (!selectedCurrency.value || isHistoryLoading.value) return
+
+  isHistoryLoading.value = true
+  try {
+    if (resetPage) historyPage.value = 0
+
+    const resp = await getCurrencyHistory({
+      currencyId: selectedCurrency.value.id,
+      page: historyPage.value,
+      size: historyLimit.value,
+    })
+    currencyHistory.value = resp.history
+    historyHasNext.value = resp.history.length === historyLimit.value
+  } finally {
+    isHistoryLoading.value = false
+  }
+}
+
+async function selectCurrency(currency: CurrencyModel) {
+  selectedCurrency.value = currency
+  await loadCurrencyHistory(true)
+}
+
+function currencyLabel(currencyId: number) {
+  const currency = currencies.value.find((item) => item.id === currencyId)
+  return currency ? `${currency.shortName} (${currency.code})` : 'Неизвестная валюта'
+}
+
+function currencyPairLabel(history: CurrencyRateHistoryModel) {
+  return `${currencyLabel(history.fromCurrencyId)} → ${currencyLabel(history.toCurrencyId)}`
+}
+
+function formatRate(value: number) {
+  return value.toLocaleString('ru-RU', {
+    maximumFractionDigits: 8,
+  })
+}
+
+function formatRateDelta(history: CurrencyRateHistoryModel) {
+  const delta = history.newRate - history.prevRate
+  const sign = delta > 0 ? '+' : ''
+  return `${sign}${formatRate(delta)}`
+}
+
+function rateDeltaClass(history: CurrencyRateHistoryModel) {
+  const delta = history.newRate - history.prevRate
+  if (delta > 0) return 'tabular-nums font-medium text-emerald-600'
+  if (delta < 0) return 'tabular-nums font-medium text-red-600'
+  return 'tabular-nums text-slate-500'
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString('ru-RU')
 }
 
 function openCreateDialog() {
@@ -224,6 +346,7 @@ async function submitUpdateRates() {
       type: 'success',
     })
     await loadCurrencies(false)
+    await loadCurrencyHistory(false)
   } finally {
     isUpdatingRates.value = false
   }
@@ -231,6 +354,8 @@ async function submitUpdateRates() {
 
 watch(limit, async () => loadCurrencies(true))
 watch(page, async () => loadCurrencies(false))
+watch(historyLimit, async () => loadCurrencyHistory(true))
+watch(historyPage, async () => loadCurrencyHistory(false))
 onMounted(async () => loadCurrencies(true))
 </script>
 
