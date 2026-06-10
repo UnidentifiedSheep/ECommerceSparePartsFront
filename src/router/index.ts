@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AuthView from '@/views/AuthView.vue'
 import AnalyticsView from '@/views/AnalyticsView.vue'
 import CurrenciesView from '@/views/CurrenciesView.vue'
+import JobsView from '@/views/JobsView.vue'
 import PasswordRecoveryView from '@/views/PasswordRecoveryView.vue'
 import PasswordResetView from '@/views/PasswordResetView.vue'
 import PermissionsView from '@/views/PermissionsView.vue'
@@ -76,6 +77,12 @@ const routes = [
         path: '/analytics',
         name: 'analytics',
         component: AnalyticsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/jobs',
+        name: 'jobs',
+        component: JobsView,
         meta: { requiresAuth: true },
       },
     ],

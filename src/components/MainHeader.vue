@@ -99,6 +99,13 @@
           <span>Метрики</span>
         </template>
       </el-menu-item>
+
+      <el-menu-item index="9" @click="openRoute('/jobs')">
+        <template #title>
+          <el-icon><Tickets /></el-icon>
+          <span>Задачи</span>
+        </template>
+      </el-menu-item>
     </el-menu>
   </el-drawer>
 </template>
