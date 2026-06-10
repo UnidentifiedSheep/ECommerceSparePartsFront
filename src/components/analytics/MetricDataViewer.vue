@@ -514,6 +514,7 @@ const MetricNode: Component = defineComponent({
   min-width: 680px;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__group {
   overflow: hidden;
   background: var(--metric-surface);
@@ -521,10 +522,12 @@ const MetricNode: Component = defineComponent({
   border-radius: 8px;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__group--match {
   border-color: #93c5fd;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__group-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
@@ -536,6 +539,7 @@ const MetricNode: Component = defineComponent({
   border-left: 3px solid var(--metric-accent);
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__group-toggle {
   display: flex;
   align-items: center;
@@ -549,6 +553,7 @@ const MetricNode: Component = defineComponent({
   cursor: pointer;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__group-name {
   overflow: hidden;
   font-size: 16px;
@@ -560,6 +565,7 @@ const MetricNode: Component = defineComponent({
   white-space: nowrap;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__group-actions {
   display: flex;
   flex: 0 0 auto;
@@ -567,6 +573,7 @@ const MetricNode: Component = defineComponent({
   gap: 6px;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__group-body {
   position: relative;
   display: flex;
@@ -578,6 +585,7 @@ const MetricNode: Component = defineComponent({
   border-left: 1px solid #dbe4f0;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__row {
   display: grid;
   grid-template-columns: minmax(190px, 28%) minmax(220px, 1fr) max-content;
@@ -593,24 +601,29 @@ const MetricNode: Component = defineComponent({
   transition: background-color 0.15s ease;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__row:hover,
 .metric-data-viewer__row:focus-within {
   background: #f8fafc;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__row--match {
   background: #fffbeb;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__row--match:hover,
 .metric-data-viewer__row--match:focus-within {
   background: #fef3c7;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__row:last-child {
   border-bottom: 0;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__field {
   min-width: 0;
   font-size: 14px;
@@ -621,6 +634,7 @@ const MetricNode: Component = defineComponent({
   overflow-wrap: anywhere;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__value {
   min-width: 0;
   font-size: 14px;
@@ -631,29 +645,35 @@ const MetricNode: Component = defineComponent({
   font-variant-numeric: tabular-nums;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__value--number {
   font-weight: 600;
   color: #0f172a;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__value--date {
   color: #475569;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__value--boolean-true {
   font-weight: 600;
   color: #15803d;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__value--boolean-false {
   font-weight: 600;
   color: #b45309;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__value--null {
   color: #94a3b8;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__copy {
   flex: 0 0 auto;
   opacity: 0;
@@ -661,6 +681,7 @@ const MetricNode: Component = defineComponent({
   transition: opacity 0.15s ease;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer__row:hover .metric-data-viewer__copy,
 .metric-data-viewer__row:focus-within .metric-data-viewer__copy {
   opacity: 1;
@@ -685,20 +706,24 @@ const MetricNode: Component = defineComponent({
   min-width: 620px;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer--compact .metric-data-viewer__group-header {
   min-height: 40px;
   padding: 8px 10px 8px 12px;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer--compact .metric-data-viewer__group-name {
   font-size: 14px;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer--compact .metric-data-viewer__group-body {
   margin-left: 10px;
   padding: 4px 10px 6px 10px;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer--compact .metric-data-viewer__row {
   grid-template-columns: minmax(160px, 26%) minmax(200px, 1fr) max-content;
   column-gap: 12px;
@@ -706,6 +731,7 @@ const MetricNode: Component = defineComponent({
   padding: 4px 0;
 }
 
+/*noinspection CssUnusedSymbol*/
 .metric-data-viewer--compact .metric-data-viewer__field,
 .metric-data-viewer--compact .metric-data-viewer__value {
   font-size: 13px;
