@@ -183,7 +183,15 @@
 
           <el-table-column label="Сумма" min-width="150" align="right">
             <template #default="{ row }">
-              <strong :class="amountClass(row)">{{ formatMoney(row.amount, row.currencyId) }}</strong>
+              <strong
+                :class="{
+                  'amount-muted': isReversedStatus(row.status),
+                  'amount-negative': !isReversedStatus(row.status) && isNegativeTransaction(row),
+                  'amount-positive': !isReversedStatus(row.status) && !isNegativeTransaction(row),
+                }"
+              >
+                {{ formatMoney(row.amount, row.currencyId) }}
+              </strong>
             </template>
           </el-table-column>
         </el-table>
@@ -546,10 +554,6 @@ async function openPurchaseByTransaction(transaction: BalanceTransactionModel) {
   }
 }
 
-function transactionStatusLabel(status: TransactionStatus) {
-  return transactionStatusItems(status).map((item) => item.label).join(', ')
-}
-
 function transactionStatusItems(status: TransactionStatus) {
   const values = transactionStatusValues(status)
   if (values.length === 0) values.push(String(status))
@@ -619,12 +623,8 @@ function transactionTypeTag(type: TransactionType) {
   return 'success'
 }
 
-function amountClass(transaction: BalanceTransactionModel) {
-  if (isReversedStatus(transaction.status)) {
-    return 'amount-muted'
-  }
-
-  return transaction.type === 'Fee' || transaction.type === 2 ? 'amount-negative' : 'amount-positive'
+function isNegativeTransaction(transaction: BalanceTransactionModel) {
+  return transaction.type === 'Fee' || transaction.type === 2
 }
 
 function defaultDateRange(): [string, string] {

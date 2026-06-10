@@ -258,12 +258,12 @@
         </div>
         <div class="grid gap-3">
           <div
-            v-for="(_, index) in createUserForm.phones"
-            :key="index"
+            v-for="phoneIndex in createUserForm.phones.length"
+            :key="phoneIndex"
             class="grid grid-cols-[1fr_auto] items-center gap-3"
           >
-            <el-input v-model="createUserForm.phones[index]" placeholder="+7..." />
-            <el-button type="danger" plain @click="removeCreateUserPhone(index)">Удалить</el-button>
+            <el-input v-model="createUserForm.phones[phoneIndex - 1]" placeholder="+7..." />
+            <el-button type="danger" plain @click="removeCreateUserPhone(phoneIndex - 1)">Удалить</el-button>
           </div>
           <div v-if="createUserForm.phones.length === 0" class="rounded-xl bg-slate-50 p-3 text-sm text-slate-400">
             Телефоны не добавлены.
@@ -462,10 +462,10 @@ function resetCreateUserForm() {
   createUserForm.surname = ''
   createUserForm.description = ''
   createUserForm.roles = []
-  createUserForm.emails = Array.from(
-    { length: Math.max(emailOptions.minEmailCount, 1) },
-    (_, index) => createDefaultEmail(index === 0),
-  )
+  createUserForm.emails = []
+  for (let index = 0; index < Math.max(emailOptions.minEmailCount, 1); index += 1) {
+    createUserForm.emails.push(createDefaultEmail(index === 0))
+  }
   createUserForm.phones = []
 }
 

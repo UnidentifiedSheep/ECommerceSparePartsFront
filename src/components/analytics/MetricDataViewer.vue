@@ -62,7 +62,7 @@ type JsonValue = JsonPrimitive | JsonObject | JsonArray
 interface JsonObject {
   [key: string]: JsonValue
 }
-interface JsonArray extends Array<JsonValue> {}
+type JsonArray = JsonValue[]
 
 interface MetricEntry {
   label: string
@@ -372,8 +372,8 @@ const MetricNode: Component = defineComponent({
     },
   },
   emits: {
-    toggle: (_path: string) => true,
-    copy: (_value: JsonValue) => true,
+    toggle: (...args: [string]) => args.length === 1,
+    copy: (...args: [JsonValue]) => args.length === 1,
   },
   setup(nodeProps, { emit }) {
     return (): VNodeChild => {

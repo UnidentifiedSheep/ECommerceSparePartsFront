@@ -501,7 +501,7 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import { deleteProductImage, getProductCrosses, getProductSize, getProductWeight, uploadProductImages } from '@/services/api/products.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { addStorageContent, deleteStorageContent, editStorageContent, getStorageContent, getStorages } from '@/services/api/storages.ts'
-import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { dimensionMeasureUnitLabel, weightMeasureUnitLabel } from '@/utils/measurementUnits.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 
@@ -638,10 +638,6 @@ function formatNumber(value: number) {
 
 function formatMoney(value: number, currencySign?: string) {
   return `${formatNumber(value)} ${currencySign ?? ''}`.trim()
-}
-
-function formatDate(value: string) {
-  return formatLocalDateTime(value)
 }
 
 function stockColorClass(stock: number) {

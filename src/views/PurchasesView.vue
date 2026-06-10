@@ -561,14 +561,6 @@ onMounted(async () => {
   font-weight: 650;
 }
 
-.filter-field--wide {
-  grid-column: 1;
-}
-
-.filter-field--period {
-  max-width: none;
-}
-
 .picker-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -578,11 +570,6 @@ onMounted(async () => {
 
 .picker-row :deep(.el-select) {
   flex: 1;
-}
-
-.picker-hint {
-  color: #64748b;
-  font-size: 13px;
 }
 
 .filter-tags {
