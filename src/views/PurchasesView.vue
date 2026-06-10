@@ -143,6 +143,7 @@
         </div>
 
               <el-table
+                ref="purchasesTableRef"
                 v-loading="purchasesLoading"
                 :data="purchases"
                 class="w-full"
@@ -201,7 +202,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import type { TableInstance } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
 import CreatePurchaseDialog from '@/components/purchases/CreatePurchaseDialog.vue'
@@ -216,11 +219,13 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import { deletePurchase, getPurchaseContent, getPurchases } from '@/services/api/purchases.ts'
+import { deletePurchase, getPurchase, getPurchaseContent, getPurchases } from '@/services/api/purchases.ts'
 import { getStorages } from '@/services/api/storages.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 
 const purchases = ref<PurchaseModel[]>([])
+const purchasesTableRef = ref<TableInstance>()
+const route = useRoute()
 const selectedPurchase = ref<PurchaseModel>()
 const purchaseContent = ref<PurchaseContentModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
@@ -365,6 +370,8 @@ async function loadPurchases(resetPage: boolean) {
 
 async function selectPurchase(purchase?: PurchaseModel) {
   selectedPurchase.value = purchase
+  await nextTick()
+  purchasesTableRef.value?.setCurrentRow(purchase)
 
   if (!purchase) {
     purchaseContent.value = []
@@ -378,6 +385,24 @@ async function selectPurchase(purchase?: PurchaseModel) {
   } finally {
     contentLoading.value = false
   }
+}
+
+async function selectPurchaseFromRoute() {
+  const purchaseId = typeof route.query.purchaseId === 'string' ? route.query.purchaseId : undefined
+  if (!purchaseId) return
+
+  const existingPurchase = purchases.value.find((purchase) => purchase.id === purchaseId)
+  if (existingPurchase) {
+    await selectPurchase(existingPurchase)
+    return
+  }
+
+  const response = await getPurchase(purchaseId)
+  purchases.value = [
+    response.purchase,
+    ...purchases.value.filter((purchase) => purchase.id !== response.purchase.id),
+  ]
+  await selectPurchase(response.purchase)
 }
 
 async function removePurchase(id: string) {
@@ -413,9 +438,11 @@ watch(selectedSuppliers, async () => loadPurchases(true), { deep: true })
 watch(currencyIds, async () => loadPurchases(true), { deep: true })
 watch(selectedProducts, async () => loadPurchases(true), { deep: true })
 watch(searchTerm, () => loadPurchasesDebounced())
+watch(() => route.query.purchaseId, async () => selectPurchaseFromRoute())
 
 onMounted(async () => {
   await Promise.all([loadCurrencies(), loadStorages(), loadPurchases(true)])
+  await selectPurchaseFromRoute()
 })
 </script>
 

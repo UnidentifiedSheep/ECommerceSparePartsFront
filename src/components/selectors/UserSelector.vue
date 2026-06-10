@@ -2,6 +2,7 @@
   <el-select
     v-model="selectedUser"
     filterable
+    value-key="id"
     :filter-method="onSearch"
     :placeholder="placeHolder"
     :clearable="clearable"

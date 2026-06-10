@@ -48,6 +48,7 @@
           <el-col :span="14">
             <el-card shadow="hover" class="h-[760px]">
               <el-table
+                ref="usersTableRef"
                 :data="users"
                 class="w-full"
                 height="100%"
@@ -310,8 +311,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import type { TableInstance } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
@@ -342,6 +344,8 @@ interface CreateUserEmailForm {
 }
 
 const users = ref<UserModel[]>([])
+const usersTableRef = ref<TableInstance>()
+const route = useRoute()
 const router = useRouter()
 const { hasPermission } = usePermissions()
 const canCreateUsers = computed(() => hasPermission('USERS_CREATE'))
@@ -584,6 +588,9 @@ function clearDetails() {
 
 async function selectUser(user?: UserModel) {
   selectedUser.value = user
+  await nextTick()
+  usersTableRef.value?.setCurrentRow(user)
+
   if (!user) {
     clearDetails()
     return
@@ -607,6 +614,24 @@ async function selectUser(user?: UserModel) {
   } finally {
     detailsLoading.value = false
   }
+}
+
+async function selectUserFromRoute() {
+  const userId = typeof route.query.userId === 'string' ? route.query.userId : undefined
+  if (!userId) return
+
+  const existingUser = users.value.find((user) => user.id === userId)
+  if (existingUser) {
+    await selectUser(existingUser)
+    return
+  }
+
+  const fullInfo = await getUserFullInfo(userId)
+  users.value = [
+    fullInfo.user,
+    ...users.value.filter((user) => user.id !== fullInfo.user.id),
+  ]
+  await selectUser(fullInfo.user)
 }
 
 async function saveCreateUser() {
@@ -722,8 +747,10 @@ watch(limit, async () => loadUsers(true))
 watch(page, async () => loadUsers(false))
 watch(searchTerm, () => loadUsersDebounced())
 watch(selectedRoleFilters, async () => loadUsers(true))
+watch(() => route.query.userId, async () => selectUserFromRoute())
 onMounted(async () => {
   await Promise.all([loadUsers(true), loadAllStorages(), loadRoles(), loadEmailOptions()])
+  await selectUserFromRoute()
 })
 </script>
 

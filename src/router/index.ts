@@ -11,6 +11,7 @@ import ProductsView from '@/views/ProductsView.vue'
 import ProducersView from '@/views/ProducersView.vue'
 import PurchasesView from '@/views/PurchasesView.vue'
 import StoragesView from '@/views/StoragesView.vue'
+import TransactionsView from '@/views/TransactionsView.vue'
 import UsersView from '@/views/UsersView.vue'
 import { useAuthStore } from '@/stores/authStore.ts'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
@@ -83,6 +84,12 @@ const routes = [
         path: '/jobs',
         name: 'jobs',
         component: JobsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/transactions',
+        name: 'transactions',
+        component: TransactionsView,
         meta: { requiresAuth: true },
       },
     ],

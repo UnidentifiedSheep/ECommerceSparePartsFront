@@ -106,6 +106,13 @@
           <span>Задачи</span>
         </template>
       </el-menu-item>
+
+      <el-menu-item index="10" @click="openRoute('/transactions')">
+        <template #title>
+          <el-icon><Coin /></el-icon>
+          <span>Транзакции</span>
+        </template>
+      </el-menu-item>
     </el-menu>
   </el-drawer>
 </template>

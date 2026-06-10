@@ -54,6 +54,10 @@ export interface GetPurchasesResponse {
   purchases: PurchaseModel[]
 }
 
+export interface GetPurchaseResponse {
+  purchase: PurchaseModel
+}
+
 export interface GetPurchaseContentResponse {
   content: PurchaseContentModel[]
 }
@@ -111,6 +115,20 @@ export async function getPurchases(req: GetPurchasesRequest): Promise<GetPurchas
   })
   return {
     purchases: resp.data.purchases.map(mapPurchaseModel),
+  }
+}
+
+export async function getPurchase(id: string): Promise<GetPurchaseResponse> {
+  const resp = await api.get<{ purchase: PurchaseDto }>(`/main/purchases/${id}`)
+  return {
+    purchase: mapPurchaseModel(resp.data.purchase),
+  }
+}
+
+export async function getPurchaseByTransactionId(transactionId: string): Promise<GetPurchaseResponse> {
+  const resp = await api.get<{ purchase: PurchaseDto }>(`/main/transactions/${transactionId}/purchase`)
+  return {
+    purchase: mapPurchaseModel(resp.data.purchase),
   }
 }
 
