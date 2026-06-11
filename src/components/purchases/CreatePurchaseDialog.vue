@@ -236,7 +236,7 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import { calculateDeliveryCost } from '@/services/api/logistics.ts'
 import { createPurchase } from '@/services/api/purchases.ts'
-import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 interface CreatePurchaseItemForm {
   product?: ProductSearchModel
@@ -428,7 +428,7 @@ async function save() {
       supplierId: form.supplier.id,
       currencyId: form.currencyId,
       storageName: form.storageName,
-      purchaseDate: form.purchaseDate,
+      purchaseDate: toUtcDateTimeString(form.purchaseDate),
       purchaseContent: form.items.map((item) => ({
         productId: item.product!.id,
         count: item.count,

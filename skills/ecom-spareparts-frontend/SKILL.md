@@ -64,6 +64,7 @@ Use this skill for frontend work in the `ecom-spareparts` repository.
 
 ## Formatting And Dates
 
+- All date-time values sent to backend APIs must be UTC. Use existing date utilities such as `toUtcDateTimeString` when converting user-selected local date-time values before requests.
 - Display dates and times in the user's local timezone using existing date utilities.
 - Use `toLocaleString('ru-RU')` or existing formatting utilities for user-facing numbers and money.
 - Keep currency signs from backend currency models.

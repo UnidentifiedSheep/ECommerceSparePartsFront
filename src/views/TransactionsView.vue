@@ -5,9 +5,14 @@
         <h1>Транзакции</h1>
         <p>Журнал балансовых операций по пользователям и валютам.</p>
       </div>
-      <el-button type="primary" :loading="isLoading" @click="reloadTransactions">
-        Обновить
-      </el-button>
+      <div class="header-actions">
+        <el-button v-if="canCreateTransactions" type="primary" @click="createDialogOpen = true">
+          Создать
+        </el-button>
+        <el-button :loading="isLoading" @click="reloadTransactions">
+          Обновить
+        </el-button>
+      </div>
     </section>
 
     <section class="transactions-layout">
@@ -37,6 +42,10 @@
               />
             </el-select>
           </el-form-item>
+
+          <el-checkbox v-model="showReversed" class="skip-reversed-checkbox">
+            Показать отмененные
+          </el-checkbox>
 
           <fieldset class="participants-filter">
             <legend>
@@ -194,6 +203,21 @@
               </strong>
             </template>
           </el-table-column>
+
+          <el-table-column v-if="canDeleteTransactions" label="Действия" width="120" align="right" fixed="right">
+            <template #default="{ row }">
+              <el-button
+                v-if="canCancelTransaction(row)"
+                size="small"
+                type="danger"
+                plain
+                :loading="cancellingTransactionId === row.id"
+                @click.stop="confirmCancelTransaction(row)"
+              >
+                Отменить
+              </el-button>
+            </template>
+          </el-table-column>
         </el-table>
 
         <div class="table-footer">
@@ -242,6 +266,16 @@
                 @click="openPurchaseByTransaction(selectedTransaction)"
               >
                 Открыть закупку
+              </el-button>
+              <el-button
+                v-if="canDeleteTransactions && canCancelTransaction(selectedTransaction)"
+                size="small"
+                type="danger"
+                plain
+                :loading="cancellingTransactionId === selectedTransaction.id"
+                @click="confirmCancelTransaction(selectedTransaction)"
+              >
+                Отменить
               </el-button>
             </dd>
           </div>
@@ -297,6 +331,12 @@
         </dl>
       </div>
     </el-drawer>
+
+    <CreateTransactionDialog
+      v-model="createDialogOpen"
+      :currencies="currencies"
+      @created="handleTransactionCreated"
+    />
   </div>
 </template>
 
@@ -304,12 +344,14 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import UserSelector from '@/components/selectors/UserSelector.vue'
+import CreateTransactionDialog from '@/components/transactions/CreateTransactionDialog.vue'
 import type { UserModel } from '@/models/userModel.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import {
+  deleteBalanceTransaction,
   getBalanceTransactions,
   type BalanceTransactionModel,
   type TransactionLogicalOperator,
@@ -320,13 +362,17 @@ import {
 } from '@/services/api/balances.ts'
 import { getPurchaseByTransactionId } from '@/services/api/purchases.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
+import { usePermissions } from '@/composables/usePermissions.ts'
 
 const pageSize = 100
 const router = useRouter()
+const { hasPermission } = usePermissions()
 
 const isLoading = ref(false)
 const isLoadingMore = ref(false)
 const purchaseNavigationLoading = ref(false)
+const createDialogOpen = ref(false)
+const cancellingTransactionId = ref<string | null>(null)
 const detailsOpen = ref(false)
 const selectedTransaction = ref<BalanceTransactionModel | null>(null)
 const transactions = ref<BalanceTransactionModel[]>([])
@@ -339,8 +385,17 @@ const dateRange = ref<[string, string]>(defaultDateRange())
 const filters = reactive({
   currencyId: null as number | null,
   logicalOperator: 'And' as TransactionLogicalOperator,
+  skipReversed: true,
 })
 
+const canCreateTransactions = computed(() => hasPermission('BALANCES_TRANSACTION_CREATE'))
+const canDeleteTransactions = computed(() => hasPermission('BALANCES_TRANSACTION_DELETE'))
+const showReversed = computed({
+  get: () => !filters.skipReversed,
+  set: (value: boolean) => {
+    filters.skipReversed = !value
+  },
+})
 const formatTotalAmount = computed(() => {
   if (!filters.currencyId) return 'Выберите валюту'
   const total = transactions.value.reduce((sum, transaction) => sum + transaction.amount, 0)
@@ -383,6 +438,7 @@ async function reloadTransactions() {
       senderId: sender.value?.id,
       receiverId: filters.logicalOperator === 'And' ? receiver.value?.id : undefined,
       logicalOperator: filters.logicalOperator,
+      skipReversed: filters.skipReversed,
       size: pageSize,
     })
 
@@ -408,6 +464,7 @@ async function loadMoreTransactions() {
       senderId: sender.value?.id,
       receiverId: filters.logicalOperator === 'And' ? receiver.value?.id : undefined,
       logicalOperator: filters.logicalOperator,
+      skipReversed: filters.skipReversed,
       cursorId: cursor.id,
       cursorDate: cursor.transactionDate,
       size: pageSize,
@@ -437,6 +494,7 @@ function resetFilters() {
   dateRange.value = defaultDateRange()
   filters.currencyId = null
   filters.logicalOperator = 'And'
+  filters.skipReversed = true
   sender.value = undefined
   receiver.value = undefined
   transactions.value = []
@@ -530,8 +588,51 @@ function transactionSourceTag(sourceType: TransactionSourceType) {
   return ''
 }
 
+function isManualSource(sourceType: TransactionSourceType) {
+  return sourceType === 'Manual' || sourceType === 0
+}
+
 function isPurchaseSource(sourceType: TransactionSourceType) {
   return sourceType === 'Purchase' || sourceType === 1
+}
+
+function canCancelTransaction(transaction: BalanceTransactionModel) {
+  return isManualSource(transaction.sourceType) && !isReversedStatus(transaction.status)
+}
+
+async function confirmCancelTransaction(transaction: BalanceTransactionModel) {
+  if (!canCancelTransaction(transaction) || cancellingTransactionId.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      'Отменить транзакцию? Балансы отправителя и получателя будут пересчитаны.',
+      'Отмена транзакции',
+      {
+        confirmButtonText: 'Отменить транзакцию',
+        cancelButtonText: 'Закрыть',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  cancellingTransactionId.value = transaction.id
+  try {
+    await deleteBalanceTransaction(transaction.id)
+    ElMessage.success('Транзакция отменена')
+    selectedTransaction.value = null
+    detailsOpen.value = false
+    await reloadTransactions()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Не удалось отменить транзакцию')
+  } finally {
+    cancellingTransactionId.value = null
+  }
+}
+
+async function handleTransactionCreated() {
+  await reloadTransactions()
 }
 
 async function openPurchaseByTransaction(transaction: BalanceTransactionModel) {
@@ -656,6 +757,7 @@ watch(
     dateRange.value[1],
     filters.currencyId,
     filters.logicalOperator,
+    filters.skipReversed,
     sender.value?.id,
     receiver.value?.id,
   ],
@@ -699,6 +801,13 @@ watch(
   font-size: 14px;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .transactions-layout {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
@@ -730,6 +839,10 @@ watch(
   gap: 8px;
   border-top: 1px solid #e2e8f0;
   padding-top: 14px;
+}
+
+.skip-reversed-checkbox {
+  margin: -4px 0 14px;
 }
 
 .participants-filter {

@@ -31,6 +31,7 @@ export interface GetBalanceTransactionsRequest {
   senderId?: string | null
   receiverId?: string | null
   logicalOperator: TransactionLogicalOperator
+  skipReversed: boolean
   cursorId?: string | null
   cursorDate?: string | null
   size: number
@@ -38,6 +39,24 @@ export interface GetBalanceTransactionsRequest {
 
 export interface GetBalanceTransactionsResponse {
   transactions: BalanceTransactionModel[]
+}
+
+export interface CreateBalanceTransactionRequest {
+  senderId: string
+  receiverId: string
+  amount: number
+  currencyId: number
+  transactionDateTime: string
+}
+
+export type SystemTransactionDirection = 'UserToSystem' | 'SystemToUser'
+
+export interface CreateSystemBalanceTransactionRequest {
+  userId: string
+  direction: SystemTransactionDirection
+  amount: number
+  currencyId: number
+  transactionDateTime: string
 }
 
 export async function getBalanceTransactions(
@@ -51,6 +70,7 @@ export async function getBalanceTransactions(
       senderId: req.senderId || undefined,
       receiverId: req.receiverId || undefined,
       logicalOperator: req.logicalOperator,
+      skipReversed: req.skipReversed,
       cursorId: req.cursorId || undefined,
       cursorDate: req.cursorDate || undefined,
       size: clampPageSize(req.size),
@@ -58,4 +78,16 @@ export async function getBalanceTransactions(
   })
 
   return resp.data
+}
+
+export async function createBalanceTransaction(req: CreateBalanceTransactionRequest): Promise<void> {
+  await api.post('/main/transactions', req)
+}
+
+export async function createSystemBalanceTransaction(req: CreateSystemBalanceTransactionRequest): Promise<void> {
+  await api.post('/main/transactions/system', req)
+}
+
+export async function deleteBalanceTransaction(id: string): Promise<void> {
+  await api.delete(`/main/transactions/${id}`)
 }
