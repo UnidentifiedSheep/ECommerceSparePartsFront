@@ -1,0 +1,144 @@
+.sales-page {
+  min-height: calc(100vh - 56px);
+  background: #f7f7f8;
+}
+
+.sales-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 18px 20px;
+}
+
+.sales-header h1,
+.panel-heading h2 {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.sales-header h1 {
+  font-size: 26px;
+}
+
+.sales-header p,
+.panel-heading p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.sales-content {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.sales-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel-heading h2 {
+  font-size: 20px;
+}
+
+.panel-heading > strong {
+  color: #047857;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.workflow-grid div {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 14px;
+}
+
+.workflow-grid span {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #047857;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.workflow-grid strong {
+  display: block;
+  margin-top: 10px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.workflow-grid p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.sale-summary-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+
+.sale-summary-list div {
+  min-width: 0;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}
+
+.sale-summary-list dt {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sale-summary-list dd {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+@media (max-width: 920px) {
+  .workflow-grid,
+  .sale-summary-list {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-header,
+  .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -158,6 +158,13 @@
               {{ producerName(row.producerId) }}
             </template>
           </el-table-column>
+          <el-table-column label="Остаток" min-width="120" align="right">
+            <template #default="{ row }">
+              <span :class="stockColorClass(row.stock)">
+                {{ row.stock.toLocaleString('ru-RU') }}
+              </span>
+            </template>
+          </el-table-column>
           <el-table-column label="Размеры" min-width="220">
             <template #default="{ row }">
               <span v-if="row.dimensions">
@@ -293,6 +300,12 @@ function formatDimension(value: number) {
 
 function producerName(id: number) {
   return producerNames.value[id] ?? '—'
+}
+
+function stockColorClass(stock: number) {
+  if (stock <= 0) return 'text-red-700 font-semibold'
+  if (stock <= 5) return 'text-amber-600 font-semibold'
+  return 'text-emerald-700 font-semibold'
 }
 
 function openCrosses(productId: number) {

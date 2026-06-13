@@ -33,6 +33,13 @@
             {{ producerName(row.producerId) }}
           </template>
         </el-table-column>
+        <el-table-column label="Остаток" min-width="110" align="right">
+          <template #default="{ row }">
+            <span :class="stockColorClass(row.stock)">
+              {{ row.stock.toLocaleString('ru-RU') }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column fixed="right" label="" width="96" align="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" plain @click="selectProduct(row)">Выбрать</el-button>
@@ -77,6 +84,12 @@ const searchProductsDebounced = useDebounceFn(async () => {
 
 function producerName(id: number) {
   return producerNames.value[id] ?? '-'
+}
+
+function stockColorClass(stock: number) {
+  if (stock <= 0) return 'text-red-700 font-semibold'
+  if (stock <= 5) return 'text-amber-600 font-semibold'
+  return 'text-emerald-700 font-semibold'
 }
 
 function selectProduct(product: ProductSearchModel) {

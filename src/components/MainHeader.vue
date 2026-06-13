@@ -31,9 +31,9 @@
     </div>
   </header>
 
-  <el-drawer v-model="menuToggled" direction="ltr" size="250px" :with-header="false">
+  <el-drawer v-model="menuToggled" direction="ltr" size="280px" :with-header="false">
     <el-menu
-      default-active="1"
+      :default-active="activeMenuIndex"
       background-color="#1f2937"
       text-color="#f9fafb"
       active-text-color="#3b82f6"
@@ -44,91 +44,70 @@
         <span class="text-sm text-gray-400">Admin panel</span>
       </div>
 
-      <el-menu-item index="1" @click="openRoute('/storages')">
-        <template #title>
-          <el-icon><House /></el-icon>
-          <span>Склады</span>
-        </template>
-      </el-menu-item>
-
-      <el-menu-item index="2" @click="openRoute('/users')">
-        <template #title>
-          <el-icon><User /></el-icon>
-          <span>Пользователи</span>
-        </template>
-      </el-menu-item>
-
-      <el-menu-item index="3" @click="openRoute('/purchases')">
+      <el-sub-menu index="operations">
         <template #title>
           <el-icon><Tickets /></el-icon>
-          <span>Закупки</span>
+          <span>Операции</span>
         </template>
-      </el-menu-item>
 
-      <el-menu-item index="4" @click="openRoute('/currencies')">
-        <template #title>
-          <el-icon><Coin /></el-icon>
-          <span>Валюты</span>
-        </template>
-      </el-menu-item>
+        <el-menu-item index="/purchases" @click="openRoute('/purchases')">Закупки</el-menu-item>
+        <el-menu-item index="/sales" @click="openRoute('/sales')">Продажи</el-menu-item>
+        <el-menu-item index="/transactions" @click="openRoute('/transactions')">Транзакции</el-menu-item>
+      </el-sub-menu>
 
-      <el-menu-item index="5" @click="openRoute('/permissions')">
-        <template #title>
-          <el-icon><Key /></el-icon>
-          <span>Разрешения</span>
-        </template>
-      </el-menu-item>
-
-      <el-menu-item index="6" @click="openRoute('/producers')">
-        <template #title>
-          <el-icon><OfficeBuilding /></el-icon>
-          <span>Производители</span>
-        </template>
-      </el-menu-item>
-
-      <el-menu-item index="7" @click="openRoute('/products')">
+      <el-sub-menu index="catalog">
         <template #title>
           <el-icon><IconRoute /></el-icon>
-          <span>Товары</span>
+          <span>Каталог и склады</span>
         </template>
-      </el-menu-item>
 
-      <el-menu-item index="8" @click="openRoute('/analytics')">
+        <el-menu-item index="/products" @click="openRoute('/products')">Товары</el-menu-item>
+        <el-menu-item index="/producers" @click="openRoute('/producers')">Производители</el-menu-item>
+        <el-menu-item index="/storages" @click="openRoute('/storages')">Склады</el-menu-item>
+      </el-sub-menu>
+
+      <el-sub-menu index="admin">
+        <template #title>
+          <el-icon><Key /></el-icon>
+          <span>Администрирование</span>
+        </template>
+
+        <el-menu-item index="/users" @click="openRoute('/users')">Пользователи</el-menu-item>
+        <el-menu-item index="/permissions" @click="openRoute('/permissions')">Разрешения</el-menu-item>
+        <el-menu-item index="/currencies" @click="openRoute('/currencies')">Валюты</el-menu-item>
+      </el-sub-menu>
+
+      <el-sub-menu index="control">
         <template #title>
           <el-icon><DataAnalysis /></el-icon>
-          <span>Метрики</span>
+          <span>Контроль</span>
         </template>
-      </el-menu-item>
 
-      <el-menu-item index="9" @click="openRoute('/jobs')">
-        <template #title>
-          <el-icon><Tickets /></el-icon>
-          <span>Задачи</span>
-        </template>
-      </el-menu-item>
-
-      <el-menu-item index="10" @click="openRoute('/transactions')">
-        <template #title>
-          <el-icon><Coin /></el-icon>
-          <span>Транзакции</span>
-        </template>
-      </el-menu-item>
+        <el-menu-item index="/analytics" @click="openRoute('/analytics')">Метрики</el-menu-item>
+        <el-menu-item index="/jobs" @click="openRoute('/jobs')">Задачи</el-menu-item>
+      </el-sub-menu>
     </el-menu>
   </el-drawer>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Coin, DataAnalysis, House, Key, Menu, OfficeBuilding, Search, Tickets, User } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { DataAnalysis, Key, Menu, Search, Tickets, User } from '@element-plus/icons-vue'
 import IconExit from '@/components/icons/IconExit.vue'
 import IconRoute from '@/components/icons/IconRoute.vue'
 import { useAuthStore } from '@/stores/authStore.ts'
 
+const route = useRoute()
 const router = useRouter()
 const search = ref('')
 const menuToggled = ref(false)
 const authStore = useAuthStore()
+
+const activeMenuIndex = computed(() => {
+  if (route.path.startsWith('/products')) return '/products'
+  return route.path
+})
 
 function openRoute(path: string) {
   menuToggled.value = false

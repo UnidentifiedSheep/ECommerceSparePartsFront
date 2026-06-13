@@ -10,6 +10,7 @@ import ProductDetailsView from '@/views/ProductDetailsView.vue'
 import ProductsView from '@/views/ProductsView.vue'
 import ProducersView from '@/views/ProducersView.vue'
 import PurchasesView from '@/views/PurchasesView.vue'
+import SalesView from '@/views/SalesView.vue'
 import StoragesView from '@/views/StoragesView.vue'
 import TransactionsView from '@/views/TransactionsView.vue'
 import UsersView from '@/views/UsersView.vue'
@@ -42,6 +43,12 @@ const routes = [
         path: '/purchases',
         name: 'purchases',
         component: PurchasesView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/sales',
+        name: 'sales',
+        component: SalesView,
         meta: { requiresAuth: true },
       },
       {
