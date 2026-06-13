@@ -342,7 +342,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import UserSelector from '@/components/selectors/UserSelector.vue'
@@ -350,6 +350,7 @@ import CreateTransactionDialog from '@/components/transactions/CreateTransaction
 import type { UserModel } from '@/models/userModel.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
+import { getUserFullInfo } from '@/services/api/users.ts'
 import {
   deleteBalanceTransaction,
   getBalanceTransactions,
@@ -365,6 +366,7 @@ import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 
 const pageSize = 100
+const route = useRoute()
 const router = useRouter()
 const { hasPermission } = usePermissions()
 
@@ -381,6 +383,8 @@ const sender = ref<UserModel | undefined>()
 const receiver = ref<UserModel | undefined>()
 const canLoadMore = ref(false)
 const dateRange = ref<[string, string]>(defaultDateRange())
+const isApplyingRouteQuery = ref(false)
+const isSyncingRouteQuery = ref(false)
 
 const filters = reactive({
   currencyId: null as number | null,
@@ -414,7 +418,11 @@ const reloadTransactionsDebounced = useDebounceFn(async () => {
 }, 250)
 
 onMounted(async () => {
+  await applyFiltersFromQuery()
   await loadCurrencies()
+  if (hasSelectedUserFilter.value) {
+    await reloadTransactions()
+  }
 })
 
 async function loadCurrencies() {
@@ -499,6 +507,120 @@ function resetFilters() {
   receiver.value = undefined
   transactions.value = []
   canLoadMore.value = false
+}
+
+async function applyFiltersFromQuery() {
+  isApplyingRouteQuery.value = true
+  try {
+    const query = route.query
+    const nextRange = parseDateRangeQuery(query.from, query.to)
+    dateRange.value = nextRange ?? defaultDateRange()
+
+    filters.currencyId = parsePositiveIntegerQuery(query.currencyId)
+    filters.logicalOperator = parseLogicalOperatorQuery(query.operator)
+    filters.skipReversed = parseBooleanQuery(query.showReversed) !== true
+
+    const senderId = firstQueryValue(query.senderId)
+    const receiverId = firstQueryValue(query.receiverId)
+
+    const [nextSender, nextReceiver] = await Promise.all([
+      loadUserById(senderId),
+      filters.logicalOperator === 'And' ? loadUserById(receiverId) : Promise.resolve(undefined),
+    ])
+
+    sender.value = nextSender
+    receiver.value = filters.logicalOperator === 'And' ? nextReceiver : undefined
+  } finally {
+    isApplyingRouteQuery.value = false
+  }
+}
+
+async function loadUserById(userId?: string) {
+  if (!userId) return undefined
+
+  try {
+    const response = await getUserFullInfo(userId)
+    return response.user
+  } catch {
+    return undefined
+  }
+}
+
+function parseDateRangeQuery(from: unknown, to: unknown): [string, string] | null {
+  const rangeStart = firstQueryValue(from)
+  const rangeEnd = firstQueryValue(to)
+  if (!rangeStart || !rangeEnd || !isDateInputValue(rangeStart) || !isDateInputValue(rangeEnd)) return null
+  return [rangeStart, rangeEnd]
+}
+
+function parsePositiveIntegerQuery(value: unknown) {
+  const rawValue = firstQueryValue(value)
+  if (!rawValue) return null
+
+  const parsed = Number(rawValue)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+function parseLogicalOperatorQuery(value: unknown): TransactionLogicalOperator {
+  return firstQueryValue(value) === 'Or' ? 'Or' : 'And'
+}
+
+function parseBooleanQuery(value: unknown) {
+  const rawValue = firstQueryValue(value)
+  if (rawValue === 'true') return true
+  if (rawValue === 'false') return false
+  return undefined
+}
+
+function firstQueryValue(value: unknown) {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : undefined
+  return typeof value === 'string' ? value : undefined
+}
+
+function isDateInputValue(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+async function syncFiltersToQuery() {
+  const defaultRange = defaultDateRange()
+  const nextQuery: Record<string, string> = {}
+  const hasCustomDateRange = dateRange.value[0] !== defaultRange[0] || dateRange.value[1] !== defaultRange[1]
+
+  if (hasCustomDateRange && dateRange.value[0] && dateRange.value[1]) {
+    nextQuery.from = dateRange.value[0]
+    nextQuery.to = dateRange.value[1]
+  }
+  if (filters.currencyId) nextQuery.currencyId = String(filters.currencyId)
+  if (filters.logicalOperator !== 'And') nextQuery.operator = filters.logicalOperator
+  if (!filters.skipReversed) nextQuery.showReversed = 'true'
+  if (sender.value?.id) nextQuery.senderId = sender.value.id
+  if (filters.logicalOperator === 'And' && receiver.value?.id) nextQuery.receiverId = receiver.value.id
+
+  if (isSameQuery(route.query, nextQuery)) return
+
+  isSyncingRouteQuery.value = true
+  try {
+    await router.replace({
+      name: 'transactions',
+      query: nextQuery,
+    })
+  } finally {
+    isSyncingRouteQuery.value = false
+  }
+}
+
+function isSameQuery(currentQuery: Record<string, unknown>, nextQuery: Record<string, string>) {
+  const currentEntries: Array<[string, string]> = []
+  Object.entries(currentQuery).forEach(([key, value]) => {
+    const queryValue = firstQueryValue(value)
+    if (queryValue !== undefined) {
+      currentEntries.push([key, queryValue])
+    }
+  })
+
+  if (currentEntries.length !== Object.keys(nextQuery).length) return false
+
+  return currentEntries.every(([key, value]) => nextQuery[key] === value)
 }
 
 function selectTransaction(transaction: BalanceTransactionModel) {
@@ -762,6 +884,10 @@ watch(
     receiver.value?.id,
   ],
   async () => {
+    if (isApplyingRouteQuery.value) return
+
+    await syncFiltersToQuery()
+
     if (!hasSelectedUserFilter.value) {
       transactions.value = []
       canLoadMore.value = false
@@ -771,6 +897,20 @@ watch(
     await reloadTransactionsDebounced()
   },
 )
+
+watch(() => route.query, async () => {
+  if (isApplyingRouteQuery.value || isSyncingRouteQuery.value) return
+
+  await applyFiltersFromQuery()
+
+  if (hasSelectedUserFilter.value) {
+    await reloadTransactions()
+    return
+  }
+
+  transactions.value = []
+  canLoadMore.value = false
+})
 </script>
 
 <style scoped>
