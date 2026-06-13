@@ -168,9 +168,29 @@
                     {{ formatCurrency(row.totalSum, row.currency.currencySign) }}
                   </template>
                 </el-table-column>
-                <el-table-column fixed="right" label="Действия" min-width="110">
+                <el-table-column
+                  v-if="canEditPurchases || canDeletePurchases"
+                  fixed="right"
+                  label="Действия"
+                  min-width="180"
+                >
                   <template #default="{ row }">
-                    <el-button size="small" type="danger" @click="removePurchase(row.id)">Удалить</el-button>
+                    <el-button
+                      v-if="canEditPurchases"
+                      size="small"
+                      :loading="editPurchaseLoadingId === row.id"
+                      @click.stop="openEditPurchase(row)"
+                    >
+                      Изменить
+                    </el-button>
+                    <el-button
+                      v-if="canDeletePurchases"
+                      size="small"
+                      type="danger"
+                      @click.stop="removePurchase(row.id)"
+                    >
+                      Удалить
+                    </el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -197,6 +217,15 @@
       @created="onPurchaseCreated"
     />
 
+    <EditPurchaseDialog
+      v-model="editPurchaseDialogOpen"
+      :purchase="selectedPurchase"
+      :content="purchaseContent"
+      :currencies="currencies"
+      :storages="storages"
+      @updated="onPurchaseUpdated"
+    />
+
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProductFilter" />
   </div>
 </template>
@@ -208,6 +237,7 @@ import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
 import CreatePurchaseDialog from '@/components/purchases/CreatePurchaseDialog.vue'
+import EditPurchaseDialog from '@/components/purchases/EditPurchaseDialog.vue'
 import PurchaseDetails from '@/components/purchases/PurchaseDetails.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
@@ -241,10 +271,14 @@ const hasNext = ref(false)
 const purchasesLoading = ref(false)
 const contentLoading = ref(false)
 const createPurchaseDialogOpen = ref(false)
+const editPurchaseDialogOpen = ref(false)
+const editPurchaseLoadingId = ref<string>()
 const productSelectorOpen = ref(false)
 const filtersDrawerOpen = ref(false)
 const { hasPermission } = usePermissions()
 const canCreatePurchases = computed(() => hasPermission('PURCHASE_CREATE'))
+const canEditPurchases = computed(() => hasPermission('PURCHASE_EDIT'))
+const canDeletePurchases = computed(() => hasPermission('PURCHASE_DELETE'))
 const activeFiltersCount = computed(() => (
   selectedSuppliers.value.length
   + currencyIds.value.length
@@ -387,6 +421,18 @@ async function selectPurchase(purchase?: PurchaseModel) {
   }
 }
 
+async function openEditPurchase(purchase: PurchaseModel) {
+  if (editPurchaseLoadingId.value) return
+
+  editPurchaseLoadingId.value = purchase.id
+  try {
+    await selectPurchase(purchase)
+    editPurchaseDialogOpen.value = true
+  } finally {
+    editPurchaseLoadingId.value = undefined
+  }
+}
+
 async function selectPurchaseFromRoute() {
   const purchaseId = typeof route.query.purchaseId === 'string' ? route.query.purchaseId : undefined
   if (!purchaseId) return
@@ -429,6 +475,19 @@ async function onPurchaseCreated(purchase: PurchaseModel) {
   if (createdPurchase) {
     await selectPurchase(createdPurchase)
   }
+}
+
+async function onPurchaseUpdated(purchaseId: string) {
+  await loadPurchases(false)
+
+  const updatedPurchase = purchases.value.find((item) => item.id === purchaseId)
+  if (updatedPurchase) {
+    await selectPurchase(updatedPurchase)
+    return
+  }
+
+  selectedPurchase.value = undefined
+  purchaseContent.value = []
 }
 
 watch(limit, async () => loadPurchases(true))

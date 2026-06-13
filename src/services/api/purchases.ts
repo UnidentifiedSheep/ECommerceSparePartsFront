@@ -70,6 +70,10 @@ export interface NewPurchaseContentRequest {
   comment?: string | null
 }
 
+export interface EditPurchaseContentRequest extends NewPurchaseContentRequest {
+  id?: number | null
+}
+
 export interface CreatePurchaseRequest {
   supplierId: string
   currencyId: number
@@ -79,6 +83,15 @@ export interface CreatePurchaseRequest {
   withLogistics: boolean
   comment?: string | null
   payedSum?: number | null
+  storageFrom?: string | null
+}
+
+export interface EditPurchaseRequest {
+  content: EditPurchaseContentRequest[]
+  currencyId: number
+  comment?: string | null
+  purchaseDateTime: string
+  withLogistics: boolean
   storageFrom?: string | null
 }
 
@@ -159,4 +172,11 @@ export async function createPurchase(req: CreatePurchaseRequest): Promise<Create
   return {
     purchase: mapPurchaseModel(resp.data.purchase),
   }
+}
+
+export async function editPurchase(id: string, req: EditPurchaseRequest) {
+  await api.put(`/main/purchases/${id}`, {
+    ...req,
+    purchaseDateTime: toUtcDateTimeString(req.purchaseDateTime),
+  })
 }
