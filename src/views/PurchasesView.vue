@@ -28,7 +28,7 @@
         v-model="filtersDrawerOpen"
         title="Фильтры закупок"
         direction="rtl"
-        size="440px"
+        size="min(440px, 100vw)"
         class="purchase-filters-drawer"
       >
         <div class="drawer-content">

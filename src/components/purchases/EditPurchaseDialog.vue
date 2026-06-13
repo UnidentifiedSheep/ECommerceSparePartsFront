@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="isOpen"
-    width="1280"
+    width="min(1280px, calc(100vw - 32px))"
     top="4vh"
     class="edit-purchase-dialog"
     :show-close="false"

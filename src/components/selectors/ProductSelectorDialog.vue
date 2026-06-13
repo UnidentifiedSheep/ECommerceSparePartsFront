@@ -1,7 +1,12 @@
 <template>
-  <el-dialog v-model="isOpen" title="Выбор товара" width="920">
+  <el-dialog
+    v-model="isOpen"
+    title="Выбор товара"
+    width="min(920px, calc(100vw - 24px))"
+    class="product-selector-dialog"
+  >
     <div class="space-y-3">
-      <div class="grid grid-cols-[minmax(260px,1fr)_260px] items-end gap-3">
+      <div class="grid grid-cols-1 items-end gap-3 md:grid-cols-[minmax(260px,1fr)_260px]">
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-700">Поиск</label>
           <el-input
@@ -22,7 +27,7 @@
         v-loading="isLoading"
         :data="products"
         stripe
-        height="420"
+        height="min(420px, calc(100dvh - 280px))"
         empty-text="Товары не найдены"
         @row-dblclick="selectProduct"
       >
@@ -147,3 +152,27 @@ onMounted(async () => {
   if (isOpen.value) await loadProducts(true)
 })
 </script>
+
+<style scoped>
+:deep(.product-selector-dialog .el-dialog__header) {
+  padding: 18px 20px 12px;
+}
+
+:deep(.product-selector-dialog .el-dialog__body) {
+  padding: 12px 20px 20px;
+}
+
+@media (max-width: 640px) {
+  :deep(.product-selector-dialog) {
+    margin-top: 12px;
+  }
+
+  :deep(.product-selector-dialog .el-dialog__header) {
+    padding: 14px 14px 10px;
+  }
+
+  :deep(.product-selector-dialog .el-dialog__body) {
+    padding: 10px 14px 14px;
+  }
+}
+</style>

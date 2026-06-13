@@ -236,7 +236,7 @@
     <el-drawer
       v-model="detailsOpen"
       direction="rtl"
-      size="420px"
+      size="min(420px, 100vw)"
       :with-header="false"
       class="transaction-drawer"
     >
@@ -1231,6 +1231,42 @@ watch(() => route.query, async () => {
 
   .transactions-summary {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .transactions-page {
+    padding: 12px;
+  }
+
+  .transactions-header,
+  .transactions-filters,
+  .transactions-content {
+    padding: 14px;
+  }
+
+  .transactions-header h1 {
+    font-size: 22px;
+  }
+
+  .transactions-header,
+  .filter-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: stretch;
+  }
+
+  .header-actions :deep(.el-button) {
+    flex: 1;
+  }
+
+  .filter-actions :deep(.el-button),
+  .table-footer :deep(.el-button) {
+    width: 100%;
+    margin-left: 0;
   }
 }
 </style>

@@ -489,10 +489,85 @@
 }
 
 @media (max-width: 760px) {
+  .dialog-heading {
+    gap: 12px;
+  }
+
+  .dialog-heading h2 {
+    font-size: 20px;
+  }
+
+  .dialog-heading p {
+    font-size: 13px;
+  }
+
+  .sale-dialog-body {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .sale-section {
+    padding: 14px;
+  }
+
+  .section-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .empty-items {
+    padding: 28px 14px;
+  }
+
+  .sale-item {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .item-product {
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .item-index {
+    width: 26px;
+    height: 26px;
+  }
+
   .form-grid,
   .item-controls,
   .item-footer {
     grid-template-columns: 1fr;
+  }
+
+  .discount-control {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .discount-mode {
+    display: flex;
+    width: 100%;
+  }
+
+  .discount-mode :deep(.el-radio-button) {
+    flex: 1;
+  }
+
+  .discount-mode :deep(.el-radio-button__inner) {
+    width: 100%;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .remove-item-button {
+    justify-self: stretch;
+  }
+
+  .remove-item-button :deep(.el-button) {
+    width: 100%;
   }
 
   .span-3,
@@ -508,6 +583,52 @@
   }
 
   .footer-actions {
-    justify-content: flex-end;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .footer-actions :deep(.el-button) {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  :deep(.create-sale-dialog) {
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+
+  :deep(.create-sale-dialog .el-dialog__header) {
+    padding: 16px 16px 14px;
+  }
+
+  :deep(.create-sale-dialog .el-dialog__body) {
+    max-height: calc(100dvh - 154px);
+  }
+
+  :deep(.create-sale-dialog .el-dialog__footer) {
+    padding: 14px 16px 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  .summary-total {
+    padding: 14px;
+  }
+
+  .summary-total strong {
+    font-size: 20px;
+  }
+
+  .summary-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-step {
+    font-size: 12px;
+  }
+
+  .item-footer {
+    gap: 8px;
   }
 }

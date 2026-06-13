@@ -31,7 +31,7 @@
     </div>
   </header>
 
-  <el-drawer v-model="menuToggled" direction="ltr" size="280px" :with-header="false">
+  <el-drawer v-model="menuToggled" direction="ltr" size="min(280px, 88vw)" :with-header="false">
     <el-menu
       :default-active="activeMenuIndex"
       background-color="#1f2937"

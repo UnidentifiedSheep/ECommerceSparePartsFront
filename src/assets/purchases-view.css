@@ -181,6 +181,63 @@
   }
 }
 
+@media (max-width: 720px) {
+  .purchases-header,
+  .purchases-toolbar,
+  .panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .purchases-header {
+    padding: 16px 14px;
+  }
+
+  .purchases-header h1 {
+    font-size: 22px;
+  }
+
+  .purchases-content {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .purchases-toolbar,
+  .purchases-list-panel {
+    padding: 14px;
+  }
+
+  .toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .toolbar-actions :deep(.el-badge),
+  .toolbar-actions :deep(.el-button) {
+    width: 100%;
+  }
+
+  .purchases-list-panel {
+    height: 620px;
+  }
+
+  .drawer-body {
+    padding: 10px 14px 18px;
+  }
+
+  .drawer-footer {
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 12px 14px;
+  }
+
+  .drawer-footer :deep(.el-button) {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
 :deep(.purchase-filters-drawer .el-drawer__header) {
   margin-bottom: 0;
   border-bottom: 1px solid #e2e8f0;

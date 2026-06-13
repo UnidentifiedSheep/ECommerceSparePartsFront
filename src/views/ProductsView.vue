@@ -63,7 +63,7 @@
       <el-drawer
         v-model="filtersDrawerOpen"
         title="Фильтры товаров"
-        size="440px"
+        size="min(440px, 100vw)"
         class="product-filters-drawer"
       >
         <div class="flex h-full flex-col">
@@ -538,5 +538,19 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+@media (max-width: 640px) {
+  :deep(.product-filters-drawer .el-drawer__header) {
+    padding: 16px 14px 12px;
+  }
+
+  :deep(.product-filters-drawer .el-drawer__body) {
+    padding: 0;
+  }
+
+  :deep(.product-filters-drawer .el-drawer__footer) {
+    padding: 12px 14px;
+  }
 }
 </style>
