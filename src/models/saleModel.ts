@@ -32,7 +32,7 @@ export interface SaleContentDetailModel {
   id: number
   saleContentId: number
   storageContentId: number
-  currencyId: number
+  currency: CurrencyModel
   buyPrice: number
   count: number
   purchaseDatetime: string

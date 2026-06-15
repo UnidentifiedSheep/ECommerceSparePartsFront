@@ -43,8 +43,9 @@ export interface GetSalesRequest {
   rangeEndDate: string
   page: number
   limit: number
-  buyerId?: string
-  currencyId?: number
+  buyerIds?: string[]
+  currencyIds?: number[]
+  productIds?: number[]
   sortBy?: string
   searchTerm?: string
 }
@@ -76,13 +77,24 @@ export async function createSale(req: CreateSaleRequest): Promise<CreateSaleResp
 }
 
 export async function getSales(req: GetSalesRequest): Promise<GetSalesResponse> {
+  const params = new URLSearchParams()
+  const appendParam = (key: string, value: unknown) => {
+    if (value === undefined || value === null || value === '') return
+    params.append(key, String(value))
+  }
+
+  appendParam('rangeStartDate', toUtcDateTimeString(req.rangeStartDate))
+  appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
+  appendParam('page', req.page)
+  appendParam('limit', clampPageSize(req.limit))
+  req.buyerIds?.forEach((id) => appendParam('buyerIds', id))
+  req.currencyIds?.forEach((id) => appendParam('currencyIds', id))
+  req.productIds?.forEach((id) => appendParam('productIds', id))
+  appendParam('sortBy', req.sortBy)
+  appendParam('searchTerm', req.searchTerm)
+
   const resp = await api.get<{ sales: SaleDto[] }>('/main/sales', {
-    params: {
-      ...req,
-      rangeStartDate: toUtcDateTimeString(req.rangeStartDate),
-      rangeEndDate: toUtcDateTimeString(req.rangeEndDate),
-      limit: clampPageSize(req.limit),
-    },
+    params,
   })
 
   return {
@@ -91,6 +103,8 @@ export async function getSales(req: GetSalesRequest): Promise<GetSalesResponse> 
 }
 
 export async function getSaleContent(id: string): Promise<GetSaleContentResponse> {
-  const resp = await api.get<GetSaleContentResponse>(`/main/sales/${id}/content`)
-  return resp.data
+  const resp = await api.get<GetSaleContentResponse>(`/main/sales/${id}/contents`)
+  return {
+    content: resp.data.content ?? [],
+  }
 }

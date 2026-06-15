@@ -186,9 +186,12 @@
                       <span :class="stockColorClass(item.product?.stock ?? 0)">
                         Доступно: {{ (item.product?.stock ?? 0).toLocaleString('ru-RU') }}
                       </span>
+                      <span v-if="item.product">
+                        Выбрано: {{ selectedProductCount(item).toLocaleString('ru-RU') }}
+                      </span>
                     </div>
                     <div v-if="hasStockError(item)" class="stock-error">
-                      Нельзя продать больше доступного остатка
+                      Суммарно по этому товару выбрано больше доступного остатка
                     </div>
                   </div>
                 </div>
@@ -199,7 +202,7 @@
                     <el-input-number
                       v-model="item.count"
                       :min="1"
-                      :max="availableStock(item)"
+                      :max="availableStockForItem(item)"
                       :precision="0"
                       :controls="false"
                       class="w-full"
@@ -386,7 +389,7 @@ const canSave = computed(() => (
   && form.items.every((item) => (
     item.product
     && item.count > 0
-    && item.count <= availableStock(item)
+    && !hasStockError(item)
     && item.price > 0
     && effectivePriceWithDiscount(item) > 0
     && effectivePriceWithDiscount(item) <= item.price
@@ -414,9 +417,9 @@ function addProduct(product: ProductSearchModel) {
     return
   }
 
-  const existing = form.items.find((item) => item.product?.id === product.id)
-  if (existing) {
-    existing.count = Math.min(existing.count + 1, product.stock)
+  const selectedCount = selectedProductCountById(product.id)
+  if (selectedCount >= product.stock) {
+    ElMessage.warning('В продажу уже добавлен весь доступный остаток этого товара')
     return
   }
 
@@ -498,12 +501,33 @@ function resetSaleDiscount() {
   applyDiscountModesToItems()
 }
 
-function availableStock(item: SaleItemForm) {
-  return item.product?.stock ?? 0
+function selectedProductCount(item: SaleItemForm) {
+  const productId = item.product?.id
+  return productId ? selectedProductCountById(productId) : item.count
+}
+
+function selectedProductCountById(productId: number) {
+  return form.items.reduce((sum, item) => (
+    item.product?.id === productId ? sum + item.count : sum
+  ), 0)
+}
+
+function otherItemsProductCount(item: SaleItemForm) {
+  const productId = item.product?.id
+  if (!productId) return 0
+
+  return form.items.reduce((sum, current) => (
+    current !== item && current.product?.id === productId ? sum + current.count : sum
+  ), 0)
+}
+
+function availableStockForItem(item: SaleItemForm) {
+  const stock = item.product?.stock ?? 0
+  return Math.max(stock - otherItemsProductCount(item), 0)
 }
 
 function hasStockError(item: SaleItemForm) {
-  return item.count > availableStock(item)
+  return item.count > availableStockForItem(item)
 }
 
 function stockColorClass(stock: number) {
