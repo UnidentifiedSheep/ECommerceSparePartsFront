@@ -52,6 +52,7 @@
 
         <el-menu-item index="/purchases" @click="openRoute('/purchases')">Закупки</el-menu-item>
         <el-menu-item index="/sales" @click="openRoute('/sales')">Продажи</el-menu-item>
+        <el-menu-item index="/reservations" @click="openRoute('/reservations')">Резервации</el-menu-item>
         <el-menu-item index="/transactions" @click="openRoute('/transactions')">Транзакции</el-menu-item>
       </el-sub-menu>
 

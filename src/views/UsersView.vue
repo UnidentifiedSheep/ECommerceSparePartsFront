@@ -82,6 +82,20 @@
                       </div>
                       <div class="mt-1 text-sm text-slate-500">{{ selectedUser.userName }}</div>
                     </div>
+                    <el-dropdown trigger="click" @command="handleUserAction">
+                      <el-button :icon="MoreFilled" circle plain />
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item
+                            v-if="canViewProductReservations"
+                            command="reservations"
+                            :icon="View"
+                          >
+                            Посмотреть резервации
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
                 </div>
 
@@ -307,6 +321,13 @@
         <el-button type="primary" @click="saveDiscount">Сохранить</el-button>
       </template>
     </el-dialog>
+
+    <ProductReservationsDialog
+      v-if="selectedUser && canViewProductReservations"
+      v-model="reservationsDialogOpen"
+      :user-id="selectedUser.id"
+      :title="`Резервации: ${selectedUser.surname} ${selectedUser.name}`"
+    />
   </div>
 </template>
 
@@ -316,7 +337,9 @@ import type { TableInstance } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
+import { MoreFilled, View } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
@@ -349,6 +372,7 @@ const route = useRoute()
 const router = useRouter()
 const { hasPermission } = usePermissions()
 const canCreateUsers = computed(() => hasPermission('USERS_CREATE'))
+const canViewProductReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
 const selectedUser = ref<UserModel>()
 const searchTerm = ref<string>()
 const selectedRoleFilters = ref<string[]>([])
@@ -368,6 +392,7 @@ const allStorages = ref<StorageModel[]>([])
 const storageDialogOpen = ref(false)
 const storageToAttach = ref<string>()
 const discountDialogOpen = ref(false)
+const reservationsDialogOpen = ref(false)
 const discountFormValue = ref<number>(0)
 const createUserDialogOpen = ref(false)
 const rolesLoading = ref(false)
@@ -688,6 +713,12 @@ function openPermission(permission: string) {
     name: 'permissions',
     query: { search: permission },
   })
+}
+
+function handleUserAction(command: string) {
+  if (command === 'reservations') {
+    reservationsDialogOpen.value = true
+  }
 }
 
 async function attachStorage() {

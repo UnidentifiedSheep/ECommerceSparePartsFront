@@ -16,10 +16,24 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <el-button v-if="product && canEditProduct" plain @click="editDialogOpen = true">Редактировать</el-button>
-          <el-button v-if="canCreateCrosses" type="primary" @click="crossDialogOpen = true">Добавить кроссы</el-button>
           <el-button :icon="ArrowLeft" @click="router.push({ name: 'products' })">Назад</el-button>
-          <el-button :icon="Refresh" :loading="isLoading" plain @click="loadDetails">Обновить</el-button>
+          <el-dropdown trigger="click" @command="handleProductAction">
+            <el-button :icon="MoreFilled" circle plain />
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="refresh" :icon="Refresh">Обновить</el-dropdown-item>
+                <el-dropdown-item v-if="product && canEditProduct" command="edit" :icon="Edit">Редактировать</el-dropdown-item>
+                <el-dropdown-item v-if="canCreateCrosses" command="crosses" :icon="Plus">Добавить кроссы</el-dropdown-item>
+                <el-dropdown-item
+                  v-if="product && canViewProductReservations"
+                  command="reservations"
+                  :icon="View"
+                >
+                  Посмотреть резервации
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
     </header>
@@ -258,6 +272,7 @@
                   </div>
                 </el-collapse-item>
               </el-collapse>
+
             </div>
           </template>
 
@@ -359,6 +374,12 @@
       v-model="editDialogOpen"
       :product="product"
       @saved="loadDetails"
+    />
+    <ProductReservationsDialog
+      v-if="product && canViewProductReservations"
+      v-model="reservationsDialogOpen"
+      :product-id="product.id"
+      :title="`Резервации: ${product.sku}`"
     />
 
     <el-dialog v-model="addStorageContentDialogOpen" title="Добавить остаток на склад" width="520">
@@ -486,12 +507,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Delete, Edit, Plus, Refresh, Upload, View } from '@element-plus/icons-vue'
+import { ArrowLeft, Delete, Edit, MoreFilled, Plus, Refresh, Upload, View } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import type { CarouselInstance } from 'element-plus'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
 import ProductEditDialog from '@/components/products/ProductEditDialog.vue'
+import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import ProductSizeDialog from '@/components/products/ProductSizeDialog.vue'
 import ProductWeightDialog from '@/components/products/ProductWeightDialog.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
@@ -542,6 +564,7 @@ const deletingImage = ref<string | null>(null)
 const sizeDialogOpen = ref(false)
 const weightDialogOpen = ref(false)
 const editDialogOpen = ref(false)
+const reservationsDialogOpen = ref(false)
 const addStorageContentDialogOpen = ref(false)
 const editStorageContentDialogOpen = ref(false)
 const editingStorageContent = ref<StorageContentModel>()
@@ -551,6 +574,7 @@ const canCreateCrosses = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
 const canAddImages = computed(() => hasPermission('ARTICLE_IMAGES_CREATE'))
 const canDeleteImages = computed(() => hasPermission('ARTICLE_IMAGES_DELETE'))
 const canViewStorageContent = computed(() => hasPermission('STORAGES_CONTENT_GET_ALL'))
+const canViewProductReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
 const canCreateStorageContent = computed(() => hasPermission('STORAGES_CONTENT_CREATE'))
 const canEditStorageContent = computed(() => hasPermission('STORAGES_CONTENT_EDIT'))
 const canDeleteStorageContent = computed(() => hasPermission('STORAGES_CONTENT_DELETE'))
@@ -653,6 +677,23 @@ function openProduct(id: number) {
     name: 'product-details',
     params: { id },
   })
+}
+
+async function handleProductAction(command: string) {
+  switch (command) {
+    case 'refresh':
+      await loadDetails()
+      break
+    case 'edit':
+      editDialogOpen.value = true
+      break
+    case 'crosses':
+      crossDialogOpen.value = true
+      break
+    case 'reservations':
+      reservationsDialogOpen.value = true
+      break
+  }
 }
 
 function setGalleryIndex(index: number) {

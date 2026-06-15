@@ -1,4 +1,10 @@
 import type { ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
+import type {
+  EditProductReservationModel,
+  ProductReservationHistoryModel,
+  NewProductReservationModel,
+  ProductReservationModel,
+} from '@/models/productReservationModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
 export interface CreateProductRequestItem {
@@ -54,6 +60,37 @@ export interface GetProductWeightResponse {
   productWeight: ProductWeightModel
 }
 
+export interface GetProductReservationsRequest {
+  productId?: number
+  userId?: string
+  showDeleted?: boolean
+  page: number
+  size: number
+  sortBy?: string
+}
+
+export interface GetProductReservationsResponse {
+  reservations: ProductReservationModel[]
+}
+
+export interface CreateProductReservationRequest {
+  reservation: NewProductReservationModel
+}
+
+export interface CreateProductReservationResponse {
+  reservation: ProductReservationModel
+}
+
+export interface GetProductReservationHistoryRequest {
+  reservationId: number
+  page: number
+  size: number
+}
+
+export interface GetProductReservationHistoryResponse {
+  history: ProductReservationHistoryModel[]
+}
+
 export type DimensionUnit = 0 | 1 | 2
 export type WeightUnit = 0 | 1 | 2
 
@@ -96,6 +133,49 @@ export async function getProductCrosses(req: GetProductCrossesRequest): Promise<
       page: req.page,
       size: clampPageSize(req.size),
       sortBy: req.sortBy,
+    },
+  })
+
+  return resp.data
+}
+
+export async function getProductReservations(req: GetProductReservationsRequest): Promise<GetProductReservationsResponse> {
+  const resp = await api.get<GetProductReservationsResponse>('/main/products/reservations', {
+    params: {
+      productId: req.productId,
+      userId: req.userId,
+      showDeleted: req.showDeleted,
+      page: req.page,
+      size: clampPageSize(req.size),
+      sortBy: req.sortBy,
+    },
+  })
+
+  return resp.data
+}
+
+export async function createProductReservation(req: CreateProductReservationRequest): Promise<CreateProductReservationResponse> {
+  const resp = await api.post<CreateProductReservationResponse>('/main/products/reservations', req)
+  return resp.data
+}
+
+export async function editProductReservation(reservationId: number, newValue: EditProductReservationModel): Promise<void> {
+  await api.put(`/main/products/reservations/${reservationId}`, {
+    newValue,
+  })
+}
+
+export async function deleteProductReservation(reservationId: number): Promise<void> {
+  await api.delete(`/main/products/reservations/${reservationId}`)
+}
+
+export async function getProductReservationHistory(
+  req: GetProductReservationHistoryRequest,
+): Promise<GetProductReservationHistoryResponse> {
+  const resp = await api.get<GetProductReservationHistoryResponse>(`/main/products/reservations/${req.reservationId}/history`, {
+    params: {
+      page: req.page,
+      size: clampPageSize(req.size),
     },
   })
 
