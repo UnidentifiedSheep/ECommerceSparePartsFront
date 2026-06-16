@@ -73,7 +73,7 @@
                     <el-table-column prop="whereUsed" label="Где используется" min-width="180" />
                     <el-table-column fixed="right" label="Действия" min-width="120">
                       <template #default="{ row }">
-                        <el-button size="small" type="danger" @click="removeOtherName(row.otherName, row.whereUsed)">Удалить</el-button>
+                        <el-button size="small" type="danger" @click="removeOtherName(row.otherName)">Удалить</el-button>
                       </template>
                     </el-table-column>
                   </el-table>
@@ -334,13 +334,12 @@ async function saveOtherName() {
   await selectProducer(selectedProducer.value)
 }
 
-async function removeOtherName(otherName: string, whereUsed: string) {
+async function removeOtherName(otherName: string) {
   if (!selectedProducer.value) return
 
   await deleteProducerOtherName({
     producerId: selectedProducer.value.id,
     otherName,
-    usage: whereUsed,
   })
 
   ElNotification({

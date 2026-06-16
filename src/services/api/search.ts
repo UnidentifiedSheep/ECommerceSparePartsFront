@@ -14,6 +14,7 @@ export interface SearchProductsRequest {
   dimensionUnit?: string
   page: number
   size: number
+  sortBy?: string
 }
 
 export interface SearchProductsResponse {
@@ -35,6 +36,7 @@ export interface SearchProductsBySkuRequest {
   producerId?: number
   page: number
   size: number
+  sortBy?: string
 }
 
 export async function searchProducts(req: SearchProductsRequest): Promise<SearchProductsResponse> {

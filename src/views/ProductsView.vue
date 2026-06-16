@@ -150,22 +150,22 @@
           </div>
         </template>
 
-        <el-table v-loading="isLoading" :data="products" stripe>
-          <el-table-column prop="sku" label="Артикул" min-width="160" />
+        <el-table v-loading="isLoading" :data="products" stripe @sort-change="handleSortChange">
+          <el-table-column prop="sku" label="Артикул" min-width="160" sortable="custom" />
           <el-table-column prop="name" label="Название" min-width="260" />
-          <el-table-column label="Производитель" min-width="180">
+          <el-table-column prop="producerId" label="Производитель" min-width="180" sortable="custom">
             <template #default="{ row }">
               {{ producerName(row.producerId) }}
             </template>
           </el-table-column>
-          <el-table-column label="Остаток" min-width="120" align="right">
+          <el-table-column prop="stock" label="Остаток" min-width="120" align="right" sortable="custom">
             <template #default="{ row }">
               <span :class="stockColorClass(row.stock)">
                 {{ row.stock.toLocaleString('ru-RU') }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="Размеры" min-width="220">
+          <el-table-column prop="volume" label="Размеры" min-width="220" sortable="custom">
             <template #default="{ row }">
               <span v-if="row.dimensions">
                 {{ formatDimension(row.dimensions.length) }} ×
@@ -176,7 +176,7 @@
               <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="Вес" min-width="140">
+          <el-table-column prop="weight" label="Вес" min-width="140" sortable="custom">
             <template #default="{ row }">
               <span v-if="row.weight">{{ row.weight.value }} {{ weightMeasureUnitLabel(row.weight.unit, row.weight.value) }}</span>
               <span v-else class="text-slate-400">—</span>
@@ -238,6 +238,7 @@ const router = useRouter()
 const products = ref<ProductSearchModel[]>([])
 const page = ref(0)
 const size = ref(20)
+const sortBy = ref<string>()
 const hasNext = ref(false)
 const isLoading = ref(false)
 const producerNames = ref<Record<number, string>>({})
@@ -345,6 +346,7 @@ function syncFormFromRoute() {
   }
   page.value = queryNumber('page') ?? 0
   size.value = queryNumber('size') ?? 20
+  sortBy.value = queryString('sortBy')
 }
 
 function buildRouteQuery(resetPage: boolean) {
@@ -361,6 +363,7 @@ function buildRouteQuery(resetPage: boolean) {
     heightMin: useDimensionFilters ? form.heightMin : undefined,
     heightMax: useDimensionFilters ? form.heightMax : undefined,
     dimensionUnit: useDimensionFilters ? form.dimensionUnit || undefined : undefined,
+    sortBy: sortBy.value,
     page: resetPage ? 0 : page.value,
     size: size.value,
   }
@@ -389,6 +392,7 @@ async function resetFilters() {
   form.heightMin = undefined
   form.heightMax = undefined
   form.dimensionUnit = 'Meter'
+  sortBy.value = undefined
   filtersDrawerOpen.value = false
 
   await router.push({
@@ -421,6 +425,21 @@ function clearDimensionFilters() {
   form.dimensionUnit = 'Meter'
 }
 
+async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
+  if (!event.prop || !event.order) {
+    sortBy.value = undefined
+  } else {
+    sortBy.value = event.order === 'descending'
+      ? `${event.prop}_desc`
+      : event.prop
+  }
+
+  await router.push({
+    name: 'products',
+    query: buildRouteQuery(true),
+  })
+}
+
 async function loadProducts() {
   if (isLoading.value) return
 
@@ -434,6 +453,7 @@ async function loadProducts() {
             producerId: form.producerId,
             page: page.value,
             size: size.value,
+            sortBy: sortBy.value,
           })
         : { products: [] }
       : await searchProducts({
@@ -448,6 +468,7 @@ async function loadProducts() {
           dimensionUnit: form.dimensionUnit,
           page: page.value,
           size: size.value,
+          sortBy: sortBy.value,
         })
 
     products.value = resp.products

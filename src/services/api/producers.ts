@@ -59,7 +59,6 @@ export interface AddProducerOtherNameRequest {
 export interface DeleteProducerOtherNameRequest {
   producerId: number
   otherName: string
-  usage?: string
 }
 
 export async function getProducers(req: GetProducersRequest): Promise<GetProducersResponse> {
@@ -117,7 +116,5 @@ export async function addProducerOtherName(req: AddProducerOtherNameRequest) {
 }
 
 export async function deleteProducerOtherName(req: DeleteProducerOtherNameRequest) {
-  await api.delete(`/main/producers/${req.producerId}/names/${encodeURIComponent(req.otherName)}`, {
-    params: { usage: req.usage },
-  })
+  await api.delete(`/main/producers/${req.producerId}/names/${encodeURIComponent(req.otherName)}`)
 }
