@@ -18,6 +18,16 @@ export interface GetGatewayJobsResponse {
   services: Record<string, JobsServiceModel>
 }
 
+interface GatewayServiceJobsDto {
+  serviceName: string
+  available: boolean
+  jobs: JobDefinitionModel[]
+}
+
+interface GetAggregatedAvailableJobsResponse {
+  jobs: GatewayServiceJobsDto[]
+}
+
 export interface JobModel {
   id: string
   systemName: string
@@ -88,8 +98,18 @@ export interface ServiceJobDefinition {
 }
 
 export async function getGatewayJobs(): Promise<GetGatewayJobsResponse> {
-  const resp = await api.get<GetGatewayJobsResponse>('/jobs/available')
-  return resp.data
+  const resp = await api.get<GetAggregatedAvailableJobsResponse>('/jobs/available')
+  return {
+    services: Object.fromEntries(resp.data.jobs.map((service) => [
+      service.serviceName,
+      {
+        available: service.available,
+        statusCode: null,
+        jobs: service.jobs,
+        error: service.available ? null : 'Сервис недоступен',
+      },
+    ])),
+  }
 }
 
 export async function getServiceJobs(serviceKey: string, req: GetServiceJobsRequest): Promise<GetServiceJobsResponse> {
