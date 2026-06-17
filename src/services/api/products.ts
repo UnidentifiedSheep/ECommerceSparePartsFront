@@ -5,6 +5,7 @@ import type {
   NewProductReservationModel,
   ProductReservationModel,
 } from '@/models/productReservationModel.ts'
+import { mapUserModel, type UserDto } from '@/models/userModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
 export interface CreateProductRequestItem {
@@ -91,6 +92,13 @@ export interface GetProductReservationHistoryResponse {
   history: ProductReservationHistoryModel[]
 }
 
+interface ProductReservationDto extends Omit<ProductReservationModel, 'user'> {
+  user: {
+    partyType: string | number
+    user?: UserDto | null
+  }
+}
+
 export type DimensionUnit = 0 | 1 | 2
 export type WeightUnit = 0 | 1 | 2
 
@@ -118,6 +126,16 @@ function patchField<T>(value: T): PatchField<T> {
   }
 }
 
+function mapProductReservationModel(dto: ProductReservationDto): ProductReservationModel {
+  return {
+    ...dto,
+    user: {
+      partyType: dto.user.partyType,
+      user: dto.user.user ? mapUserModel(dto.user.user) : null,
+    },
+  }
+}
+
 export interface EditProductRequest {
   id: number
   sku?: string
@@ -140,7 +158,7 @@ export async function getProductCrosses(req: GetProductCrossesRequest): Promise<
 }
 
 export async function getProductReservations(req: GetProductReservationsRequest): Promise<GetProductReservationsResponse> {
-  const resp = await api.get<GetProductReservationsResponse>('/main/products/reservations', {
+  const resp = await api.get<{ reservations: ProductReservationDto[] }>('/main/products/reservations', {
     params: {
       productId: req.productId,
       userId: req.userId,
@@ -151,12 +169,16 @@ export async function getProductReservations(req: GetProductReservationsRequest)
     },
   })
 
-  return resp.data
+  return {
+    reservations: resp.data.reservations.map(mapProductReservationModel),
+  }
 }
 
 export async function createProductReservation(req: CreateProductReservationRequest): Promise<CreateProductReservationResponse> {
-  const resp = await api.post<CreateProductReservationResponse>('/main/products/reservations', req)
-  return resp.data
+  const resp = await api.post<{ reservation: ProductReservationDto }>('/main/products/reservations', req)
+  return {
+    reservation: mapProductReservationModel(resp.data.reservation),
+  }
 }
 
 export async function editProductReservation(reservationId: number, newValue: EditProductReservationModel): Promise<void> {

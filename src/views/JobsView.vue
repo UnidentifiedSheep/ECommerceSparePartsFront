@@ -29,7 +29,12 @@
       </div>
     </section>
 
-    <section class="jobs-workspace">
+    <el-tabs v-model="activeJobsTab" class="jobs-tabs">
+      <el-tab-pane label="Доступные задачи" name="available" />
+      <el-tab-pane label="Текущие задачи" name="current" />
+    </el-tabs>
+
+    <section v-if="activeJobsTab === 'available'" class="jobs-workspace">
       <aside class="jobs-filter-panel">
         <el-input
           v-model="searchQuery"
@@ -85,6 +90,145 @@
           </div>
         </div>
       </main>
+    </section>
+
+    <section v-else class="current-jobs-panel">
+      <div class="current-jobs-toolbar">
+        <el-select
+          v-model="selectedCurrentService"
+          placeholder="Выберите сервис"
+          class="current-service-select"
+        >
+          <el-option
+            v-for="service in serviceCards"
+            :key="service.key"
+            :disabled="!service.available"
+            :label="serviceLabel(service.key)"
+            :value="service.key"
+          />
+        </el-select>
+
+        <el-select
+          v-model="currentJobStatuses"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable
+          placeholder="Статусы"
+          class="current-status-select"
+        >
+          <el-option
+            v-for="status in jobStatusOptions"
+            :key="status.value"
+            :label="status.label"
+            :value="status.value"
+          />
+        </el-select>
+
+        <el-select
+          v-model="currentJobSystemNames"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable
+          filterable
+          placeholder="Системные имена"
+          class="current-system-select"
+        >
+          <el-option
+            v-for="job in currentServiceAvailableJobs"
+            :key="job.systemName"
+            :label="job.name"
+            :value="job.systemName"
+          >
+            <div class="job-option">
+              <span>{{ job.name }}</span>
+              <small>{{ job.systemName }}</small>
+            </div>
+          </el-option>
+        </el-select>
+
+        <el-button type="primary" :loading="isLoadingCurrentJobs" :disabled="!selectedCurrentService" @click="loadCurrentJobs(true)">
+          Обновить
+        </el-button>
+      </div>
+
+      <el-alert
+        v-if="!selectedCurrentService"
+        type="info"
+        :closable="false"
+        title="Выберите сервис, чтобы посмотреть его текущие задачи"
+        show-icon
+      />
+
+      <el-table
+        v-else
+        v-loading="isLoadingCurrentJobs"
+        :data="currentJobs"
+        border
+        class="current-jobs-table"
+        empty-text="Текущие задачи не найдены"
+        @sort-change="handleCurrentJobsSortChange"
+      >
+        <el-table-column prop="status" label="Статус" min-width="130" sortable="custom">
+          <template #default="{ row }: { row: JobModel }">
+            <el-tag :type="jobStatusTagType(row.status)" effect="light">
+              {{ jobStatusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Задача" min-width="260">
+          <template #default="{ row }: { row: JobModel }">
+            <div class="current-job-title">
+              <strong>{{ jobDefinitionName(row.systemName) }}</strong>
+              <span>{{ row.systemName }}</span>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Попытки" width="110">
+          <template #default="{ row }: { row: JobModel }">
+            {{ row.attempts }} / {{ row.maxAttempts }}
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="createdAt" label="Создана" min-width="170" sortable="custom">
+          <template #default="{ row }: { row: JobModel }">
+            {{ formatDateTime(row.createdAt) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="updatedAt" label="Обновлена" min-width="170" sortable="custom">
+          <template #default="{ row }: { row: JobModel }">
+            {{ formatDateTime(row.updatedAt) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Ошибка" min-width="220">
+          <template #default="{ row }: { row: JobModel }">
+            <span :class="row.errorMessage ? 'text-red-600' : 'text-slate-400'">
+              {{ row.errorMessage || '-' }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="" width="120" fixed="right">
+          <template #default="{ row }: { row: JobModel }">
+            <el-button plain size="small" :loading="loadingStateJobId === row.id" @click="openJobState(row)">
+              State
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="selectedCurrentService" class="current-jobs-footer">
+        <ZeroPagination
+          v-model:page="currentJobsPage"
+          v-model:size="currentJobsLimit"
+          :has-next="currentJobsHasNext"
+        />
+      </div>
     </section>
 
     <el-drawer
@@ -212,47 +356,107 @@
         </footer>
       </div>
     </el-drawer>
+
+    <el-dialog
+      v-model="stateDialogOpen"
+      title="State задачи"
+      width="min(900px, 94vw)"
+      destroy-on-close
+    >
+      <div v-if="selectedStateJob" class="state-dialog-meta">
+        <div>
+          <span>Задача</span>
+          <strong>{{ jobDefinitionName(selectedStateJob.systemName) }}</strong>
+          <small>{{ selectedStateJob.systemName }}</small>
+        </div>
+        <el-tag :type="jobStatusTagType(selectedStateJob.status)" effect="light">
+          {{ jobStatusLabel(selectedStateJob.status) }}
+        </el-tag>
+      </div>
+
+      <el-skeleton v-if="isLoadingJobState" :rows="8" animated />
+      <pre v-else class="state-preview">{{ formattedJobState }}</pre>
+
+      <template #footer>
+        <el-button @click="stateDialogOpen = false">Закрыть</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import type { HubConnection } from '@microsoft/signalr'
+import { ElMessage, ElNotification } from 'element-plus'
+import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import {
   createServiceJob,
   getGatewayJobs,
+  getServiceJobs,
+  getServiceJobState,
+  type JobDefinitionModel,
   type JobInitStateSchema,
+  type JobModel,
   type JobSchemaField,
+  type JobStatus,
+  type JobsServiceModel,
   type ServiceJobDefinition,
 } from '@/services/api/jobs.ts'
 import { getUploads, uploadFile, type UploadFileModel } from '@/services/api/uploads.ts'
+import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/jobHub.ts'
 
 interface ServiceCard {
   key: string
   available: boolean
-  statusCode: number
+  statusCode: number | null
   jobsCount: number
   error: string | null
 }
 
 const isLoadingJobs = ref(false)
 const isCreatingJob = ref(false)
+const isLoadingCurrentJobs = ref(false)
+const isLoadingJobState = ref(false)
 const isLoadingUploads = ref(false)
 const uploadingField = ref<string | null>(null)
 const uploadsCursor = ref<string | null>(null)
 const uploadsHasMore = ref(false)
 const drawerOpen = ref(false)
+const stateDialogOpen = ref(false)
+const activeJobsTab = ref<'available' | 'current'>('available')
 const searchQuery = ref('')
 const selectedService = ref<string | null>(null)
+const selectedCurrentService = ref<string | null>(null)
+const currentJobStatuses = ref<JobStatus[]>([])
+const currentJobSystemNames = ref<string[]>([])
+const currentJobsSortBy = ref('createdAt_desc')
+const currentJobsPage = ref(0)
+const currentJobsLimit = ref(20)
+const currentJobsHasNext = ref(false)
 const showUnavailable = ref(true)
 const selectedJob = ref<ServiceJobDefinition | null>(null)
 const schemaError = ref<string | null>(null)
 const schemaFields = ref<JobSchemaField[]>([])
 const maxAttempts = ref(3)
-const services = ref<Record<string, { available: boolean; statusCode: number; jobs: ServiceJobDefinition['job'][]; error: string | null }>>({})
+const services = ref<Record<string, JobsServiceModel>>({})
+const currentJobs = ref<JobModel[]>([])
+const selectedStateJob = ref<JobModel | null>(null)
+const jobState = ref('')
+const loadingStateJobId = ref<string | null>(null)
 const uploads = ref<UploadFileModel[]>([])
 const inputState = reactive<Record<string, string | number | boolean | null>>({})
 const fileInputRefs = new Map<string, HTMLInputElement>()
+let jobHubConnection: HubConnection | null = null
+let jobHubServiceKey: string | null = null
+
+const jobStatusOptions: Array<{ label: string; value: JobStatus }> = [
+  { label: 'Ожидает', value: 'Pending' },
+  { label: 'Заблокирована', value: 'Locked' },
+  { label: 'В работе', value: 'Processing' },
+  { label: 'Ошибка', value: 'Failed' },
+  { label: 'Выполнена', value: 'Succeeded' },
+  { label: 'Отменена', value: 'Cancelled' },
+]
 
 const serviceCards = computed<ServiceCard[]>(() => Object.entries(services.value).map(([key, service]) => ({
   key,
@@ -263,6 +467,21 @@ const serviceCards = computed<ServiceCard[]>(() => Object.entries(services.value
 })))
 
 const unavailableServices = computed(() => serviceCards.value.filter((service) => !service.available))
+
+const currentServiceAvailableJobs = computed<JobDefinitionModel[]>(() => {
+  if (!selectedCurrentService.value) return []
+  return services.value[selectedCurrentService.value]?.jobs ?? []
+})
+
+const formattedJobState = computed(() => {
+  if (!jobState.value) return 'State пустой'
+
+  try {
+    return JSON.stringify(JSON.parse(jobState.value), null, 2)
+  } catch {
+    return jobState.value
+  }
+})
 
 const allJobs = computed<ServiceJobDefinition[]>(() => Object.entries(services.value)
   .flatMap(([serviceKey, service]) => service.jobs.map((job) => ({
@@ -292,15 +511,87 @@ onMounted(async () => {
   await loadJobs()
 })
 
+onBeforeUnmount(async () => {
+  await stopJobHubConnection()
+})
+
+watch(activeJobsTab, async (tab) => {
+  if (tab === 'current') {
+    ensureCurrentServiceSelected()
+    await syncJobHubConnection()
+    await loadCurrentJobs(true)
+  } else {
+    await stopJobHubConnection()
+  }
+})
+
+watch(selectedCurrentService, async () => {
+  currentJobSystemNames.value = []
+  if (activeJobsTab.value === 'current') {
+    await syncJobHubConnection()
+    await loadCurrentJobs(true)
+  }
+})
+
+watch([currentJobStatuses, currentJobSystemNames, currentJobsSortBy], async () => {
+  if (activeJobsTab.value === 'current') {
+    await loadCurrentJobs(true)
+  }
+}, { deep: true })
+
+watch(currentJobsPage, async () => {
+  if (activeJobsTab.value === 'current') {
+    await loadCurrentJobs(false)
+  }
+})
+
+watch(currentJobsLimit, async () => {
+  if (activeJobsTab.value === 'current') {
+    await loadCurrentJobs(true)
+  }
+})
+
 async function loadJobs() {
   isLoadingJobs.value = true
   try {
     const response = await getGatewayJobs()
+    const previousCurrentService = selectedCurrentService.value
     services.value = response.services
+    ensureCurrentServiceSelected()
+    if (activeJobsTab.value === 'current' && previousCurrentService === selectedCurrentService.value) {
+      await loadCurrentJobs(true)
+    }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить задачи')
   } finally {
     isLoadingJobs.value = false
+  }
+}
+
+async function loadCurrentJobs(resetPage = false) {
+  if (!selectedCurrentService.value) return
+
+  if (resetPage) {
+    currentJobsPage.value = 0
+  }
+
+  isLoadingCurrentJobs.value = true
+  try {
+    const response = await getServiceJobs(selectedCurrentService.value, {
+      page: currentJobsPage.value,
+      size: currentJobsLimit.value,
+      statuses: currentJobStatuses.value,
+      systemNames: currentJobSystemNames.value,
+      sortBy: currentJobsSortBy.value,
+    })
+    currentJobs.value = response.jobs
+    currentJobsHasNext.value = response.jobs.length === currentJobsLimit.value
+  } catch (error) {
+    currentJobs.value = []
+    currentJobsHasNext.value = false
+    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить текущие задачи')
+  } finally {
+    isLoadingCurrentJobs.value = false
   }
 }
 
@@ -416,6 +707,8 @@ async function uploadSelectedFile(field: JobSchemaField, event: Event) {
 
 async function submitJob() {
   if (!selectedJob.value) return
+  const serviceKey = selectedJob.value.serviceKey
+  const systemName = selectedJob.value.job.systemName
 
   const missingField = schemaFields.value.find((field) => field.required && isEmptyValue(inputState[field.name]))
   if (missingField) {
@@ -425,18 +718,133 @@ async function submitJob() {
 
   isCreatingJob.value = true
   try {
-    await createServiceJob(selectedJob.value.serviceKey, {
-      systemName: selectedJob.value.job.systemName,
+    await createServiceJob(serviceKey, {
+      systemName,
       inputState: JSON.stringify(inputState),
       maxAttempts: maxAttempts.value,
     })
     ElMessage.success('Задача запущена')
     drawerOpen.value = false
+    if (selectedCurrentService.value === serviceKey) {
+      await loadCurrentJobs(true)
+    }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'Не удалось запустить задачу')
   } finally {
     isCreatingJob.value = false
   }
+}
+
+function ensureCurrentServiceSelected() {
+  if (selectedCurrentService.value && services.value[selectedCurrentService.value]?.available) return
+  selectedCurrentService.value = serviceCards.value.find((service) => service.available)?.key ?? null
+}
+
+async function syncJobHubConnection() {
+  const serviceKey = activeJobsTab.value === 'current'
+    ? selectedCurrentService.value
+    : null
+
+  if (!serviceKey) {
+    await stopJobHubConnection()
+    return
+  }
+
+  if (jobHubConnection && jobHubServiceKey === serviceKey) return
+
+  await stopJobHubConnection()
+
+  try {
+    jobHubConnection = await startJobHub(serviceKey, handleJobStatusUpdated)
+    jobHubServiceKey = serviceKey
+  } catch {
+    jobHubConnection = null
+    jobHubServiceKey = null
+    ElNotification.warning({
+      title: 'Realtime недоступен',
+      message: `События задач сервиса ${serviceLabel(serviceKey)} не подключились. Обновите список вручную.`,
+    })
+  }
+}
+
+async function stopJobHubConnection() {
+  const connection = jobHubConnection
+  jobHubConnection = null
+  jobHubServiceKey = null
+  await connection?.stop()
+}
+
+function handleJobStatusUpdated(event: JobStatusUpdatedEvent) {
+  const job = currentJobs.value.find((item) => item.id.toLowerCase() === event.jobId.toLowerCase())
+  if (!job) return
+
+  job.status = event.status
+  job.attempts = event.attempts
+  job.updatedAt = new Date().toISOString()
+}
+
+function handleCurrentJobsSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
+  if (!event.prop || !event.order) {
+    currentJobsSortBy.value = 'createdAt_desc'
+    return
+  }
+
+  currentJobsSortBy.value = event.order === 'descending'
+    ? `${event.prop}_desc`
+    : event.prop
+}
+
+async function openJobState(row: JobModel) {
+  if (!selectedCurrentService.value) return
+
+  selectedStateJob.value = row
+  jobState.value = ''
+  stateDialogOpen.value = true
+  isLoadingJobState.value = true
+  loadingStateJobId.value = row.id
+
+  try {
+    const response = await getServiceJobState(selectedCurrentService.value, row.id)
+    jobState.value = response.state
+  } catch (error) {
+    stateDialogOpen.value = false
+    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить state задачи')
+  } finally {
+    isLoadingJobState.value = false
+    loadingStateJobId.value = null
+  }
+}
+
+function jobDefinitionName(systemName: string) {
+  return currentServiceAvailableJobs.value.find((job) => job.systemName === systemName)?.name ?? systemName
+}
+
+function jobStatusLabel(status: JobStatus | string) {
+  return jobStatusOptions.find((item) => item.value === status)?.label ?? status
+}
+
+function jobStatusTagType(status: JobStatus | string) {
+  const types: Record<JobStatus, '' | 'success' | 'warning' | 'info' | 'danger'> = {
+    Pending: 'info',
+    Locked: 'warning',
+    Processing: 'warning',
+    Failed: 'danger',
+    Succeeded: 'success',
+    Cancelled: 'info',
+  }
+
+  return types[status as JobStatus] ?? ''
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
 }
 
 function isEmptyValue(value: unknown) {
@@ -521,6 +929,122 @@ function formatFileSize(size: number) {
   margin-top: 8px;
   color: #64748b;
   font-size: 13px;
+}
+
+.jobs-tabs {
+  margin-bottom: 14px;
+}
+
+.current-jobs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.current-jobs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+}
+
+.current-service-select {
+  width: 190px;
+}
+
+.current-status-select {
+  width: 220px;
+}
+
+.current-system-select {
+  width: 280px;
+}
+
+.job-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.job-option small {
+  color: #94a3b8;
+}
+
+.current-jobs-table {
+  width: 100%;
+}
+
+.current-job-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.current-job-title strong {
+  color: #111827;
+  font-weight: 650;
+}
+
+.current-job-title span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-jobs-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.state-dialog-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.state-dialog-meta div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.state-dialog-meta span,
+.state-dialog-meta small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.state-dialog-meta strong {
+  color: #111827;
+  font-weight: 650;
+}
+
+.state-preview {
+  max-height: min(68vh, 720px);
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 14px;
+  white-space: pre;
 }
 
 .jobs-workspace {
@@ -731,6 +1255,16 @@ function formatFileSize(size: number) {
   .jobs-hero {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .current-jobs-toolbar > * {
+    width: 100%;
+  }
+
+  .current-service-select,
+  .current-status-select,
+  .current-system-select {
+    width: 100%;
   }
 }
 </style>

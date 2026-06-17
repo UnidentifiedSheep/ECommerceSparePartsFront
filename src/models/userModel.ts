@@ -21,7 +21,7 @@ export interface UserModel {
   isSupplier?: boolean
 }
 
-interface UserDto {
+export interface UserDto {
   id: string
   userName: string
   normalizedUserName?: string

@@ -9,7 +9,7 @@ export interface JobDefinitionModel {
 
 export interface JobsServiceModel {
   available: boolean
-  statusCode: number
+  statusCode: number | null
   jobs: JobDefinitionModel[]
   error: string | null
 }
@@ -21,7 +21,6 @@ export interface GetGatewayJobsResponse {
 export interface JobModel {
   id: string
   systemName: string
-  state: string
   status: string
   attempts: number
   maxAttempts: number
@@ -30,6 +29,30 @@ export interface JobModel {
   createdAt: string
   updatedAt: string
   createdBy: string | null
+}
+
+export type JobStatus =
+  | 'Pending'
+  | 'Locked'
+  | 'Processing'
+  | 'Failed'
+  | 'Succeeded'
+  | 'Cancelled'
+
+export interface GetServiceJobsRequest {
+  page: number
+  size: number
+  systemNames?: string[]
+  statuses?: JobStatus[]
+  sortBy?: string
+}
+
+export interface GetServiceJobsResponse {
+  jobs: JobModel[]
+}
+
+export interface GetJobStateResponse {
+  state: string
 }
 
 export interface CreateJobRequest {
@@ -65,7 +88,26 @@ export interface ServiceJobDefinition {
 }
 
 export async function getGatewayJobs(): Promise<GetGatewayJobsResponse> {
-  const resp = await api.get<GetGatewayJobsResponse>('/jobs')
+  const resp = await api.get<GetGatewayJobsResponse>('/jobs/available')
+  return resp.data
+}
+
+export async function getServiceJobs(serviceKey: string, req: GetServiceJobsRequest): Promise<GetServiceJobsResponse> {
+  const params = new URLSearchParams()
+  params.append('page', String(req.page))
+  params.append('size', String(req.size))
+  if (req.sortBy) params.append('sortBy', req.sortBy)
+  req.systemNames?.forEach((systemName) => params.append('systemName', systemName))
+  req.statuses?.forEach((status) => params.append('status', status))
+
+  const resp = await api.get<GetServiceJobsResponse>(`/${serviceKey}/jobs`, {
+    params,
+  })
+  return resp.data
+}
+
+export async function getServiceJobState(serviceKey: string, jobId: string): Promise<GetJobStateResponse> {
+  const resp = await api.get<GetJobStateResponse>(`/${serviceKey}/jobs/${jobId}/state`)
   return resp.data
 }
 
