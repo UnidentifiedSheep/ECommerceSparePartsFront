@@ -37,9 +37,20 @@ Use this skill for frontend work in the `ecom-spareparts` repository.
 - Use dialogs for create/edit flows that stay in the context of an existing page.
 - If a dialog grows complex, split it into a dedicated component and emit events such as `created`, `updated`, or `saved`.
 - Start create dialogs with zero dynamic rows when users are expected to explicitly add rows.
-- Use Russian UI labels and localized enum labels for user-facing text.
+- Localize all user-facing text through the project i18n layer; do not hardcode UI strings in views or components.
 - Do not show raw IDs unless they are useful for the workflow.
 - Pagination should be left-aligned.
+
+## Localization
+
+- The frontend supports `ru`, `en`, and `tr`. Every new user-facing label, placeholder, empty state, notification, confirmation, validation message, and table/action label must have translations for all three languages.
+- Use `src/i18n/index.ts`, `useI18n()`, and `t(...)` for UI text. Do not put Russian, English, or Turkish literals directly into Vue templates, scripts, services, enums, or utilities unless they are backend/system constants or user data.
+- Keep localized enum/status labels in i18n or existing enum-label helpers. Backend enum values should remain stable constants in requests, responses, and comparisons.
+- Date, number, and money formatting should follow the active locale from `useI18n().locale`; avoid hardcoded `ru-RU` in new code unless formatting a backend/system invariant explicitly requires it.
+- API requests must send the current language to the backend via `Accept-Language`; preserve the existing interceptor/realtime patterns when adding new API clients or SignalR connections.
+- Backend validation errors are already localized. When handling `ApiError`, show `error.message`; it prioritizes `validationErrors[].errorMessage` over technical `detail`.
+- Do not show API paths, endpoint names, or backend technical details in UI copy. Replace them with task-focused descriptions.
+- After localization work, scan changed frontend files for accidental Cyrillic or hardcoded visible strings outside `src/i18n/index.ts`, then run `npm run build`.
 
 ## Selectors
 
@@ -51,7 +62,7 @@ Use this skill for frontend work in the `ecom-spareparts` repository.
 ## Products
 
 - Product indicator means color. Display it as a color swatch, not as raw indicator text.
-- Product units should be displayed in Russian with correct plural forms.
+- Product units should be displayed through localized measurement utilities with correct plural forms where applicable.
 - Product images should support browsing multiple images, selecting thumbnails, zooming, adding, and deleting when permissions allow.
 - Product storage content should not show zero positions by default unless the user asks to include them.
 
@@ -66,7 +77,7 @@ Use this skill for frontend work in the `ecom-spareparts` repository.
 
 - All date-time values sent to backend APIs must be UTC. Use existing date utilities such as `toUtcDateTimeString` when converting user-selected local date-time values before requests.
 - Display dates and times in the user's local timezone using existing date utilities.
-- Use `toLocaleString('ru-RU')` or existing formatting utilities for user-facing numbers and money.
+- Use the active i18n locale or existing formatting utilities for user-facing numbers and money.
 - Keep currency signs from backend currency models.
 
 ## Verification
