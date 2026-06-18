@@ -8,11 +8,20 @@ export interface ErrorResponse {
   title: string
   status: number
   statusCode?: number
-  detail: string
+  detail?: string
   instance: string
   traceId: string
-  validationErrors: ValidationError[]
+  validationErrors?: ValidationError[]
   errorRelatedData?: unknown
+}
+
+function buildErrorMessage(error: ErrorResponse): string {
+  const validationMessage = error.validationErrors
+    ?.map((validationError) => validationError.errorMessage?.trim())
+    .filter(Boolean)
+    .join('\n')
+
+  return validationMessage || error.detail || error.title
 }
 
 export class ApiError extends Error {
@@ -24,7 +33,7 @@ export class ApiError extends Error {
   errorRelatedData?: unknown
 
   constructor(error: ErrorResponse) {
-    super(error.detail || error.title)
+    super(buildErrorMessage(error))
 
     this.name = 'ApiError'
     this.type = error.type
