@@ -2,21 +2,21 @@
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
     <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
       <div>
-        <h1 class="text-2xl font-semibold text-slate-900">Пользователи</h1>
-        <p class="text-sm text-slate-500">Поиск, просмотр и управление привязкой складов.</p>
+        <h1 class="text-2xl font-semibold text-slate-900">{{ t('users.title') }}</h1>
+        <p class="text-sm text-slate-500">{{ t('users.description') }}</p>
       </div>
-      <el-button v-if="canCreateUsers" type="primary" @click="openCreateUserDialog">Создать пользователя</el-button>
+      <el-button v-if="canCreateUsers" type="primary" @click="openCreateUserDialog">{{ t('users.createUser') }}</el-button>
     </div>
 
     <div class="p-4">
       <el-card shadow="hover">
         <el-row :gutter="20" align="bottom">
           <el-col :span="8">
-            <label class="mb-2 block text-sm font-medium text-slate-700">Поиск</label>
-            <el-input v-model="searchTerm" clearable placeholder="Имя, фамилия, логин или email" />
+            <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.search') }}</label>
+            <el-input v-model="searchTerm" clearable :placeholder="t('users.searchPlaceholder')" />
           </el-col>
           <el-col :span="6">
-            <label class="mb-2 block text-sm font-medium text-slate-700">Роли</label>
+            <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.roles') }}</label>
             <el-select
               v-model="selectedRoleFilters"
               multiple
@@ -25,7 +25,7 @@
               reserve-keyword
               clearable
               class="w-full"
-              placeholder="Все роли"
+              :placeholder="t('users.allRoles')"
               :loading="rolesLoading"
               :remote-method="searchRoles"
             >
@@ -38,7 +38,7 @@
             </el-select>
           </el-col>
           <el-col :span="4">
-            <el-button plain @click="resetFilters">Сбросить фильтры</el-button>
+            <el-button plain @click="resetFilters">{{ t('users.resetFilters') }}</el-button>
           </el-col>
         </el-row>
       </el-card>
@@ -55,10 +55,10 @@
                 highlight-current-row
                 @current-change="selectUser"
               >
-                <el-table-column prop="surname" label="Фамилия" min-width="140" />
-                <el-table-column prop="name" label="Имя" min-width="140" />
-                <el-table-column prop="userName" label="Логин" min-width="180" />
-                <el-table-column label="Последний вход" min-width="170">
+                <el-table-column prop="surname" :label="t('common.labels.surname')" min-width="140" />
+                <el-table-column prop="name" :label="t('common.labels.firstName')" min-width="140" />
+                <el-table-column prop="userName" :label="t('common.labels.login')" min-width="180" />
+                <el-table-column :label="t('users.lastLogin')" min-width="170">
                   <template #default="{ row }">
                     {{ formatDate(row.lastLoginAt) }}
                   </template>
@@ -91,7 +91,7 @@
                             command="reservations"
                             :icon="View"
                           >
-                            Посмотреть резервации
+                            {{ t('users.viewReservations') }}
                           </el-dropdown-item>
                         </el-dropdown-menu>
                       </template>
@@ -102,50 +102,50 @@
                 <div v-loading="detailsLoading" class="h-[calc(100%-96px)] overflow-auto pr-1">
                   <div class="grid grid-cols-2 gap-3 pb-4">
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
-                      <div class="text-xs uppercase tracking-wide text-slate-500">Скидка</div>
+                      <div class="text-xs uppercase tracking-wide text-slate-500">{{ t('users.discount') }}</div>
                       <div class="mt-2 text-2xl font-semibold text-slate-900">{{ discountText }}</div>
-                      <el-button class="mt-3" size="small" @click="discountDialogOpen = true">Изменить</el-button>
+                      <el-button class="mt-3" size="small" @click="discountDialogOpen = true">{{ t('common.actions.change') }}</el-button>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
-                      <div class="text-xs uppercase tracking-wide text-slate-500">Роли</div>
+                      <div class="text-xs uppercase tracking-wide text-slate-500">{{ t('common.labels.roles') }}</div>
                       <div class="mt-2 flex flex-wrap gap-2">
                         <el-tag v-for="role in userRoles" :key="role" round>{{ roleDisplayName(role) }}</el-tag>
-                        <span v-if="userRoles.length === 0" class="text-sm text-slate-400">Нет ролей</span>
+                        <span v-if="userRoles.length === 0" class="text-sm text-slate-400">{{ t('users.noRoles') }}</span>
                       </div>
                     </div>
                   </div>
 
-                  <el-divider content-position="left">Контакты</el-divider>
+                  <el-divider content-position="left">{{ t('users.contacts') }}</el-divider>
                     <div class="grid gap-3 pb-4">
                       <div v-for="email in userEmails" :key="email.email" class="rounded-xl bg-slate-50 p-3 text-sm">
                         <div class="flex items-center gap-2">
                           <span class="font-medium text-slate-900">{{ email.email }}</span>
-                          <el-tag v-if="email.isPrimary" size="small" type="success">Основной</el-tag>
+                          <el-tag v-if="email.isPrimary" size="small" type="success">{{ t('users.primary') }}</el-tag>
                           <el-tag size="small" :type="email.confirmed ? 'success' : 'warning'">
-                            {{ email.confirmed ? 'Подтвержден' : 'Не подтвержден' }}
+                            {{ email.confirmed ? t('users.confirmed') : t('users.notConfirmed') }}
                           </el-tag>
                         </div>
                         <div class="mt-1 text-xs text-slate-500">{{ emailTypeLabel(email.emailType) }}</div>
                       </div>
-                      <div v-if="userEmails.length === 0" class="text-sm text-slate-400">Почтовые адреса не найдены.</div>
+                      <div v-if="userEmails.length === 0" class="text-sm text-slate-400">{{ t('users.noEmails') }}</div>
                     </div>
 
                   <div class="flex items-center justify-between">
-                    <el-divider content-position="left">Склады</el-divider>
-                    <el-button size="small" type="primary" @click="openAddStorageDialog">Добавить склад</el-button>
+                    <el-divider content-position="left">{{ t('users.storages') }}</el-divider>
+                    <el-button size="small" type="primary" @click="openAddStorageDialog">{{ t('users.addStorage') }}</el-button>
                   </div>
                   <div class="grid gap-3 pb-4">
                     <div v-for="storage in userStorages" :key="storage.name" class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
                       <div>
                         <div class="font-medium text-slate-900">{{ storage.name }}</div>
-                        <div class="text-sm text-slate-500">{{ storage.location || 'Локация не указана' }}</div>
+                        <div class="text-sm text-slate-500">{{ storage.location || t('users.locationMissing') }}</div>
                       </div>
-                      <el-button size="small" type="danger" plain @click="detachStorage(storage.name)">Удалить</el-button>
+                      <el-button size="small" type="danger" plain @click="detachStorage(storage.name)">{{ t('common.actions.delete') }}</el-button>
                     </div>
-                    <div v-if="userStorages.length === 0" class="text-sm text-slate-400">Склады не привязаны.</div>
+                    <div v-if="userStorages.length === 0" class="text-sm text-slate-400">{{ t('users.noStorages') }}</div>
                   </div>
 
-                  <el-divider content-position="left">Права</el-divider>
+                  <el-divider content-position="left">{{ t('users.permissions') }}</el-divider>
                     <div class="flex flex-wrap gap-2">
                       <el-tag
                         v-for="permission in userPermissions"
@@ -157,13 +157,13 @@
                       >
                         {{ permission }}
                       </el-tag>
-                    <span v-if="userPermissions.length === 0" class="text-sm text-slate-400">Нет прямых прав.</span>
+                    <span v-if="userPermissions.length === 0" class="text-sm text-slate-400">{{ t('users.noDirectPermissions') }}</span>
                   </div>
                 </div>
               </template>
 
               <template v-else>
-                <el-empty description="Выберите пользователя слева, чтобы увидеть детали" />
+                <el-empty :description="t('users.selectToView')" />
               </template>
             </el-card>
           </el-col>
@@ -171,28 +171,28 @@
       </div>
     </div>
 
-    <el-dialog v-model="createUserDialogOpen" title="Создать пользователя" width="860" class="create-user-dialog">
+    <el-dialog v-model="createUserDialogOpen" :title="t('users.createUser')" width="860" class="create-user-dialog">
       <el-form label-position="top">
         <div class="grid grid-cols-2 gap-4">
-          <el-form-item label="Логин">
+          <el-form-item :label="t('common.labels.login')">
             <el-input v-model="createUserForm.userName" autocomplete="off" />
           </el-form-item>
-          <el-form-item label="Пароль">
+          <el-form-item :label="t('common.labels.password')">
             <el-input v-model="createUserForm.password" type="password" show-password autocomplete="new-password" />
           </el-form-item>
-          <el-form-item label="Имя">
+          <el-form-item :label="t('common.labels.firstName')">
             <el-input v-model="createUserForm.name" />
           </el-form-item>
-          <el-form-item label="Фамилия">
+          <el-form-item :label="t('common.labels.surname')">
             <el-input v-model="createUserForm.surname" />
           </el-form-item>
         </div>
 
-        <el-form-item label="Описание">
+        <el-form-item :label="t('common.labels.description')">
           <el-input v-model="createUserForm.description" type="textarea" :rows="3" />
         </el-form-item>
 
-        <el-form-item label="Роли">
+        <el-form-item :label="t('common.labels.roles')">
           <el-select
             v-model="createUserForm.roles"
             multiple
@@ -200,7 +200,7 @@
             remote
             reserve-keyword
             class="w-full"
-            placeholder="Выберите роли"
+            :placeholder="t('users.selectRoles')"
             :loading="rolesLoading"
             :remote-method="searchRoles"
           >
@@ -217,7 +217,7 @@
           <div>
             <div class="text-sm font-semibold text-slate-900">Email</div>
             <div class="text-xs text-slate-500">
-              От {{ emailOptions.minEmailCount }} до {{ emailOptions.maxEmailCount }} адресов
+              {{ t('users.emailsRange', { min: emailOptions.minEmailCount, max: emailOptions.maxEmailCount }) }}
             </div>
           </div>
           <el-button
@@ -226,7 +226,7 @@
             :disabled="createUserForm.emails.length >= emailOptions.maxEmailCount"
             @click="addCreateUserEmail"
           >
-            Добавить email
+            {{ t('users.addEmail') }}
           </el-button>
         </div>
         <div class="grid gap-3 pb-4">
@@ -236,14 +236,14 @@
             class="rounded-xl border border-slate-200 bg-slate-50 p-3"
           >
             <div class="grid grid-cols-[minmax(0,1fr)_160px_auto] items-start gap-3">
-              <el-form-item class="mb-0" label="Адрес">
+              <el-form-item class="mb-0" :label="t('common.labels.address')">
                 <el-input v-model="email.email" placeholder="email@example.com" />
               </el-form-item>
-              <el-form-item class="mb-0" label="Тип">
+              <el-form-item class="mb-0" :label="t('common.labels.type')">
                 <el-select v-model="email.type" class="w-full">
-                  <el-option label="Личная" value="Personal" />
-                  <el-option label="Рабочая" value="Work" />
-                  <el-option label="Неизвестно" value="Unknown" />
+                  <el-option :label="t('users.personalEmail')" value="Personal" />
+                  <el-option :label="t('users.workEmail')" value="Work" />
+                  <el-option :label="t('users.unknownEmail')" value="Unknown" />
                 </el-select>
               </el-form-item>
               <el-button
@@ -253,12 +253,12 @@
                 plain
                 @click="removeCreateUserEmail(index)"
               >
-                Удалить
+                {{ t('common.actions.delete') }}
               </el-button>
             </div>
             <div class="mt-2 flex flex-wrap gap-x-5 gap-y-2">
-              <el-checkbox v-model="email.isPrimary" @change="setPrimaryCreateUserEmail(index)">Основной</el-checkbox>
-              <el-checkbox v-model="email.isConfirmed">Подтвержден</el-checkbox>
+              <el-checkbox v-model="email.isPrimary" @change="setPrimaryCreateUserEmail(index)">{{ t('users.primary') }}</el-checkbox>
+              <el-checkbox v-model="email.isConfirmed">{{ t('users.confirmed') }}</el-checkbox>
             </div>
           </div>
           <div v-if="emailValidationMessage" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -267,8 +267,8 @@
         </div>
 
         <div class="mb-2 flex items-center justify-between">
-          <div class="text-sm font-semibold text-slate-900">Телефоны</div>
-          <el-button size="small" plain @click="addCreateUserPhone">Добавить телефон</el-button>
+          <div class="text-sm font-semibold text-slate-900">{{ t('users.phones') }}</div>
+          <el-button size="small" plain @click="addCreateUserPhone">{{ t('users.addPhone') }}</el-button>
         </div>
         <div class="grid gap-3">
           <div
@@ -277,24 +277,24 @@
             class="grid grid-cols-[1fr_auto] items-center gap-3"
           >
             <el-input v-model="createUserForm.phones[phoneIndex - 1]" placeholder="+7..." />
-            <el-button type="danger" plain @click="removeCreateUserPhone(phoneIndex - 1)">Удалить</el-button>
+            <el-button type="danger" plain @click="removeCreateUserPhone(phoneIndex - 1)">{{ t('common.actions.delete') }}</el-button>
           </div>
           <div v-if="createUserForm.phones.length === 0" class="rounded-xl bg-slate-50 p-3 text-sm text-slate-400">
-            Телефоны не добавлены.
+            {{ t('users.noPhones') }}
           </div>
         </div>
       </el-form>
 
       <template #footer>
-        <el-button @click="createUserDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" :disabled="!canSaveCreateUser" @click="saveCreateUser">Создать</el-button>
+        <el-button @click="createUserDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :disabled="!canSaveCreateUser" @click="saveCreateUser">{{ t('common.actions.create') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="storageDialogOpen" title="Добавить склад пользователю" width="520">
+    <el-dialog v-model="storageDialogOpen" :title="t('users.addStorageToUser')" width="520">
       <el-form label-position="top">
-        <el-form-item label="Склад">
-          <el-select v-model="storageToAttach" filterable class="w-full" placeholder="Выберите склад">
+        <el-form-item :label="t('common.labels.storage')">
+          <el-select v-model="storageToAttach" filterable class="w-full" :placeholder="t('users.selectStorage')">
             <el-option
               v-for="storage in attachableStorages"
               :key="storage.name"
@@ -305,20 +305,20 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="storageDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" @click="attachStorage">Добавить</el-button>
+        <el-button @click="storageDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="attachStorage">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="discountDialogOpen" title="Изменить скидку" width="420">
+    <el-dialog v-model="discountDialogOpen" :title="t('users.editDiscount')" width="420">
       <el-form label-position="top">
-        <el-form-item label="Новая скидка, %">
+        <el-form-item :label="t('users.newDiscount')">
           <el-input-number v-model="discountFormValue" :min="0" :max="99" :precision="2" class="w-full" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="discountDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" @click="saveDiscount">Сохранить</el-button>
+        <el-button @click="discountDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="saveDiscount">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
 
@@ -326,7 +326,7 @@
       v-if="selectedUser && canViewProductReservations"
       v-model="reservationsDialogOpen"
       :user-id="selectedUser.id"
-      :title="`Резервации: ${selectedUser.surname} ${selectedUser.name}`"
+      :title="t('users.reservationsTitle', { name: `${selectedUser.surname} ${selectedUser.name}` })"
     />
   </div>
 </template>
@@ -358,6 +358,7 @@ import {
   getUserStorages,
   removeStorageFromUser,
 } from '@/services/api/users.ts'
+import { useI18n } from '@/i18n'
 
 interface CreateUserEmailForm {
   email: string
@@ -370,6 +371,7 @@ const users = ref<UserModel[]>([])
 const usersTableRef = ref<TableInstance>()
 const route = useRoute()
 const router = useRouter()
+const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
 const canCreateUsers = computed(() => hasPermission('USERS_CREATE'))
 const canViewProductReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
@@ -419,9 +421,9 @@ const filledCreateUserEmails = computed(() => (
 ))
 const emailValidationMessage = computed(() => {
   const count = filledCreateUserEmails.value.length
-  if (count < emailOptions.minEmailCount) return `Добавьте минимум ${emailOptions.minEmailCount} email.`
-  if (count > emailOptions.maxEmailCount) return `Можно добавить максимум ${emailOptions.maxEmailCount} email.`
-  if (!filledCreateUserEmails.value.some((email) => email.isPrimary)) return 'Выберите основной email.'
+  if (count < emailOptions.minEmailCount) return t('users.minEmails', { count: emailOptions.minEmailCount })
+  if (count > emailOptions.maxEmailCount) return t('users.maxEmails', { count: emailOptions.maxEmailCount })
+  if (!filledCreateUserEmails.value.some((email) => email.isPrimary)) return t('users.choosePrimaryEmail')
   return ''
 })
 const canSaveCreateUser = computed(() => (
@@ -453,23 +455,23 @@ function roleOptionLabel(role: RoleModel) {
 function emailTypeLabel(type?: string | null) {
   switch (type) {
     case 'Personal':
-      return 'Личная'
+      return t('users.personalEmail')
     case 'Work':
-      return 'Рабочая'
+      return t('users.workEmail')
     case 'Unknown':
-      return 'Неизвестно'
+      return t('users.unknownEmail')
     default:
-      return type || 'Не указан'
+      return type || t('users.notSpecified')
   }
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return 'Нет данных'
+  if (!value) return t('users.noData')
 
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
 
-  return new Intl.DateTimeFormat('ru-RU', {
+  return new Intl.DateTimeFormat(locale.value, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)
@@ -692,8 +694,8 @@ async function saveCreateUser() {
   await selectUser(resp.user)
 
   ElNotification({
-    title: 'Успех',
-    message: 'Пользователь создан',
+    title: t('common.labels.success'),
+    message: t('users.created'),
     type: 'success',
   })
 }
@@ -730,8 +732,8 @@ async function attachStorage() {
   })
 
   ElNotification({
-    title: 'Успех',
-    message: 'Склад привязан к пользователю',
+    title: t('common.labels.success'),
+    message: t('users.storageAttached'),
     type: 'success',
   })
 
@@ -748,8 +750,8 @@ async function detachStorage(storageName: string) {
   })
 
   ElNotification({
-    title: 'Успех',
-    message: 'Склад отвязан от пользователя',
+    title: t('common.labels.success'),
+    message: t('users.storageDetached'),
     type: 'success',
   })
 
@@ -768,8 +770,8 @@ async function saveDiscount() {
   discountDialogOpen.value = false
 
   ElNotification({
-    title: 'Успех',
-    message: 'Скидка обновлена',
+    title: t('common.labels.success'),
+    message: t('users.discountUpdated'),
     type: 'success',
   })
 }

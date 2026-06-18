@@ -3,7 +3,7 @@
     <template v-if="purchase">
       <header class="details-header">
         <div>
-          <h2>Состав закупки</h2>
+          <h2>{{ t('purchases.detailsTitle') }}</h2>
           <p>{{ purchase.supplier.surname }} {{ purchase.supplier.name }} · {{ formatDate(purchase.purchaseDatetime) }}</p>
         </div>
         <strong>{{ formatCurrency(purchase.totalSum, purchase.currency.currencySign) }}</strong>
@@ -17,65 +17,65 @@
         <el-collapse-item name="purchase-logistics">
           <template #title>
             <div class="summary-collapse-title">
-              <span>Логистика</span>
-              <strong>{{ pricingTypeToText(purchase.logistics.pricingModel) }}</strong>
+              <span>{{ t('purchases.logistics') }}</span>
+              <strong>{{ pricingTypeLabel(purchase.logistics.pricingModel) }}</strong>
             </div>
           </template>
 
           <div class="summary-grid">
             <div>
-              <span>Тип маршрута</span>
-              <strong>{{ routeTypeToText(purchase.logistics.routeType) }}</strong>
+              <span>{{ t('purchases.routeType') }}</span>
+              <strong>{{ routeTypeLabel(purchase.logistics.routeType) }}</strong>
             </div>
             <div>
-              <span>Тарификация</span>
-              <strong>{{ pricingTypeToText(purchase.logistics.pricingModel) }}</strong>
+              <span>{{ t('purchases.pricing') }}</span>
+              <strong>{{ pricingTypeLabel(purchase.logistics.pricingModel) }}</strong>
             </div>
             <div>
-              <span>За кг</span>
+              <span>{{ t('purchases.perKg') }}</span>
               <strong>{{ formatCurrency(purchase.logistics.priceKg, purchase.logistics.currency.currencySign) }}</strong>
             </div>
             <div>
-              <span>За м³</span>
+              <span>{{ t('purchases.perM3') }}</span>
               <strong>{{ formatCurrency(purchase.logistics.pricePerM3, purchase.logistics.currency.currencySign) }}</strong>
             </div>
             <div>
-              <span>За заказ</span>
+              <span>{{ t('purchases.perOrder') }}</span>
               <strong>{{ formatCurrency(purchase.logistics.pricePerOrder, purchase.logistics.currency.currencySign) }}</strong>
             </div>
             <div>
-              <span>Мин. цена</span>
-              <strong>{{ purchase.logistics.minimumPrice ? formatCurrency(purchase.logistics.minimumPrice, purchase.logistics.currency.currencySign) : 'Не задана' }}</strong>
+              <span>{{ t('purchases.minimumPrice') }}</span>
+              <strong>{{ purchase.logistics.minimumPrice ? formatCurrency(purchase.logistics.minimumPrice, purchase.logistics.currency.currencySign) : t('purchases.notSet') }}</strong>
             </div>
           </div>
           <el-tag v-if="purchase.logistics.minimumPriceApplied" class="mt-3" type="warning" effect="light">
-            Применена минимальная цена
+            {{ t('purchases.minimumPriceApplied') }}
           </el-tag>
         </el-collapse-item>
       </el-collapse>
 
       <section class="content-section">
-        <div class="content-title">Позиции</div>
+        <div class="content-title">{{ t('purchases.positions') }}</div>
         <div v-loading="loading" class="content-list">
           <article v-for="row in content" :key="row.id" class="content-row">
             <div class="product-cell">
-              <strong>{{ row.product.name || 'Без названия' }}</strong>
-              <span>{{ row.product.sku || 'Артикул не указан' }}</span>
+              <strong>{{ row.product.name || t('purchases.unnamed') }}</strong>
+              <span>{{ row.product.sku || t('purchases.noSku') }}</span>
               <small v-if="row.product.producerName">{{ row.product.producerName }}</small>
             </div>
 
             <div class="amount-cell">
-              <span>Кол-во</span>
-              <strong>{{ row.count.toLocaleString('ru-RU') }}</strong>
+              <span>{{ t('common.labels.count') }}</span>
+              <strong>{{ row.count.toLocaleString(locale) }}</strong>
             </div>
 
             <div class="amount-cell">
-              <span>Цена</span>
+              <span>{{ t('common.labels.price') }}</span>
               <strong>{{ formatCurrency(row.price, purchase.currency.currencySign) }}</strong>
             </div>
 
             <div class="amount-cell">
-              <span>Сумма</span>
+              <span>{{ t('purchases.amount') }}</span>
               <strong>{{ formatCurrency(row.totalSum, purchase.currency.currencySign) }}</strong>
             </div>
 
@@ -84,41 +84,44 @@
             </div>
 
             <el-collapse v-if="row.logistics" class="row-logistics">
-              <el-collapse-item title="Логистика" :name="row.id">
+              <el-collapse-item :title="t('purchases.logistics')" :name="row.id">
                 <div class="logistics-row-grid">
                   <div>
-                    <span>Стоимость</span>
+                    <span>{{ t('purchases.cost') }}</span>
                     <strong>{{ formatCurrency(row.logistics.price, purchase.logistics?.currency.currencySign) }}</strong>
                   </div>
                   <div>
-                    <span>Вес</span>
-                    <strong>{{ row.logistics.weightKg.toLocaleString('ru-RU') }} кг</strong>
+                    <span>{{ t('purchases.weight') }}</span>
+                    <strong>{{ row.logistics.weightKg.toLocaleString(locale) }} {{ t('purchases.kg') }}</strong>
                   </div>
                   <div>
-                    <span>Объем</span>
-                    <strong>{{ row.logistics.areaM3.toLocaleString('ru-RU') }} м³</strong>
+                    <span>{{ t('purchases.volume') }}</span>
+                    <strong>{{ row.logistics.areaM3.toLocaleString(locale) }} {{ t('purchases.m3') }}</strong>
                   </div>
                 </div>
               </el-collapse-item>
             </el-collapse>
           </article>
 
-          <el-empty v-if="!loading && content.length === 0" description="Позиции не найдены" />
+          <el-empty v-if="!loading && content.length === 0" :description="t('purchases.notFound')" />
         </div>
       </section>
     </template>
 
     <template v-else>
-      <el-empty description="Выберите закупку слева, чтобы увидеть содержимое" />
+      <el-empty :description="t('purchases.selectToView')" />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
-import { pricingTypeToText } from '@/enums/logisticPricingType.ts'
-import { routeTypeToText } from '@/enums/routeType.ts'
+import type { LogisticPricingType } from '@/enums/logisticPricingType.ts'
+import type { RouteType } from '@/enums/routeType.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
+import { useI18n } from '@/i18n'
+
+const { locale, t } = useI18n()
 
 defineProps<{
   purchase?: PurchaseModel
@@ -127,11 +130,19 @@ defineProps<{
 }>()
 
 function formatDate(value?: string | null) {
-  return formatLocalDateTime(value, 'Нет данных')
+  return formatLocalDateTime(value, t('purchases.noData'))
 }
 
 function formatCurrency(value: number, sign?: string) {
-  return `${value.toLocaleString('ru-RU')} ${sign ?? ''}`.trim()
+  return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
+}
+
+function pricingTypeLabel(type: LogisticPricingType) {
+  return t(`purchases.pricingTypes.${type}`)
+}
+
+function routeTypeLabel(type: RouteType) {
+  return t(`purchases.routeTypes.${type}`)
 }
 </script>
 

@@ -1,31 +1,31 @@
 <template>
   <el-dialog
     v-model="dialogOpen"
-    title="Создать транзакцию"
+    :title="t('transactions.createTitle')"
     width="640"
     destroy-on-close
   >
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-      <el-form-item label="Тип операции" prop="operationMode">
+      <el-form-item :label="t('transactions.operationType')" prop="operationMode">
         <el-radio-group v-model="form.operationMode" class="transaction-mode-group">
-          <el-radio-button label="UserToUser">Между пользователями</el-radio-button>
-          <el-radio-button label="SystemToUser">Выплата пользователю</el-radio-button>
-          <el-radio-button label="UserToSystem">Платеж в систему</el-radio-button>
+          <el-radio-button label="UserToUser">{{ t('transactions.userToUser') }}</el-radio-button>
+          <el-radio-button label="SystemToUser">{{ t('transactions.systemToUser') }}</el-radio-button>
+          <el-radio-button label="UserToSystem">{{ t('transactions.userToSystem') }}</el-radio-button>
         </el-radio-group>
       </el-form-item>
 
       <template v-if="form.operationMode === 'UserToUser'">
-        <el-form-item label="Отправитель" prop="senderId">
+        <el-form-item :label="t('transactions.sender')" prop="senderId">
           <UserSelector
             v-model:selected-user="sender"
-            place-holder="Выберите отправителя"
+            :place-holder="t('transactions.selectSender')"
           />
         </el-form-item>
 
-        <el-form-item label="Получатель" prop="receiverId">
+        <el-form-item :label="t('transactions.receiver')" prop="receiverId">
           <UserSelector
             v-model:selected-user="receiver"
-            place-holder="Выберите получателя"
+            :place-holder="t('transactions.selectReceiver')"
           />
         </el-form-item>
       </template>
@@ -38,8 +38,8 @@
       </el-form-item>
 
       <div class="transaction-form-grid">
-        <el-form-item label="Валюта" prop="currencyId">
-          <el-select v-model="form.currencyId" filterable placeholder="Выберите валюту" class="w-full">
+        <el-form-item :label="t('common.labels.currency')" prop="currencyId">
+          <el-select v-model="form.currencyId" filterable :placeholder="t('transactions.selectCurrency')" class="w-full">
             <el-option
               v-for="currency in currencies"
               :key="currency.id"
@@ -49,7 +49,7 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="Сумма" prop="amount">
+        <el-form-item :label="t('transactions.amount')" prop="amount">
           <el-input-number
             v-model="form.amount"
             :min="0.01"
@@ -61,22 +61,22 @@
         </el-form-item>
       </div>
 
-      <el-form-item label="Дата и время" prop="transactionDateTime">
+      <el-form-item :label="t('transactions.dateTime')" prop="transactionDateTime">
         <el-date-picker
           v-model="form.transactionDateTime"
           type="datetime"
           value-format="YYYY-MM-DDTHH:mm:ss.SSS"
           format="DD.MM.YYYY HH:mm"
-          placeholder="Выберите дату и время"
+          :placeholder="t('transactions.selectDateTime')"
           class="w-full"
         />
       </el-form-item>
     </el-form>
 
     <template #footer>
-      <el-button @click="dialogOpen = false">Отмена</el-button>
+      <el-button @click="dialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
       <el-button type="primary" :loading="isSubmitting" @click="submit">
-        Создать
+        {{ t('common.actions.create') }}
       </el-button>
     </template>
   </el-dialog>
@@ -94,6 +94,7 @@ import {
   type SystemTransactionDirection,
 } from '@/services/api/balances.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
+import { useI18n } from '@/i18n'
 
 type TransactionOperationMode = 'UserToUser' | SystemTransactionDirection
 
@@ -117,6 +118,7 @@ const emit = defineEmits<{
   created: []
 }>()
 
+const { t } = useI18n()
 const dialogOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
@@ -139,18 +141,18 @@ const form = reactive<CreateTransactionForm>({
 })
 
 const systemUserLabel = computed(() => (
-  form.operationMode === 'SystemToUser' ? 'Получатель' : 'Отправитель'
+  form.operationMode === 'SystemToUser' ? t('transactions.receiver') : t('transactions.sender')
 ))
 const systemUserPlaceholder = computed(() => (
-  form.operationMode === 'SystemToUser' ? 'Выберите получателя' : 'Выберите отправителя'
+  form.operationMode === 'SystemToUser' ? t('transactions.selectReceiver') : t('transactions.selectSender')
 ))
-const rules = reactive<FormRules<CreateTransactionForm>>({
-  operationMode: [{ required: true, message: 'Выберите тип операции', trigger: 'change' }],
+const rules = computed<FormRules<CreateTransactionForm>>(() => ({
+  operationMode: [{ required: true, message: t('transactions.selectOperationType'), trigger: 'change' }],
   senderId: [
     {
       validator: (_rule, value, callback) => {
         if (form.operationMode !== 'UserToUser' || value) callback()
-        else callback(new Error('Выберите отправителя'))
+        else callback(new Error(t('transactions.selectSender')))
       },
       trigger: 'change',
     },
@@ -159,7 +161,7 @@ const rules = reactive<FormRules<CreateTransactionForm>>({
     {
       validator: (_rule, value, callback) => {
         if (form.operationMode !== 'UserToUser' || value) callback()
-        else callback(new Error('Выберите получателя'))
+        else callback(new Error(t('transactions.selectReceiver')))
       },
       trigger: 'change',
     },
@@ -168,7 +170,7 @@ const rules = reactive<FormRules<CreateTransactionForm>>({
     {
       validator: (_rule, value, callback) => {
         if (form.operationMode === 'UserToUser' || value) callback()
-        else callback(new Error('Выберите пользователя'))
+        else callback(new Error(t('transactions.selectUser')))
       },
       trigger: 'change',
     },
@@ -176,7 +178,7 @@ const rules = reactive<FormRules<CreateTransactionForm>>({
   currencyId: [
     {
       validator: (_rule, value, callback) => {
-        if (!value) callback(new Error('Выберите валюту'))
+        if (!value) callback(new Error(t('transactions.selectCurrency')))
         else callback()
       },
       trigger: 'change',
@@ -185,14 +187,14 @@ const rules = reactive<FormRules<CreateTransactionForm>>({
   amount: [
     {
       validator: (_rule, value, callback) => {
-        if (!value || value <= 0) callback(new Error('Введите сумму больше 0'))
+        if (!value || value <= 0) callback(new Error(t('transactions.selectAmount')))
         else callback()
       },
       trigger: 'blur',
     },
   ],
-  transactionDateTime: [{ required: true, message: 'Выберите дату и время', trigger: 'change' }],
-})
+  transactionDateTime: [{ required: true, message: t('transactions.selectDateTime'), trigger: 'change' }],
+}))
 
 watch(sender, (user) => {
   form.senderId = user?.id ?? ''
@@ -227,7 +229,7 @@ async function submit() {
   if (!valid) return
 
   if (form.operationMode === 'UserToUser' && form.senderId === form.receiverId) {
-    ElMessage.warning('Отправитель и получатель должны быть разными пользователями')
+    ElMessage.warning(t('transactions.sameUsers'))
     return
   }
 
@@ -251,11 +253,11 @@ async function submit() {
       })
     }
 
-    ElMessage.success('Транзакция создана')
+    ElMessage.success(t('transactions.created'))
     emit('created')
     dialogOpen.value = false
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось создать транзакцию')
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.createError'))
   } finally {
     isSubmitting.value = false
   }

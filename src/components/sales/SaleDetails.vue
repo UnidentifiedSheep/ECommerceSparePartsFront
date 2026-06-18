@@ -3,7 +3,7 @@
     <template v-if="sale">
       <header class="details-header">
         <div>
-          <h2>Состав продажи</h2>
+          <h2>{{ t('sales.detailsTitle') }}</h2>
           <p>{{ sale.buyer.surname }} {{ sale.buyer.name }} · {{ formatDate(sale.saleDatetime) }}</p>
         </div>
         <strong>{{ formatCurrency(sale.totalSum, sale.currency.currencySign) }}</strong>
@@ -14,32 +14,32 @@
       </section>
 
       <section class="content-section">
-        <div class="content-title">Позиции</div>
+        <div class="content-title">{{ t('sales.positions') }}</div>
         <div v-loading="loading" class="content-list">
           <article v-for="row in content" :key="row.id" class="content-row">
             <div class="product-cell">
-              <strong>{{ row.product.name || 'Без названия' }}</strong>
-              <span>{{ row.product.sku || 'Артикул не указан' }}</span>
+              <strong>{{ row.product.name || t('sales.unnamed') }}</strong>
+              <span>{{ row.product.sku || t('sales.noSku') }}</span>
               <small v-if="row.product.producerName">{{ row.product.producerName }}</small>
             </div>
 
             <div class="amount-cell">
-              <span>Кол-во</span>
-              <strong>{{ row.count.toLocaleString('ru-RU') }}</strong>
+              <span>{{ t('common.labels.count') }}</span>
+              <strong>{{ row.count.toLocaleString(locale) }}</strong>
             </div>
 
             <div class="amount-cell">
-              <span>Цена</span>
+              <span>{{ t('common.labels.price') }}</span>
               <strong>{{ formatCurrency(row.price, sale.currency.currencySign) }}</strong>
             </div>
 
             <div class="amount-cell">
-              <span>Скидка</span>
+              <span>{{ t('sales.discount') }}</span>
               <strong>{{ formatPercent(row.discount) }}</strong>
             </div>
 
             <div class="amount-cell">
-              <span>Сумма</span>
+              <span>{{ t('sales.amount') }}</span>
               <strong>{{ formatCurrency(row.totalSum, sale.currency.currencySign) }}</strong>
             </div>
 
@@ -48,41 +48,41 @@
             </div>
 
             <el-collapse v-if="row.details.length > 0" class="row-details">
-              <el-collapse-item title="Партии списания" :name="row.id">
+              <el-collapse-item :title="t('sales.writeOffBatches')" :name="row.id">
                 <div class="details-table">
                   <div class="details-table-head">
-                    <el-tooltip content="Валюта партии закупки" placement="top">
-                      <span>Валюта</span>
+                    <el-tooltip :content="t('sales.purchaseBatchCurrency')" placement="top">
+                      <span>{{ t('common.labels.currency') }}</span>
                     </el-tooltip>
-                    <el-tooltip content="Взятое количество из закупки" placement="top">
-                      <span>Кол-во</span>
+                    <el-tooltip :content="t('sales.takenFromPurchase')" placement="top">
+                      <span>{{ t('common.labels.count') }}</span>
                     </el-tooltip>
-                    <el-tooltip content="Дата закупки" placement="top">
-                      <span>Дата</span>
+                    <el-tooltip :content="t('sales.purchaseDate')" placement="top">
+                      <span>{{ t('common.labels.date') }}</span>
                     </el-tooltip>
-                    <el-tooltip content="Цена закупки" placement="top">
-                      <span>Цена</span>
+                    <el-tooltip :content="t('sales.purchasePrice')" placement="top">
+                      <span>{{ t('common.labels.price') }}</span>
                     </el-tooltip>
                   </div>
 
                   <div v-for="detail in row.details" :key="detail.id" class="detail-row">
-                    <strong>{{ detail.currency.name }} ({{ detail.currency.currencySign }})</strong>
-                    <strong>{{ detail.count.toLocaleString('ru-RU') }} шт.</strong>
-                    <strong>{{ formatDate(detail.purchaseDatetime) }}</strong>
-                    <strong>{{ formatCurrency(detail.buyPrice, detail.currency.currencySign) }}</strong>
+                    <strong :data-label="t('common.labels.currency')">{{ detail.currency.name }} ({{ detail.currency.currencySign }})</strong>
+                    <strong :data-label="t('common.labels.count')">{{ detail.count.toLocaleString(locale) }} {{ t('sales.pieces') }}</strong>
+                    <strong :data-label="t('common.labels.date')">{{ formatDate(detail.purchaseDatetime) }}</strong>
+                    <strong :data-label="t('common.labels.price')">{{ formatCurrency(detail.buyPrice, detail.currency.currencySign) }}</strong>
                   </div>
                 </div>
               </el-collapse-item>
             </el-collapse>
           </article>
 
-          <el-empty v-if="!loading && content.length === 0" description="Позиции не найдены" />
+          <el-empty v-if="!loading && content.length === 0" :description="t('sales.notFound')" />
         </div>
       </section>
     </template>
 
     <template v-else>
-      <el-empty description="Выберите продажу слева, чтобы увидеть содержимое" />
+      <el-empty :description="t('sales.selectToView')" />
     </template>
   </div>
 </template>
@@ -90,6 +90,9 @@
 <script setup lang="ts">
 import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
+import { useI18n } from '@/i18n'
+
+const { locale, t } = useI18n()
 
 defineProps<{
   sale?: SaleModel
@@ -98,15 +101,15 @@ defineProps<{
 }>()
 
 function formatDate(value?: string | null) {
-  return formatLocalDateTime(value, 'Нет данных')
+  return formatLocalDateTime(value, t('sales.noData'))
 }
 
 function formatCurrency(value: number, sign?: string) {
-  return `${value.toLocaleString('ru-RU')} ${sign ?? ''}`.trim()
+  return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
 function formatPercent(value: number) {
-  return `${(value * 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%`
+  return `${(value * 100).toLocaleString(locale.value, { maximumFractionDigits: 2 })}%`
 }
 </script>
 
@@ -316,20 +319,8 @@ function formatPercent(value: number) {
     font-weight: 650;
   }
 
-  .detail-row strong:nth-child(1)::before {
-    content: 'Валюта';
-  }
-
-  .detail-row strong:nth-child(2)::before {
-    content: 'Кол-во';
-  }
-
-  .detail-row strong:nth-child(3)::before {
-    content: 'Дата';
-  }
-
-  .detail-row strong:nth-child(4)::before {
-    content: 'Цена';
+  .detail-row strong::before {
+    content: attr(data-label);
   }
 }
 </style>

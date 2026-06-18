@@ -2,9 +2,9 @@
   <div class="flex min-h-screen items-center justify-center bg-gray-100 px-4 py-10">
     <div class="w-full max-w-md rounded-lg bg-white px-10 py-9 shadow-lg">
       <div class="pb-8 text-center">
-        <h1 class="text-2xl font-semibold text-gray-900">Восстановление пароля</h1>
+        <h1 class="text-2xl font-semibold text-gray-900">{{ t('auth.recoveryTitle') }}</h1>
         <p class="mt-2 text-sm text-gray-500">
-          Укажите email. Если пользователь существует, мы отправим ссылку для смены пароля.
+          {{ t('auth.recoveryHint') }}
         </p>
       </div>
 
@@ -14,7 +14,7 @@
           id="recovery-email"
           v-model="email"
           type="email"
-          placeholder="Введите email"
+          :placeholder="t('auth.recoveryEmailPlaceholder')"
           :disabled="isSent"
           @keyup.enter="submitRecovery"
         />
@@ -26,9 +26,9 @@
         show-icon
         :closable="false"
         class="mb-6"
-        title="Письмо отправлено"
+        :title="t('auth.recoverySentTitle')"
       >
-        <p class="text-sm">Проверьте почту и перейдите по ссылке из письма.</p>
+        <p class="text-sm">{{ t('auth.recoverySentMessage') }}</p>
       </el-alert>
 
       <div class="flex flex-col gap-4 pt-1">
@@ -39,11 +39,11 @@
           :disabled="isSent || !canSubmit"
           @click="submitRecovery"
         >
-          Отправить ссылку
+          {{ t('auth.sendRecoveryLink') }}
         </el-button>
 
         <RouterLink to="/auth" class="text-center text-sm font-medium text-blue-600 hover:text-blue-700">
-          Вернуться ко входу
+          {{ t('auth.backToLogin') }}
         </RouterLink>
       </div>
     </div>
@@ -56,7 +56,9 @@ import { RouterLink } from 'vue-router'
 import { ElNotification } from 'element-plus'
 import { ApiError } from '@/models/errorModel.ts'
 import { sendPasswordRecoveryEmail } from '@/services/api/authApi.ts'
+import { useI18n } from '@/i18n'
 
+const { t } = useI18n()
 const email = ref('')
 const isLoading = ref(false)
 const isSent = ref(false)
@@ -74,8 +76,8 @@ async function submitRecovery() {
     isSent.value = true
   } catch (error) {
     ElNotification({
-      title: 'Не удалось отправить письмо',
-      message: error instanceof ApiError ? error.message : 'Повторите попытку позже',
+      title: t('auth.recoveryErrorTitle'),
+      message: error instanceof ApiError ? error.message : t('auth.recoveryErrorMessage'),
       type: 'error',
     })
   } finally {

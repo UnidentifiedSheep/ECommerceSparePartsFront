@@ -2,6 +2,7 @@ import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/s
 import { useAuthStore } from '@/stores/authStore.ts'
 import { analyticsApiPrefix, apiBaseUrl } from '@/services/api/api.ts'
 import type { CalculationStatus } from '@/services/api/analytics.ts'
+import { getCurrentLocale } from '@/i18n'
 
 export interface MetricCalculationJobUpdatedEvent {
   metricId: string | null
@@ -21,6 +22,9 @@ export async function startMetricCalculationHub(
   const connection = new HubConnectionBuilder()
     .withUrl(hubUrl(), {
       accessTokenFactory: () => authStore.token ?? '',
+      headers: {
+        'Accept-Language': getCurrentLocale(),
+      },
     })
     .withAutomaticReconnect()
     .configureLogging(LogLevel.Warning)

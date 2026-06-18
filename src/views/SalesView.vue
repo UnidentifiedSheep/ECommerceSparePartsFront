@@ -2,31 +2,31 @@
   <div class="sales-page">
     <div class="sales-header">
       <div>
-        <h1>Продажи</h1>
-        <p>Список продаж, точные фильтры по покупателям, валютам и товарам.</p>
+        <h1>{{ t('sales.title') }}</h1>
+        <p>{{ t('sales.description') }}</p>
       </div>
       <el-button v-if="canCreateSales" type="primary" size="large" @click="createSaleDialogOpen = true">
-        Создать продажу
+        {{ t('sales.create') }}
       </el-button>
     </div>
 
     <div class="sales-content">
       <section class="sales-toolbar">
         <div>
-          <h2>Поиск продаж</h2>
+          <h2>{{ t('sales.searchTitle') }}</h2>
           <p>{{ activeFiltersText }}</p>
         </div>
         <div class="toolbar-actions">
           <el-badge :value="activeFiltersCount" :hidden="activeFiltersCount === 0">
-            <el-button size="large" plain @click="filtersDrawerOpen = true">Фильтры</el-button>
+            <el-button size="large" plain @click="filtersDrawerOpen = true">{{ t('sales.filters') }}</el-button>
           </el-badge>
-          <el-button size="large" type="primary" @click="loadSales(true)">Обновить</el-button>
+          <el-button size="large" type="primary" @click="loadSales(true)">{{ t('common.actions.refresh') }}</el-button>
         </div>
       </section>
 
       <el-drawer
         v-model="filtersDrawerOpen"
-        title="Фильтры продаж"
+        :title="t('sales.filtersTitle')"
         direction="rtl"
         size="min(440px, 100vw)"
         class="sale-filters-drawer"
@@ -34,42 +34,42 @@
         <div class="drawer-content">
           <div class="drawer-body">
             <section class="drawer-section">
-              <div class="drawer-section-title">Период и поиск</div>
+              <div class="drawer-section-title">{{ t('sales.periodAndSearch') }}</div>
               <label class="filter-field">
-                <span>Период</span>
+                <span>{{ t('sales.period') }}</span>
                 <el-date-picker
                   v-model="dateRange"
                   type="datetimerange"
                   range-separator="—"
-                  start-placeholder="Начало"
-                  end-placeholder="Конец"
+                  :start-placeholder="t('sales.start')"
+                  :end-placeholder="t('sales.end')"
                   value-format="YYYY-MM-DDTHH:mm:ss.SSS"
                   class="w-full"
                 />
               </label>
 
               <label class="filter-field">
-                <span>Поиск</span>
+                <span>{{ t('common.labels.search') }}</span>
                 <el-input
                   v-model="searchTerm"
                   clearable
                   :disabled="selectedProducts.length > 0"
-                  :placeholder="selectedProducts.length > 0 ? 'Недоступен при выборе точных товаров' : 'Строка поиска'"
+                  :placeholder="selectedProducts.length > 0 ? t('sales.searchDisabledByProducts') : t('sales.searchPlaceholder')"
                 />
               </label>
             </section>
 
             <section class="drawer-section">
-              <div class="drawer-section-title">Валюты</div>
+              <div class="drawer-section-title">{{ t('sales.currencies') }}</div>
               <label class="filter-field">
-                <span>Валюты</span>
+                <span>{{ t('sales.currencies') }}</span>
                 <el-select
                   v-model="currencyIds"
                   multiple
                   collapse-tags
                   collapse-tags-tooltip
                   clearable
-                  placeholder="Все валюты"
+                  :placeholder="t('sales.allCurrencies')"
                   class="w-full"
                 >
                   <el-option
@@ -83,15 +83,15 @@
             </section>
 
             <section class="drawer-section">
-              <div class="drawer-section-title">Покупатели</div>
+              <div class="drawer-section-title">{{ t('sales.buyers') }}</div>
               <div class="filter-field">
-                <span>Добавить покупателя</span>
+                <span>{{ t('sales.addBuyer') }}</span>
                 <div class="picker-row">
                   <UserSelector
                     v-model:selected-user="buyerToAdd"
-                    place-holder="Покупатель"
+                    :place-holder="t('sales.buyer')"
                   />
-                  <el-button :disabled="!buyerToAdd" @click="addBuyerFilter">Добавить</el-button>
+                  <el-button :disabled="!buyerToAdd" @click="addBuyerFilter">{{ t('common.actions.add') }}</el-button>
                 </div>
                 <div v-if="selectedBuyers.length > 0" class="filter-tags">
                   <el-tag
@@ -107,10 +107,10 @@
             </section>
 
             <section class="drawer-section">
-              <div class="drawer-section-title">Точные товары</div>
+              <div class="drawer-section-title">{{ t('sales.exactProducts') }}</div>
               <div class="filter-field">
-                <span>Товары в продаже</span>
-                <el-button plain @click="productSelectorOpen = true">Добавить товар</el-button>
+                <span>{{ t('sales.saleProducts') }}</span>
+                <el-button plain @click="productSelectorOpen = true">{{ t('sales.addProduct') }}</el-button>
                 <div v-if="selectedProducts.length > 0" class="filter-tags">
                   <el-tag
                     v-for="product in selectedProducts"
@@ -126,8 +126,8 @@
           </div>
 
           <div class="drawer-footer">
-            <el-button @click="resetFilters">Сбросить</el-button>
-            <el-button type="primary" @click="applyDrawerFilters">Применить</el-button>
+            <el-button @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
+            <el-button type="primary" @click="applyDrawerFilters">{{ t('sales.apply') }}</el-button>
           </div>
         </div>
       </el-drawer>
@@ -136,8 +136,8 @@
         <section class="sales-list-panel">
           <div class="panel-heading">
             <div>
-              <h2>Список продаж</h2>
-              <p>{{ sales.length }} на текущей странице</p>
+              <h2>{{ t('sales.listTitle') }}</h2>
+              <p>{{ t('sales.onPage', { count: sales.length }) }}</p>
             </div>
           </div>
 
@@ -151,23 +151,23 @@
             row-class-name="sale-table-row"
             @current-change="selectSale"
           >
-            <el-table-column label="Покупатель" min-width="180">
+            <el-table-column :label="t('sales.buyer')" min-width="180">
               <template #default="{ row }">
                 {{ row.buyer.surname }} {{ row.buyer.name }}
               </template>
             </el-table-column>
-            <el-table-column prop="storage" label="Склад" min-width="150" />
-            <el-table-column label="Дата" min-width="170">
+            <el-table-column prop="storage" :label="t('sales.storage')" min-width="150" />
+            <el-table-column :label="t('common.labels.date')" min-width="170">
               <template #default="{ row }">
                 {{ formatDate(row.saleDatetime) }}
               </template>
             </el-table-column>
-            <el-table-column label="Сумма" min-width="140">
+            <el-table-column :label="t('sales.amount')" min-width="140">
               <template #default="{ row }">
                 {{ formatCurrency(row.totalSum, row.currency.currencySign) }}
               </template>
             </el-table-column>
-            <el-table-column label="Комментарий" min-width="180" show-overflow-tooltip>
+            <el-table-column :label="t('common.labels.comment')" min-width="180" show-overflow-tooltip>
               <template #default="{ row }">
                 {{ row.comment || '—' }}
               </template>
@@ -217,7 +217,9 @@ import { getCurrencies } from '@/services/api/currencies.ts'
 import { getSaleContent, getSales } from '@/services/api/sales.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { useI18n } from '@/i18n'
 
+const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
 const canCreateSales = computed(() => hasPermission('SALES_CREATE'))
 const sales = ref<SaleModel[]>([])
@@ -247,8 +249,8 @@ const activeFiltersCount = computed(() => (
 ))
 const activeFiltersText = computed(() => (
   activeFiltersCount.value === 0
-    ? 'Показаны продажи за выбранный период'
-    : `Активных фильтров: ${activeFiltersCount.value}`
+    ? t('sales.shownByPeriod')
+    : t('sales.activeFilters', { count: activeFiltersCount.value })
 ))
 
 const rangeEnd = new Date()
@@ -265,11 +267,11 @@ const loadSalesDebounced = useDebounceFn(async () => {
 }, 300)
 
 function formatDate(value?: string | null) {
-  return formatLocalDateTime(value, 'Нет данных')
+  return formatLocalDateTime(value, t('sales.noData'))
 }
 
 function formatCurrency(value: number, sign?: string) {
-  return `${value.toLocaleString('ru-RU')} ${sign ?? ''}`.trim()
+  return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
 function resetFilters() {
@@ -353,7 +355,7 @@ async function loadSales(resetPage: boolean) {
       }
     }
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить продажи')
+    ElMessage.error(error instanceof Error ? error.message : t('sales.loadError'))
   } finally {
     salesLoading.value = false
   }
@@ -375,7 +377,7 @@ async function selectSale(sale?: SaleModel) {
     saleContent.value = resp.content
   } catch (error) {
     saleContent.value = []
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить состав продажи')
+    ElMessage.error(error instanceof Error ? error.message : t('sales.loadContentError'))
   } finally {
     contentLoading.value = false
   }

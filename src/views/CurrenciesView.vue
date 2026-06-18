@@ -2,8 +2,8 @@
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
     <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
       <div>
-        <h1 class="text-2xl font-semibold text-slate-900">Валюты</h1>
-        <p class="text-sm text-slate-500">Справочник валют, доступных в системе.</p>
+        <h1 class="text-2xl font-semibold text-slate-900">{{ t('currencies.title') }}</h1>
+        <p class="text-sm text-slate-500">{{ t('currencies.description') }}</p>
       </div>
     </div>
 
@@ -12,14 +12,14 @@
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <div class="min-w-0">
-              <h2 class="text-lg font-semibold text-slate-900">Список валют</h2>
-              <p class="text-sm text-slate-500">Данные из GET /main/currencies</p>
+              <h2 class="text-lg font-semibold text-slate-900">{{ t('currencies.listTitle') }}</h2>
+              <p class="text-sm text-slate-500">{{ t('currencies.sourceHint') }}</p>
             </div>
             <div class="flex min-w-0 flex-1 justify-end gap-2">
               <el-input
                 v-model="searchTerm"
                 clearable
-                placeholder="Поиск по названию, коду или символу"
+                :placeholder="t('currencies.searchPlaceholder')"
                 class="max-w-xs"
               />
               <el-button
@@ -29,10 +29,10 @@
                 plain
                 @click="submitUpdateRates"
               >
-                Обновить курсы
+                {{ t('currencies.updateRates') }}
               </el-button>
               <el-button v-if="canCreateCurrencies" :icon="Plus" type="primary" @click="openCreateDialog">
-                Создать
+                {{ t('common.actions.create') }}
               </el-button>
             </div>
           </div>
@@ -48,10 +48,10 @@
           class="currencies-table"
           @row-click="selectCurrency"
         >
-          <el-table-column prop="name" label="Название" min-width="220" />
-          <el-table-column prop="shortName" label="Короткое имя" min-width="160" />
-          <el-table-column prop="code" label="Код" min-width="120" />
-          <el-table-column prop="currencySign" label="Символ" min-width="120" />
+          <el-table-column prop="name" :label="t('common.labels.name')" min-width="220" />
+          <el-table-column prop="shortName" :label="t('common.labels.shortName')" min-width="160" />
+          <el-table-column prop="code" :label="t('common.labels.code')" min-width="120" />
+          <el-table-column prop="currencySign" :label="t('common.labels.symbol')" min-width="120" />
         </el-table>
 
         <template #footer>
@@ -64,9 +64,9 @@
       <section class="min-h-[420px] min-w-0 rounded-md border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900">История курса</h2>
+            <h2 class="text-lg font-semibold text-slate-900">{{ t('currencies.historyTitle') }}</h2>
             <p class="text-sm text-slate-500">
-              {{ selectedCurrency ? selectedCurrency.name : 'Выберите валюту в списке' }}
+              {{ selectedCurrency ? selectedCurrency.name : t('currencies.selectCurrencyInList') }}
             </p>
           </div>
           <el-tag v-if="selectedCurrency" effect="plain">
@@ -78,39 +78,39 @@
             v-if="selectedCurrency"
             v-loading="isHistoryLoading"
             :data="currencyHistory"
-            empty-text="История курса пуста"
+            :empty-text="t('currencies.emptyHistory')"
             class="currency-history-table"
           >
-            <el-table-column label="Пара" min-width="180">
+            <el-table-column :label="t('common.labels.pair')" min-width="180">
               <template #default="{ row }">
                 <span class="font-medium text-slate-800">{{ currencyPairLabel(row) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="Было" min-width="130">
+            <el-table-column :label="t('common.labels.before')" min-width="130">
               <template #default="{ row }">
                 <span class="tabular-nums text-slate-600">{{ formatRate(row.prevRate) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="Стало" min-width="130">
+            <el-table-column :label="t('common.labels.after')" min-width="130">
               <template #default="{ row }">
                 <span class="tabular-nums text-slate-900">{{ formatRate(row.newRate) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="Изменение" min-width="130">
+            <el-table-column :label="t('common.labels.change')" min-width="130">
               <template #default="{ row }">
                 <span :class="rateDeltaClass(row)">
                   {{ formatRateDelta(row) }}
                 </span>
               </template>
             </el-table-column>
-            <el-table-column label="Дата" min-width="170">
+            <el-table-column :label="t('common.labels.date')" min-width="170">
               <template #default="{ row }">
                 <span class="text-slate-600">{{ formatDate(row.createdAt) }}</span>
               </template>
             </el-table-column>
           </el-table>
 
-          <el-empty v-else description="Выберите валюту" />
+          <el-empty v-else :description="t('currencies.selectCurrency')" />
         </div>
 
         <div v-if="selectedCurrency" class="border-t border-slate-200 px-4 py-3">
@@ -119,30 +119,30 @@
       </section>
     </div>
 
-    <el-dialog v-model="createDialogOpen" title="Создать валюту" width="480">
+    <el-dialog v-model="createDialogOpen" :title="t('currencies.createTitle')" width="480">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-position="top">
-        <el-form-item label="Название" prop="name">
-          <el-input v-model="createForm.name" placeholder="Например: Российский рубль" />
+        <el-form-item :label="t('common.labels.name')" prop="name">
+          <el-input v-model="createForm.name" :placeholder="t('currencies.namePlaceholder')" />
         </el-form-item>
 
-        <el-form-item label="Короткое имя" prop="shortName">
-          <el-input v-model="createForm.shortName" placeholder="Например: Руб." />
+        <el-form-item :label="t('common.labels.shortName')" prop="shortName">
+          <el-input v-model="createForm.shortName" :placeholder="t('currencies.shortNamePlaceholder')" />
         </el-form-item>
 
         <div class="grid grid-cols-2 gap-3">
-          <el-form-item label="Код" prop="code">
+          <el-form-item :label="t('common.labels.code')" prop="code">
             <el-input v-model="createForm.code" placeholder="RUB" />
           </el-form-item>
 
-          <el-form-item label="Символ" prop="currencySign">
+          <el-form-item :label="t('common.labels.symbol')" prop="currencySign">
             <el-input v-model="createForm.currencySign" placeholder="₽" />
           </el-form-item>
         </div>
       </el-form>
 
       <template #footer>
-        <el-button @click="createDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" :loading="isCreating" @click="submitCreate">Создать</el-button>
+        <el-button @click="createDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="isCreating" @click="submitCreate">{{ t('common.actions.create') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -163,7 +163,9 @@ import {
   type CurrencyRateHistoryModel,
 } from '@/services/api/currencies.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { useI18n } from '@/i18n'
 
+const { locale, t } = useI18n()
 const currencies = ref<CurrencyModel[]>([])
 const currencyHistory = ref<CurrencyRateHistoryModel[]>([])
 const selectedCurrency = ref<CurrencyModel>()
@@ -190,24 +192,24 @@ const createForm = reactive<CreateCurrencyRequest>({
   currencySign: '',
 })
 
-const createRules = reactive<FormRules<CreateCurrencyRequest>>({
+const createRules = computed<FormRules<CreateCurrencyRequest>>(() => ({
   name: [
-    { required: true, message: 'Название обязательно', trigger: 'blur' },
-    { min: 3, max: 128, message: 'Название должно содержать от 3 до 128 символов', trigger: 'blur' },
+    { required: true, message: t('currencies.validation.nameRequired'), trigger: 'blur' },
+    { min: 3, max: 128, message: t('currencies.validation.nameLength'), trigger: 'blur' },
   ],
   shortName: [
-    { required: true, message: 'Короткое имя обязательно', trigger: 'blur' },
-    { min: 2, max: 5, message: 'Короткое имя должно содержать от 2 до 5 символов', trigger: 'blur' },
+    { required: true, message: t('currencies.validation.shortNameRequired'), trigger: 'blur' },
+    { min: 2, max: 5, message: t('currencies.validation.shortNameLength'), trigger: 'blur' },
   ],
   code: [
-    { required: true, message: 'Код обязателен', trigger: 'blur' },
-    { min: 2, max: 26, message: 'Код должен содержать от 2 до 26 символов', trigger: 'blur' },
+    { required: true, message: t('currencies.validation.codeRequired'), trigger: 'blur' },
+    { min: 2, max: 26, message: t('currencies.validation.codeLength'), trigger: 'blur' },
   ],
   currencySign: [
-    { required: true, message: 'Символ обязателен', trigger: 'blur' },
-    { min: 1, max: 3, message: 'Символ должен содержать от 1 до 3 символов', trigger: 'blur' },
+    { required: true, message: t('currencies.validation.signRequired'), trigger: 'blur' },
+    { min: 1, max: 3, message: t('currencies.validation.signLength'), trigger: 'blur' },
   ],
-})
+}))
 
 const filteredCurrencies = computed(() => {
   const query = searchTerm.value.trim().toLowerCase()
@@ -268,7 +270,7 @@ async function selectCurrency(currency: CurrencyModel) {
 
 function currencyLabel(currencyId: number) {
   const currency = currencies.value.find((item) => item.id === currencyId)
-  return currency ? `${currency.shortName} (${currency.code})` : 'Неизвестная валюта'
+  return currency ? `${currency.shortName} (${currency.code})` : t('currencies.unknownCurrency')
 }
 
 function currencyPairLabel(history: CurrencyRateHistoryModel) {
@@ -276,7 +278,7 @@ function currencyPairLabel(history: CurrencyRateHistoryModel) {
 }
 
 function formatRate(value: number) {
-  return value.toLocaleString('ru-RU', {
+  return value.toLocaleString(locale.value, {
     maximumFractionDigits: 8,
   })
 }
@@ -295,7 +297,7 @@ function rateDeltaClass(history: CurrencyRateHistoryModel) {
 }
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleString('ru-RU')
+  return new Date(value).toLocaleString(locale.value)
 }
 
 function openCreateDialog() {
@@ -322,7 +324,7 @@ async function submitCreate() {
     })
 
     ElNotification({
-      title: 'Валюта создана',
+      title: t('currencies.createdTitle'),
       message: `ID: ${resp.id}`,
       type: 'success',
     })
@@ -341,8 +343,8 @@ async function submitUpdateRates() {
   try {
     await updateCurrencyRates()
     ElNotification({
-      title: 'Курсы валют обновлены',
-      message: 'Список валют перезагружен.',
+      title: t('currencies.ratesUpdatedTitle'),
+      message: t('currencies.ratesUpdatedMessage'),
       type: 'success',
     })
     await loadCurrencies(false)

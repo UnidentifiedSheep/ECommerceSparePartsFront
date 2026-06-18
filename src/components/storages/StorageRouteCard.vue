@@ -3,60 +3,60 @@
     <div class="route-card__top">
       <div class="route-card__path">
         <div class="route-point">
-          <span>Откуда</span>
+          <span>{{ t('storages.routesPanel.from') }}</span>
           <strong>{{ route.fromStorageName }}</strong>
         </div>
         <div class="route-arrow">→</div>
         <div class="route-point">
-          <span>Куда</span>
+          <span>{{ t('storages.routesPanel.to') }}</span>
           <strong>{{ route.toStorageName }}</strong>
         </div>
       </div>
 
       <div class="route-actions">
         <el-tag :type="route.isActive ? 'success' : 'info'" effect="light">
-          {{ route.isActive ? 'Активен' : 'Выключен' }}
+          {{ route.isActive ? t('storages.routesPanel.active') : t('storages.routesPanel.inactive') }}
         </el-tag>
         <el-button size="small" plain @click="$emit('toggle', route)">
-          {{ route.isActive ? 'Отключить' : 'Включить' }}
+          {{ route.isActive ? t('storages.routesPanel.disable') : t('storages.routesPanel.enable') }}
         </el-button>
-        <el-button size="small" @click="$emit('edit', route)">Редактировать</el-button>
-        <el-button size="small" type="danger" plain @click="$emit('remove', route)">Удалить</el-button>
+        <el-button size="small" @click="$emit('edit', route)">{{ t('common.actions.edit') }}</el-button>
+        <el-button size="small" type="danger" plain @click="$emit('remove', route)">{{ t('common.actions.delete') }}</el-button>
       </div>
     </div>
 
     <div class="route-details">
       <div>
-        <span>Тип</span>
+        <span>{{ t('common.labels.type') }}</span>
         <strong>{{ routeTypeToText(route.routeType) }}</strong>
       </div>
       <div>
-        <span>Дистанция</span>
+        <span>{{ t('storages.routesPanel.distance') }}</span>
         <strong>{{ formatDistance(route.distanceM) }}</strong>
       </div>
       <div>
-        <span>Время</span>
+        <span>{{ t('storages.routesPanel.time') }}</span>
         <strong>{{ formatDuration(route.deliveryTimeMinutes) }}</strong>
       </div>
       <div>
-        <span>Тариф</span>
+        <span>{{ t('storages.routesPanel.tariff') }}</span>
         <strong>{{ pricingTypeToText(route.pricingModel) }}</strong>
       </div>
       <div>
-        <span>За кг</span>
+        <span>{{ t('purchases.perKg') }}</span>
         <strong>{{ formatMoney(route.pricePerKg) }}</strong>
       </div>
       <div>
-        <span>За м³</span>
+        <span>{{ t('purchases.perM3') }}</span>
         <strong>{{ formatMoney(route.pricePerM3) }}</strong>
       </div>
       <div>
-        <span>За заказ</span>
+        <span>{{ t('purchases.perOrder') }}</span>
         <strong>{{ formatMoney(route.pricePerOrder) }}</strong>
       </div>
       <div>
-        <span>Мин. цена</span>
-        <strong>{{ route.minimumPrice ? formatMoney(route.minimumPrice) : 'Не задана' }}</strong>
+        <span>{{ t('purchases.minimumPrice') }}</span>
+        <strong>{{ route.minimumPrice ? formatMoney(route.minimumPrice) : t('purchases.notSet') }}</strong>
       </div>
     </div>
   </article>
@@ -66,10 +66,13 @@
 import type { StorageRouteModel } from '@/models/storageRouteModel.ts'
 import { pricingTypeToText } from '@/enums/logisticPricingType.ts'
 import { routeTypeToText } from '@/enums/routeType.ts'
+import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   route: StorageRouteModel
 }>()
+
+const { locale, t } = useI18n()
 
 defineEmits<{
   toggle: [route: StorageRouteModel]
@@ -78,20 +81,22 @@ defineEmits<{
 }>()
 
 function formatDistance(value: number) {
-  if (value >= 1000) return `${(value / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} км`
-  return `${value.toLocaleString('ru-RU')} м`
+  if (value >= 1000) return `${(value / 1000).toLocaleString(locale.value, { maximumFractionDigits: 1 })} ${t('storages.routesPanel.kilometer')}`
+  return `${value.toLocaleString(locale.value)} ${t('storages.routesPanel.meter')}`
 }
 
 function formatDuration(value: number) {
-  if (value < 60) return `${value.toLocaleString('ru-RU')} мин`
+  if (value < 60) return `${value.toLocaleString(locale.value)} ${t('storages.routesPanel.minute')}`
 
   const hours = Math.floor(value / 60)
   const minutes = value % 60
-  return minutes > 0 ? `${hours} ч ${minutes} мин` : `${hours} ч`
+  return minutes > 0
+    ? `${hours.toLocaleString(locale.value)} ${t('storages.routesPanel.hour')} ${minutes.toLocaleString(locale.value)} ${t('storages.routesPanel.minute')}`
+    : `${hours.toLocaleString(locale.value)} ${t('storages.routesPanel.hour')}`
 }
 
 function formatMoney(value: number) {
-  return `${value.toLocaleString('ru-RU')} ${props.route.currency.currencySign}`.trim()
+  return `${value.toLocaleString(locale.value)} ${props.route.currency.currencySign}`.trim()
 }
 </script>
 

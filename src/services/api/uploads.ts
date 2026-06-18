@@ -1,5 +1,6 @@
 import axios from 'axios'
 import api from '@/services/api/api.ts'
+import { t } from '@/i18n'
 
 export interface UploadFileModel {
   key: string
@@ -48,7 +49,7 @@ export async function uploadFile(file: File): Promise<UploadFileModel> {
 
   const uploadUrl = createResp.data.uploadUrl ?? createResp.data.UploadUrl
   if (!uploadUrl) {
-    throw new Error('Бэк не вернул ссылку для загрузки файла')
+    throw new Error(t('common.messages.uploadUrlMissing'))
   }
 
   await axios.put(uploadUrl, file, {

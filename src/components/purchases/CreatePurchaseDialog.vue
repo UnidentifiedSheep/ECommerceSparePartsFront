@@ -9,9 +9,9 @@
     <template #header>
       <div class="dialog-heading">
         <div class="min-w-0">
-          <div class="dialog-kicker">Новая закупка</div>
-          <h2>Создание закупки</h2>
-          <p>Поставщик, склад, валюта и позиции документа заполняются в одном окне.</p>
+          <div class="dialog-kicker">{{ t('purchases.newPurchase') }}</div>
+          <h2>{{ t('purchases.createTitle') }}</h2>
+          <p>{{ t('purchases.createDescription') }}</p>
         </div>
         <el-button :icon="Close" circle text @click="isOpen = false" />
       </div>
@@ -20,25 +20,25 @@
     <div class="purchase-dialog-body">
       <aside class="purchase-summary">
         <div class="summary-total">
-          <span>Итого</span>
+          <span>{{ t('purchases.total') }}</span>
           <strong>{{ formatCurrency(createPurchaseTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
 
         <div class="summary-grid">
           <div>
-            <span>Позиций</span>
+            <span>{{ t('purchases.itemLines') }}</span>
             <strong>{{ form.items.length }}</strong>
           </div>
           <div>
-            <span>Товаров</span>
+            <span>{{ t('purchases.products') }}</span>
             <strong>{{ totalItemCount }}</strong>
           </div>
           <div>
-            <span>Оплачено</span>
+            <span>{{ t('purchases.paid') }}</span>
             <strong>{{ formatCurrency(form.payedSum ?? 0, selectedCurrency?.currencySign) }}</strong>
           </div>
           <div>
-            <span>Остаток</span>
+            <span>{{ t('purchases.remaining') }}</span>
             <strong>{{ formatCurrency(remainingPayment, selectedCurrency?.currencySign) }}</strong>
           </div>
         </div>
@@ -60,23 +60,23 @@
         <section class="purchase-section purchase-section--main">
           <div class="section-header">
             <div>
-              <div class="section-title">Параметры</div>
-              <div class="section-subtitle">Основные данные документа</div>
+              <div class="section-title">{{ t('purchases.parameters') }}</div>
+              <div class="section-subtitle">{{ t('purchases.parametersHint') }}</div>
             </div>
           </div>
 
           <div class="form-grid">
-            <el-form-item label="Поставщик" class="span-4">
+            <el-form-item :label="t('purchases.supplier')" class="span-4">
               <UserSelector
                 v-model:selected-user="form.supplier"
                 :roles="['Supplier']"
-                place-holder="Выберите поставщика"
+                :place-holder="t('purchases.selectSupplier')"
                 :clearable="false"
               />
             </el-form-item>
 
-            <el-form-item label="Склад прихода" class="span-4">
-              <el-select v-model="form.storageName" filterable class="w-full" placeholder="Выберите склад">
+            <el-form-item :label="t('purchases.arrivalStorage')" class="span-4">
+              <el-select v-model="form.storageName" filterable class="w-full" :placeholder="t('purchases.selectStorage')">
                 <el-option
                   v-for="storage in storages"
                   :key="storage.name"
@@ -86,7 +86,7 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item label="Дата закупки" class="span-4">
+            <el-form-item :label="t('purchases.purchaseDate')" class="span-4">
               <el-date-picker
                 v-model="form.purchaseDate"
                 type="datetime"
@@ -95,8 +95,8 @@
               />
             </el-form-item>
 
-            <el-form-item label="Валюта" class="span-3">
-              <el-select v-model="form.currencyId" class="w-full" placeholder="Выберите валюту">
+            <el-form-item :label="t('common.labels.currency')" class="span-3">
+              <el-select v-model="form.currencyId" class="w-full" :placeholder="t('purchases.selectCurrency')">
                 <el-option
                   v-for="currency in currencies"
                   :key="currency.id"
@@ -106,18 +106,18 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item label="Оплачено" class="span-3">
+            <el-form-item :label="t('purchases.paid')" class="span-3">
               <el-input-number v-model="form.payedSum" :min="0" :precision="2" :controls="false" class="w-full" />
             </el-form-item>
 
-            <el-form-item label="Логистика" class="span-2">
+            <el-form-item :label="t('purchases.logistics')" class="span-2">
               <div class="flex h-8 items-center">
-                <el-switch v-model="form.withLogistics" active-text="Да" inactive-text="Нет" />
+                <el-switch v-model="form.withLogistics" :active-text="t('purchases.yes')" :inactive-text="t('purchases.no')" />
               </div>
             </el-form-item>
 
-            <el-form-item v-if="form.withLogistics" label="Склад отправки" class="span-4">
-              <el-select v-model="form.storageFrom" filterable clearable class="w-full" placeholder="Выберите склад">
+            <el-form-item v-if="form.withLogistics" :label="t('purchases.departureStorage')" class="span-4">
+              <el-select v-model="form.storageFrom" filterable clearable class="w-full" :placeholder="t('purchases.selectStorage')">
                 <el-option
                   v-for="storage in storages"
                   :key="storage.name"
@@ -127,8 +127,8 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item label="Комментарий" class="span-12">
-              <el-input v-model="form.comment" type="textarea" :rows="2" placeholder="Комментарий к закупке" />
+            <el-form-item :label="t('common.labels.comment')" class="span-12">
+              <el-input v-model="form.comment" type="textarea" :rows="2" :placeholder="t('purchases.commentPlaceholder')" />
             </el-form-item>
           </div>
         </section>
@@ -136,17 +136,17 @@
         <section class="purchase-section">
           <div class="section-header">
             <div>
-              <div class="section-title">Позиции</div>
+              <div class="section-title">{{ t('purchases.positions') }}</div>
               <div class="section-subtitle">{{ itemsSummary }}</div>
             </div>
             <el-button :icon="Plus" type="primary" @click="productSelectorOpen = true">
-              Добавить товар
+              {{ t('purchases.addProduct') }}
             </el-button>
           </div>
 
           <div v-if="form.items.length === 0" class="empty-items">
-            <div class="text-base font-semibold text-slate-900">Позиции еще не добавлены</div>
-            <div class="mt-1 text-sm text-slate-500">Начните с выбора товара через поиск.</div>
+            <div class="text-base font-semibold text-slate-900">{{ t('purchases.noPositions') }}</div>
+            <div class="mt-1 text-sm text-slate-500">{{ t('purchases.createNoPositionsHint') }}</div>
           </div>
 
           <div v-else class="items-list">
@@ -163,12 +163,12 @@
                     <span class="sku-pill">{{ item.product?.sku || '—' }}</span>
                   </div>
                   <div v-if="form.withLogistics && item.calculateLogistics" class="item-logistics">
-                    <template v-if="isCalculatingLogistics">Расчет логистики...</template>
+                    <template v-if="isCalculatingLogistics">{{ t('purchases.calculatingLogistics') }}</template>
                     <template v-else-if="item.logisticsSkipped">
-                      {{ item.logisticsReasons?.join(', ') || 'Логистика не рассчитана' }}
+                      {{ item.logisticsReasons?.join(', ') || t('purchases.logisticsNotCalculated') }}
                     </template>
                     <template v-else-if="item.logisticsCost !== undefined">
-                      Логистика: {{ formatCurrency(item.logisticsCost, logisticsCurrencySign) }}
+                      {{ t('purchases.logisticsCost', { value: formatCurrency(item.logisticsCost, logisticsCurrencySign) }) }}
                     </template>
                   </div>
                 </div>
@@ -176,23 +176,23 @@
 
               <div class="item-controls">
                 <label>
-                  <span>Кол-во</span>
+                  <span>{{ t('common.labels.count') }}</span>
                   <el-input-number v-model="item.count" :min="1" :precision="0" :controls="false" class="w-full" />
                 </label>
                 <label>
-                  <span>Цена</span>
+                  <span>{{ t('common.labels.price') }}</span>
                   <el-input-number v-model="item.price" :min="0" :precision="2" :controls="false" class="w-full" />
                 </label>
                 <label>
-                  <span>Сумма</span>
+                  <span>{{ t('purchases.amount') }}</span>
                   <div class="item-sum">{{ formatCurrency(item.count * item.price, selectedCurrency?.currencySign) }}</div>
                 </label>
               </div>
 
               <div class="item-comment">
-                <el-input v-model="item.comment" placeholder="Комментарий к позиции" />
+                <el-input v-model="item.comment" :placeholder="t('purchases.itemCommentPlaceholder')" />
                 <el-checkbox v-model="item.calculateLogistics" :disabled="!form.withLogistics">
-                  Считать логистику
+                  {{ t('purchases.calculateLogistics') }}
                 </el-checkbox>
               </div>
 
@@ -206,13 +206,13 @@
     <template #footer>
       <div class="dialog-footer">
         <div class="footer-total">
-          <span>Итоговая сумма</span>
+          <span>{{ t('purchases.totalAmount') }}</span>
           <strong>{{ formatCurrency(createPurchaseTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
         <div class="footer-actions">
-          <el-button size="large" @click="isOpen = false">Отмена</el-button>
+          <el-button size="large" @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
           <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save">
-            Создать закупку
+            {{ t('purchases.create') }}
           </el-button>
         </div>
       </div>
@@ -237,6 +237,7 @@ import type { UserModel } from '@/models/userModel.ts'
 import { calculateDeliveryCost } from '@/services/api/logistics.ts'
 import { createPurchase } from '@/services/api/purchases.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
+import { useI18n } from '@/i18n'
 
 interface CreatePurchaseItemForm {
   product?: ProductSearchModel
@@ -254,6 +255,7 @@ const props = defineProps<{
   storages: StorageModel[]
 }>()
 
+const { locale, t } = useI18n()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   created: [purchase: PurchaseModel]
@@ -299,12 +301,12 @@ const remainingPayment = computed(() => (
 ))
 
 const completionSteps = computed(() => [
-  { label: 'Поставщик', done: !!form.supplier },
-  { label: 'Склад', done: !!form.storageName },
-  { label: 'Валюта', done: !!form.currencyId },
-  { label: 'Позиции', done: form.items.length > 0 },
+  { label: t('purchases.supplier'), done: !!form.supplier },
+  { label: t('common.labels.storage'), done: !!form.storageName },
+  { label: t('common.labels.currency'), done: !!form.currencyId },
+  { label: t('purchases.positions'), done: form.items.length > 0 },
   ...(form.withLogistics ? [{
-    label: 'Логистика',
+    label: t('purchases.logistics'),
     done: !!form.storageFrom && !isCalculatingLogistics.value && !hasSkippedLogistics.value,
   }] : []),
 ])
@@ -316,8 +318,8 @@ const hasSkippedLogistics = computed(() => (
 
 const itemsSummary = computed(() => {
   return form.items.length === 0
-    ? 'Добавьте товары в закупку'
-    : `${form.items.length} позиций, ${totalItemCount.value} шт.`
+    ? t('purchases.addItemsHint')
+    : t('purchases.itemsSummary', { positions: form.items.length, count: totalItemCount.value })
 })
 
 const canSave = computed(() => (
@@ -360,7 +362,7 @@ function removeItem(index: number) {
 }
 
 function formatCurrency(value: number, sign?: string) {
-  return `${value.toLocaleString('ru-RU')} ${sign ?? ''}`.trim()
+  return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
 function clearLogisticsPreview() {
@@ -443,8 +445,8 @@ async function save() {
     })
 
     ElNotification({
-      title: 'Успех',
-      message: 'Закупка создана',
+      title: t('common.labels.success'),
+      message: t('purchases.created'),
       type: 'success',
     })
 

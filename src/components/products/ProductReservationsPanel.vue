@@ -2,7 +2,7 @@
   <section class="reservation-panel">
     <div class="reservation-header">
       <div class="min-w-0">
-        <div class="text-sm font-semibold text-slate-900">{{ title }}</div>
+        <div class="text-sm font-semibold text-slate-900">{{ panelTitle }}</div>
         <div class="truncate text-xs text-slate-500">{{ summaryText }}</div>
       </div>
       <div class="reservation-actions">
@@ -14,10 +14,10 @@
           plain
           @click="openCreateDialog"
         >
-          Создать
+          {{ t('common.actions.create') }}
         </el-button>
         <el-button :icon="Refresh" :loading="isLoading" size="small" plain @click="loadReservations">
-          Обновить
+          {{ t('common.actions.refresh') }}
         </el-button>
       </div>
     </div>
@@ -27,17 +27,17 @@
       :data="reservations"
       stripe
       size="small"
-      empty-text="Резерваций нет"
+      :empty-text="t('reservations.empty')"
       class="reservation-table"
       @sort-change="handleSortChange"
     >
-      <el-table-column label="Клиент" min-width="170" show-overflow-tooltip>
+      <el-table-column :label="t('common.labels.client')" min-width="170" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="font-medium text-slate-900">{{ userName(row) }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column label="Статус" width="112" sortable="custom" prop="status">
+      <el-table-column :label="t('common.labels.status')" width="112" sortable="custom" prop="status">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)" effect="light">
             {{ statusText(row.status) }}
@@ -45,7 +45,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="Кол-во" width="116" align="right">
+      <el-table-column :label="t('common.labels.count')" width="116" align="right">
         <template #default="{ row }">
           <div class="count-cell">
             <strong>{{ formatNumber(remainingCount(row)) }}</strong>
@@ -54,13 +54,13 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="Цена" width="120" align="right">
+      <el-table-column :label="t('common.labels.price')" width="120" align="right">
         <template #default="{ row }">
           {{ proposedPriceText(row) }}
         </template>
       </el-table-column>
 
-      <el-table-column label="Комментарий" min-width="170" show-overflow-tooltip>
+      <el-table-column :label="t('common.labels.comment')" min-width="170" show-overflow-tooltip>
         <template #default="{ row }">
           <span :class="row.comment ? 'text-slate-700' : 'text-slate-400'">
             {{ row.comment || '-' }}
@@ -68,7 +68,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="Обновлено" width="150" sortable="custom" prop="updatedAt">
+      <el-table-column :label="t('common.labels.updatedAtShort')" width="150" sortable="custom" prop="updatedAt">
         <template #default="{ row }">
           {{ formatDate(row.updatedAt) }}
         </template>
@@ -99,27 +99,27 @@
       />
     </div>
 
-    <el-dialog v-model="createDialogOpen" title="Создать резервацию" width="560">
+    <el-dialog v-model="createDialogOpen" :title="t('reservations.create')" width="560">
       <el-form label-position="top">
-        <el-form-item v-if="!fixedUserId" label="Пользователь">
-          <UserSelector v-model:selected-user="createForm.user" place-holder="Выберите пользователя" />
+        <el-form-item v-if="!fixedUserId" :label="t('common.labels.user')">
+          <UserSelector v-model:selected-user="createForm.user" :place-holder="t('reservations.selectUser')" />
         </el-form-item>
 
-        <el-form-item v-if="!fixedProductId" label="Товар">
+        <el-form-item v-if="!fixedProductId" :label="t('common.labels.product')">
           <div class="picker-row picker-row--button">
             <button class="picker-value" type="button" @click="productSelectorOpen = true">
               <span :class="createForm.product ? 'text-slate-900' : 'text-slate-400'">
-                {{ createForm.product ? productLabel(createForm.product) : 'Выберите товар' }}
+                {{ createForm.product ? productLabel(createForm.product) : t('reservations.selectProduct') }}
               </span>
             </button>
           </div>
         </el-form-item>
 
         <div class="grid grid-cols-2 gap-3">
-          <el-form-item label="Зарезервировано">
+          <el-form-item :label="t('reservations.reserved')">
             <el-input-number v-model="createForm.reservedCount" :min="1" :precision="0" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Уже взято">
+          <el-form-item :label="t('reservations.currentTaken')">
             <el-input-number
               v-model="createForm.currentCount"
               :min="0"
@@ -132,11 +132,11 @@
         </div>
 
         <div class="grid grid-cols-2 gap-3">
-          <el-form-item label="Предложенная цена">
+          <el-form-item :label="t('reservations.proposedPrice')">
             <el-input-number v-model="createForm.proposedPrice" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Валюта">
-            <el-select v-model="createForm.givenCurrencyId" clearable filterable class="w-full" placeholder="Не выбрана">
+          <el-form-item :label="t('common.labels.currency')">
+            <el-select v-model="createForm.givenCurrencyId" clearable filterable class="w-full" :placeholder="t('reservations.notSelected')">
               <el-option
                 v-for="currency in currencies"
                 :key="currency.id"
@@ -147,26 +147,26 @@
           </el-form-item>
         </div>
 
-        <el-form-item label="Комментарий">
+        <el-form-item :label="t('common.labels.comment')">
           <el-input v-model="createForm.comment" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="createDialogOpen = false">Отмена</el-button>
+        <el-button @click="createDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :disabled="!canSaveCreate" :loading="isSaving" @click="saveCreate">
-          Создать
+          {{ t('common.actions.create') }}
         </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editDialogOpen" title="Редактировать резервацию" width="480">
+    <el-dialog v-model="editDialogOpen" :title="t('reservations.edit')" width="480">
       <el-form label-position="top">
-        <el-form-item label="Предложенная цена">
+        <el-form-item :label="t('reservations.proposedPrice')">
           <el-input-number v-model="editForm.proposedPrice" :min="0" :precision="2" :controls="false" class="w-full" />
         </el-form-item>
-        <el-form-item label="Валюта">
-          <el-select v-model="editForm.givenCurrencyId" clearable filterable class="w-full" placeholder="Не выбрана">
+        <el-form-item :label="t('common.labels.currency')">
+          <el-select v-model="editForm.givenCurrencyId" clearable filterable class="w-full" :placeholder="t('reservations.notSelected')">
             <el-option
               v-for="currency in currencies"
               :key="currency.id"
@@ -175,20 +175,20 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Комментарий">
+        <el-form-item :label="t('common.labels.comment')">
           <el-input v-model="editForm.comment" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="editDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" :loading="isSaving" @click="saveEdit">Сохранить</el-button>
+        <el-button @click="editDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="isSaving" @click="saveEdit">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
 
     <el-dialog
       v-model="historyDialogOpen"
-      title="История резервации"
+      :title="t('reservations.history')"
       width="min(760px, calc(100vw - 24px))"
       class="reservation-history-dialog"
     >
@@ -197,26 +197,26 @@
         :data="history"
         stripe
         size="small"
-        empty-text="История не найдена"
+        :empty-text="t('reservations.historyEmpty')"
       >
-        <el-table-column label="Дата" width="160">
+        <el-table-column :label="t('common.labels.date')" width="160">
           <template #default="{ row }">
             {{ formatDate(row.updatedAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="Цена" width="120" align="right">
+        <el-table-column :label="t('common.labels.price')" width="120" align="right">
           <template #default="{ row }">
             {{ historyPriceText(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="Комментарий" min-width="220" show-overflow-tooltip>
+        <el-table-column :label="t('common.labels.comment')" min-width="220" show-overflow-tooltip>
           <template #default="{ row }">
             <span :class="row.comment ? 'text-slate-700' : 'text-slate-400'">
               {{ row.comment || '-' }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="Кто обновил" min-width="190" show-overflow-tooltip>
+        <el-table-column :label="t('common.labels.updatedBy')" min-width="190" show-overflow-tooltip>
           <template #default="{ row }">
             <el-popover
               v-if="row.updatedBy"
@@ -252,11 +252,11 @@
                   <div class="user-tooltip-muted">{{ userTooltipState(row.updatedBy).error }}</div>
                 </template>
                 <template v-else>
-                  <div class="user-tooltip-muted">Загрузка пользователя...</div>
+                  <div class="user-tooltip-muted">{{ t('reservations.userLoading') }}</div>
                 </template>
               </div>
             </el-popover>
-            <span v-else>Не указано</span>
+            <span v-else>{{ t('reservations.notSpecified') }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -302,6 +302,9 @@ import {
   getProductReservations,
 } from '@/services/api/products.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
+import { useI18n } from '@/i18n'
+
+const { locale, t } = useI18n()
 
 const props = withDefaults(defineProps<{
   productId?: number
@@ -310,7 +313,7 @@ const props = withDefaults(defineProps<{
   allowCreate?: boolean
   showDeleted?: boolean
 }>(), {
-  title: 'Резервации',
+  title: undefined,
   allowCreate: true,
   showDeleted: false,
 })
@@ -376,11 +379,12 @@ const totalTaken = computed(() => (
 const totalRemaining = computed(() => (
   reservations.value.reduce((sum, item) => sum + remainingCount(item), 0)
 ))
+const panelTitle = computed(() => props.title ?? t('reservations.title'))
 const summaryText = computed(() => {
-  if (isLoading.value) return 'Загрузка'
+  if (isLoading.value) return t('reservations.loading')
   return reservations.value.length > 0
-    ? `${reservations.value.length} резерваций на странице`
-    : 'Резерваций не найдено'
+    ? t('reservations.onPage', { count: reservations.value.length })
+    : t('reservations.notFound')
 })
 const canSaveCreate = computed(() => (
   Boolean(fixedUserId.value || createForm.user)
@@ -391,11 +395,11 @@ const canSaveCreate = computed(() => (
 ))
 
 function formatNumber(value: number) {
-  return value.toLocaleString('ru-RU')
+  return value.toLocaleString(locale.value)
 }
 
 function formatDate(value?: string | null) {
-  return formatLocalDateTime(value, 'Нет данных')
+  return formatLocalDateTime(value, t('reservations.noData'))
 }
 
 function remainingCount(row: ProductReservationModel) {
@@ -403,13 +407,7 @@ function remainingCount(row: ProductReservationModel) {
 }
 
 function statusText(status: ProductReservationStatus) {
-  const labels: Record<ProductReservationStatus, string> = {
-    Active: 'Активна',
-    Locked: 'Частично',
-    Done: 'Закрыта',
-    Canceled: 'Удалена',
-  }
-  return labels[status] ?? status
+  return t(`reservations.statuses.${status}`) || status
 }
 
 function statusTagType(status: ProductReservationStatus) {
@@ -429,8 +427,8 @@ function userName(row: ProductReservationModel) {
 }
 
 function partyTypeText(value: string | number) {
-  if (value === 'System' || value === 1) return 'Система'
-  return 'Пользователь'
+  if (value === 'System' || value === 1) return t('reservations.system')
+  return t('reservations.userParty')
 }
 
 function roleDisplayName(role: string) {
@@ -480,7 +478,7 @@ async function loadUserTooltip(userId: string) {
     state.user = resp.user
     state.roles = resp.roles
   } catch (error) {
-    state.error = error instanceof Error ? error.message : 'Не удалось загрузить пользователя'
+    state.error = error instanceof Error ? error.message : t('reservations.loadUserError')
   } finally {
     state.loading = false
   }
@@ -615,7 +613,7 @@ async function saveCreate() {
       ...reservations.value.filter((item) => item.id !== resp.reservation.id),
     ].slice(0, size.value)
     hasNext.value = hasNext.value || reservations.value.length === size.value
-    ElNotification({ title: 'Успех', message: 'Резервация создана', type: 'success' })
+    ElNotification({ title: t('common.labels.success'), message: t('reservations.created'), type: 'success' })
   } finally {
     isSaving.value = false
   }
@@ -634,7 +632,7 @@ async function saveEdit() {
 
     editDialogOpen.value = false
     await loadReservations()
-    ElNotification({ title: 'Успех', message: 'Резервация обновлена', type: 'success' })
+    ElNotification({ title: t('common.labels.success'), message: t('reservations.updated'), type: 'success' })
   } finally {
     isSaving.value = false
   }
@@ -642,9 +640,9 @@ async function saveEdit() {
 
 async function removeReservation(row: ProductReservationModel) {
   try {
-    await ElMessageBox.confirm('Удалить резервацию?', 'Удаление резервации', {
-      confirmButtonText: 'Удалить',
-      cancelButtonText: 'Отмена',
+    await ElMessageBox.confirm(t('reservations.deleteConfirm'), t('reservations.deleteTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
       type: 'warning',
     })
   } catch {
@@ -653,7 +651,7 @@ async function removeReservation(row: ProductReservationModel) {
 
   await deleteProductReservation(row.id)
   await loadReservations()
-  ElNotification({ title: 'Успех', message: 'Резервация удалена', type: 'success' })
+  ElNotification({ title: t('common.labels.success'), message: t('reservations.removed'), type: 'success' })
 }
 
 async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {

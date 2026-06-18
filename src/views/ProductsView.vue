@@ -2,10 +2,10 @@
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
     <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
       <div>
-        <h1 class="text-2xl font-semibold text-slate-900">Товары</h1>
-        <p class="text-sm text-slate-500">Поиск товаров по артикулу, названию и параметрам размеров.</p>
+        <h1 class="text-2xl font-semibold text-slate-900">{{ t('products.title') }}</h1>
+        <p class="text-sm text-slate-500">{{ t('products.description') }}</p>
       </div>
-      <el-button v-if="canCreateProducts" type="primary" @click="createDialogOpen = true">Создать продукты</el-button>
+      <el-button v-if="canCreateProducts" type="primary" @click="createDialogOpen = true">{{ t('products.createProducts') }}</el-button>
     </div>
 
     <div class="p-4">
@@ -13,15 +13,15 @@
         <div class="flex flex-col gap-3">
           <div class="grid grid-cols-[220px_minmax(300px,1fr)_300px_auto_auto_auto] items-end gap-3">
             <div>
-              <label class="mb-2 block text-sm font-medium text-slate-700">Вариант поиска</label>
+              <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('products.searchMode') }}</label>
               <el-select v-model="form.searchMode" size="large" class="w-full" @change="applyFilters">
-                <el-option label="По всем полям" value="all" />
-                <el-option label="По артикулу / SKU" value="sku" />
+                <el-option :label="t('products.searchAll')" value="all" />
+                <el-option :label="t('products.searchSku')" value="sku" />
               </el-select>
             </div>
 
             <div>
-              <label class="mb-2 block text-sm font-medium text-slate-700">Поиск</label>
+              <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.search') }}</label>
               <el-input
                 v-model="form.query"
                 clearable
@@ -32,20 +32,20 @@
             </div>
 
             <div>
-              <label class="mb-2 block text-sm font-medium text-slate-700">Производитель</label>
-              <ProducerSelector v-model="form.producerId" placeholder="Все производители" />
+              <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.producer') }}</label>
+              <ProducerSelector v-model="form.producerId" :placeholder="t('products.allProducers')" />
             </div>
 
             <el-badge v-if="form.searchMode === 'all'" :value="dimensionFiltersCount" :hidden="dimensionFiltersCount === 0">
-              <el-button size="large" plain @click="filtersDrawerOpen = true">Фильтры</el-button>
+              <el-button size="large" plain @click="filtersDrawerOpen = true">{{ t('products.filters') }}</el-button>
             </el-badge>
 
-            <el-button size="large" type="primary" @click="applyFilters">Найти</el-button>
-            <el-button size="large" plain @click="resetFilters">Сбросить</el-button>
+            <el-button size="large" type="primary" @click="applyFilters">{{ t('products.find') }}</el-button>
+            <el-button size="large" plain @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
           </div>
 
           <div v-if="activeFilters.length > 0" class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-            <span class="text-xs font-medium uppercase tracking-wide text-slate-400">Активно</span>
+            <span class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ t('products.active') }}</span>
             <el-tag
               v-for="filter in activeFilters"
               :key="filter.key"
@@ -62,7 +62,7 @@
 
       <el-drawer
         v-model="filtersDrawerOpen"
-        title="Фильтры товаров"
+        :title="t('products.filtersTitle')"
         size="min(440px, 100vw)"
         class="product-filters-drawer"
       >
@@ -71,15 +71,15 @@
             <fieldset class="rounded-2xl border border-slate-200 px-4 pb-6 pt-4">
               <legend class="px-2">
                 <span class="inline-flex items-center gap-1.5 text-base font-semibold text-slate-900">
-                  Размеры
-                  <el-tooltip content="Задайте диапазоны только для тех параметров, которые важны." placement="top">
+                  {{ t('products.dimensions') }}
+                  <el-tooltip :content="t('products.dimensionsHint')" placement="top">
                     <el-icon class="cursor-help text-slate-400"><InfoFilled /></el-icon>
                   </el-tooltip>
                 </span>
               </legend>
 
               <el-form label-position="top">
-                <el-form-item label="Единица измерения" class="mb-5">
+                <el-form-item :label="t('products.measurementUnit')" class="mb-5">
                   <el-select v-model="form.dimensionUnit" class="w-full">
                     <el-option
                       v-for="unit in dimensionSearchUnitOptions"
@@ -92,36 +92,36 @@
 
                   <div class="dimension-groups">
                     <fieldset class="rounded-xl border border-slate-200 bg-slate-50 px-4 pb-4 pt-3">
-                      <legend class="px-2 text-sm font-medium text-slate-700">Длина</legend>
+                      <legend class="px-2 text-sm font-medium text-slate-700">{{ t('products.length') }}</legend>
                       <div class="grid grid-cols-2 gap-3">
-                        <el-form-item label="От" class="dimension-range-item">
+                        <el-form-item :label="t('products.from')" class="dimension-range-item">
                           <el-input-number v-model="form.lengthMin" :min="0" :precision="2" :controls="false" class="w-full" />
                       </el-form-item>
-                      <el-form-item label="До" class="dimension-range-item">
+                      <el-form-item :label="t('products.to')" class="dimension-range-item">
                           <el-input-number v-model="form.lengthMax" :min="0" :precision="2" :controls="false" class="w-full" />
                         </el-form-item>
                       </div>
                     </fieldset>
 
                     <fieldset class="rounded-xl border border-slate-200 bg-slate-50 px-4 pb-4 pt-3">
-                      <legend class="px-2 text-sm font-medium text-slate-700">Ширина</legend>
+                      <legend class="px-2 text-sm font-medium text-slate-700">{{ t('products.width') }}</legend>
                       <div class="grid grid-cols-2 gap-3">
-                        <el-form-item label="От" class="dimension-range-item">
+                        <el-form-item :label="t('products.from')" class="dimension-range-item">
                           <el-input-number v-model="form.widthMin" :min="0" :precision="2" :controls="false" class="w-full" />
                       </el-form-item>
-                      <el-form-item label="До" class="dimension-range-item">
+                      <el-form-item :label="t('products.to')" class="dimension-range-item">
                           <el-input-number v-model="form.widthMax" :min="0" :precision="2" :controls="false" class="w-full" />
                         </el-form-item>
                       </div>
                     </fieldset>
 
                     <fieldset class="rounded-xl border border-slate-200 bg-slate-50 px-4 pb-4 pt-3">
-                      <legend class="px-2 text-sm font-medium text-slate-700">Высота</legend>
+                      <legend class="px-2 text-sm font-medium text-slate-700">{{ t('products.height') }}</legend>
                       <div class="grid grid-cols-2 gap-3">
-                        <el-form-item label="От" class="dimension-range-item">
+                        <el-form-item :label="t('products.from')" class="dimension-range-item">
                           <el-input-number v-model="form.heightMin" :min="0" :precision="2" :controls="false" class="w-full" />
                       </el-form-item>
-                      <el-form-item label="До" class="dimension-range-item">
+                      <el-form-item :label="t('products.to')" class="dimension-range-item">
                           <el-input-number v-model="form.heightMax" :min="0" :precision="2" :controls="false" class="w-full" />
                         </el-form-item>
                       </div>
@@ -133,8 +133,8 @@
 
           <div class="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
             <div class="flex justify-end gap-3">
-              <el-button @click="clearDimensionFilters">Очистить</el-button>
-              <el-button type="primary" @click="applyFilters">Применить</el-button>
+              <el-button @click="clearDimensionFilters">{{ t('products.clear') }}</el-button>
+              <el-button type="primary" @click="applyFilters">{{ t('purchases.apply') }}</el-button>
             </div>
           </div>
         </div>
@@ -144,28 +144,28 @@
         <template #header>
           <div class="flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-semibold text-slate-900">Результаты поиска</h2>
+              <h2 class="text-lg font-semibold text-slate-900">{{ t('products.results') }}</h2>
               <p class="text-sm text-slate-500">{{ resultTitle }}</p>
             </div>
           </div>
         </template>
 
         <el-table v-loading="isLoading" :data="products" stripe @sort-change="handleSortChange">
-          <el-table-column prop="sku" label="Артикул" min-width="160" sortable="custom" />
-          <el-table-column prop="name" label="Название" min-width="260" />
-          <el-table-column prop="producerId" label="Производитель" min-width="180" sortable="custom">
+          <el-table-column prop="sku" :label="t('products.sku')" min-width="160" sortable="custom" />
+          <el-table-column prop="name" :label="t('common.labels.name')" min-width="260" />
+          <el-table-column prop="producerId" :label="t('common.labels.producer')" min-width="180" sortable="custom">
             <template #default="{ row }">
               {{ producerName(row.producerId) }}
             </template>
           </el-table-column>
-          <el-table-column prop="stock" label="Остаток" min-width="120" align="right" sortable="custom">
+          <el-table-column prop="stock" :label="t('products.stock')" min-width="120" align="right" sortable="custom">
             <template #default="{ row }">
               <span :class="stockColorClass(row.stock)">
-                {{ row.stock.toLocaleString('ru-RU') }}
+                {{ row.stock.toLocaleString(locale) }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="volume" label="Размеры" min-width="220" sortable="custom">
+          <el-table-column prop="volume" :label="t('products.dimensions')" min-width="220" sortable="custom">
             <template #default="{ row }">
               <span v-if="row.dimensions">
                 {{ formatDimension(row.dimensions.length) }} ×
@@ -176,15 +176,15 @@
               <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
-          <el-table-column prop="weight" label="Вес" min-width="140" sortable="custom">
+          <el-table-column prop="weight" :label="t('products.weight')" min-width="140" sortable="custom">
             <template #default="{ row }">
               <span v-if="row.weight">{{ row.weight.value }} {{ weightMeasureUnitLabel(row.weight.unit, row.weight.value) }}</span>
               <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
-          <el-table-column fixed="right" label="Действия" width="120">
+          <el-table-column fixed="right" :label="t('common.labels.actions')" width="120">
             <template #default="{ row }">
-              <el-button size="small" type="primary" plain @click="openCrosses(row.id)">Кроссы</el-button>
+              <el-button size="small" type="primary" plain @click="openCrosses(row.id)">{{ t('products.crosses') }}</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -216,6 +216,7 @@ import {
   dimensionUnitLabel,
   weightMeasureUnitLabel,
 } from '@/utils/measurementUnits.ts'
+import { useI18n } from '@/i18n'
 
 type ProductSearchMode = 'all' | 'sku'
 
@@ -234,6 +235,7 @@ interface ProductSearchForm {
 
 const route = useRoute()
 const router = useRouter()
+const { locale, t } = useI18n()
 
 const products = ref<ProductSearchModel[]>([])
 const page = ref(0)
@@ -255,13 +257,15 @@ const form = reactive<ProductSearchForm>({
 })
 
 const searchPlaceholder = computed(() => (
-  form.searchMode === 'sku' ? 'SKU или артикул' : 'Артикул, название или текст'
+  form.searchMode === 'sku' ? t('products.skuPlaceholder') : t('products.searchPlaceholder')
 ))
 
 const resultTitle = computed(() => {
   const query = form.query.trim()
-  if (query) return form.searchMode === 'sku' ? `Поиск по артикулу / SKU: ${query}` : `Запрос: ${query}`
-  return form.searchMode === 'sku' ? 'Введите артикул или SKU.' : 'Введите запрос или задайте фильтры.'
+  if (query) return form.searchMode === 'sku'
+    ? t('products.skuSearchResult', { query })
+    : t('products.queryResult', { query })
+  return form.searchMode === 'sku' ? t('products.enterSku') : t('products.enterQuery')
 })
 
 const dimensionFiltersCount = computed(() => {
@@ -281,22 +285,22 @@ const dimensionFiltersCount = computed(() => {
 const activeFilters = computed(() => {
   const filters: { key: keyof ProductSearchForm; label: string }[] = []
 
-  if (form.producerId) filters.push({ key: 'producerId', label: `Производитель: ${producerName(form.producerId)}` })
+  if (form.producerId) filters.push({ key: 'producerId', label: t('products.producerFilter', { value: producerName(form.producerId) }) })
   if (form.searchMode === 'sku') return filters
 
-  if (form.dimensionUnit !== 'Meter') filters.push({ key: 'dimensionUnit', label: `Единица: ${dimensionUnitLabel(form.dimensionUnit)}` })
-  if (form.lengthMin !== undefined) filters.push({ key: 'lengthMin', label: `Длина от ${formatDimension(form.lengthMin)}` })
-  if (form.lengthMax !== undefined) filters.push({ key: 'lengthMax', label: `Длина до ${formatDimension(form.lengthMax)}` })
-  if (form.widthMin !== undefined) filters.push({ key: 'widthMin', label: `Ширина от ${formatDimension(form.widthMin)}` })
-  if (form.widthMax !== undefined) filters.push({ key: 'widthMax', label: `Ширина до ${formatDimension(form.widthMax)}` })
-  if (form.heightMin !== undefined) filters.push({ key: 'heightMin', label: `Высота от ${formatDimension(form.heightMin)}` })
-  if (form.heightMax !== undefined) filters.push({ key: 'heightMax', label: `Высота до ${formatDimension(form.heightMax)}` })
+  if (form.dimensionUnit !== 'Meter') filters.push({ key: 'dimensionUnit', label: t('products.unitFilter', { value: dimensionUnitLabel(form.dimensionUnit) }) })
+  if (form.lengthMin !== undefined) filters.push({ key: 'lengthMin', label: t('products.minFilter', { name: t('products.length'), value: formatDimension(form.lengthMin) }) })
+  if (form.lengthMax !== undefined) filters.push({ key: 'lengthMax', label: t('products.maxFilter', { name: t('products.length'), value: formatDimension(form.lengthMax) }) })
+  if (form.widthMin !== undefined) filters.push({ key: 'widthMin', label: t('products.minFilter', { name: t('products.width'), value: formatDimension(form.widthMin) }) })
+  if (form.widthMax !== undefined) filters.push({ key: 'widthMax', label: t('products.maxFilter', { name: t('products.width'), value: formatDimension(form.widthMax) }) })
+  if (form.heightMin !== undefined) filters.push({ key: 'heightMin', label: t('products.minFilter', { name: t('products.height'), value: formatDimension(form.heightMin) }) })
+  if (form.heightMax !== undefined) filters.push({ key: 'heightMax', label: t('products.maxFilter', { name: t('products.height'), value: formatDimension(form.heightMax) }) })
 
   return filters
 })
 
 function formatDimension(value: number) {
-  return value.toLocaleString('ru-RU')
+  return value.toLocaleString(locale.value)
 }
 
 function producerName(id: number) {

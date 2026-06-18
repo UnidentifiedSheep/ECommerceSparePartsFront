@@ -2,21 +2,21 @@
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
     <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
       <div>
-        <h1 class="text-2xl font-semibold text-slate-900">Производители</h1>
-        <p class="text-sm text-slate-500">Справочник производителей и дополнительных имён.</p>
+        <h1 class="text-2xl font-semibold text-slate-900">{{ t('producers.title') }}</h1>
+        <p class="text-sm text-slate-500">{{ t('producers.description') }}</p>
       </div>
-      <el-button type="primary" @click="openCreateDialog">Добавить производителя</el-button>
+      <el-button type="primary" @click="openCreateDialog">{{ t('producers.addProducer') }}</el-button>
     </div>
 
     <div class="p-4">
       <el-card shadow="hover">
         <el-row :gutter="20" align="bottom">
           <el-col :span="8">
-            <label class="mb-2 block text-sm font-medium text-slate-700">Поиск</label>
-            <el-input v-model="searchTerm" clearable placeholder="Название производителя" />
+            <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('producers.search') }}</label>
+            <el-input v-model="searchTerm" clearable :placeholder="t('producers.searchPlaceholder')" />
           </el-col>
           <el-col :span="4">
-            <el-button plain @click="searchTerm = ''">Сбросить</el-button>
+            <el-button plain @click="searchTerm = ''">{{ t('common.actions.reset') }}</el-button>
           </el-col>
         </el-row>
       </el-card>
@@ -32,16 +32,16 @@
                 highlight-current-row
                 @current-change="selectProducer"
               >
-                <el-table-column prop="name" label="Название" min-width="220" />
-                <el-table-column label="Описание" min-width="260">
+                <el-table-column prop="name" :label="t('common.labels.name')" min-width="220" />
+                <el-table-column :label="t('common.labels.description')" min-width="260">
                   <template #default="{ row }">
                     {{ row.description || '—' }}
                   </template>
                 </el-table-column>
-                <el-table-column fixed="right" label="Действия" min-width="180">
+                <el-table-column fixed="right" :label="t('common.labels.actions')" min-width="180">
                   <template #default="{ row }">
-                    <el-button size="small" @click="openEditDialog(row)">Редактировать</el-button>
-                    <el-button size="small" type="danger" @click="removeProducer(row.id)">Удалить</el-button>
+                    <el-button size="small" @click="openEditDialog(row)">{{ t('common.actions.edit') }}</el-button>
+                    <el-button size="small" type="danger" @click="removeProducer(row.id)">{{ t('common.actions.delete') }}</el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -60,20 +60,20 @@
                     <div>
                       <div class="text-lg font-semibold text-slate-900">{{ selectedProducer.name }}</div>
                     </div>
-                    <el-button size="small" type="primary" @click="otherNameDialogOpen = true">Добавить имя</el-button>
+                    <el-button size="small" type="primary" @click="otherNameDialogOpen = true">{{ t('producers.addName') }}</el-button>
                   </div>
                   <div class="mt-3 text-sm text-slate-700">
-                    {{ selectedProducer.description || 'Описание отсутствует.' }}
+                    {{ selectedProducer.description || t('producers.noDescription') }}
                   </div>
                 </div>
 
                 <div v-loading="detailsLoading" class="h-[calc(100%-150px)] overflow-auto pr-1">
                   <el-table :data="otherNames" stripe>
-                    <el-table-column prop="otherName" label="Доп. имя" min-width="180" />
-                    <el-table-column prop="whereUsed" label="Где используется" min-width="180" />
-                    <el-table-column fixed="right" label="Действия" min-width="120">
+                    <el-table-column prop="otherName" :label="t('producers.otherName')" min-width="180" />
+                    <el-table-column prop="whereUsed" :label="t('producers.whereUsed')" min-width="180" />
+                    <el-table-column fixed="right" :label="t('common.labels.actions')" min-width="120">
                       <template #default="{ row }">
-                        <el-button size="small" type="danger" @click="removeOtherName(row.otherName)">Удалить</el-button>
+                        <el-button size="small" type="danger" @click="removeOtherName(row.otherName)">{{ t('common.actions.delete') }}</el-button>
                       </template>
                     </el-table-column>
                   </el-table>
@@ -81,7 +81,7 @@
               </template>
 
               <template v-else>
-                <el-empty description="Выберите производителя слева, чтобы увидеть детали" />
+                <el-empty :description="t('producers.selectToView')" />
               </template>
             </el-card>
           </el-col>
@@ -89,48 +89,48 @@
       </div>
     </div>
 
-    <el-dialog v-model="createDialogOpen" title="Добавить производителя" width="520">
+    <el-dialog v-model="createDialogOpen" :title="t('producers.createTitle')" width="520">
       <el-form label-position="top">
-        <el-form-item label="Название">
+        <el-form-item :label="t('common.labels.name')">
           <el-input v-model="createForm.name" />
         </el-form-item>
-        <el-form-item label="Описание">
+        <el-form-item :label="t('common.labels.description')">
           <el-input v-model="createForm.description" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" @click="saveCreate">Создать</el-button>
+        <el-button @click="createDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="saveCreate">{{ t('common.actions.create') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editDialogOpen" title="Редактировать производителя" width="520">
+    <el-dialog v-model="editDialogOpen" :title="t('producers.editTitle')" width="520">
       <el-form label-position="top">
-        <el-form-item label="Название">
+        <el-form-item :label="t('common.labels.name')">
           <el-input v-model="editForm.name" />
         </el-form-item>
-        <el-form-item label="Описание">
+        <el-form-item :label="t('common.labels.description')">
           <el-input v-model="editForm.description" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" @click="saveEdit">Сохранить</el-button>
+        <el-button @click="editDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="saveEdit">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="otherNameDialogOpen" title="Добавить дополнительное имя" width="520">
+    <el-dialog v-model="otherNameDialogOpen" :title="t('producers.addOtherNameTitle')" width="520">
       <el-form label-position="top">
-        <el-form-item label="Дополнительное имя">
+        <el-form-item :label="t('producers.otherNameLabel')">
           <el-input v-model="otherNameForm.otherName" />
         </el-form-item>
-        <el-form-item label="Где используется">
+        <el-form-item :label="t('producers.whereUsed')">
           <el-input v-model="otherNameForm.whereUsed" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="otherNameDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" @click="saveOtherName">Добавить</el-button>
+        <el-button @click="otherNameDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="saveOtherName">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -152,7 +152,9 @@ import {
   getProducerOtherNames,
 } from '@/services/api/producers.ts'
 import { searchProducers } from '@/services/api/search.ts'
+import { useI18n } from '@/i18n'
 
+const { t } = useI18n()
 const producers = ref<ProducerSearchModel[]>([])
 const selectedProducer = ref<ProducerSearchModel>()
 const otherNames = ref<ProducerOtherNameModel[]>([])
@@ -270,8 +272,8 @@ async function saveCreate() {
   addProducerToList(resp.producer)
 
   ElNotification({
-    title: 'Успех',
-    message: 'Производитель создан',
+    title: t('common.labels.success'),
+    message: t('producers.created'),
     type: 'success',
   })
 
@@ -288,8 +290,8 @@ async function saveEdit() {
   updateProducerInList(resp.producer)
 
   ElNotification({
-    title: 'Успех',
-    message: 'Производитель обновлён',
+    title: t('common.labels.success'),
+    message: t('producers.updated'),
     type: 'success',
   })
 
@@ -300,8 +302,8 @@ async function removeProducer(id: number) {
   await deleteProducer(id)
 
   ElNotification({
-    title: 'Успех',
-    message: 'Производитель удалён',
+    title: t('common.labels.success'),
+    message: t('producers.deleted'),
     type: 'success',
   })
 
@@ -323,8 +325,8 @@ async function saveOtherName() {
   })
 
   ElNotification({
-    title: 'Успех',
-    message: 'Дополнительное имя добавлено',
+    title: t('common.labels.success'),
+    message: t('producers.otherNameAdded'),
     type: 'success',
   })
 
@@ -343,8 +345,8 @@ async function removeOtherName(otherName: string) {
   })
 
   ElNotification({
-    title: 'Успех',
-    message: 'Дополнительное имя удалено',
+    title: t('common.labels.success'),
+    message: t('producers.otherNameDeleted'),
     type: 'success',
   })
 

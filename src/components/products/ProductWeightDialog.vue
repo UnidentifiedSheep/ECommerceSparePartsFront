@@ -1,11 +1,11 @@
 <template>
-  <el-dialog v-model="isOpen" :title="productWeight ? 'Редактировать вес' : 'Задать вес'" width="440">
+  <el-dialog v-model="isOpen" :title="productWeight ? t('products.editWeight') : t('products.setWeight')" width="440">
     <el-form label-position="top">
-      <el-form-item label="Вес">
+      <el-form-item :label="t('products.weight')">
         <el-input-number v-model="form.weight" :min="0.01" :precision="2" :controls="false" class="w-full" />
       </el-form-item>
 
-      <el-form-item label="Единица измерения">
+      <el-form-item :label="t('products.measurementUnit')">
         <el-select v-model="form.unit" class="w-full">
           <el-option v-for="unit in weightSetUnitOptions" :key="unit.value" :label="unit.label" :value="unit.value" />
         </el-select>
@@ -14,11 +14,11 @@
 
     <template #footer>
       <div class="flex justify-between">
-        <el-button v-if="productWeight && canDelete" type="danger" plain :loading="isDeleting" @click="remove">Удалить</el-button>
+        <el-button v-if="productWeight && canDelete" type="danger" plain :loading="isDeleting" @click="remove">{{ t('common.actions.delete') }}</el-button>
         <span v-else />
         <div class="flex gap-2">
-          <el-button @click="isOpen = false">Отмена</el-button>
-          <el-button v-if="canSave" type="primary" :loading="isSaving" @click="save">Сохранить</el-button>
+          <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button v-if="canSave" type="primary" :loading="isSaving" @click="save">{{ t('common.actions.save') }}</el-button>
         </div>
       </div>
     </template>
@@ -31,6 +31,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import type { ProductWeightModel } from '@/models/productModel.ts'
 import { deleteProductWeight, setProductWeight, type WeightUnit } from '@/services/api/products.ts'
 import { toWeightUnit, weightSetUnitOptions } from '@/utils/measurementUnits.ts'
+import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   productId: number
@@ -40,6 +41,7 @@ const props = defineProps<{
 }>()
 
 const isOpen = defineModel<boolean>({ required: true })
+const { t } = useI18n()
 const emit = defineEmits<{
   saved: []
 }>()
@@ -61,8 +63,8 @@ function resetForm() {
 async function save() {
   if (!form.weight) {
     ElNotification({
-      title: 'Проверьте вес',
-      message: 'Вес должен быть больше нуля.',
+      title: t('products.checkWeightTitle'),
+      message: t('products.checkWeightMessage'),
       type: 'warning',
     })
     return
@@ -76,8 +78,8 @@ async function save() {
     })
 
     ElNotification({
-      title: 'Вес сохранен',
-      message: 'Вес продукта обновлен.',
+      title: t('products.weightSavedTitle'),
+      message: t('products.weightSavedMessage'),
       type: 'success',
     })
 
@@ -90,9 +92,9 @@ async function save() {
 
 async function remove() {
   try {
-    await ElMessageBox.confirm('Удалить вес продукта?', 'Удаление веса', {
-      confirmButtonText: 'Удалить',
-      cancelButtonText: 'Отмена',
+    await ElMessageBox.confirm(t('products.deleteWeightConfirm'), t('products.deleteWeightTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
       type: 'warning',
     })
   } catch {
@@ -103,8 +105,8 @@ async function remove() {
   try {
     await deleteProductWeight(props.productId)
     ElNotification({
-      title: 'Вес удален',
-      message: 'Вес продукта удален.',
+      title: t('products.weightDeletedTitle'),
+      message: t('products.weightDeletedMessage'),
       type: 'success',
     })
     emit('saved')

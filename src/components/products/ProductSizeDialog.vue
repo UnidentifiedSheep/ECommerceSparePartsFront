@@ -1,19 +1,19 @@
 <template>
-  <el-dialog v-model="isOpen" :title="productSize ? 'Редактировать размер' : 'Задать размер'" width="520">
+  <el-dialog v-model="isOpen" :title="productSize ? t('products.editSize') : t('products.setSize')" width="520">
     <el-form label-position="top">
       <div class="grid grid-cols-3 gap-3">
-        <el-form-item label="Длина">
+        <el-form-item :label="t('products.length')">
           <el-input-number v-model="form.length" :min="0.01" :precision="2" :controls="false" class="w-full" />
         </el-form-item>
-        <el-form-item label="Ширина">
+        <el-form-item :label="t('products.width')">
           <el-input-number v-model="form.width" :min="0.01" :precision="2" :controls="false" class="w-full" />
         </el-form-item>
-        <el-form-item label="Высота">
+        <el-form-item :label="t('products.height')">
           <el-input-number v-model="form.height" :min="0.01" :precision="2" :controls="false" class="w-full" />
         </el-form-item>
       </div>
 
-      <el-form-item label="Единица измерения">
+      <el-form-item :label="t('products.measurementUnit')">
         <el-select v-model="form.unit" class="w-full">
           <el-option v-for="unit in dimensionSetUnitOptions" :key="unit.value" :label="unit.label" :value="unit.value" />
         </el-select>
@@ -22,11 +22,11 @@
 
     <template #footer>
       <div class="flex justify-between">
-        <el-button v-if="productSize && canDelete" type="danger" plain :loading="isDeleting" @click="remove">Удалить</el-button>
+        <el-button v-if="productSize && canDelete" type="danger" plain :loading="isDeleting" @click="remove">{{ t('common.actions.delete') }}</el-button>
         <span v-else />
         <div class="flex gap-2">
-          <el-button @click="isOpen = false">Отмена</el-button>
-          <el-button v-if="canSave" type="primary" :loading="isSaving" @click="save">Сохранить</el-button>
+          <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button v-if="canSave" type="primary" :loading="isSaving" @click="save">{{ t('common.actions.save') }}</el-button>
         </div>
       </div>
     </template>
@@ -39,6 +39,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import type { ProductSizeModel } from '@/models/productModel.ts'
 import { deleteProductSize, setProductSize, type DimensionUnit } from '@/services/api/products.ts'
 import { dimensionSetUnitOptions, toDimensionUnit } from '@/utils/measurementUnits.ts'
+import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   productId: number
@@ -48,6 +49,7 @@ const props = defineProps<{
 }>()
 
 const isOpen = defineModel<boolean>({ required: true })
+const { t } = useI18n()
 const emit = defineEmits<{
   saved: []
 }>()
@@ -73,8 +75,8 @@ function resetForm() {
 async function save() {
   if (!form.length || !form.width || !form.height) {
     ElNotification({
-      title: 'Проверьте размер',
-      message: 'Длина, ширина и высота должны быть больше нуля.',
+      title: t('products.checkSizeTitle'),
+      message: t('products.checkSizeMessage'),
       type: 'warning',
     })
     return
@@ -90,8 +92,8 @@ async function save() {
     })
 
     ElNotification({
-      title: 'Размер сохранен',
-      message: 'Размеры продукта обновлены.',
+      title: t('products.sizeSavedTitle'),
+      message: t('products.sizeSavedMessage'),
       type: 'success',
     })
 
@@ -104,9 +106,9 @@ async function save() {
 
 async function remove() {
   try {
-    await ElMessageBox.confirm('Удалить размеры продукта?', 'Удаление размера', {
-      confirmButtonText: 'Удалить',
-      cancelButtonText: 'Отмена',
+    await ElMessageBox.confirm(t('products.deleteSizeConfirm'), t('products.deleteSizeTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
       type: 'warning',
     })
   } catch {
@@ -117,8 +119,8 @@ async function remove() {
   try {
     await deleteProductSize(props.productId)
     ElNotification({
-      title: 'Размер удален',
-      message: 'Размеры продукта удалены.',
+      title: t('products.sizeDeletedTitle'),
+      message: t('products.sizeDeletedMessage'),
       type: 'success',
     })
     emit('saved')

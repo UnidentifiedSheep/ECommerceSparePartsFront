@@ -11,30 +11,35 @@
 
 <script setup lang="ts">
 import { StorageType } from '@/enums/storageType.ts'
+import { computed } from 'vue'
+import { useI18n } from '@/i18n'
 
-const options = [
+const { t } = useI18n()
+const options = computed(() => [
   {
     value: StorageType.Warehouse,
-    label: 'Наш склад',
+    label: t('storages.types.Warehouse'),
   },
   {
     value: StorageType.SupplierStorage,
-    label: 'Склад поставщика',
+    label: t('storages.types.SupplierStorage'),
   },
-]
+])
 
 const value = defineModel<StorageType | undefined>()
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     placeHolder?: string
     clearable?: boolean
   }>(),
   {
-    placeHolder: 'Выберите тип склада',
+    placeHolder: undefined,
     clearable: true,
   },
 )
+
+const placeHolder = computed(() => props.placeHolder ?? t('storages.selectType'))
 </script>
 
 <style scoped>

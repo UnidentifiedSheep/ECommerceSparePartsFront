@@ -8,17 +8,17 @@
         highlight-current-row
         @current-change="handleCurrentChange"
       >
-        <el-table-column prop="name" label="Название" min-width="180" />
-        <el-table-column prop="description" label="Описание" min-width="220" />
-        <el-table-column prop="location" label="Локация" min-width="180" />
-        <el-table-column label="Тип" min-width="160">
+        <el-table-column prop="name" :label="t('common.labels.name')" min-width="180" />
+        <el-table-column prop="description" :label="t('common.labels.description')" min-width="220" />
+        <el-table-column prop="location" :label="t('storages.location')" min-width="180" />
+        <el-table-column :label="t('common.labels.type')" min-width="160">
           <template #default="scope">
             <el-tag :type="scope.row.type === StorageType.Warehouse ? 'primary' : 'warning'">
               {{ toText(scope.row.type) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column fixed="right" label="Действия" min-width="180">
+        <el-table-column fixed="right" :label="t('common.labels.actions')" min-width="180">
           <template #default="scope">
             <el-button
               v-show="allowEdit"
@@ -27,7 +27,7 @@
               size="small"
               @click.prevent="openEditDialog(scope.row)"
             >
-              Редактировать
+              {{ t('common.actions.edit') }}
             </el-button>
             <el-button
               v-show="allowDelete"
@@ -36,7 +36,7 @@
               size="small"
               @click.prevent="removeStorage(scope.$index)"
             >
-              Удалить
+              {{ t('common.actions.delete') }}
             </el-button>
           </template>
         </el-table-column>
@@ -50,7 +50,7 @@
             <el-icon size="14">
               <Plus />
             </el-icon>
-            <span class="pl-1">Создать склад</span>
+            <span class="pl-1">{{ t('storages.createStorage') }}</span>
           </el-button>
         </div>
       </template>
@@ -76,6 +76,7 @@ import CreateStorageDialogue from '@/components/storages/CreateStorageDialogue.v
 import EditStorageDialog from '@/components/storages/EditStorageDialog.vue'
 import { deleteStorage, getStorages } from '@/services/api/storages.ts'
 import { StorageType, toText } from '@/enums/storageType.ts'
+import { useI18n } from '@/i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -91,6 +92,7 @@ const props = withDefaults(
   },
 )
 
+const { t } = useI18n()
 const updateDebounce = useDebounceFn(async () => {
   await loadStorages(true)
 }, 300)
@@ -151,8 +153,8 @@ async function removeStorage(index: number) {
   storages.value.splice(index, 1)
 
   ElNotification({
-    title: 'Успех',
-    message: `Склад '${storage.name}' успешно удалён`,
+    title: t('common.labels.success'),
+    message: t('storages.removed', { name: storage.name }),
     type: 'success',
   })
 

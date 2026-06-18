@@ -4,7 +4,7 @@
     filterable
     value-key="id"
     :filter-method="onSearch"
-    :placeholder="placeHolder"
+    :placeholder="resolvedPlaceHolder"
     :clearable="clearable"
   >
     <el-option
@@ -19,18 +19,22 @@
 <script setup lang="ts">
 import {GeneralSearchStrategy} from "@/enums/generalSearchStrategy.ts";
 import type {UserModel} from "@/models/userModel.ts";
-import {onMounted, ref, watch} from "vue";
+import {computed, onMounted, ref, watch} from "vue";
 import {getUsers} from "@/services/api/users.ts";
+import {useI18n} from "@/i18n";
 
 const props = withDefaults(defineProps<{
   placeHolder?: string,
   clearable?: boolean,
   roles?: string[],
 }>(), {
-  placeHolder: "Выбирите пользователя",
+  placeHolder: undefined,
   clearable: true,
   roles: () => [],
 })
+
+const {t} = useI18n()
+const resolvedPlaceHolder = computed(() => props.placeHolder ?? t('users.selectUser'))
 
 function onSearch(query: string) {
   searchTerm.value = query

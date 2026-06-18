@@ -17,6 +17,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ProductReservationsPanel from '@/components/products/ProductReservationsPanel.vue'
+import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   productId?: number
@@ -25,8 +26,9 @@ const props = defineProps<{
 }>()
 
 const isOpen = defineModel<boolean>({ required: true })
-const title = computed(() => props.title ?? 'Резервации')
-const panelTitle = computed(() => props.productId ? 'Резервации продукта' : 'Резервации пользователя')
+const { t } = useI18n()
+const title = computed(() => props.title ?? t('reservations.title'))
+const panelTitle = computed(() => props.productId ? t('reservations.productReservations') : t('reservations.userReservations'))
 </script>
 
 <style scoped>

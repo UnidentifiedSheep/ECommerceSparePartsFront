@@ -1,33 +1,33 @@
 <template>
-  <el-dialog v-model="isOpen" title="Создать маршрут" width="760">
+  <el-dialog v-model="isOpen" :title="t('storages.routesPanel.createTitle')" width="760">
     <el-form :model="form" label-position="top">
       <section class="route-dialog-section">
-        <div class="section-title">Направление</div>
+        <div class="section-title">{{ t('storages.routesPanel.direction') }}</div>
         <div class="form-grid">
-          <el-form-item label="Откуда">
-            <StorageSelector v-model="form.storageFrom" placeholder="Выберите склад отправки" />
+          <el-form-item :label="t('storages.routesPanel.from')">
+            <StorageSelector v-model="form.storageFrom" :placeholder="t('storages.routesPanel.fromStoragePlaceholder')" />
           </el-form-item>
 
-          <el-form-item label="Куда">
-            <StorageSelector v-model="form.storageTo" disabled placeholder="Склад назначения" />
+          <el-form-item :label="t('storages.routesPanel.to')">
+            <StorageSelector v-model="form.storageTo" disabled :placeholder="t('storages.routesPanel.toStoragePlaceholder')" />
           </el-form-item>
 
-          <el-form-item label="Тип маршрута">
+          <el-form-item :label="t('purchases.routeType')">
             <el-select v-model="form.routeType" class="w-full">
               <el-option v-for="option in routeOptions" :key="option.value" :label="option.label" :value="option.value" />
             </el-select>
           </el-form-item>
 
-          <el-form-item label="Тарификация">
+          <el-form-item :label="t('purchases.pricing')">
             <el-select v-model="form.pricingType" class="w-full">
               <el-option v-for="option in pricingOptions" :key="option.value" :label="option.label" :value="option.value" />
             </el-select>
           </el-form-item>
 
-          <el-form-item label="Перевозчик" class="span-2">
+          <el-form-item :label="t('storages.routesPanel.carrier')" class="span-2">
             <UserSelector
               v-model:selected-user="form.carrier"
-              place-holder="Не выбран"
+              :place-holder="t('storages.routesPanel.notSelected')"
               clearable
             />
           </el-form-item>
@@ -35,31 +35,31 @@
       </section>
 
       <section class="route-dialog-section">
-        <div class="section-title">Стоимость и сроки</div>
+        <div class="section-title">{{ t('storages.routesPanel.priceAndTime') }}</div>
         <div class="form-grid">
-          <el-form-item label="Дистанция (м)">
+          <el-form-item :label="t('storages.routesPanel.distanceM')">
             <el-input-number v-model="form.distance" :min="1" :controls="false" class="w-full" />
           </el-form-item>
 
-          <el-form-item label="Время (мин)">
+          <el-form-item :label="t('storages.routesPanel.timeMinutes')">
             <el-input-number v-model="form.deliveryTime" :min="1" :controls="false" class="w-full" />
           </el-form-item>
 
-          <el-form-item label="Цена за кг">
+          <el-form-item :label="t('storages.routesPanel.priceKg')">
             <el-input-number v-model="form.priceKg" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Цена за м³">
+          <el-form-item :label="t('storages.routesPanel.priceM3')">
             <el-input-number v-model="form.priceM3" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
 
-          <el-form-item label="Цена за заказ">
+          <el-form-item :label="t('storages.routesPanel.pricePerOrder')">
             <el-input-number v-model="form.pricePerOrder" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Минимальная цена">
+          <el-form-item :label="t('storages.routesPanel.minimumPrice')">
             <el-input-number v-model="form.minimumPrice" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
 
-          <el-form-item label="Валюта" class="span-2">
+          <el-form-item :label="t('common.labels.currency')" class="span-2">
             <el-select v-model="form.currencyId" class="w-full">
               <el-option
                 v-for="currency in currencies"
@@ -75,15 +75,15 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="isOpen = false">Отмена</el-button>
-        <el-button type="primary" @click="create">Создать</el-button>
+        <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="create">{{ t('common.actions.create') }}</el-button>
       </div>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
@@ -94,8 +94,10 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import { createStorageRoute } from '@/services/api/storages.ts'
+import { useI18n } from '@/i18n'
 
 const isOpen = defineModel<boolean>('is-open')
+const { t } = useI18n()
 
 const props = defineProps<{
   storage?: StorageModel
@@ -122,20 +124,20 @@ const form = reactive({
   carrier: undefined as UserModel | undefined,
 })
 
-const routeOptions = [
+const routeOptions = computed(() => [
   { value: RouteType.IntraCity, label: routeTypeToText(RouteType.IntraCity) },
   { value: RouteType.InterCity, label: routeTypeToText(RouteType.InterCity) },
   { value: RouteType.International, label: routeTypeToText(RouteType.International) },
-]
+])
 
-const pricingOptions = [
+const pricingOptions = computed(() => [
   { value: LogisticPricingType.None, label: pricingTypeToText(LogisticPricingType.None) },
   { value: LogisticPricingType.PerOrder, label: pricingTypeToText(LogisticPricingType.PerOrder) },
   { value: LogisticPricingType.PerArea, label: pricingTypeToText(LogisticPricingType.PerArea) },
   { value: LogisticPricingType.PerWeight, label: pricingTypeToText(LogisticPricingType.PerWeight) },
   { value: LogisticPricingType.PerAreaAndWeight, label: pricingTypeToText(LogisticPricingType.PerAreaAndWeight) },
   { value: LogisticPricingType.PerAreaOrWeight, label: pricingTypeToText(LogisticPricingType.PerAreaOrWeight) },
-]
+])
 
 watch([() => isOpen.value, () => props.storage], ([open, storage]) => {
   if (!open || !storage) return
@@ -170,8 +172,8 @@ async function create() {
   })
 
   ElNotification({
-    title: 'Успех',
-    message: 'Маршрут создан',
+    title: t('common.labels.success'),
+    message: t('storages.routesPanel.created'),
     type: 'success',
   })
 

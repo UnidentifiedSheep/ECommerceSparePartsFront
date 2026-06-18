@@ -4,10 +4,10 @@
 
       <!-- Header -->
       <div class="flex justify-between items-center pb-3" v-if="storage">
-        <span class="text-lg font-semibold">Владельцы</span>
+        <span class="text-lg font-semibold">{{ t('storages.owners') }}</span>
 
         <el-button type="primary" @click="OpenAddOwnerDialogue">
-          Добавить владельца
+          {{ t('storages.ownersPanel.add') }}
         </el-button>
       </div>
 
@@ -58,11 +58,11 @@
         v-if="!isLoading && owners.length === 0"
         class="mt-4"
       >
-        <el-empty description="Нет владельцев склада">
+        <el-empty :description="t('storages.ownersPanel.empty')">
           <template #description>
             <div class="text-center">
               <p class="text-gray-500">
-                У данного склада пока нет привязанных владельцев.
+                {{ t('storages.ownersPanel.emptyHint') }}
               </p>
             </div>
           </template>
@@ -71,20 +71,20 @@
 
     </div>
 
-    <el-dialog v-model="addOwnerDialogueOpen" title="Добавление владельца" width="500">
+    <el-dialog v-model="addOwnerDialogueOpen" :title="t('storages.ownersPanel.addTitle')" width="500">
       <el-form :model="addOwnerForm">
-        <el-form-item label="Склад">
+        <el-form-item :label="t('common.labels.storage')">
           <el-input v-model="addOwnerForm!.storageName" readonly />
         </el-form-item>
-        <el-form-item label="Пользователь">
+        <el-form-item :label="t('common.labels.user')">
           <UserSelector v-model:selected-user="addOwnerForm!.user"/>
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="addOwnerDialogueOpen = false">Отмена</el-button>
+          <el-button @click="addOwnerDialogueOpen = false">{{ t('common.actions.cancel') }}</el-button>
           <el-button type="primary" @click="SaveOwner">
-            Сохранить
+            {{ t('common.actions.save') }}
           </el-button>
         </div>
       </template>
@@ -102,7 +102,9 @@ import UserSelector from "@/components/selectors/UserSelector.vue";
 import {addStorageToUser, removeStorageFromUser} from "@/services/api/users.ts";
 import {ElNotification} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
+import { useI18n } from "@/i18n";
 
+const { t } = useI18n()
 
 const storage = defineModel<StorageModel | undefined>('storage')
 const owners = ref<UserModel[]>([])
@@ -164,8 +166,8 @@ async function SaveOwner() {
   owners.value.push(user)
 
   ElNotification({
-    title: 'Успех',
-    message: `Пользователь ${user.surname} ${user.name} привязан к складу ${storageName}`,
+    title: t('common.labels.success'),
+    message: t('storages.ownersPanel.attached', { user: `${user.surname} ${user.name}`.trim(), storage: storageName }),
     type: 'success',
   })
 
@@ -180,8 +182,8 @@ async function removeOwner(user: UserModel) {
   })
 
   ElNotification({
-    title: 'Успех',
-    message: `Пользователь ${user.surname} ${user.name} отвязан от склада ${storage.value.name}`,
+    title: t('common.labels.success'),
+    message: t('storages.ownersPanel.detached', { user: `${user.surname} ${user.name}`.trim(), storage: storage.value.name }),
     type: 'success',
   })
 

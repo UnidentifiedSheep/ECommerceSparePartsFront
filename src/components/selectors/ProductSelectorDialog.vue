@@ -1,25 +1,25 @@
 <template>
   <el-dialog
     v-model="isOpen"
-    title="Выбор товара"
+    :title="t('products.selectorTitle')"
     width="min(920px, calc(100vw - 24px))"
     class="product-selector-dialog"
   >
     <div class="space-y-3">
       <div class="grid grid-cols-1 items-end gap-3 md:grid-cols-[minmax(260px,1fr)_260px]">
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-700">Поиск</label>
+          <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.search') }}</label>
           <el-input
             v-model="query"
             clearable
-            placeholder="Артикул, название или текст"
+            :placeholder="t('products.searchPlaceholder')"
             @keyup.enter="loadProducts(true)"
           />
         </div>
 
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-700">Производитель</label>
-          <ProducerSelector v-model="producerId" placeholder="Все производители" />
+          <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.producer') }}</label>
+          <ProducerSelector v-model="producerId" :placeholder="t('products.allProducers')" />
         </div>
       </div>
 
@@ -28,26 +28,26 @@
         :data="products"
         stripe
         height="min(420px, calc(100dvh - 280px))"
-        empty-text="Товары не найдены"
+        :empty-text="t('products.notFound')"
         @row-dblclick="selectProduct"
       >
-        <el-table-column prop="sku" label="Артикул" min-width="150" />
-        <el-table-column prop="name" label="Название" min-width="280" show-overflow-tooltip />
-        <el-table-column label="Производитель" min-width="180">
+        <el-table-column prop="sku" :label="t('products.sku')" min-width="150" />
+        <el-table-column prop="name" :label="t('common.labels.name')" min-width="280" show-overflow-tooltip />
+        <el-table-column :label="t('common.labels.producer')" min-width="180">
           <template #default="{ row }">
             {{ producerName(row.producerId) }}
           </template>
         </el-table-column>
-        <el-table-column label="Остаток" min-width="110" align="right">
+        <el-table-column :label="t('products.stock')" min-width="110" align="right">
           <template #default="{ row }">
             <span :class="stockColorClass(row.stock)">
-              {{ row.stock.toLocaleString('ru-RU') }}
+              {{ row.stock.toLocaleString(locale) }}
             </span>
           </template>
         </el-table-column>
         <el-table-column fixed="right" label="" width="96" align="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click="selectProduct(row)">Выбрать</el-button>
+            <el-button size="small" type="primary" plain @click="selectProduct(row)">{{ t('products.pick') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -67,7 +67,9 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { getProducer } from '@/services/api/producers.ts'
 import { searchProducts } from '@/services/api/search.ts'
+import { useI18n } from '@/i18n'
 
+const { locale, t } = useI18n()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   select: [product: ProductSearchModel]

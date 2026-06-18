@@ -1,6 +1,7 @@
 import axios, { AxiosHeaders, type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { ApiError, type ErrorResponse } from '@/models/errorModel.ts'
+import { getCurrentLocale } from '@/i18n'
 
 export interface RefreshRequest {
   refreshToken: string
@@ -67,6 +68,10 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config) => {
     initAuthStore()
+    config.headers.set?.('Accept-Language', getCurrentLocale())
+    if (!config.headers.set) {
+      config.headers['Accept-Language'] = getCurrentLocale()
+    }
     if (authStore?.isAuthenticated) {
       config.headers.Authorization = `Bearer ${authStore.token}`
     }

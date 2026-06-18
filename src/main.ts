@@ -9,6 +9,7 @@ import router from './router'
 import ElementPlus, { ElNotification } from 'element-plus'
 import 'element-plus/dist/index.css'
 import { ApiError } from '@/models/errorModel.ts'
+import { t } from '@/i18n'
 
 const app = createApp(App)
 
@@ -18,7 +19,7 @@ app.config.errorHandler = (err, _instance, _info) => {
   if (err instanceof ApiError) {
     if (err.validationErrors && err.validationErrors.length !== 0) {
       ElNotification({
-        title: 'Ошибка',
+        title: t('common.labels.error'),
         message: err.validationErrors.map((e) => e.errorMessage).join('\n'),
         type: 'error',
       })
@@ -26,7 +27,7 @@ app.config.errorHandler = (err, _instance, _info) => {
     }
 
     ElNotification({
-      title: 'Ошибка',
+      title: t('common.labels.error'),
       message: err.message,
       type: 'error',
     })
@@ -34,8 +35,8 @@ app.config.errorHandler = (err, _instance, _info) => {
   }
 
   ElNotification({
-    title: 'Ошибка',
-    message: err instanceof Error ? err.message : 'Непредвиденная ошибка',
+    title: t('common.labels.error'),
+    message: err instanceof Error ? err.message : t('common.messages.unexpectedError'),
     type: 'error',
   })
 }

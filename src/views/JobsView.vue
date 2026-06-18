@@ -2,11 +2,11 @@
   <div class="jobs-page">
     <section class="jobs-hero">
       <div>
-        <h1>Задачи</h1>
-        <p>Запуск фоновых задач сервисов и подготовка входных данных.</p>
+        <h1>{{ t('jobs.title') }}</h1>
+        <p>{{ t('jobs.description') }}</p>
       </div>
       <el-button type="primary" :loading="isLoadingJobs" @click="loadJobs">
-        Обновить
+        {{ t('common.actions.refresh') }}
       </el-button>
     </section>
 
@@ -20,18 +20,18 @@
         <div class="service-card-title">
           <span>{{ serviceLabel(service.key) }}</span>
           <el-tag :type="service.available ? 'success' : 'danger'" effect="light" round>
-            {{ service.available ? 'Доступен' : 'Недоступен' }}
+            {{ service.available ? t('jobs.available') : t('jobs.unavailable') }}
           </el-tag>
         </div>
         <div class="service-card-meta">
-          {{ service.available ? `Задач: ${service.jobsCount}` : service.error || `HTTP ${service.statusCode}` }}
+          {{ service.available ? t('jobs.count', { count: service.jobsCount }) : serviceErrorText(service) }}
         </div>
       </div>
     </section>
 
     <el-tabs v-model="activeJobsTab" class="jobs-tabs">
-      <el-tab-pane label="Доступные задачи" name="available" />
-      <el-tab-pane label="Текущие задачи" name="current" />
+      <el-tab-pane :label="t('jobs.availableTab')" name="available" />
+      <el-tab-pane :label="t('jobs.currentTab')" name="current" />
     </el-tabs>
 
     <section v-if="activeJobsTab === 'available'" class="jobs-workspace">
@@ -39,10 +39,10 @@
         <el-input
           v-model="searchQuery"
           clearable
-          placeholder="Поиск задачи"
+          :placeholder="t('jobs.searchPlaceholder')"
         />
 
-        <el-select v-model="selectedService" clearable placeholder="Все сервисы" class="w-full">
+        <el-select v-model="selectedService" clearable :placeholder="t('jobs.allServices')" class="w-full">
           <el-option
             v-for="service in serviceCards"
             :key="service.key"
@@ -52,12 +52,12 @@
         </el-select>
 
         <el-checkbox v-model="showUnavailable">
-          Показывать недоступные сервисы
+          {{ t('jobs.showUnavailable') }}
         </el-checkbox>
       </aside>
 
       <main class="jobs-list">
-        <el-empty v-if="!isLoadingJobs && visibleJobs.length === 0" description="Задачи не найдены" />
+        <el-empty v-if="!isLoadingJobs && visibleJobs.length === 0" :description="t('jobs.emptyAvailable')" />
 
         <button
           v-for="item in visibleJobs"
@@ -73,7 +73,7 @@
             </div>
             <p>{{ item.job.description }}</p>
           </div>
-          <div class="job-row-action">Открыть</div>
+          <div class="job-row-action">{{ t('common.actions.open') }}</div>
         </button>
 
         <div v-if="showUnavailable" class="unavailable-list">
@@ -84,9 +84,9 @@
           >
             <div>
               <strong>{{ serviceLabel(service.key) }}</strong>
-              <span>{{ service.error || `HTTP ${service.statusCode}` }}</span>
+              <span>{{ serviceErrorText(service) }}</span>
             </div>
-            <el-tag type="danger" effect="light">Ошибка</el-tag>
+            <el-tag type="danger" effect="light">{{ t('common.labels.error') }}</el-tag>
           </div>
         </div>
       </main>
@@ -96,7 +96,7 @@
       <div class="current-jobs-toolbar">
         <el-select
           v-model="selectedCurrentService"
-          placeholder="Выберите сервис"
+          :placeholder="t('common.placeholders.selectService')"
           class="current-service-select"
         >
           <el-option
@@ -114,7 +114,7 @@
           collapse-tags
           collapse-tags-tooltip
           clearable
-          placeholder="Статусы"
+          :placeholder="t('common.placeholders.statuses')"
           class="current-status-select"
         >
           <el-option
@@ -132,7 +132,7 @@
           collapse-tags-tooltip
           clearable
           filterable
-          placeholder="Системные имена"
+          :placeholder="t('common.placeholders.systemNames')"
           class="current-system-select"
         >
           <el-option
@@ -149,7 +149,7 @@
         </el-select>
 
         <el-button type="primary" :loading="isLoadingCurrentJobs" :disabled="!selectedCurrentService" @click="loadCurrentJobs(true)">
-          Обновить
+          {{ t('common.actions.refresh') }}
         </el-button>
       </div>
 
@@ -157,7 +157,7 @@
         v-if="!selectedCurrentService"
         type="info"
         :closable="false"
-        title="Выберите сервис, чтобы посмотреть его текущие задачи"
+        :title="t('jobs.selectServiceInfo')"
         show-icon
       />
 
@@ -167,10 +167,10 @@
         :data="currentJobs"
         border
         class="current-jobs-table"
-        empty-text="Текущие задачи не найдены"
+        :empty-text="t('jobs.emptyCurrent')"
         @sort-change="handleCurrentJobsSortChange"
       >
-        <el-table-column prop="status" label="Статус" min-width="130" sortable="custom">
+        <el-table-column prop="status" :label="t('common.labels.status')" min-width="130" sortable="custom">
           <template #default="{ row }: { row: JobModel }">
             <el-tag :type="jobStatusTagType(row.status)" effect="light">
               {{ jobStatusLabel(row.status) }}
@@ -178,7 +178,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Задача" min-width="260">
+        <el-table-column :label="t('common.labels.job')" min-width="260">
           <template #default="{ row }: { row: JobModel }">
             <div class="current-job-title">
               <strong>{{ jobDefinitionName(row.systemName) }}</strong>
@@ -187,25 +187,25 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Попытки" width="110">
+        <el-table-column :label="t('common.labels.attempts')" width="110">
           <template #default="{ row }: { row: JobModel }">
             {{ row.attempts }} / {{ row.maxAttempts }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="createdAt" label="Создана" min-width="170" sortable="custom">
+        <el-table-column prop="createdAt" :label="t('common.labels.createdAt')" min-width="170" sortable="custom">
           <template #default="{ row }: { row: JobModel }">
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="updatedAt" label="Обновлена" min-width="170" sortable="custom">
+        <el-table-column prop="updatedAt" :label="t('common.labels.updatedAt')" min-width="170" sortable="custom">
           <template #default="{ row }: { row: JobModel }">
             {{ formatDateTime(row.updatedAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column label="Ошибка" min-width="220">
+        <el-table-column :label="t('common.labels.error')" min-width="220">
           <template #default="{ row }: { row: JobModel }">
             <span :class="row.errorMessage ? 'text-red-600' : 'text-slate-400'">
               {{ row.errorMessage || '-' }}
@@ -216,7 +216,7 @@
         <el-table-column label="" width="120" fixed="right">
           <template #default="{ row }: { row: JobModel }">
             <el-button plain size="small" :loading="loadingStateJobId === row.id" @click="openJobState(row)">
-              State
+              {{ t('jobs.state') }}
             </el-button>
           </template>
         </el-table-column>
@@ -244,7 +244,7 @@
             <span>{{ serviceLabel(selectedJob.serviceKey) }}</span>
             <h2>{{ selectedJob.job.name }}</h2>
           </div>
-          <el-button text @click="drawerOpen = false">Закрыть</el-button>
+          <el-button text @click="drawerOpen = false">{{ t('common.actions.close') }}</el-button>
         </header>
 
         <div class="job-drawer-body">
@@ -277,7 +277,7 @@
                       v-model="inputState[field.name]"
                       filterable
                       clearable
-                      placeholder="Выберите загруженный файл"
+                      :placeholder="t('common.placeholders.selectUploadedFile')"
                       :loading="isLoadingUploads"
                       class="w-full"
                       @visible-change="loadUploadsOnOpen"
@@ -303,13 +303,13 @@
                         @change="(event) => uploadSelectedFile(field, event)"
                       />
                       <el-button plain :loading="uploadingField === field.name" @click="chooseLocalFile(field.name)">
-                        Загрузить файл
+                        {{ t('common.actions.uploadFile') }}
                       </el-button>
                       <el-button plain :loading="isLoadingUploads" @click="loadUploads(true)">
-                        Обновить список
+                        {{ t('common.actions.refreshList') }}
                       </el-button>
                       <el-button v-if="uploadsHasMore" plain :loading="isLoadingUploads" @click="loadUploads(false)">
-                        Загрузить еще
+                        {{ t('common.actions.loadMore') }}
                       </el-button>
                     </div>
                   </div>
@@ -335,23 +335,23 @@
                 />
               </el-form-item>
             </template>
-            <el-empty v-else description="Для задачи не нужны входные данные" />
+            <el-empty v-else :description="t('jobs.noInput')" />
 
-            <el-form-item label="Попытки">
+            <el-form-item :label="t('jobs.maxAttempts')">
               <el-input-number v-model="maxAttempts" :min="1" :max="20" controls-position="right" />
             </el-form-item>
           </el-form>
         </div>
 
         <footer class="job-drawer-footer">
-          <el-button @click="drawerOpen = false">Отмена</el-button>
+          <el-button @click="drawerOpen = false">{{ t('common.actions.cancel') }}</el-button>
           <el-button
             type="primary"
             :loading="isCreatingJob"
             :disabled="Boolean(schemaError)"
             @click="submitJob"
           >
-            Запустить задачу
+            {{ t('jobs.run') }}
           </el-button>
         </footer>
       </div>
@@ -359,13 +359,13 @@
 
     <el-dialog
       v-model="stateDialogOpen"
-      title="State задачи"
+      :title="t('jobs.stateTitle')"
       width="min(900px, 94vw)"
       destroy-on-close
     >
       <div v-if="selectedStateJob" class="state-dialog-meta">
         <div>
-          <span>Задача</span>
+          <span>{{ t('common.labels.job') }}</span>
           <strong>{{ jobDefinitionName(selectedStateJob.systemName) }}</strong>
           <small>{{ selectedStateJob.systemName }}</small>
         </div>
@@ -378,7 +378,7 @@
       <pre v-else class="state-preview">{{ formattedJobState }}</pre>
 
       <template #footer>
-        <el-button @click="stateDialogOpen = false">Закрыть</el-button>
+        <el-button @click="stateDialogOpen = false">{{ t('common.actions.close') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -403,6 +403,7 @@ import {
   type ServiceJobDefinition,
 } from '@/services/api/jobs.ts'
 import { getUploads, uploadFile, type UploadFileModel } from '@/services/api/uploads.ts'
+import { useI18n } from '@/i18n'
 import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/jobHub.ts'
 
 interface ServiceCard {
@@ -448,15 +449,16 @@ const inputState = reactive<Record<string, string | number | boolean | null>>({}
 const fileInputRefs = new Map<string, HTMLInputElement>()
 let jobHubConnection: HubConnection | null = null
 let jobHubServiceKey: string | null = null
+const { locale, t } = useI18n()
 
-const jobStatusOptions: Array<{ label: string; value: JobStatus }> = [
-  { label: 'Ожидает', value: 'Pending' },
-  { label: 'Заблокирована', value: 'Locked' },
-  { label: 'В работе', value: 'Processing' },
-  { label: 'Ошибка', value: 'Failed' },
-  { label: 'Выполнена', value: 'Succeeded' },
-  { label: 'Отменена', value: 'Cancelled' },
-]
+const jobStatusOptions = computed<Array<{ label: string; value: JobStatus }>>(() => [
+  { label: t('jobs.statuses.Pending'), value: 'Pending' },
+  { label: t('jobs.statuses.Locked'), value: 'Locked' },
+  { label: t('jobs.statuses.Processing'), value: 'Processing' },
+  { label: t('jobs.statuses.Failed'), value: 'Failed' },
+  { label: t('jobs.statuses.Succeeded'), value: 'Succeeded' },
+  { label: t('jobs.statuses.Cancelled'), value: 'Cancelled' },
+])
 
 const serviceCards = computed<ServiceCard[]>(() => Object.entries(services.value).map(([key, service]) => ({
   key,
@@ -474,7 +476,7 @@ const currentServiceAvailableJobs = computed<JobDefinitionModel[]>(() => {
 })
 
 const formattedJobState = computed(() => {
-  if (!jobState.value) return 'State пустой'
+  if (!jobState.value) return t('jobs.emptyState')
 
   try {
     return JSON.stringify(JSON.parse(jobState.value), null, 2)
@@ -562,7 +564,7 @@ async function loadJobs() {
       await loadCurrentJobs(true)
     }
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить задачи')
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.loadError'))
   } finally {
     isLoadingJobs.value = false
   }
@@ -589,7 +591,7 @@ async function loadCurrentJobs(resetPage = false) {
   } catch (error) {
     currentJobs.value = []
     currentJobsHasNext.value = false
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить текущие задачи')
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.loadCurrentError'))
   } finally {
     isLoadingCurrentJobs.value = false
   }
@@ -606,7 +608,7 @@ async function loadUploads(reset = true) {
     uploadsCursor.value = response.nextCursor
     uploadsHasMore.value = response.hasMore
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить список файлов')
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.loadUploadsError'))
   } finally {
     isLoadingUploads.value = false
   }
@@ -639,7 +641,7 @@ function parseSchema(rawSchema: string) {
       inputState[field.name] = defaultValue(field)
     })
   } catch {
-    schemaError.value = 'Не удалось прочитать схему входных данных задачи'
+    schemaError.value = t('jobs.schemaError')
   }
 }
 
@@ -688,7 +690,7 @@ async function uploadSelectedFile(field: JobSchemaField, event: Event) {
 
   const accepts = field.accepts?.map((item) => item.toLowerCase()) ?? []
   if (accepts.length > 0 && !accepts.some((accept) => file.name.toLowerCase().endsWith(accept))) {
-    ElMessage.warning(`Файл должен соответствовать: ${accepts.join(', ')}`)
+    ElMessage.warning(t('jobs.fileAccepts', { accepts: accepts.join(', ') }))
     return
   }
 
@@ -697,9 +699,9 @@ async function uploadSelectedFile(field: JobSchemaField, event: Event) {
     const uploaded = await uploadFile(file)
     inputState[field.name] = uploaded.key
     await loadUploads(true)
-    ElMessage.success('Файл загружен')
+    ElMessage.success(t('jobs.fileUploaded'))
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить файл')
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.uploadError'))
   } finally {
     uploadingField.value = null
   }
@@ -712,7 +714,7 @@ async function submitJob() {
 
   const missingField = schemaFields.value.find((field) => field.required && isEmptyValue(inputState[field.name]))
   if (missingField) {
-    ElMessage.warning(`Заполните поле "${fieldLabel(missingField)}"`)
+    ElMessage.warning(t('jobs.fillField', { field: fieldLabel(missingField) }))
     return
   }
 
@@ -723,13 +725,13 @@ async function submitJob() {
       inputState: JSON.stringify(inputState),
       maxAttempts: maxAttempts.value,
     })
-    ElMessage.success('Задача запущена')
+    ElMessage.success(t('jobs.created'))
     drawerOpen.value = false
     if (selectedCurrentService.value === serviceKey) {
       await loadCurrentJobs(true)
     }
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось запустить задачу')
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.createError'))
   } finally {
     isCreatingJob.value = false
   }
@@ -761,8 +763,8 @@ async function syncJobHubConnection() {
     jobHubConnection = null
     jobHubServiceKey = null
     ElNotification.warning({
-      title: 'Realtime недоступен',
-      message: `События задач сервиса ${serviceLabel(serviceKey)} не подключились. Обновите список вручную.`,
+      title: t('common.messages.realtimeUnavailableTitle'),
+      message: t('jobs.realtimeUnavailable', { service: serviceLabel(serviceKey) }),
     })
   }
 }
@@ -808,7 +810,7 @@ async function openJobState(row: JobModel) {
     jobState.value = response.state
   } catch (error) {
     stateDialogOpen.value = false
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить state задачи')
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.stateLoadError'))
   } finally {
     isLoadingJobState.value = false
     loadingStateJobId.value = null
@@ -820,7 +822,7 @@ function jobDefinitionName(systemName: string) {
 }
 
 function jobStatusLabel(status: JobStatus | string) {
-  return jobStatusOptions.find((item) => item.value === status)?.label ?? status
+  return jobStatusOptions.value.find((item) => item.value === status)?.label ?? status
 }
 
 function jobStatusTagType(status: JobStatus | string) {
@@ -838,7 +840,7 @@ function jobStatusTagType(status: JobStatus | string) {
 
 function formatDateTime(value?: string | null) {
   if (!value) return '-'
-  return new Intl.DateTimeFormat('ru-RU', {
+  return new Intl.DateTimeFormat(locale.value, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -862,10 +864,17 @@ function serviceLabel(key: string) {
   return labels[key] ?? key
 }
 
+function serviceErrorText(service: ServiceCard) {
+  if (service.error) return service.error
+  if (service.statusCode) return `HTTP ${service.statusCode}`
+  return t('common.messages.serviceUnavailable')
+}
+
 function formatFileSize(size: number) {
-  if (size < 1024) return `${size} Б`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} КБ`
-  return `${(size / 1024 / 1024).toFixed(1)} МБ`
+  const formatter = new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 })
+  if (size < 1024) return `${formatter.format(size)} ${t('common.messages.byte')}`
+  if (size < 1024 * 1024) return `${formatter.format(size / 1024)} ${t('common.messages.kilobyte')}`
+  return `${formatter.format(size / 1024 / 1024)} ${t('common.messages.megabyte')}`
 }
 </script>
 

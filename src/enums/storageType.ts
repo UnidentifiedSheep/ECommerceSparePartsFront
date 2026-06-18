@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+
 export enum StorageType {
   Warehouse = 'Warehouse',
   SupplierStorage = 'SupplierStorage',
@@ -6,8 +8,8 @@ export enum StorageType {
 export function toText(type: StorageType): string {
   switch (type) {
     case StorageType.Warehouse:
-      return 'Наш склад'
+      return t('storages.types.Warehouse')
     case StorageType.SupplierStorage:
-      return 'Склад поставщика'
+      return t('storages.types.SupplierStorage')
   }
 }

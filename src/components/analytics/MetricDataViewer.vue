@@ -2,7 +2,7 @@
   <section class="metric-data-viewer" :class="{ 'metric-data-viewer--compact': densityMode === 'compact' }">
     <div class="metric-data-viewer__toolbar">
       <div class="metric-data-viewer__heading">
-        <div class="metric-data-viewer__title">Данные метрики</div>
+        <div class="metric-data-viewer__title">{{ t('analytics.viewer.title') }}</div>
       </div>
 
       <div v-if="hasData" class="metric-data-viewer__actions">
@@ -10,30 +10,30 @@
           v-model="searchQuery"
           class="metric-data-viewer__search"
           clearable
-          placeholder="Поиск по данным"
+          :placeholder="t('analytics.viewer.search')"
           size="small"
         />
         <el-radio-group v-model="densityMode" size="small">
-          <el-radio-button label="comfortable">Обычный</el-radio-button>
-          <el-radio-button label="compact">Компактный</el-radio-button>
+          <el-radio-button label="comfortable">{{ t('analytics.viewer.comfortable') }}</el-radio-button>
+          <el-radio-button label="compact">{{ t('analytics.viewer.compact') }}</el-radio-button>
         </el-radio-group>
-        <el-button size="small" plain @click="expandAll">Развернуть</el-button>
-        <el-button size="small" plain @click="collapseAll">Свернуть</el-button>
-        <el-button size="small" type="primary" plain @click="copyJson">Копировать JSON</el-button>
+        <el-button size="small" plain @click="expandAll">{{ t('analytics.viewer.expand') }}</el-button>
+        <el-button size="small" plain @click="collapseAll">{{ t('analytics.viewer.collapse') }}</el-button>
+        <el-button size="small" type="primary" plain @click="copyJson">{{ t('analytics.viewer.copyJson') }}</el-button>
       </div>
     </div>
 
     <div v-if="parseError" class="metric-data-viewer__error">
-      <div class="metric-data-viewer__error-title">Данные не удалось прочитать как JSON</div>
+      <div class="metric-data-viewer__error-title">{{ t('analytics.viewer.parseError') }}</div>
       <pre class="metric-data-viewer__raw">{{ data }}</pre>
     </div>
 
     <div v-else-if="!hasData" class="metric-data-viewer__empty">
-      Нет данных для отображения.
+      {{ t('analytics.viewer.empty') }}
     </div>
 
     <div v-else-if="visibleRootEntries.length === 0" class="metric-data-viewer__empty">
-      По поиску ничего не найдено.
+      {{ t('analytics.viewer.noSearchResults') }}
     </div>
 
     <div v-else class="metric-data-viewer__content">
@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, ref, watch, type Component, type PropType, type VNodeChild } from 'vue'
 import { ElButton, ElNotification } from 'element-plus'
+import { useI18n } from '@/i18n'
 
 type JsonPrimitive = string | number | boolean | null
 type JsonValue = JsonPrimitive | JsonObject | JsonArray
@@ -77,6 +78,7 @@ const props = defineProps<{
 const expanded = ref<Set<string>>(new Set())
 const searchQuery = ref('')
 const densityMode = ref<'comfortable' | 'compact'>('comfortable')
+const { locale, t } = useI18n()
 
 const parsedData = computed<JsonValue | null>(() => {
   if (!props.data?.trim()) {
@@ -109,13 +111,13 @@ const rootEntries = computed<MetricEntry[]>(() => {
 
   if (Array.isArray(value)) {
     return value.map((entryValue, index) => ({
-      label: `Элемент ${index + 1}`,
+      label: t('analytics.viewer.item', { index: index + 1 }),
       path: String(index),
       value: entryValue,
     }))
   }
 
-  return [{ label: 'Значение', path: 'value', value }]
+  return [{ label: t('analytics.viewer.value'), path: 'value', value }]
 })
 
 const hasData = computed(() => rootEntries.value.length > 0)
@@ -170,7 +172,7 @@ function isContainer(value: JsonValue): value is JsonObject | JsonArray {
 
 function getEntries(value: JsonObject | JsonArray): Array<[string, JsonValue]> {
   if (Array.isArray(value)) {
-    return value.map((entryValue, index): [string, JsonValue] => [`Элемент ${index + 1}`, entryValue])
+    return value.map((entryValue, index): [string, JsonValue] => [t('analytics.viewer.item', { index: index + 1 }), entryValue])
   }
 
   return Object.entries(value)
@@ -178,7 +180,7 @@ function getEntries(value: JsonObject | JsonArray): Array<[string, JsonValue]> {
 
 function formatLabel(value: string): string {
   return value
-    .replace(/([a-zа-яё0-9])([A-ZА-ЯЁ])/g, '$1 $2')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -191,16 +193,16 @@ function formatValue(value: JsonValue): string {
   }
 
   if (typeof value === 'boolean') {
-    return value ? 'Да' : 'Нет'
+    return value ? t('analytics.viewer.yes') : t('analytics.viewer.no')
   }
 
   if (typeof value === 'number') {
-    return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 4 }).format(value)
+    return new Intl.NumberFormat(locale.value, { maximumFractionDigits: 4 }).format(value)
   }
 
   if (typeof value === 'string' && isIsoDate(value)) {
     const date = new Date(value)
-    return new Intl.DateTimeFormat('ru-RU', {
+    return new Intl.DateTimeFormat(locale.value, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -214,7 +216,7 @@ function formatValue(value: JsonValue): string {
 }
 
 function normalizeSearch(value: string): string {
-  return value.trim().toLocaleLowerCase('ru-RU')
+  return value.trim().toLocaleLowerCase(locale.value)
 }
 
 function matchesEntry(label: string, value: JsonValue, query: string): boolean {
@@ -337,8 +339,8 @@ function copyValue(value: JsonValue): void {
 async function copyToClipboard(value: string): Promise<void> {
   await navigator.clipboard.writeText(value)
   ElNotification.success({
-    title: 'Скопировано',
-    message: 'Значение добавлено в буфер обмена',
+    title: t('analytics.viewer.copiedTitle'),
+    message: t('analytics.viewer.copiedMessage'),
     duration: 1600,
   })
 }
@@ -397,7 +399,7 @@ const MetricNode: Component = defineComponent({
             size: 'small',
             text: true,
             onClick: () => emit('copy', nodeProps.value),
-          }, () => 'Копировать'),
+          }, () => t('analytics.viewer.copy')),
         ])
       }
 
@@ -437,12 +439,12 @@ const MetricNode: Component = defineComponent({
               size: 'small',
               text: true,
               onClick: () => emit('copy', nodeProps.value),
-            }, () => 'Копировать'),
+            }, () => t('analytics.viewer.copy')),
             h(ElButton, {
               size: 'small',
               plain: true,
               onClick: () => emit('toggle', nodeProps.path),
-            }, () => (isExpanded ? 'Свернуть' : 'Развернуть')),
+            }, () => (isExpanded ? t('analytics.viewer.collapse') : t('analytics.viewer.expand'))),
           ]),
         ]),
         isExpanded ? h('div', { class: 'metric-data-viewer__group-body' }, childNodes) : null,

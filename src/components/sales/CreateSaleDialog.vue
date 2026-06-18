@@ -9,9 +9,9 @@
     <template #header>
       <div class="dialog-heading">
         <div class="min-w-0">
-          <div class="dialog-kicker">Новая продажа</div>
-          <h2>Создание продажи</h2>
-          <p>Покупатель, склад списания, цены и оплата фиксируются в одном документе.</p>
+          <div class="dialog-kicker">{{ t('sales.newSale') }}</div>
+          <h2>{{ t('sales.createTitle') }}</h2>
+          <p>{{ t('sales.createDescription') }}</p>
         </div>
         <el-button :icon="Close" circle text @click="isOpen = false" />
       </div>
@@ -20,25 +20,25 @@
     <div class="sale-dialog-body">
       <aside class="sale-summary">
         <div class="summary-total">
-          <span>К оплате</span>
+          <span>{{ t('sales.payable') }}</span>
           <strong>{{ formatCurrency(saleTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
 
         <div class="summary-grid">
           <div>
-            <span>Позиций</span>
+            <span>{{ t('sales.itemLines') }}</span>
             <strong>{{ form.items.length }}</strong>
           </div>
           <div>
-            <span>Товаров</span>
+            <span>{{ t('sales.products') }}</span>
             <strong>{{ totalItemCount }}</strong>
           </div>
           <div>
-            <span>Скидка</span>
+            <span>{{ t('sales.discount') }}</span>
             <strong>{{ formatCurrency(totalDiscount, selectedCurrency?.currencySign) }}</strong>
           </div>
           <div>
-            <span>К доплате</span>
+            <span>{{ t('sales.remaining') }}</span>
             <strong>{{ formatCurrency(remainingPayment, selectedCurrency?.currencySign) }}</strong>
           </div>
         </div>
@@ -60,25 +60,25 @@
         <section class="sale-section sale-section--main">
           <div class="section-header">
             <div>
-              <div class="section-title">Параметры</div>
-              <div class="section-subtitle">Кому продаем и откуда списываем товар</div>
+              <div class="section-title">{{ t('sales.parameters') }}</div>
+              <div class="section-subtitle">{{ t('sales.parametersHint') }}</div>
             </div>
           </div>
 
           <div class="form-grid">
-            <el-form-item label="Покупатель" class="span-4">
+            <el-form-item :label="t('sales.buyer')" class="span-4">
               <UserSelector
                 v-model:selected-user="form.buyer"
-                place-holder="Выберите покупателя"
+                :place-holder="t('sales.selectBuyer')"
                 :clearable="false"
               />
             </el-form-item>
 
-            <el-form-item label="Склад списания" class="span-4">
-              <StorageSelector v-model="form.storageName" placeholder="Выберите склад" />
+            <el-form-item :label="t('sales.writeOffStorage')" class="span-4">
+              <StorageSelector v-model="form.storageName" :placeholder="t('sales.selectStorage')" />
             </el-form-item>
 
-            <el-form-item label="Дата продажи" class="span-4">
+            <el-form-item :label="t('sales.saleDate')" class="span-4">
               <el-date-picker
                 v-model="form.saleDateTime"
                 type="datetime"
@@ -87,8 +87,8 @@
               />
             </el-form-item>
 
-            <el-form-item label="Валюта" class="span-3">
-              <el-select v-model="form.currencyId" class="w-full" placeholder="Выберите валюту">
+            <el-form-item :label="t('common.labels.currency')" class="span-3">
+              <el-select v-model="form.currencyId" class="w-full" :placeholder="t('sales.selectCurrency')">
                 <el-option
                   v-for="currency in currencies"
                   :key="currency.id"
@@ -98,11 +98,11 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item label="Оплачено" class="span-3">
+            <el-form-item :label="t('sales.paid')" class="span-3">
               <el-input-number v-model="form.payedSum" :min="0" :precision="2" :controls="false" class="w-full" />
             </el-form-item>
 
-            <el-form-item label="Скидка покупателя" class="span-3">
+            <el-form-item :label="t('sales.userDiscount')" class="span-3">
               <div class="discount-control">
                 <div v-if="!isDiscountLoading" class="discount-editor">
                   <el-input-number
@@ -127,7 +127,7 @@
                   </button>
                   <el-tooltip
                     v-if="isDiscountEditing && hasCustomSaleDiscount"
-                    content="Вернуть скидку покупателя"
+                    :content="t('sales.resetUserDiscount')"
                     placement="top"
                   >
                     <el-button
@@ -139,17 +139,17 @@
                     />
                   </el-tooltip>
                 </div>
-                <span v-else>Загрузка...</span>
+                <span v-else>{{ t('sales.loading') }}</span>
                 <el-switch
                   v-model="form.applyUserDiscountToAll"
                   :disabled="!form.buyer || isDiscountLoading"
-                  active-text="Для всех"
+                  :active-text="t('sales.forAll')"
                 />
               </div>
             </el-form-item>
 
-            <el-form-item label="Комментарий" class="span-12">
-              <el-input v-model="form.comment" type="textarea" :rows="2" placeholder="Комментарий к продаже" />
+            <el-form-item :label="t('common.labels.comment')" class="span-12">
+              <el-input v-model="form.comment" type="textarea" :rows="2" :placeholder="t('sales.saleCommentPlaceholder')" />
             </el-form-item>
           </div>
         </section>
@@ -157,17 +157,17 @@
         <section class="sale-section">
           <div class="section-header">
             <div>
-              <div class="section-title">Позиции продажи</div>
+              <div class="section-title">{{ t('sales.salePositions') }}</div>
               <div class="section-subtitle">{{ itemsSummary }}</div>
             </div>
             <el-button :icon="Plus" type="primary" @click="productSelectorOpen = true">
-              Добавить товар
+              {{ t('sales.addProduct') }}
             </el-button>
           </div>
 
           <div v-if="form.items.length === 0" class="empty-items">
-            <div class="text-base font-semibold text-slate-900">Позиции еще не добавлены</div>
-            <div class="mt-1 text-sm text-slate-500">Выберите товары, которые нужно списать со склада.</div>
+            <div class="text-base font-semibold text-slate-900">{{ t('sales.noPositions') }}</div>
+            <div class="mt-1 text-sm text-slate-500">{{ t('sales.noPositionsHint') }}</div>
           </div>
 
           <div v-else class="items-list">
@@ -184,21 +184,21 @@
                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                       <span class="sku-pill">{{ item.product?.sku || '—' }}</span>
                       <span :class="stockColorClass(item.product?.stock ?? 0)">
-                        Доступно: {{ (item.product?.stock ?? 0).toLocaleString('ru-RU') }}
+                        {{ t('sales.available') }}: {{ (item.product?.stock ?? 0).toLocaleString(locale) }}
                       </span>
                       <span v-if="item.product">
-                        Выбрано: {{ selectedProductCount(item).toLocaleString('ru-RU') }}
+                        {{ t('sales.selected') }}: {{ selectedProductCount(item).toLocaleString(locale) }}
                       </span>
                     </div>
                     <div v-if="hasStockError(item)" class="stock-error">
-                      Суммарно по этому товару выбрано больше доступного остатка
+                      {{ t('sales.stockExceeded') }}
                     </div>
                   </div>
                 </div>
 
                 <div class="item-controls">
                   <label>
-                    <span>Кол-во</span>
+                    <span>{{ t('common.labels.count') }}</span>
                     <el-input-number
                       v-model="item.count"
                       :min="1"
@@ -209,11 +209,11 @@
                     />
                   </label>
                   <label>
-                    <span>Цена</span>
+                    <span>{{ t('common.labels.price') }}</span>
                     <el-input-number v-model="item.price" :min="0" :precision="2" :controls="false" class="w-full" />
                   </label>
                   <label>
-                    <span>Цена со скидкой</span>
+                    <span>{{ t('sales.priceWithDiscount') }}</span>
                     <el-input-number
                       v-model="item.priceWithDiscount"
                       :min="0"
@@ -221,12 +221,12 @@
                       :precision="2"
                       :controls="false"
                       :disabled="item.discountMode !== 'Manual'"
-                      :placeholder="item.discountMode === 'Manual' ? 'По умолчанию цена' : 'Авто'"
+                      :placeholder="item.discountMode === 'Manual' ? t('sales.defaultPrice') : t('sales.auto')"
                       class="w-full"
                     />
                   </label>
                   <label>
-                    <span>Сумма</span>
+                    <span>{{ t('sales.amount') }}</span>
                     <div class="item-sum">
                       {{ formatCurrency(item.count * effectivePriceWithDiscount(item), selectedCurrency?.currencySign) }}
                     </div>
@@ -235,18 +235,18 @@
               </div>
 
               <div class="item-footer">
-                <el-input v-model="item.comment" placeholder="Комментарий к позиции" clearable />
+                <el-input v-model="item.comment" :placeholder="t('sales.itemCommentPlaceholder')" clearable />
                 <el-radio-group
                   v-model="item.discountMode"
                   size="small"
                   class="discount-mode"
                   @change="onItemDiscountModeChange(item)"
                 >
-                  <el-radio-button label="Manual">Ручная</el-radio-button>
-                  <el-radio-button label="User" :disabled="!form.buyer || isDiscountLoading">Скидка</el-radio-button>
+                  <el-radio-button label="Manual">{{ t('sales.manual') }}</el-radio-button>
+                  <el-radio-button label="User" :disabled="!form.buyer || isDiscountLoading">{{ t('sales.useDiscount') }}</el-radio-button>
                 </el-radio-group>
                 <span v-if="itemDiscount(item) > 0" class="discount-note">
-                  Скидка: {{ formatCurrency(itemDiscount(item), selectedCurrency?.currencySign) }}
+                  {{ t('sales.discount') }}: {{ formatCurrency(itemDiscount(item), selectedCurrency?.currencySign) }}
                 </span>
                 <el-button class="remove-item-button" :icon="Delete" text type="danger" @click="removeItem(index)" />
               </div>
@@ -259,13 +259,13 @@
     <template #footer>
       <div class="dialog-footer">
         <div class="footer-total">
-          <span>К оплате</span>
+          <span>{{ t('sales.payable') }}</span>
           <strong>{{ formatCurrency(saleTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
         <div class="footer-actions">
-          <el-button size="large" @click="isOpen = false">Отмена</el-button>
+          <el-button size="large" @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
           <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save()">
-            Создать продажу
+            {{ t('sales.create') }}
           </el-button>
         </div>
       </div>
@@ -290,6 +290,7 @@ import { ApiError } from '@/models/errorModel.ts'
 import { createSale } from '@/services/api/sales.ts'
 import { getUserDiscount } from '@/services/api/users.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { useI18n } from '@/i18n'
 
 interface SaleItemForm {
   product?: ProductSearchModel
@@ -311,6 +312,7 @@ const props = defineProps<{
   currencies: CurrencyModel[]
 }>()
 
+const { locale, t } = useI18n()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   created: [sale: SaleModel]
@@ -352,7 +354,7 @@ const totalDiscount = computed(() => (
   Math.max(totalWithoutDiscount.value - saleTotal.value, 0)
 ))
 
-const saleDiscountText = computed(() => `${(saleDiscount.value * 100).toLocaleString('ru-RU', {
+const saleDiscountText = computed(() => `${(saleDiscount.value * 100).toLocaleString(locale.value, {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 })}%`)
@@ -368,16 +370,16 @@ const remainingPayment = computed(() => (
 ))
 
 const completionSteps = computed(() => [
-  { label: 'Покупатель', done: !!form.buyer },
-  { label: 'Склад', done: !!form.storageName },
-  { label: 'Валюта', done: !!form.currencyId },
-  { label: 'Позиции', done: form.items.length > 0 },
+  { label: t('sales.buyer'), done: !!form.buyer },
+  { label: t('common.labels.storage'), done: !!form.storageName },
+  { label: t('common.labels.currency'), done: !!form.currencyId },
+  { label: t('sales.positions'), done: form.items.length > 0 },
 ])
 
 const itemsSummary = computed(() => {
   return form.items.length === 0
-    ? 'Добавьте товары в продажу'
-    : `${form.items.length} позиций, ${totalItemCount.value} шт.`
+    ? t('sales.addItemsHint')
+    : t('sales.itemsSummary', { positions: form.items.length, count: totalItemCount.value })
 })
 
 const canSave = computed(() => (
@@ -413,13 +415,13 @@ function resetForm() {
 
 function addProduct(product: ProductSearchModel) {
   if (product.stock <= 0) {
-    ElMessage.warning('У товара нет доступного остатка для продажи')
+    ElMessage.warning(t('sales.noStock'))
     return
   }
 
   const selectedCount = selectedProductCountById(product.id)
   if (selectedCount >= product.stock) {
-    ElMessage.warning('В продажу уже добавлен весь доступный остаток этого товара')
+    ElMessage.warning(t('sales.allStockAdded'))
     return
   }
 
@@ -537,7 +539,7 @@ function stockColorClass(stock: number) {
 }
 
 function formatCurrency(value: number, sign?: string) {
-  return `${value.toLocaleString('ru-RU')} ${sign ?? ''}`.trim()
+  return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
 async function save(confirmationCode?: string) {
@@ -564,8 +566,8 @@ async function save(confirmationCode?: string) {
     })
 
     ElNotification({
-      title: 'Успех',
-      message: 'Продажа создана',
+      title: t('common.labels.success'),
+      message: t('sales.created'),
       type: 'success',
     })
 
@@ -620,16 +622,16 @@ async function confirmReservedSale(data: SaleConfirmationData) {
   try {
     await ElMessageBox.confirm(
       h('div', { class: 'reservation-confirmation' }, [
-        h('p', 'При продаже будут затронуты резервации других покупателей:'),
+        h('p', t('sales.confirmationIntro')),
         h('ul', Object.entries(data.reserved).map(([key, count]) => (
-          h('li', `Есть резервации по ${key} в количестве ${count}`)
+          h('li', t('sales.confirmationItem', { key, count }))
         ))),
-        h('p', 'Подтвердите действие, чтобы создать продажу с учетом этих резерваций.'),
+        h('p', t('sales.confirmationOutro')),
       ]),
-      'Подтверждение продажи',
+      t('sales.confirmationTitle'),
       {
-        confirmButtonText: 'Подтвердить',
-        cancelButtonText: 'Отмена',
+        confirmButtonText: t('sales.confirm'),
+        cancelButtonText: t('common.actions.cancel'),
         type: 'warning',
       },
     )
@@ -667,7 +669,7 @@ watch(() => form.buyer?.id, async (buyerId) => {
     saleDiscount.value = resp.discount
   } catch (error) {
     if (requestId === discountRequestId) {
-      ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить скидку покупателя')
+      ElMessage.error(error instanceof Error ? error.message : t('sales.loadDiscountError'))
     }
   } finally {
     if (requestId === discountRequestId) {

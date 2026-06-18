@@ -2,8 +2,8 @@
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
     <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
       <div>
-        <h1 class="text-2xl font-semibold text-slate-900">Разрешения</h1>
-        <p class="text-sm text-slate-500">Справочник permissions, доступных в системе.</p>
+        <h1 class="text-2xl font-semibold text-slate-900">{{ t('permissions.title') }}</h1>
+        <p class="text-sm text-slate-500">{{ t('permissions.description') }}</p>
       </div>
     </div>
 
@@ -12,13 +12,13 @@
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <div>
-              <h2 class="text-lg font-semibold text-slate-900">Список разрешений</h2>
-              <p class="text-sm text-slate-500">Данные из GET /main/permissions</p>
+              <h2 class="text-lg font-semibold text-slate-900">{{ t('permissions.listTitle') }}</h2>
+              <p class="text-sm text-slate-500">{{ t('permissions.sourceHint') }}</p>
             </div>
             <el-input
               v-model="searchTerm"
               clearable
-              placeholder="Поиск по имени или описанию"
+              :placeholder="t('permissions.searchPlaceholder')"
               class="max-w-sm"
             />
           </div>
@@ -26,7 +26,7 @@
 
         <el-table :data="filteredPermissions" stripe>
           <el-table-column prop="name" label="Permission" min-width="280" />
-          <el-table-column label="Описание" min-width="420">
+          <el-table-column :label="t('common.labels.description')" min-width="420">
             <template #default="{ row }">
               {{ row.description || '—' }}
             </template>
@@ -47,8 +47,10 @@ import { useRoute } from 'vue-router'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { PermissionModel } from '@/models/permissionModel.ts'
 import { getPermissions } from '@/services/api/permissions.ts'
+import { useI18n } from '@/i18n'
 
 const route = useRoute()
+const { t } = useI18n()
 const permissions = ref<PermissionModel[]>([])
 const searchTerm = ref(getSearchQuery())
 const page = ref(0)

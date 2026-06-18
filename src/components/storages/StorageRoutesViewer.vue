@@ -2,14 +2,14 @@
   <div class="routes-viewer">
     <div v-if="storage" class="routes-toolbar">
       <div>
-        <h2>Маршруты</h2>
+        <h2>{{ t('storages.routes') }}</h2>
         <p>{{ toolbarText }}</p>
       </div>
-      <el-button type="primary" @click="createOpen = true">Добавить маршрут</el-button>
+      <el-button type="primary" @click="createOpen = true">{{ t('storages.routesPanel.add') }}</el-button>
     </div>
 
     <div v-else class="routes-placeholder">
-      <el-empty description="Выберите склад, чтобы увидеть маршруты" />
+      <el-empty :description="t('storages.routesPanel.selectStorage')" />
     </div>
 
     <el-scrollbar v-if="storage" class="routes-scroll" @end-reached="loadNext(false)">
@@ -23,10 +23,10 @@
           @remove="remove"
         />
 
-        <el-empty v-if="!isLoading && routes.length === 0" description="Маршрутов нет" />
+        <el-empty v-if="!isLoading && routes.length === 0" :description="t('storages.routesPanel.empty')" />
 
         <div v-if="isLoading && routes.length > 0" class="routes-loading">
-          Загрузка маршрутов...
+          {{ t('storages.routesPanel.loading') }}
         </div>
       </div>
     </el-scrollbar>
@@ -47,7 +47,9 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import type { StorageRouteModel } from '@/models/storageRouteModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { deleteStorageRoute, editStorageRoute, getStorageRoutes } from '@/services/api/storages.ts'
+import { useI18n } from '@/i18n'
 
+const { t } = useI18n()
 const storage = defineModel<StorageModel | undefined>('storage')
 
 const routes = ref<StorageRouteModel[]>([])
@@ -62,7 +64,7 @@ const editingRoute = ref<StorageRouteModel>()
 
 const toolbarText = computed(() => {
   if (!storage.value) return ''
-  return `Входящие маршруты на склад ${storage.value.name}`
+  return t('storages.routesPanel.incoming', { name: storage.value.name })
 })
 
 async function loadCurrencies() {
@@ -114,8 +116,8 @@ async function remove(route: StorageRouteModel) {
   await deleteStorageRoute(route.id)
   routes.value = routes.value.filter((x) => x.id !== route.id)
   ElNotification({
-    title: 'Успех',
-    message: 'Маршрут удалён',
+    title: t('common.labels.success'),
+    message: t('storages.routesPanel.removed'),
     type: 'success',
   })
 }

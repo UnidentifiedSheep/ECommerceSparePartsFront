@@ -106,7 +106,7 @@ export async function getGatewayJobs(): Promise<GetGatewayJobsResponse> {
         available: service.available,
         statusCode: null,
         jobs: service.jobs,
-        error: service.available ? null : 'Сервис недоступен',
+        error: null,
       },
     ])),
   }

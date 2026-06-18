@@ -5,10 +5,10 @@
         <div class="min-w-0">
           <div class="mb-1 flex items-center gap-2 text-sm text-slate-500">
             <button class="text-slate-600 hover:text-slate-900" type="button" @click="router.push({ name: 'products' })">
-              Товары
+              {{ t('products.title') }}
             </button>
             <span>/</span>
-            <span>Кроссы</span>
+            <span>{{ t('products.crosses') }}</span>
           </div>
           <h1 class="truncate text-2xl font-semibold text-slate-900">
             {{ productHeader }}
@@ -16,20 +16,20 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <el-button :icon="ArrowLeft" @click="router.push({ name: 'products' })">Назад</el-button>
+          <el-button :icon="ArrowLeft" @click="router.push({ name: 'products' })">{{ t('common.actions.back') }}</el-button>
           <el-dropdown trigger="click" @command="handleProductAction">
             <el-button :icon="MoreFilled" circle plain />
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="refresh" :icon="Refresh">Обновить</el-dropdown-item>
-                <el-dropdown-item v-if="product && canEditProduct" command="edit" :icon="Edit">Редактировать</el-dropdown-item>
-                <el-dropdown-item v-if="canCreateCrosses" command="crosses" :icon="Plus">Добавить кроссы</el-dropdown-item>
+                <el-dropdown-item command="refresh" :icon="Refresh">{{ t('common.actions.refresh') }}</el-dropdown-item>
+                <el-dropdown-item v-if="product && canEditProduct" command="edit" :icon="Edit">{{ t('common.actions.edit') }}</el-dropdown-item>
+                <el-dropdown-item v-if="canCreateCrosses" command="crosses" :icon="Plus">{{ t('products.addCrosses') }}</el-dropdown-item>
                 <el-dropdown-item
                   v-if="product && canViewProductReservations"
                   command="reservations"
                   :icon="View"
                 >
-                  Посмотреть резервации
+                  {{ t('users.viewReservations') }}
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -45,10 +45,10 @@
             <div class="space-y-4 p-4">
               <div class="overflow-hidden rounded-md border border-slate-200 bg-slate-50">
                 <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-                  <div class="text-sm font-semibold text-slate-900">Изображения</div>
+                  <div class="text-sm font-semibold text-slate-900">{{ t('products.details.images') }}</div>
                   <div class="flex items-center gap-2">
                     <div v-if="productImages.length > 0" class="text-xs text-slate-500">
-                      {{ productImages.length }} фото
+                      {{ productImages.length }} {{ t('products.details.photo') }}
                     </div>
                     <el-button
                       v-if="canAddImages"
@@ -58,7 +58,7 @@
                       plain
                       @click="imageInput?.click()"
                     >
-                      Добавить
+                      {{ t('common.actions.add') }}
                     </el-button>
                     <input
                       ref="imageInput"
@@ -96,7 +96,7 @@
                       >
                         <template #error>
                           <div class="flex h-full w-full items-center justify-center text-sm text-slate-400">
-                            Изображение недоступно
+                            {{ t('products.details.imageUnavailable') }}
                           </div>
                         </template>
                       </el-image>
@@ -128,23 +128,23 @@
                   </button>
                 </div>
 
-                <el-empty v-else-if="productImages.length === 0" description="Изображений нет" class="h-[220px]" />
+                <el-empty v-else-if="productImages.length === 0" :description="t('products.details.noImages')" class="h-[220px]" />
               </div>
 
               <dl class="grid content-start grid-cols-[112px_minmax(0,1fr)] gap-x-4 gap-y-3 text-sm">
-                <dt class="text-slate-500">Артикул</dt>
+                <dt class="text-slate-500">{{ t('products.sku') }}</dt>
                 <dd class="min-w-0 break-all font-medium text-slate-900">{{ product.sku }}</dd>
 
-                <dt class="text-slate-500">Производитель</dt>
+                <dt class="text-slate-500">{{ t('common.labels.producer') }}</dt>
                 <dd class="font-medium text-slate-900">{{ product.producerName || '-' }}</dd>
 
-                <dt class="text-slate-500">Название</dt>
+                <dt class="text-slate-500">{{ t('common.labels.name') }}</dt>
                 <dd class="font-medium leading-5 text-slate-900">{{ product.name || '-' }}</dd>
 
-                <dt class="text-slate-500">Описание</dt>
+                <dt class="text-slate-500">{{ t('common.labels.description') }}</dt>
                 <dd class="font-medium leading-5 text-slate-900">{{ product.description || '-' }}</dd>
 
-                <dt class="text-slate-500">Размер</dt>
+                <dt class="text-slate-500">{{ t('products.details.size') }}</dt>
                 <dd class="flex flex-wrap items-center gap-2 font-medium text-slate-900">
                   <span>{{ sizeText }}</span>
                   <el-button v-if="canManageSize" size="small" text type="primary" @click="sizeDialogOpen = true">
@@ -152,10 +152,10 @@
                   </el-button>
                 </dd>
 
-                <dt class="text-slate-500">Объем</dt>
+                <dt class="text-slate-500">{{ t('products.details.volume') }}</dt>
                 <dd class="font-medium text-slate-900">{{ volumeText }}</dd>
 
-                <dt class="text-slate-500">Вес</dt>
+                <dt class="text-slate-500">{{ t('products.weight') }}</dt>
                 <dd class="flex flex-wrap items-center gap-2 font-medium text-slate-900">
                   <span>{{ weightText }}</span>
                   <el-button v-if="canManageWeight" size="small" text type="primary" @click="weightDialogOpen = true">
@@ -163,7 +163,7 @@
                   </el-button>
                 </dd>
 
-                <dt class="text-slate-500">Индикатор</dt>
+                <dt class="text-slate-500">{{ t('products.details.indicator') }}</dt>
                 <dd>
                   <span v-if="product.indicator" class="inline-flex items-center gap-2">
                     <span
@@ -174,7 +174,7 @@
                   <span v-else class="font-medium text-slate-900">-</span>
                 </dd>
 
-                <dt class="text-slate-500">Остаток</dt>
+                <dt class="text-slate-500">{{ t('products.stock') }}</dt>
                 <dd :class="['font-semibold', stockColorClass(product.stock)]">{{ formatNumber(product.stock) }}</dd>
               </dl>
 
@@ -185,7 +185,7 @@
                   <template #title>
                     <div class="flex min-w-0 flex-1 items-center justify-between gap-3 pr-3">
                       <div class="min-w-0">
-                        <div class="text-sm font-semibold text-slate-900">Складские остатки</div>
+                        <div class="text-sm font-semibold text-slate-900">{{ t('products.details.storageStock') }}</div>
                         <div class="truncate text-xs text-slate-500">{{ storageContentSummary }}</div>
                       </div>
                     </div>
@@ -195,8 +195,8 @@
                     <div class="flex items-center justify-end gap-2">
                       <el-switch
                         v-model="showZeroStorageContent"
-                        active-text="Нулевые"
-                        inactive-text="Остатки"
+                        :active-text="t('products.details.zero')"
+                        :inactive-text="t('products.details.stocks')"
                         inline-prompt
                         class="storage-zero-switch"
                       />
@@ -208,7 +208,7 @@
                         plain
                         @click="openAddStorageContentDialog"
                       >
-                        Добавить
+                        {{ t('common.actions.add') }}
                       </el-button>
                     </div>
 
@@ -217,18 +217,18 @@
                       :data="storageContent"
                       stripe
                       size="small"
-                      empty-text="Остатков нет"
+                      :empty-text="t('products.details.noStocks')"
                       class="storage-content-table"
                     >
-                      <el-table-column prop="storageName" label="Склад" min-width="150" show-overflow-tooltip />
-                      <el-table-column prop="count" label="Кол-во" width="84" align="right">
+                      <el-table-column prop="storageName" :label="t('common.labels.storage')" min-width="150" show-overflow-tooltip />
+                      <el-table-column prop="count" :label="t('common.labels.count')" width="84" align="right">
                         <template #default="{ row }">
                           <span :class="['font-semibold', stockColorClass(row.count)]">
                             {{ formatNumber(row.count) }}
                           </span>
                         </template>
                       </el-table-column>
-                      <el-table-column label="Закупка" width="110" align="right">
+                      <el-table-column :label="t('products.details.purchase')" width="110" align="right">
                         <template #default="{ row }">
                           {{ formatMoney(row.buyPrice, row.currency?.currencySign) }}
                         </template>
@@ -276,13 +276,13 @@
             </div>
           </template>
 
-          <el-empty v-else-if="!isLoading" description="Товар не найден" />
+          <el-empty v-else-if="!isLoading" :description="t('products.details.productNotFound')" />
         </section>
 
         <section class="flex min-h-[760px] min-w-0 flex-col rounded-md border border-slate-200 bg-white shadow-sm">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
             <div>
-              <h2 class="text-lg font-semibold text-slate-900">Кроссы продукта</h2>
+              <h2 class="text-lg font-semibold text-slate-900">{{ t('products.details.productCrosses') }}</h2>
               <div class="text-sm text-slate-500">{{ crossesSummary }}</div>
             </div>
 
@@ -290,7 +290,7 @@
               <el-input
                 v-model="crossSearch"
                 clearable
-                placeholder="Артикул, название, производитель"
+                :placeholder="t('products.details.crossSearchPlaceholder')"
                 class="min-w-64 flex-1 sm:w-80"
               />
             </div>
@@ -301,29 +301,29 @@
             :data="filteredCrosses"
             stripe
             height="100%"
-            empty-text="Кроссов нет"
+            :empty-text="t('products.details.noCrosses')"
             class="crosses-table flex-1"
             @sort-change="handleSortChange"
           >
-            <el-table-column prop="sku" label="Артикул" min-width="150" sortable="custom">
+            <el-table-column prop="sku" :label="t('products.sku')" min-width="150" sortable="custom">
               <template #default="{ row }">
                 <span class="font-medium text-slate-900">{{ row.sku }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="Название" min-width="260" show-overflow-tooltip sortable="custom" />
-            <el-table-column prop="producerName" label="Производитель" min-width="160" sortable="custom">
+            <el-table-column prop="name" :label="t('common.labels.name')" min-width="260" show-overflow-tooltip sortable="custom" />
+            <el-table-column prop="producerName" :label="t('common.labels.producer')" min-width="160" sortable="custom">
               <template #default="{ row }">
                 {{ row.producerName || '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="Описание" min-width="220" show-overflow-tooltip>
+            <el-table-column :label="t('common.labels.description')" min-width="220" show-overflow-tooltip>
               <template #default="{ row }">
                 <span :class="row.description ? 'text-slate-700' : 'text-slate-400'">
                   {{ row.description || '-' }}
                 </span>
               </template>
             </el-table-column>
-            <el-table-column prop="count" label="Остаток" width="120" align="right" sortable="custom">
+            <el-table-column prop="count" :label="t('products.stock')" width="120" align="right" sortable="custom">
               <template #default="{ row }">
                 <span :class="['font-semibold', stockColorClass(row.stock)]">
                   {{ row.stock }}
@@ -379,22 +379,22 @@
       v-if="product && canViewProductReservations"
       v-model="reservationsDialogOpen"
       :product-id="product.id"
-      :title="`Резервации: ${product.sku}`"
+      :title="t('products.details.reservationsTitle', { sku: product.sku })"
     />
 
-    <el-dialog v-model="addStorageContentDialogOpen" title="Добавить остаток на склад" width="520">
+    <el-dialog v-model="addStorageContentDialogOpen" :title="t('products.details.addStockTitle')" width="520">
       <el-form label-position="top">
-        <el-form-item label="Продукт">
+        <el-form-item :label="t('common.labels.product')">
           <el-input :model-value="productLabel" disabled />
         </el-form-item>
 
-        <el-form-item label="Склад">
+        <el-form-item :label="t('common.labels.storage')">
           <el-select
             v-model="addStorageContentForm.storageName"
             :loading="isStorageOptionsLoading"
             filterable
             class="w-full"
-            placeholder="Выберите склад"
+            :placeholder="t('storages.selectStorage')"
           >
             <el-option
               v-for="storage in storageOptions"
@@ -404,29 +404,29 @@
             >
               <div class="flex min-w-0 flex-col py-1">
                 <span class="truncate">{{ storage.name }}</span>
-                <span class="truncate text-xs text-slate-500">{{ storage.location || storage.description || 'Без описания' }}</span>
+                <span class="truncate text-xs text-slate-500">{{ storage.location || storage.description || t('products.details.noDescription') }}</span>
               </div>
             </el-option>
           </el-select>
         </el-form-item>
 
         <div class="grid grid-cols-2 gap-3">
-          <el-form-item label="Количество">
+          <el-form-item :label="t('storages.contentPanel.quantity')">
             <el-input-number v-model="addStorageContentForm.count" :min="1" :controls="false" class="w-full" />
           </el-form-item>
 
-          <el-form-item label="Цена закупки">
+          <el-form-item :label="t('storages.contentPanel.buyPrice')">
             <el-input-number v-model="addStorageContentForm.buyPrice" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
         </div>
 
-        <el-form-item label="Валюта">
+        <el-form-item :label="t('common.labels.currency')">
           <el-select
             v-model="addStorageContentForm.currencyId"
             :loading="isCurrencyOptionsLoading"
             filterable
             class="w-full"
-            placeholder="Выберите валюту"
+            :placeholder="t('currencies.selectCurrency')"
           >
             <el-option
               v-for="currency in currencyOptions"
@@ -437,7 +437,7 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="Дата закупки">
+        <el-form-item :label="t('storages.contentPanel.purchaseDate')">
           <el-date-picker
             v-model="addStorageContentForm.purchaseDate"
             type="datetime"
@@ -448,34 +448,34 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="addStorageContentDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" :loading="isAddingStorageContent" @click="addStorageContentItem">Добавить</el-button>
+        <el-button @click="addStorageContentDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="isAddingStorageContent" @click="addStorageContentItem">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editStorageContentDialogOpen" title="Редактировать остаток" width="520">
+    <el-dialog v-model="editStorageContentDialogOpen" :title="t('products.details.editStockTitle')" width="520">
       <el-form label-position="top">
-        <el-form-item label="Склад">
+        <el-form-item :label="t('common.labels.storage')">
           <el-input :model-value="editingStorageContent?.storageName" disabled />
         </el-form-item>
 
         <div class="grid grid-cols-2 gap-3">
-          <el-form-item label="Количество">
+          <el-form-item :label="t('storages.contentPanel.quantity')">
             <el-input-number v-model="editStorageContentForm.count" :min="0" :controls="false" class="w-full" />
           </el-form-item>
 
-          <el-form-item label="Цена закупки">
+          <el-form-item :label="t('storages.contentPanel.buyPrice')">
             <el-input-number v-model="editStorageContentForm.buyPrice" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
         </div>
 
-        <el-form-item label="Валюта">
+        <el-form-item :label="t('common.labels.currency')">
           <el-select
             v-model="editStorageContentForm.currencyId"
             :loading="isCurrencyOptionsLoading"
             filterable
             class="w-full"
-            placeholder="Выберите валюту"
+            :placeholder="t('currencies.selectCurrency')"
           >
             <el-option
               v-for="currency in currencyOptions"
@@ -486,7 +486,7 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="Дата закупки">
+        <el-form-item :label="t('storages.contentPanel.purchaseDate')">
           <el-date-picker
             v-model="editStorageContentForm.purchaseDatetime"
             type="datetime"
@@ -497,8 +497,8 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="editStorageContentDialogOpen = false">Отмена</el-button>
-        <el-button type="primary" :loading="isEditingStorageContent" @click="saveStorageContentEdit">Сохранить</el-button>
+        <el-button @click="editStorageContentDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="isEditingStorageContent" @click="saveStorageContentEdit">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -526,9 +526,11 @@ import { addStorageContent, deleteStorageContent, editStorageContent, getStorage
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { dimensionMeasureUnitLabel, weightMeasureUnitLabel } from '@/utils/measurementUnits.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { useI18n } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
+const { locale, t } = useI18n()
 
 const product = ref<ProductModel>()
 const crosses = ref<ProductModel[]>([])
@@ -584,8 +586,12 @@ const canDeleteSize = computed(() => hasPermission('ARTICLE_SIZES_DELETE'))
 const canDeleteWeight = computed(() => hasPermission('ARTICLE_WEIGHT_DELETE'))
 const canManageSize = computed(() => canSetSize.value || Boolean(productSize.value && canDeleteSize.value))
 const canManageWeight = computed(() => canSetWeight.value || Boolean(productWeight.value && canDeleteWeight.value))
-const sizeActionText = computed(() => canSetSize.value ? (productSize.value ? 'Изменить' : 'Задать') : 'Удалить')
-const weightActionText = computed(() => canSetWeight.value ? (productWeight.value ? 'Изменить' : 'Задать') : 'Удалить')
+const sizeActionText = computed(() => canSetSize.value
+  ? (productSize.value ? t('products.details.change') : t('products.details.set'))
+  : t('common.actions.delete'))
+const weightActionText = computed(() => canSetWeight.value
+  ? (productWeight.value ? t('products.details.change') : t('products.details.set'))
+  : t('common.actions.delete'))
 
 const addStorageContentForm = reactive({
   storageName: '',
@@ -607,7 +613,7 @@ const productLabel = computed(() => product.value ? `${product.value.sku} - ${pr
 const productImages = computed(() => product.value?.images.filter(Boolean) ?? [])
 const isDeletingImage = computed(() => deletingImage.value !== null)
 const productHeader = computed(() => {
-  if (!product.value) return `Товар #${route.params.id}`
+  if (!product.value) return t('products.details.productHeader', { id: String(route.params.id) })
   return product.value.name
 })
 
@@ -623,16 +629,21 @@ const filteredCrosses = computed(() => {
 })
 
 const crossesSummary = computed(() => {
-  if (isCrossesLoading.value) return 'Загрузка'
-  if (crossSearch.value.trim()) return `${filteredCrosses.value.length} из ${crosses.value.length}`
-  return crosses.value.length > 0 ? `${crosses.value.length} позиций на странице` : 'Нет связанных позиций'
+  if (isCrossesLoading.value) return t('products.details.loading')
+  if (crossSearch.value.trim()) return t('products.details.foundOf', {
+    shown: filteredCrosses.value.length,
+    total: crosses.value.length,
+  })
+  return crosses.value.length > 0
+    ? t('products.details.positionsOnPage', { count: crosses.value.length })
+    : t('products.details.noLinkedPositions')
 })
 
 const storageContentSummary = computed(() => {
-  if (isStorageContentLoading.value) return 'Загрузка'
+  if (isStorageContentLoading.value) return t('products.details.loading')
   return storageContent.value.length > 0
-    ? `${storageContent.value.length} позиций на странице`
-    : 'Нет складских позиций по этому продукту'
+    ? t('products.details.positionsOnPage', { count: storageContent.value.length })
+    : t('products.details.noStoragePositions')
 })
 
 const sizeText = computed(() => {
@@ -647,7 +658,7 @@ const sizeText = computed(() => {
 
 const volumeText = computed(() => {
   if (!productSize.value) return '-'
-  return `${formatNumber(productSize.value.volumeM3)} м³`
+  return `${formatNumber(productSize.value.volumeM3)} ${t('purchases.m3')}`
 })
 
 const weightText = computed(() => {
@@ -657,7 +668,7 @@ const weightText = computed(() => {
 })
 
 function formatNumber(value: number) {
-  return value.toLocaleString('ru-RU')
+  return value.toLocaleString(locale.value)
 }
 
 function formatMoney(value: number, currencySign?: string) {
@@ -715,8 +726,8 @@ async function uploadImages(event: Event) {
     await uploadProductImages(product.value.id, files)
 
     ElNotification({
-      title: 'Изображения добавлены',
-      message: `Загружено: ${files.length}`,
+      title: t('products.details.imagesAddedTitle'),
+      message: t('products.details.uploadedCount', { count: files.length }),
       type: 'success',
     })
 
@@ -732,9 +743,9 @@ async function removeImage(image: string, index: number) {
   if (!product.value || deletingImage.value) return
 
   try {
-    await ElMessageBox.confirm('Удалить изображение продукта?', 'Удаление изображения', {
-      confirmButtonText: 'Удалить',
-      cancelButtonText: 'Отмена',
+    await ElMessageBox.confirm(t('products.details.deleteImageConfirm'), t('products.details.deleteImageTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
       type: 'warning',
     })
   } catch {
@@ -746,8 +757,8 @@ async function removeImage(image: string, index: number) {
     await deleteProductImage(product.value.id, image)
 
     ElNotification({
-      title: 'Изображение удалено',
-      message: 'Галерея продукта обновлена.',
+      title: t('products.details.imageDeletedTitle'),
+      message: t('products.details.galleryUpdated'),
       type: 'success',
     })
 
@@ -818,8 +829,8 @@ async function addStorageContentItem() {
 
   if (!addStorageContentForm.storageName || !addStorageContentForm.currencyId) {
     ElNotification({
-      title: 'Заполните данные',
-      message: 'Нужно выбрать склад и валюту.',
+      title: t('products.details.fillDataTitle'),
+      message: t('products.details.selectStorageAndCurrency'),
       type: 'warning',
     })
     return
@@ -841,8 +852,8 @@ async function addStorageContentItem() {
     })
 
     ElNotification({
-      title: 'Остаток добавлен',
-      message: 'Позиция добавлена на склад.',
+      title: t('products.details.stockAddedTitle'),
+      message: t('products.details.stockAddedMessage'),
       type: 'success',
     })
 
@@ -868,8 +879,8 @@ async function openEditStorageContentDialog(item: StorageContentModel) {
 async function saveStorageContentEdit() {
   if (!editingStorageContent.value || !editStorageContentForm.currencyId) {
     ElNotification({
-      title: 'Заполните данные',
-      message: 'Нужно выбрать валюту.',
+      title: t('products.details.fillDataTitle'),
+      message: t('products.details.selectCurrency'),
       type: 'warning',
     })
     return
@@ -887,8 +898,8 @@ async function saveStorageContentEdit() {
     })
 
     ElNotification({
-      title: 'Остаток обновлен',
-      message: 'Складская позиция сохранена.',
+      title: t('products.details.stockUpdatedTitle'),
+      message: t('products.details.stockUpdatedMessage'),
       type: 'success',
     })
 
@@ -905,11 +916,11 @@ async function removeStorageContentItem(item: StorageContentModel) {
 
   try {
     await ElMessageBox.confirm(
-      'Установить количество по этой складской позиции в 0?',
-      'Удаление остатка',
+      t('products.details.deleteStockConfirm'),
+      t('products.details.deleteStockTitle'),
       {
-        confirmButtonText: 'Удалить',
-        cancelButtonText: 'Отмена',
+        confirmButtonText: t('common.actions.delete'),
+        cancelButtonText: t('common.actions.cancel'),
         type: 'warning',
       },
     )
@@ -922,8 +933,8 @@ async function removeStorageContentItem(item: StorageContentModel) {
     await deleteStorageContent(item.id, item.rowVersion)
 
     ElNotification({
-      title: 'Остаток удален',
-      message: 'Количество складской позиции установлено в 0.',
+      title: t('products.details.stockDeletedTitle'),
+      message: t('products.details.stockDeletedMessage'),
       type: 'success',
     })
 

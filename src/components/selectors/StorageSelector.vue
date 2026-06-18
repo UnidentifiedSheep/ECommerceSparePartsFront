@@ -26,22 +26,25 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import type { StorageModel } from '@/models/storageModel.ts'
 import { type StorageType, toText } from '@/enums/storageType.ts'
 import { getStorages } from '@/services/api/storages.ts'
+import { useI18n } from '@/i18n'
 
 const props = withDefaults(defineProps<{
   placeholder?: string
   disabled?: boolean
   type?: StorageType
 }>(), {
-  placeholder: 'Выберите склад',
+  placeholder: undefined,
   disabled: false,
   type: undefined,
 })
 
+const { t } = useI18n()
+const placeholder = computed(() => props.placeholder ?? t('storages.selectStorage'))
 const selectedStorageName = defineModel<string | undefined>({ required: true })
 
 const storages = ref<StorageModel[]>([])

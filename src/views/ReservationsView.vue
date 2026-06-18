@@ -2,27 +2,27 @@
   <div class="reservations-page">
     <div class="reservations-header">
       <div>
-        <h1>Резервации</h1>
-        <p>Просмотр и управление резервациями по товарам и пользователям.</p>
+        <h1>{{ t('reservations.title') }}</h1>
+        <p>{{ t('reservations.description') }}</p>
       </div>
     </div>
 
     <main class="reservations-content">
       <section class="reservations-toolbar">
         <div>
-          <h2>Список резерваций</h2>
+          <h2>{{ t('reservations.listTitle') }}</h2>
           <p>{{ activeFiltersText }}</p>
         </div>
         <div class="toolbar-actions">
           <el-badge :value="activeFiltersCount" :hidden="activeFiltersCount === 0">
-            <el-button size="large" plain @click="filtersDrawerOpen = true">Фильтры</el-button>
+            <el-button size="large" plain @click="filtersDrawerOpen = true">{{ t('reservations.filters') }}</el-button>
           </el-badge>
         </div>
       </section>
 
       <el-drawer
         v-model="filtersDrawerOpen"
-        title="Фильтры резерваций"
+        :title="t('reservations.filtersTitle')"
         direction="rtl"
         size="min(440px, 100vw)"
         class="reservation-filters-drawer"
@@ -30,47 +30,47 @@
         <div class="drawer-content">
           <div class="drawer-body">
             <section class="drawer-section">
-              <div class="drawer-section-title">Срез просмотра</div>
-              <div class="drawer-section-subtitle">Можно смотреть общий список или сузить до продукта / пользователя.</div>
+              <div class="drawer-section-title">{{ t('reservations.viewSlice') }}</div>
+              <div class="drawer-section-subtitle">{{ t('reservations.viewSliceHint') }}</div>
             </section>
 
             <section class="drawer-section">
-              <div class="drawer-section-title">Статус</div>
+              <div class="drawer-section-title">{{ t('common.labels.status') }}</div>
               <label class="filter-field">
-                <span>Тип резерваций</span>
+                <span>{{ t('reservations.reservationType') }}</span>
                 <el-segmented v-model="reservationState" :options="reservationStateOptions" class="w-full" />
               </label>
             </section>
 
             <section class="drawer-section">
-              <div class="drawer-section-title">Пользователь</div>
+              <div class="drawer-section-title">{{ t('common.labels.user') }}</div>
               <label class="filter-field">
-                <span>Пользователь</span>
-                <UserSelector v-model:selected-user="selectedUser" place-holder="Любой пользователь" />
+                <span>{{ t('common.labels.user') }}</span>
+                <UserSelector v-model:selected-user="selectedUser" :place-holder="t('reservations.anyUser')" />
               </label>
             </section>
 
             <section class="drawer-section">
-              <div class="drawer-section-title">Продукт</div>
+              <div class="drawer-section-title">{{ t('common.labels.product') }}</div>
               <label class="filter-field">
-                <span>Продукт</span>
+                <span>{{ t('common.labels.product') }}</span>
                 <div class="picker-row">
                   <el-input
                     :model-value="selectedProductLabel"
-                    placeholder="Любой продукт"
+                    :placeholder="t('reservations.anyProduct')"
                     readonly
                     clearable
                     @clear="selectedProduct = undefined"
                   />
-                  <el-button @click="productSelectorOpen = true">Выбрать</el-button>
+                  <el-button @click="productSelectorOpen = true">{{ t('reservations.pick') }}</el-button>
                 </div>
               </label>
             </section>
           </div>
 
           <div class="drawer-footer">
-            <el-button @click="resetFilters">Сбросить</el-button>
-            <el-button type="primary" @click="filtersDrawerOpen = false">Применить</el-button>
+            <el-button @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
+            <el-button type="primary" @click="filtersDrawerOpen = false">{{ t('reservations.apply') }}</el-button>
           </div>
         </div>
       </el-drawer>
@@ -80,7 +80,7 @@
         :product-id="selectedProduct?.id"
         :user-id="selectedUser?.id"
         :show-deleted="reservationState === 'deleted'"
-        title="Список резерваций"
+        :title="t('reservations.listTitle')"
       />
     </main>
 
@@ -95,16 +95,18 @@ import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.
 import UserSelector from '@/components/selectors/UserSelector.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
+import { useI18n } from '@/i18n'
 
+const { t } = useI18n()
 const selectedUser = ref<UserModel>()
 const selectedProduct = ref<ProductSearchModel>()
 const productSelectorOpen = ref(false)
 const filtersDrawerOpen = ref(false)
 const reservationState = ref<'active' | 'deleted'>('active')
-const reservationStateOptions = [
-  { label: 'Активные', value: 'active' },
-  { label: 'Удаленные', value: 'deleted' },
-]
+const reservationStateOptions = computed(() => [
+  { label: t('reservations.active'), value: 'active' },
+  { label: t('reservations.deleted'), value: 'deleted' },
+])
 
 const selectedProductLabel = computed(() => (
   selectedProduct.value ? `${selectedProduct.value.sku} - ${selectedProduct.value.name}` : ''
@@ -116,8 +118,8 @@ const activeFiltersCount = computed(() => (
 ))
 const activeFiltersText = computed(() => (
   activeFiltersCount.value === 0
-    ? 'Показаны все резервации'
-    : `Активных фильтров: ${activeFiltersCount.value}`
+    ? t('reservations.allShown')
+    : t('reservations.activeFilters', { count: activeFiltersCount.value })
 ))
 const panelKey = computed(() => `${selectedUser.value?.id ?? 'all-users'}:${selectedProduct.value?.id ?? 'all-products'}:${reservationState.value}`)
 

@@ -2,38 +2,38 @@
   <div class="transactions-page">
     <section class="transactions-header">
       <div>
-        <h1>Транзакции</h1>
-        <p>Журнал балансовых операций по пользователям и валютам.</p>
+        <h1>{{ t('transactions.title') }}</h1>
+        <p>{{ t('transactions.description') }}</p>
       </div>
       <div class="header-actions">
         <el-button v-if="canCreateTransactions" type="primary" @click="createDialogOpen = true">
-          Создать
+          {{ t('common.actions.create') }}
         </el-button>
         <el-button :loading="isLoading" @click="reloadTransactions">
-          Обновить
+          {{ t('common.actions.refresh') }}
         </el-button>
       </div>
     </section>
 
     <section class="transactions-layout">
       <aside class="transactions-filters">
-        <div class="filter-title">Фильтры</div>
+        <div class="filter-title">{{ t('transactions.filters') }}</div>
 
         <el-form label-position="top">
-          <el-form-item label="Период">
+          <el-form-item :label="t('transactions.period')">
             <el-date-picker
               v-model="dateRange"
               type="daterange"
-              start-placeholder="Начало"
-              end-placeholder="Конец"
+              :start-placeholder="t('transactions.start')"
+              :end-placeholder="t('transactions.end')"
               value-format="YYYY-MM-DD"
               class="w-full"
               :clearable="false"
             />
           </el-form-item>
 
-          <el-form-item label="Валюта">
-            <el-select v-model="filters.currencyId" clearable filterable placeholder="Все валюты" class="w-full">
+          <el-form-item :label="t('common.labels.currency')">
+            <el-select v-model="filters.currencyId" clearable filterable :placeholder="t('transactions.allCurrencies')" class="w-full">
               <el-option
                 v-for="currency in currencies"
                 :key="currency.id"
@@ -44,7 +44,7 @@
           </el-form-item>
 
           <el-checkbox v-model="showReversed" class="skip-reversed-checkbox">
-            Показать отмененные
+            {{ t('transactions.showReversed') }}
           </el-checkbox>
 
           <fieldset class="participants-filter">
@@ -55,66 +55,66 @@
                 :show-after="700"
               >
                 <div class="logical-switch">
-                  <span :class="{ active: filters.logicalOperator === 'And' }">И</span>
+                  <span :class="{ active: filters.logicalOperator === 'And' }">{{ t('transactions.and') }}</span>
                   <el-switch
                     v-model="filters.logicalOperator"
                     size="small"
                     active-value="Or"
                     inactive-value="And"
                   />
-                  <span :class="{ active: filters.logicalOperator === 'Or' }">ИЛИ</span>
+                  <span :class="{ active: filters.logicalOperator === 'Or' }">{{ t('transactions.or') }}</span>
                 </div>
               </el-tooltip>
             </legend>
 
             <template v-if="filters.logicalOperator === 'And'">
               <div class="participant-row">
-                <label>Отправитель</label>
+                <label>{{ t('transactions.sender') }}</label>
                 <UserSelector
                   v-model:selected-user="sender"
-                  place-holder="Выберите отправителя"
+                  :place-holder="t('transactions.selectSender')"
                 />
               </div>
 
-              <div class="participants-arrow">направление перевода</div>
+              <div class="participants-arrow">{{ t('transactions.transferDirection') }}</div>
 
               <div class="participant-row">
-                <label>Получатель</label>
+                <label>{{ t('transactions.receiver') }}</label>
                 <UserSelector
                   v-model:selected-user="receiver"
-                  place-holder="Выберите получателя"
+                  :place-holder="t('transactions.selectReceiver')"
                 />
               </div>
             </template>
 
             <div v-else class="participant-row">
-              <label>Пользователь</label>
+              <label>{{ t('common.labels.user') }}</label>
               <UserSelector
                 v-model:selected-user="sender"
-                place-holder="Выберите пользователя"
+                :place-holder="t('transactions.selectUser')"
               />
             </div>
           </fieldset>
         </el-form>
 
         <div class="filter-actions">
-          <el-button @click="resetFilters">Сбросить</el-button>
-          <el-button type="primary" @click="reloadTransactions">Показать</el-button>
+          <el-button @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
+          <el-button type="primary" @click="reloadTransactions">{{ t('transactions.show') }}</el-button>
         </div>
       </aside>
 
       <main class="transactions-content">
         <div class="transactions-summary">
           <div>
-            <span>Найдено</span>
+            <span>{{ t('transactions.found') }}</span>
             <strong>{{ transactions.length }}</strong>
           </div>
           <div>
-            <span>Сумма</span>
+            <span>{{ t('transactions.amount') }}</span>
             <strong>{{ formatTotalAmount }}</strong>
           </div>
           <div>
-            <span>Период</span>
+            <span>{{ t('transactions.period') }}</span>
             <strong>{{ dateRange[0] }} - {{ dateRange[1] }}</strong>
           </div>
         </div>
@@ -126,13 +126,13 @@
           row-key="id"
           @row-click="selectTransaction"
         >
-          <el-table-column label="Дата" min-width="170">
+          <el-table-column :label="t('common.labels.date')" min-width="170">
             <template #default="{ row }">
               {{ formatLocalDateTime(row.transactionDate) }}
             </template>
           </el-table-column>
 
-          <el-table-column label="Операция" min-width="160">
+          <el-table-column :label="t('transactions.operation')" min-width="160">
             <template #default="{ row }">
               <div class="operation-cell">
                 <el-tag :type="transactionTypeTag(row.type)" effect="light">
@@ -156,13 +156,13 @@
                   {{ transactionSourceLabel(row.sourceType) }}
                 </el-tag>
                 <el-tag v-if="isReversedStatus(row.status)" type="danger" effect="light">
-                  Отменен
+                  {{ t('transactions.reversed') }}
                 </el-tag>
               </div>
             </template>
           </el-table-column>
 
-          <el-table-column label="Отправитель" min-width="190">
+          <el-table-column :label="t('transactions.sender')" min-width="190">
             <template #default="{ row }">
               <button
                 v-if="partyUser(row.sender)"
@@ -176,7 +176,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Получатель" min-width="190">
+          <el-table-column :label="t('transactions.receiver')" min-width="190">
             <template #default="{ row }">
               <button
                 v-if="partyUser(row.receiver)"
@@ -190,7 +190,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Сумма" min-width="150" align="right">
+          <el-table-column :label="t('transactions.amount')" min-width="150" align="right">
             <template #default="{ row }">
               <strong
                 :class="{
@@ -204,7 +204,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column v-if="canDeleteTransactions" label="Действия" width="120" align="right" fixed="right">
+          <el-table-column v-if="canDeleteTransactions" :label="t('common.labels.actions')" width="120" align="right" fixed="right">
             <template #default="{ row }">
               <el-button
                 v-if="canCancelTransaction(row)"
@@ -214,7 +214,7 @@
                 :loading="cancellingTransactionId === row.id"
                 @click.stop="confirmCancelTransaction(row)"
               >
-                Отменить
+                {{ t('transactions.cancel') }}
               </el-button>
             </template>
           </el-table-column>
@@ -227,7 +227,7 @@
             :loading="isLoadingMore"
             @click="loadMoreTransactions"
           >
-            Загрузить еще
+            {{ t('common.actions.loadMore') }}
           </el-button>
         </div>
       </main>
@@ -246,12 +246,12 @@
             <span>{{ transactionTypeLabel(selectedTransaction.type) }}</span>
             <h2>{{ formatMoney(selectedTransaction.amount, selectedTransaction.currencyId) }}</h2>
           </div>
-          <el-button text @click="detailsOpen = false">Закрыть</el-button>
+          <el-button text @click="detailsOpen = false">{{ t('transactions.close') }}</el-button>
         </header>
 
         <dl>
           <div>
-            <dt>Источник</dt>
+            <dt>{{ t('transactions.source') }}</dt>
             <dd class="source-details">
               <el-tag :type="transactionSourceTag(selectedTransaction.sourceType)" effect="plain">
                 {{ transactionSourceLabel(selectedTransaction.sourceType) }}
@@ -265,7 +265,7 @@
                 :disabled="isReversedStatus(selectedTransaction.status)"
                 @click="openPurchaseByTransaction(selectedTransaction)"
               >
-                Открыть закупку
+                {{ t('transactions.openPurchase') }}
               </el-button>
               <el-button
                 v-if="canDeleteTransactions && canCancelTransaction(selectedTransaction)"
@@ -275,12 +275,12 @@
                 :loading="cancellingTransactionId === selectedTransaction.id"
                 @click="confirmCancelTransaction(selectedTransaction)"
               >
-                Отменить
+                {{ t('transactions.cancel') }}
               </el-button>
             </dd>
           </div>
           <div>
-            <dt>Статус</dt>
+            <dt>{{ t('common.labels.status') }}</dt>
             <dd class="status-list">
               <el-tag
                 v-for="status in transactionStatusItems(selectedTransaction.status)"
@@ -293,11 +293,11 @@
             </dd>
           </div>
           <div>
-            <dt>Дата</dt>
+            <dt>{{ t('common.labels.date') }}</dt>
             <dd>{{ formatLocalDateTime(selectedTransaction.transactionDate) }}</dd>
           </div>
           <div>
-            <dt>Отправитель</dt>
+            <dt>{{ t('transactions.sender') }}</dt>
             <dd>
               <button
                 v-if="partyUser(selectedTransaction.sender)"
@@ -311,7 +311,7 @@
             </dd>
           </div>
           <div>
-            <dt>Получатель</dt>
+            <dt>{{ t('transactions.receiver') }}</dt>
             <dd>
               <button
                 v-if="partyUser(selectedTransaction.receiver)"
@@ -325,7 +325,7 @@
             </dd>
           </div>
           <div>
-            <dt>Валюта</dt>
+            <dt>{{ t('common.labels.currency') }}</dt>
             <dd>{{ currencyLabel(selectedTransaction.currencyId) }}</dd>
           </div>
         </dl>
@@ -364,10 +364,12 @@ import {
 import { getPurchaseByTransactionId } from '@/services/api/purchases.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { useI18n } from '@/i18n'
 
 const pageSize = 100
 const route = useRoute()
 const router = useRouter()
+const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
 
 const isLoading = ref(false)
@@ -401,14 +403,14 @@ const showReversed = computed({
   },
 })
 const formatTotalAmount = computed(() => {
-  if (!filters.currencyId) return 'Выберите валюту'
+  if (!filters.currencyId) return t('transactions.chooseCurrencySummary')
   const total = transactions.value.reduce((sum, transaction) => sum + transaction.amount, 0)
   return formatMoney(total, filters.currencyId)
 })
 const logicalOperatorTooltip = computed(() => (
   filters.logicalOperator === 'And'
-    ? 'И: точное направление. Будут найдены транзакции, где выбранный пользователь именно отправитель, а второй именно получатель.'
-    : 'ИЛИ: участие в операции. Выберите одного пользователя, будут найдены транзакции, где он был отправителем или получателем.'
+    ? t('transactions.andTooltip')
+    : t('transactions.orTooltip')
 ))
 const hasSelectedUserFilter = computed(() => Boolean(sender.value || receiver.value))
 
@@ -430,7 +432,7 @@ async function loadCurrencies() {
     const response = await getCurrencies({ page: 0, size: 100 })
     currencies.value = response.currencies
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить валюты')
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.loadCurrenciesError'))
   }
 }
 
@@ -453,7 +455,7 @@ async function reloadTransactions() {
     transactions.value = response.transactions
     canLoadMore.value = response.transactions.length === pageSize
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить транзакции')
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.loadError'))
   } finally {
     isLoading.value = false
   }
@@ -483,7 +485,7 @@ async function loadMoreTransactions() {
     transactions.value = [...transactions.value, ...newTransactions]
     canLoadMore.value = response.transactions.length === pageSize && newTransactions.length > 0
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось загрузить следующую страницу')
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.loadMoreError'))
   } finally {
     isLoadingMore.value = false
   }
@@ -491,7 +493,7 @@ async function loadMoreTransactions() {
 
 function validateFilters() {
   if (!dateRange.value?.[0] || !dateRange.value?.[1]) {
-    ElMessage.warning('Выберите период')
+    ElMessage.warning(t('transactions.selectPeriod'))
     return false
   }
 
@@ -629,14 +631,14 @@ function selectTransaction(transaction: BalanceTransactionModel) {
 }
 
 function partyLabel(party: TransactionPartyModel) {
-  if (party.partyType === 'System' || party.partyType === 1) return 'Система'
-  if (!party.user) return 'Пользователь'
+  if (party.partyType === 'System' || party.partyType === 1) return t('transactions.system')
+  if (!party.user) return t('transactions.unknownUser')
 
   const name = [party.user.surname || party.user.userInfo?.surname, party.user.name || party.user.userInfo?.name]
     .filter(Boolean)
     .join(' ')
 
-  return name || party.user.userName || 'Пользователь'
+  return name || party.user.userName || t('transactions.unknownUser')
 }
 
 function partyUser(party: TransactionPartyModel) {
@@ -663,11 +665,11 @@ function formatMoney(value: number, currencyId: number) {
 
 function currencyLabel(currencyId: number) {
   const currency = currencies.value.find((item) => item.id === currencyId)
-  return currency ? `${currency.shortName} (${currency.code})` : `Валюта ${currencyId}`
+  return currency ? `${currency.shortName} (${currency.code})` : t('transactions.unknownCurrency', { id: currencyId })
 }
 
 function formatNumber(value: number) {
-  return new Intl.NumberFormat('ru-RU', {
+  return new Intl.NumberFormat(locale.value, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(value)
@@ -675,14 +677,14 @@ function formatNumber(value: number) {
 
 function transactionTypeLabel(type: TransactionType) {
   const labels: Record<string, string> = {
-    Transfer: 'Перевод',
-    Refund: 'Возврат',
-    Fee: 'Комиссия',
-    Adjustment: 'Корректировка',
-    0: 'Перевод',
-    1: 'Возврат',
-    2: 'Комиссия',
-    3: 'Корректировка',
+    Transfer: t('transactions.types.Transfer'),
+    Refund: t('transactions.types.Refund'),
+    Fee: t('transactions.types.Fee'),
+    Adjustment: t('transactions.types.Adjustment'),
+    0: t('transactions.types.Transfer'),
+    1: t('transactions.types.Refund'),
+    2: t('transactions.types.Fee'),
+    3: t('transactions.types.Adjustment'),
   }
 
   return labels[String(type)] ?? String(type)
@@ -690,14 +692,14 @@ function transactionTypeLabel(type: TransactionType) {
 
 function transactionSourceLabel(sourceType: TransactionSourceType) {
   const labels: Record<string, string> = {
-    Manual: 'Ручная',
-    Purchase: 'Закупка',
-    Sale: 'Продажа',
-    Logistic: 'Логистика',
-    0: 'Ручная',
-    1: 'Закупка',
-    2: 'Продажа',
-    3: 'Логистика',
+    Manual: t('transactions.sources.Manual'),
+    Purchase: t('transactions.sources.Purchase'),
+    Sale: t('transactions.sources.Sale'),
+    Logistic: t('transactions.sources.Logistic'),
+    0: t('transactions.sources.Manual'),
+    1: t('transactions.sources.Purchase'),
+    2: t('transactions.sources.Sale'),
+    3: t('transactions.sources.Logistic'),
   }
 
   return labels[String(sourceType)] ?? String(sourceType)
@@ -727,11 +729,11 @@ async function confirmCancelTransaction(transaction: BalanceTransactionModel) {
 
   try {
     await ElMessageBox.confirm(
-      'Отменить транзакцию? Балансы отправителя и получателя будут пересчитаны.',
-      'Отмена транзакции',
+      t('transactions.cancelConfirm'),
+      t('transactions.cancelTitle'),
       {
-        confirmButtonText: 'Отменить транзакцию',
-        cancelButtonText: 'Закрыть',
+        confirmButtonText: t('transactions.cancelTransaction'),
+        cancelButtonText: t('transactions.close'),
         type: 'warning',
       },
     )
@@ -742,12 +744,12 @@ async function confirmCancelTransaction(transaction: BalanceTransactionModel) {
   cancellingTransactionId.value = transaction.id
   try {
     await deleteBalanceTransaction(transaction.id)
-    ElMessage.success('Транзакция отменена')
+    ElMessage.success(t('transactions.cancelled'))
     selectedTransaction.value = null
     detailsOpen.value = false
     await reloadTransactions()
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось отменить транзакцию')
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.cancelError'))
   } finally {
     cancellingTransactionId.value = null
   }
@@ -771,7 +773,7 @@ async function openPurchaseByTransaction(transaction: BalanceTransactionModel) {
       },
     })
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Не удалось открыть закупку по транзакции')
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.openPurchaseError'))
   } finally {
     purchaseNavigationLoading.value = false
   }
@@ -808,16 +810,16 @@ function transactionStatusValues(status: TransactionStatus) {
 function transactionStatusLabelByValue(status: string) {
   const value = String(status)
   const labels: Record<string, string> = {
-    Pending: 'Ожидает',
-    Completed: 'Завершена',
-    CompletionApplied: 'Проведена',
-    Reversed: 'Отменена',
-    ReversedApplied: 'Отмена проведена',
-    0: 'Ожидает',
-    1: 'Завершена',
-    2: 'Проведена',
-    4: 'Отменена',
-    8: 'Отмена проведена',
+    Pending: t('transactions.statuses.Pending'),
+    Completed: t('transactions.statuses.Completed'),
+    CompletionApplied: t('transactions.statuses.CompletionApplied'),
+    Reversed: t('transactions.statuses.Reversed'),
+    ReversedApplied: t('transactions.statuses.ReversedApplied'),
+    0: t('transactions.statuses.Pending'),
+    1: t('transactions.statuses.Completed'),
+    2: t('transactions.statuses.CompletionApplied'),
+    4: t('transactions.statuses.Reversed'),
+    8: t('transactions.statuses.ReversedApplied'),
   }
 
   return labels[value] ?? value

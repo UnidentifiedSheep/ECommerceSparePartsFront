@@ -1,21 +1,21 @@
 <template>
-  <el-dialog v-model="isOpen" title="Редактировать маршрут" width="760">
+  <el-dialog v-model="isOpen" :title="t('storages.routesPanel.editTitle')" width="760">
     <el-form :model="form" label-position="top">
       <section class="route-dialog-section">
-        <div class="section-title">Параметры маршрута</div>
+        <div class="section-title">{{ t('storages.routesPanel.routeParameters') }}</div>
         <div class="form-grid">
-          <el-form-item label="Дистанция (м)">
+          <el-form-item :label="t('storages.routesPanel.distanceM')">
             <el-input-number v-model="form.distanceM" :min="1" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Время (мин)">
+          <el-form-item :label="t('storages.routesPanel.timeMinutes')">
             <el-input-number v-model="form.deliveryTimeMinutes" :min="1" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Тип маршрута">
+          <el-form-item :label="t('purchases.routeType')">
             <el-select v-model="form.routeType" class="w-full">
               <el-option v-for="option in routeOptions" :key="option.value" :label="option.label" :value="option.value" />
             </el-select>
           </el-form-item>
-          <el-form-item label="Тарификация">
+          <el-form-item :label="t('purchases.pricing')">
             <el-select v-model="form.pricingModel" class="w-full">
               <el-option v-for="option in pricingOptions" :key="option.value" :label="option.label" :value="option.value" />
             </el-select>
@@ -24,21 +24,21 @@
       </section>
 
       <section class="route-dialog-section">
-        <div class="section-title">Стоимость</div>
+        <div class="section-title">{{ t('storages.routesPanel.price') }}</div>
         <div class="form-grid">
-          <el-form-item label="Цена за кг">
+          <el-form-item :label="t('storages.routesPanel.priceKg')">
             <el-input-number v-model="form.priceKg" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Цена за м³">
+          <el-form-item :label="t('storages.routesPanel.priceM3')">
             <el-input-number v-model="form.pricePerM3" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Цена за заказ">
+          <el-form-item :label="t('storages.routesPanel.pricePerOrder')">
             <el-input-number v-model="form.pricePerOrder" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Минимальная цена">
+          <el-form-item :label="t('storages.routesPanel.minimumPrice')">
             <el-input-number v-model="form.minimumPrice" :min="0" :precision="2" :controls="false" class="w-full" />
           </el-form-item>
-          <el-form-item label="Валюта" class="span-2">
+          <el-form-item :label="t('common.labels.currency')" class="span-2">
             <el-select v-model="form.currencyId" class="w-full">
               <el-option
                 v-for="currency in currencies"
@@ -49,10 +49,10 @@
             </el-select>
           </el-form-item>
 
-          <el-form-item label="Перевозчик" class="span-2">
+          <el-form-item :label="t('storages.routesPanel.carrier')" class="span-2">
             <UserSelector
               v-model:selected-user="form.carrier"
-              place-holder="Не выбран"
+              :place-holder="t('storages.routesPanel.notSelected')"
               clearable
             />
           </el-form-item>
@@ -62,15 +62,15 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="isOpen = false">Отмена</el-button>
-        <el-button type="primary" :loading="isSaving" @click="save">Сохранить</el-button>
+        <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="isSaving" @click="save">{{ t('common.actions.save') }}</el-button>
       </div>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import UserSelector from '@/components/selectors/UserSelector.vue'
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
@@ -81,8 +81,10 @@ import { LogisticPricingType, pricingTypeToText } from '@/enums/logisticPricingT
 import { RouteType, routeTypeToText } from '@/enums/routeType.ts'
 import { editStorageRoute } from '@/services/api/storages.ts'
 import { getUsers } from '@/services/api/users.ts'
+import { useI18n } from '@/i18n'
 
 const isOpen = defineModel<boolean>({ required: true })
+const { t } = useI18n()
 
 const props = defineProps<{
   route?: StorageRouteModel
@@ -108,20 +110,20 @@ const form = reactive({
   carrier: undefined as UserModel | undefined,
 })
 
-const routeOptions = [
+const routeOptions = computed(() => [
   { value: RouteType.IntraCity, label: routeTypeToText(RouteType.IntraCity) },
   { value: RouteType.InterCity, label: routeTypeToText(RouteType.InterCity) },
   { value: RouteType.International, label: routeTypeToText(RouteType.International) },
-]
+])
 
-const pricingOptions = [
+const pricingOptions = computed(() => [
   { value: LogisticPricingType.None, label: pricingTypeToText(LogisticPricingType.None) },
   { value: LogisticPricingType.PerOrder, label: pricingTypeToText(LogisticPricingType.PerOrder) },
   { value: LogisticPricingType.PerArea, label: pricingTypeToText(LogisticPricingType.PerArea) },
   { value: LogisticPricingType.PerWeight, label: pricingTypeToText(LogisticPricingType.PerWeight) },
   { value: LogisticPricingType.PerAreaAndWeight, label: pricingTypeToText(LogisticPricingType.PerAreaAndWeight) },
   { value: LogisticPricingType.PerAreaOrWeight, label: pricingTypeToText(LogisticPricingType.PerAreaOrWeight) },
-]
+])
 
 async function fillForm(route: StorageRouteModel) {
   form.distanceM = route.distanceM
@@ -166,8 +168,8 @@ async function save() {
     })
 
     ElNotification({
-      title: 'Успех',
-      message: 'Маршрут обновлён',
+      title: t('common.labels.success'),
+      message: t('storages.routesPanel.updated'),
       type: 'success',
     })
 

@@ -1,3 +1,5 @@
+import { t } from '@/i18n'
+
 export enum LogisticPricingType {
   None = 'None',
   PerOrder = 'PerOrder',
@@ -10,16 +12,16 @@ export enum LogisticPricingType {
 export function pricingTypeToText(type: LogisticPricingType): string {
   switch (type) {
     case LogisticPricingType.None:
-      return 'Без тарифа'
+      return t('purchases.pricingTypes.None')
     case LogisticPricingType.PerOrder:
-      return 'За заказ'
+      return t('purchases.pricingTypes.PerOrder')
     case LogisticPricingType.PerArea:
-      return 'За объём'
+      return t('purchases.pricingTypes.PerArea')
     case LogisticPricingType.PerWeight:
-      return 'За вес'
+      return t('purchases.pricingTypes.PerWeight')
     case LogisticPricingType.PerAreaAndWeight:
-      return 'Объём и вес'
+      return t('purchases.pricingTypes.PerAreaAndWeight')
     case LogisticPricingType.PerAreaOrWeight:
-      return 'Объём или вес'
+      return t('purchases.pricingTypes.PerAreaOrWeight')
   }
 }

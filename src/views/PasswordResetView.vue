@@ -2,9 +2,9 @@
   <div class="flex min-h-screen items-center justify-center bg-gray-100 px-4 py-10">
     <div class="w-full max-w-md rounded-lg bg-white px-10 py-9 shadow-lg">
       <div class="pb-8 text-center">
-        <h1 class="text-2xl font-semibold text-gray-900">Новый пароль</h1>
+        <h1 class="text-2xl font-semibold text-gray-900">{{ t('auth.resetTitle') }}</h1>
         <p class="mt-2 text-sm text-gray-500">
-          Введите новый пароль для аккаунта.
+          {{ t('auth.resetHint') }}
         </p>
       </div>
 
@@ -14,37 +14,37 @@
         show-icon
         :closable="false"
         class="mb-6"
-        title="Ссылка недействительна"
+        :title="t('auth.invalidResetLinkTitle')"
       >
-        <p class="text-sm">В ссылке отсутствует токен восстановления.</p>
+        <p class="text-sm">{{ t('auth.invalidResetLinkMessage') }}</p>
       </el-alert>
 
       <template v-else>
         <div class="pb-5">
-          <label for="new-password" class="block pb-2 font-semibold text-gray-700">Новый пароль</label>
+          <label for="new-password" class="block pb-2 font-semibold text-gray-700">{{ t('auth.newPassword') }}</label>
           <el-input
             id="new-password"
             v-model="newPassword"
             type="password"
-            placeholder="Введите новый пароль"
+            :placeholder="t('auth.newPasswordPlaceholder')"
             show-password
             :disabled="isDone"
           />
         </div>
 
         <div class="pb-6">
-          <label for="confirm-password" class="block pb-2 font-semibold text-gray-700">Повторите пароль</label>
+          <label for="confirm-password" class="block pb-2 font-semibold text-gray-700">{{ t('auth.confirmPassword') }}</label>
           <el-input
             id="confirm-password"
             v-model="confirmPassword"
             type="password"
-            placeholder="Повторите новый пароль"
+            :placeholder="t('auth.confirmPasswordPlaceholder')"
             show-password
             :disabled="isDone"
             @keyup.enter="submitReset"
           />
           <p v-if="passwordMismatch" class="mt-3 text-sm text-red-600">
-            Пароли не совпадают.
+            {{ t('auth.passwordMismatch') }}
           </p>
         </div>
 
@@ -54,9 +54,9 @@
         show-icon
         :closable="false"
         class="mb-6"
-        title="Пароль изменен"
+        :title="t('auth.resetDoneTitle')"
       >
-        <p class="text-sm">Теперь можно войти с новым паролем.</p>
+        <p class="text-sm">{{ t('auth.resetDoneMessage') }}</p>
       </el-alert>
       </template>
 
@@ -69,11 +69,11 @@
           :disabled="!canSubmit"
           @click="submitReset"
         >
-          Сохранить пароль
+          {{ t('auth.savePassword') }}
         </el-button>
 
         <RouterLink to="/auth" class="text-center text-sm font-medium text-blue-600 hover:text-blue-700">
-          Перейти ко входу
+          {{ t('auth.goToLogin') }}
         </RouterLink>
       </div>
     </div>
@@ -86,8 +86,10 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ElNotification } from 'element-plus'
 import { ApiError } from '@/models/errorModel.ts'
 import { resetPassword } from '@/services/api/authApi.ts'
+import { useI18n } from '@/i18n'
 
 const route = useRoute()
+const { t } = useI18n()
 const token = computed(() => {
   const rawToken = route.query.token
   return typeof rawToken === 'string' ? rawToken : ''
@@ -122,8 +124,8 @@ async function submitReset() {
     isDone.value = true
   } catch (error) {
     ElNotification({
-      title: 'Не удалось изменить пароль',
-      message: error instanceof ApiError ? error.message : 'Ссылка устарела или пароль не подходит',
+      title: t('auth.resetErrorTitle'),
+      message: error instanceof ApiError ? error.message : t('auth.resetErrorMessage'),
       type: 'error',
     })
   } finally {

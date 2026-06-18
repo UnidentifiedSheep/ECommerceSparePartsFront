@@ -2,15 +2,15 @@
   <div class="flex h-full flex-col">
     <div v-if="storage" class="flex items-center justify-between pb-3">
       <div>
-        <div class="text-lg font-semibold">Содержимое склада</div>
-        <div class="text-sm text-gray-500">Источник: GET /main/storages/content</div>
+        <div class="text-lg font-semibold">{{ t('storages.contentPanel.title') }}</div>
+        <div class="text-sm text-gray-500">{{ t('storages.contentPanel.source') }}</div>
       </div>
-      <el-button type="primary" @click="openCreateDialog">Добавить позицию</el-button>
+      <el-button type="primary" @click="openCreateDialog">{{ t('storages.contentPanel.add') }}</el-button>
     </div>
 
     <div class="pb-3">
       <el-form inline>
-        <el-form-item label="Показывать нулевые остатки">
+        <el-form-item :label="t('storages.contentPanel.showZero')">
           <el-switch v-model="showZeroContent" />
         </el-form-item>
       </el-form>
@@ -18,37 +18,37 @@
 
     <el-table :data="content" stripe height="100%">
       <el-table-column prop="productId" label="Product ID" min-width="110" />
-      <el-table-column prop="count" label="Количество" min-width="100" />
-      <el-table-column label="Цена закупки" min-width="140">
+      <el-table-column prop="count" :label="t('storages.contentPanel.quantity')" min-width="100" />
+      <el-table-column :label="t('storages.contentPanel.buyPrice')" min-width="140">
         <template #default="{ row }">
           {{ row.buyPrice }} {{ row.currency.currencySign }}
         </template>
       </el-table-column>
-      <el-table-column label="Дата закупки" min-width="170">
+      <el-table-column :label="t('storages.contentPanel.purchaseDate')" min-width="170">
         <template #default="{ row }">
           {{ formatDate(row.purchaseDatetime) }}
         </template>
       </el-table-column>
-      <el-table-column fixed="right" label="Действия" min-width="180">
+      <el-table-column fixed="right" :label="t('common.labels.actions')" min-width="180">
         <template #default="{ row }">
-          <el-button size="small" @click="openEditDialog(row)">Редактировать</el-button>
-          <el-button size="small" type="danger" @click="removeItem(row)">Удалить</el-button>
+          <el-button size="small" @click="openEditDialog(row)">{{ t('common.actions.edit') }}</el-button>
+          <el-button size="small" type="danger" @click="removeItem(row)">{{ t('common.actions.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="createOpen" title="Добавить позицию на склад" width="560">
+    <el-dialog v-model="createOpen" :title="t('storages.contentPanel.addTitle')" width="560">
       <el-form label-position="top">
         <el-form-item label="Product ID">
           <el-input-number v-model="createForm.productId" :min="1" class="w-full" />
         </el-form-item>
-        <el-form-item label="Количество">
+        <el-form-item :label="t('storages.contentPanel.quantity')">
           <el-input-number v-model="createForm.count" :min="1" class="w-full" />
         </el-form-item>
-        <el-form-item label="Цена закупки">
+        <el-form-item :label="t('storages.contentPanel.buyPrice')">
           <el-input-number v-model="createForm.buyPrice" :min="0" :precision="2" class="w-full" />
         </el-form-item>
-        <el-form-item label="Валюта">
+        <el-form-item :label="t('common.labels.currency')">
           <el-select v-model="createForm.currencyId" class="w-full">
             <el-option
               v-for="currency in currencies"
@@ -58,7 +58,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Дата закупки">
+        <el-form-item :label="t('storages.contentPanel.purchaseDate')">
           <el-date-picker
             v-model="createForm.purchaseDate"
             type="datetime"
@@ -68,23 +68,23 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createOpen = false">Отмена</el-button>
-        <el-button type="primary" @click="createItem">Добавить</el-button>
+        <el-button @click="createOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="createItem">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editOpen" title="Редактировать позицию" width="560">
+    <el-dialog v-model="editOpen" :title="t('storages.contentPanel.editTitle')" width="560">
       <el-form label-position="top">
         <el-form-item label="Product ID">
           <el-input :model-value="editingItem?.productId" disabled />
         </el-form-item>
-        <el-form-item label="Количество">
+        <el-form-item :label="t('storages.contentPanel.quantity')">
           <el-input-number v-model="editForm.count" :min="0" class="w-full" />
         </el-form-item>
-        <el-form-item label="Цена закупки">
+        <el-form-item :label="t('storages.contentPanel.buyPrice')">
           <el-input-number v-model="editForm.buyPrice" :min="0" :precision="2" class="w-full" />
         </el-form-item>
-        <el-form-item label="Валюта">
+        <el-form-item :label="t('common.labels.currency')">
           <el-select v-model="editForm.currencyId" class="w-full">
             <el-option
               v-for="currency in currencies"
@@ -94,7 +94,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="Дата закупки">
+        <el-form-item :label="t('storages.contentPanel.purchaseDate')">
           <el-date-picker
             v-model="editForm.purchaseDatetime"
             type="datetime"
@@ -104,8 +104,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editOpen = false">Отмена</el-button>
-        <el-button type="primary" @click="saveEdit">Сохранить</el-button>
+        <el-button @click="editOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="saveEdit">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -120,7 +120,9 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { addStorageContent, deleteStorageContent, editStorageContent, getStorageContent } from '@/services/api/storages.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { useI18n } from '@/i18n'
 
+const { t } = useI18n()
 const storage = defineModel<StorageModel | undefined>('storage')
 
 const content = ref<StorageContentModel[]>([])
@@ -212,8 +214,8 @@ async function createItem() {
   })
 
   ElNotification({
-    title: 'Успех',
-    message: 'Позиция добавлена на склад',
+    title: t('common.labels.success'),
+    message: t('storages.contentPanel.added'),
     type: 'success',
   })
 
@@ -234,8 +236,8 @@ async function saveEdit() {
   })
 
   ElNotification({
-    title: 'Успех',
-    message: 'Позиция обновлена',
+    title: t('common.labels.success'),
+    message: t('storages.contentPanel.updated'),
     type: 'success',
   })
 
@@ -247,8 +249,8 @@ async function removeItem(item: StorageContentModel) {
   await deleteStorageContent(item.id, item.rowVersion)
 
   ElNotification({
-    title: 'Успех',
-    message: 'Позиция удалена со склада',
+    title: t('common.labels.success'),
+    message: t('storages.contentPanel.removed'),
     type: 'success',
   })
 

@@ -3,16 +3,16 @@
     <section class="flex w-full flex-col gap-5">
       <div class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
         <div>
-          <h1 class="text-2xl font-semibold text-slate-900">Метрики</h1>
-          <p class="mt-1 text-sm text-slate-500">Просмотр метрик, их данных и создание новых метрик</p>
+          <h1 class="text-2xl font-semibold text-slate-900">{{ t('analytics.title') }}</h1>
+          <p class="mt-1 text-sm text-slate-500">{{ t('analytics.description') }}</p>
         </div>
 
         <div class="flex items-center gap-2">
           <el-button :icon="Refresh" :loading="isMetricsLoading" @click="loadMetrics(false)">
-            Обновить
+            {{ t('common.refresh') }}
           </el-button>
           <el-button type="primary" :icon="Plus" @click="openCreateDrawer">
-            Создать метрику
+            {{ t('analytics.createMetric') }}
           </el-button>
         </div>
       </div>
@@ -36,7 +36,7 @@
         <div class="mt-1 text-sm">
           <span v-if="activeJob.errorMessage">{{ activeJob.errorMessage }}</span>
           <span v-else>
-            Метрика обновляется: {{ formatDateTime(activeJob.updatedAt) }}
+            {{ t('analytics.refreshUpdating', { date: formatDateTime(activeJob.updatedAt) }) }}
           </span>
         </div>
       </el-alert>
@@ -44,7 +44,7 @@
       <div class="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
-            <h2 class="text-base font-medium text-slate-900">Доступные метрики</h2>
+            <h2 class="text-base font-medium text-slate-900">{{ t('analytics.availableMetrics') }}</h2>
             <el-tag type="info" effect="plain">{{ filteredMetricInfos.length }}</el-tag>
           </div>
 
@@ -53,7 +53,7 @@
               v-model="metricInfoSearch"
               clearable
               size="small"
-              placeholder="Поиск метрики"
+              :placeholder="t('analytics.searchMetric')"
             />
             <el-button
               v-if="selectedMetricSystemName"
@@ -62,7 +62,7 @@
               class="analytics-clear-filter-button"
               @click="clearMetricFilter"
             >
-              Сбросить фильтр
+              {{ t('analytics.resetFilter') }}
             </el-button>
           </div>
 
@@ -80,17 +80,17 @@
               </div>
             </button>
 
-            <el-empty v-if="!isInfoLoading && filteredMetricInfos.length === 0" description="Метрики не найдены" />
+            <el-empty v-if="!isInfoLoading && filteredMetricInfos.length === 0" :description="t('analytics.notFound')" />
           </div>
         </aside>
 
         <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
           <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
             <div>
-              <h2 class="text-base font-medium text-slate-900">Метрики</h2>
+              <h2 class="text-base font-medium text-slate-900">{{ t('analytics.metrics') }}</h2>
               <p class="text-sm text-slate-500">{{ metricsSubtitle }}</p>
             </div>
-            <el-select v-model="sortBy" class="w-60" placeholder="Сортировка">
+            <el-select v-model="sortBy" class="w-60" :placeholder="t('analytics.sorting')">
               <el-option
                 v-for="option in sortOptions"
                 :key="option.value"
@@ -104,7 +104,7 @@
             v-loading="isMetricsLoading"
             :data="metrics"
             class="analytics-table"
-            empty-text="Рассчитанных метрик пока нет"
+            :empty-text="t('analytics.emptyMetrics')"
             height="560"
           >
             <el-table-column type="expand" width="48">
@@ -114,7 +114,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="Метрика" min-width="280">
+            <el-table-column :label="t('analytics.metric')" min-width="280">
               <template #default="{ row }">
                 <div class="font-medium text-slate-900">{{ row.name }}</div>
                 <div class="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
@@ -122,7 +122,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="Параметры" min-width="230">
+            <el-table-column :label="t('analytics.parameters')" min-width="230">
               <template #default="{ row }">
                 <div class="flex flex-col gap-1 text-sm text-slate-700">
                   <span>{{ formatShortDateTime(row.rangeStart) }} — {{ formatShortDateTime(row.rangeEnd) }}</span>
@@ -131,14 +131,14 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="Статус" min-width="165">
+            <el-table-column :label="t('common.status')" min-width="165">
               <template #default="{ row }">
                 <div class="flex flex-col items-start gap-1">
                   <el-tag :type="metricTagType(row)" effect="light">
                     {{ metricTagLabel(row) }}
                   </el-tag>
                   <span v-if="row.lastCalculationJob" class="text-xs text-slate-500">
-                    Последний расчет: {{ statusLabel(row.lastCalculationJob.status) }}
+                    {{ t('analytics.lastCalculation', { status: statusLabel(row.lastCalculationJob.status) }) }}
                   </span>
                   <span v-if="row.lastCalculationJob" class="text-xs text-slate-400">
                     {{ formatDateTime(row.lastCalculationJob.updatedAt) }}
@@ -146,10 +146,10 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="Данные" width="120">
+            <el-table-column :label="t('analytics.data')" width="120">
               <template #default="{ row }">
                 <el-tag :type="row.data ? 'success' : 'info'" effect="light">
-                  {{ row.data ? 'Есть данные' : 'Нет данных' }}
+                  {{ row.data ? t('analytics.hasData') : t('analytics.noData') }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -157,7 +157,7 @@
               <template #default="{ row }">
                 <div class="analytics-actions-stack">
                   <el-button size="small" plain class="analytics-action-button" @click="openHistoryDrawer(row)">
-                    История
+                    {{ t('analytics.history') }}
                   </el-button>
                   <el-button
                     class="analytics-action-button"
@@ -168,7 +168,7 @@
                     :disabled="!canRecalculateMetric(row)"
                     @click="recalculateMetric(row)"
                   >
-                    Пересчитать
+                    {{ t('analytics.recalculate') }}
                   </el-button>
                 </div>
               </template>
@@ -194,7 +194,7 @@
     >
       <template #header>
         <div class="analytics-drawer-titlebar">
-          <h2 class="text-lg font-semibold text-slate-900">Создать метрику</h2>
+          <h2 class="text-lg font-semibold text-slate-900">{{ t('analytics.createMetric') }}</h2>
           <el-button
             :icon="Close"
             circle
@@ -209,16 +209,16 @@
         <div class="flex-1 overflow-auto px-5 pb-6 pt-2">
           <fieldset class="rounded-2xl border border-slate-200 px-4 pb-6 pt-4">
             <legend class="px-2">
-              <span class="text-base font-semibold text-slate-900">Параметры метрики</span>
+              <span class="text-base font-semibold text-slate-900">{{ t('analytics.metricParameters') }}</span>
             </legend>
 
             <el-form label-position="top">
-              <el-form-item label="Тип метрики" class="analytics-drawer-form-item">
+              <el-form-item :label="t('analytics.metricType')" class="analytics-drawer-form-item">
                 <el-select
                   v-model="createForm.metricSystemName"
                   class="w-full"
                   filterable
-                  placeholder="Выберите метрику"
+                  :placeholder="t('analytics.selectMetric')"
                 >
                   <el-option
                     v-for="metric in metricInfos"
@@ -234,25 +234,25 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="Период" class="analytics-drawer-form-item">
+              <el-form-item :label="t('analytics.period')" class="analytics-drawer-form-item">
                 <el-date-picker
                   v-model="createForm.range"
                   type="datetimerange"
                   range-separator="—"
-                  start-placeholder="Начало"
-                  end-placeholder="Конец"
+                  :start-placeholder="t('common.start')"
+                  :end-placeholder="t('common.end')"
                   format="DD.MM.YYYY HH:mm"
                   value-format="YYYY-MM-DDTHH:mm:ss"
                   class="w-full"
                 />
               </el-form-item>
 
-              <el-form-item label="Валюта" class="analytics-drawer-form-item">
+              <el-form-item :label="t('common.currency')" class="analytics-drawer-form-item">
                 <el-select
                   v-model="createForm.currencyId"
                   class="w-full"
                   filterable
-                  placeholder="Выберите валюту"
+                  :placeholder="t('common.selectCurrency')"
                   :loading="isCurrenciesLoading"
                 >
                   <el-option
@@ -264,21 +264,21 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="Точный товар" class="analytics-drawer-form-item">
+              <el-form-item :label="t('analytics.exactProduct')" class="analytics-drawer-form-item">
                 <div class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 pb-4 pt-3">
                   <div v-if="selectedProduct" class="mb-4">
                     <div class="text-sm font-medium text-slate-900">{{ selectedProduct.name }}</div>
                     <div class="mt-1 text-xs text-slate-500">{{ selectedProduct.sku }}</div>
                   </div>
                   <div v-else class="mb-4 text-sm text-slate-500">
-                    Для текущих метрик товар обязателен
+                    {{ t('analytics.productRequired') }}
                   </div>
                   <div class="flex flex-wrap gap-3">
                     <el-button :icon="Search" @click="productDialogOpen = true">
-                      Выбрать товар
+                      {{ t('analytics.selectProduct') }}
                     </el-button>
                     <el-button v-if="selectedProduct" plain @click="selectedProduct = null">
-                      Очистить
+                      {{ t('common.clear') }}
                     </el-button>
                   </div>
                 </div>
@@ -289,9 +289,9 @@
 
         <div class="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
           <div class="flex justify-end gap-3">
-            <el-button @click="createDrawerOpen = false">Отмена</el-button>
+            <el-button @click="createDrawerOpen = false">{{ t('common.cancel') }}</el-button>
             <el-button type="primary" :loading="isCreating" :disabled="!canCreateJob" @click="submitJob">
-              Создать метрику
+              {{ t('analytics.createMetric') }}
             </el-button>
           </div>
         </div>
@@ -310,7 +310,7 @@
       <template #header>
         <div class="analytics-drawer-titlebar">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900">История расчетов</h2>
+            <h2 class="text-lg font-semibold text-slate-900">{{ t('analytics.calculationHistory') }}</h2>
             <p v-if="historyMetric" class="mt-1 text-sm text-slate-500">{{ historyMetric.name }}</p>
           </div>
           <el-button
@@ -326,9 +326,9 @@
       <div class="flex h-full flex-col">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div class="text-sm text-slate-500">
-            Последние запуски расчета метрики
+            {{ t('analytics.latestRuns') }}
           </div>
-          <el-select v-model="historySortBy" class="w-60" placeholder="Сортировка">
+          <el-select v-model="historySortBy" class="w-60" :placeholder="t('analytics.sorting')">
             <el-option
               v-for="option in historySortOptions"
               :key="option.value"
@@ -343,26 +343,26 @@
             v-loading="isHistoryLoading"
             :data="historyJobs"
             class="analytics-history-table"
-            empty-text="История расчетов пуста"
+            :empty-text="t('analytics.emptyHistory')"
           >
-            <el-table-column label="Статус" min-width="150">
+            <el-table-column :label="t('common.status')" min-width="150">
               <template #default="{ row }">
                 <el-tag :type="statusTagType(row.status)" effect="light">
                   {{ statusLabel(row.status) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="Создан" min-width="170">
+            <el-table-column :label="t('analytics.created')" min-width="170">
               <template #default="{ row }">
                 <span class="text-sm text-slate-700">{{ formatDateTime(row.createdAt) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="Обновлен" min-width="170">
+            <el-table-column :label="t('analytics.updated')" min-width="170">
               <template #default="{ row }">
                 <span class="text-sm text-slate-700">{{ formatDateTime(row.updatedAt) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="Ошибка" min-width="220" show-overflow-tooltip>
+            <el-table-column :label="t('analytics.error')" min-width="220" show-overflow-tooltip>
               <template #default="{ row }">
                 <span :class="row.errorMessage ? 'text-red-600' : 'text-slate-400'">
                   {{ row.errorMessage || '-' }}
@@ -410,6 +410,9 @@ import {
   startMetricCalculationHub,
   type MetricCalculationJobUpdatedEvent,
 } from '@/services/realtime/metricCalculationHub.ts'
+import { useI18n } from '@/i18n'
+
+const { locale, t } = useI18n()
 
 const metricInfos = ref<MetricInfoModel[]>([])
 const metrics = ref<MetricModel[]>([])
@@ -439,23 +442,23 @@ const historySortBy = ref<MetricCalculationJobSortBy>('createdAt_desc')
 const recalculatingMetrics = ref<Record<string, boolean>>({})
 let metricHubConnection: HubConnection | null = null
 
-const sortOptions: Array<{ label: string, value: MetricSortBy }> = [
-  { label: 'Созданы: сначала новые', value: 'createdAt_desc' },
-  { label: 'Созданы: сначала старые', value: 'createdAt_asc' },
-  { label: 'Обновлены: сначала новые', value: 'updatedAt_desc' },
-  { label: 'Обновлены: сначала старые', value: 'updatedAt_asc' },
-  { label: 'Пересчитаны: сначала новые', value: 'recalculatedAt_desc' },
-  { label: 'Пересчитаны: сначала старые', value: 'recalculatedAt_asc' },
-]
+const sortOptions = computed<Array<{ label: string, value: MetricSortBy }>>(() => [
+  { label: t('analytics.sort.createdDesc'), value: 'createdAt_desc' },
+  { label: t('analytics.sort.createdAsc'), value: 'createdAt_asc' },
+  { label: t('analytics.sort.updatedDesc'), value: 'updatedAt_desc' },
+  { label: t('analytics.sort.updatedAsc'), value: 'updatedAt_asc' },
+  { label: t('analytics.sort.recalculatedDesc'), value: 'recalculatedAt_desc' },
+  { label: t('analytics.sort.recalculatedAsc'), value: 'recalculatedAt_asc' },
+])
 
-const historySortOptions: Array<{ label: string, value: MetricCalculationJobSortBy }> = [
-  { label: 'Созданы: сначала новые', value: 'createdAt_desc' },
-  { label: 'Созданы: сначала старые', value: 'createdAt_asc' },
-  { label: 'Обновлены: сначала новые', value: 'updatedAt_desc' },
-  { label: 'Обновлены: сначала старые', value: 'updatedAt_asc' },
-  { label: 'Статус: по возрастанию', value: 'status_asc' },
-  { label: 'Статус: по убыванию', value: 'status_desc' },
-]
+const historySortOptions = computed<Array<{ label: string, value: MetricCalculationJobSortBy }>>(() => [
+  { label: t('analytics.sort.createdDesc'), value: 'createdAt_desc' },
+  { label: t('analytics.sort.createdAsc'), value: 'createdAt_asc' },
+  { label: t('analytics.sort.updatedDesc'), value: 'updatedAt_desc' },
+  { label: t('analytics.sort.updatedAsc'), value: 'updatedAt_asc' },
+  { label: t('analytics.sort.statusAsc'), value: 'status_asc' },
+  { label: t('analytics.sort.statusDesc'), value: 'status_desc' },
+])
 
 const createForm = reactive<{
   metricSystemName?: string
@@ -485,13 +488,13 @@ const jobAlertType = computed(() => {
 })
 
 const filteredMetricInfos = computed(() => {
-  const query = metricInfoSearch.value.trim().toLocaleLowerCase('ru-RU')
+  const query = metricInfoSearch.value.trim().toLocaleLowerCase(locale.value)
   if (!query) return metricInfos.value
 
   return metricInfos.value.filter((metric) =>
-    metric.name.toLocaleLowerCase('ru-RU').includes(query)
-    || metric.description.toLocaleLowerCase('ru-RU').includes(query)
-    || metric.systemName.toLocaleLowerCase('ru-RU').includes(query),
+    metric.name.toLocaleLowerCase(locale.value).includes(query)
+    || metric.description.toLocaleLowerCase(locale.value).includes(query)
+    || metric.systemName.toLocaleLowerCase(locale.value).includes(query),
   )
 })
 
@@ -500,8 +503,8 @@ const selectedMetricInfo = computed(() =>
 )
 
 const metricsSubtitle = computed(() => selectedMetricInfo.value
-  ? `Фильтр: ${selectedMetricInfo.value.name}`
-  : 'Сохраненные метрики и их рассчитанные данные',
+  ? t('analytics.filterSubtitle', { name: selectedMetricInfo.value.name })
+  : t('analytics.savedMetricsSubtitle'),
 )
 
 function defaultRange(): string[] {
@@ -522,12 +525,12 @@ function toLocalDateTime(date: Date): string {
 
 function formatDateTime(value: string): string {
   if (!value) return '-'
-  return new Date(value).toLocaleString('ru-RU')
+  return new Date(value).toLocaleString(locale.value)
 }
 
 function formatShortDateTime(value: string): string {
   if (!value) return '-'
-  return new Date(value).toLocaleString('ru-RU', {
+  return new Date(value).toLocaleString(locale.value, {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
@@ -556,14 +559,7 @@ function metricName(systemName: string): string {
 }
 
 function statusLabel(status: CalculationStatus): string {
-  const labels: Record<CalculationStatus, string> = {
-    AwaitingWorker: 'Ожидает обработчик',
-    Calculating: 'Считается',
-    Succeeded: 'Готово',
-    Failed: 'Ошибка',
-    Cancelled: 'Отменено',
-  }
-  return labels[status] ?? status
+  return t(`analytics.statuses.${status}`) || status
 }
 
 function statusTagType(status: CalculationStatus): TagProps['type'] {
@@ -582,9 +578,9 @@ function hasMetricTag(metric: MetricModel, tag: string): boolean {
 }
 
 function metricTagLabel(metric: MetricModel): string {
-  if (hasMetricTag(metric, 'Disabled')) return 'Отключена'
-  if (hasMetricTag(metric, 'RecalculationNeeded')) return 'Нужен перерасчет'
-  return 'Актуальна'
+  if (hasMetricTag(metric, 'Disabled')) return t('analytics.disabled')
+  if (hasMetricTag(metric, 'RecalculationNeeded')) return t('analytics.recalculationNeeded')
+  return t('analytics.actual')
 }
 
 function metricTagType(metric: MetricModel): TagProps['type'] {
@@ -595,12 +591,12 @@ function metricTagType(metric: MetricModel): TagProps['type'] {
 
 function metricCurrencyLabel(currencyId: number): string {
   const currency = currencies.value.find((item) => item.id === currencyId)
-  if (!currency) return 'Валюта не найдена'
+  if (!currency) return t('analytics.currencyNotFound')
   return `${currency.shortName} (${currency.currencySign})`
 }
 
 function metricProductLabel(metric: MetricModel): string {
-  return metric.productId ? 'Точный товар задан' : 'Без привязки к товару'
+  return metric.productId ? t('analytics.productSet') : t('analytics.noProduct')
 }
 
 function isTerminalStatus(status: CalculationStatus): boolean {
@@ -787,8 +783,8 @@ async function submitJob() {
     })
     createDrawerOpen.value = false
     ElNotification.success({
-      title: 'Метрика создается',
-      message: 'Расчет запущен.',
+      title: t('analytics.creatingTitle'),
+      message: t('analytics.calculationStarted'),
     })
     await refreshJob(resp.requestId)
   } finally {
@@ -799,8 +795,8 @@ async function submitJob() {
 async function recalculateMetric(metric: MetricModel) {
   if (!metric.id) {
     ElNotification.warning({
-      title: 'Не удалось пересчитать',
-      message: 'У метрики нет идентификатора.',
+      title: t('analytics.recalcFailedTitle'),
+      message: t('analytics.noMetricId'),
     })
     return
   }
@@ -816,8 +812,8 @@ async function recalculateMetric(metric: MetricModel) {
       metricId: metric.id,
     })
     ElNotification.success({
-      title: 'Перерасчет запущен',
-      message: 'Расчет запущен.',
+      title: t('analytics.recalculationStarted'),
+      message: t('analytics.calculationStarted'),
     })
     await refreshJob(resp.requestId)
   } finally {
@@ -867,8 +863,8 @@ onMounted(async () => {
     metricHubConnection = await startMetricCalculationHub(handleMetricCalculationJobUpdated)
   } catch {
     ElNotification.warning({
-      title: 'Realtime недоступен',
-      message: 'События расчетов метрик не подключились. Обновите страницу позже.',
+      title: t('common.messages.realtimeUnavailableTitle'),
+      message: t('analytics.realtimeMessage'),
     })
   }
 })

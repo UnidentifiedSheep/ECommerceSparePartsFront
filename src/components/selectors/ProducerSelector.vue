@@ -2,7 +2,7 @@
   <el-select
     v-model="producerId"
     :loading="isLoading"
-    :placeholder="placeholder"
+    :placeholder="resolvedPlaceholder"
     clearable
     filterable
     remote
@@ -20,21 +20,24 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import type { ProducerSearchModel } from '@/models/producerSearchModel.ts'
 import { getProducer } from '@/services/api/producers.ts'
 import { searchProducers } from '@/services/api/search.ts'
+import { useI18n } from '@/i18n'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     placeholder?: string
   }>(),
   {
-    placeholder: 'Выберите производителя',
+    placeholder: undefined,
   },
 )
 
+const { t } = useI18n()
+const resolvedPlaceholder = computed(() => props.placeholder ?? t('products.selectProducer'))
 const producerId = defineModel<number | undefined>()
 
 const producers = ref<ProducerSearchModel[]>([])
