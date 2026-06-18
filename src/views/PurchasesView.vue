@@ -151,6 +151,7 @@
                 highlight-current-row
                 row-class-name="purchase-table-row"
                 @current-change="selectPurchase"
+                @sort-change="handleSortChange"
               >
                 <el-table-column :label="t('purchases.supplier')" min-width="180">
                   <template #default="{ row }">
@@ -158,12 +159,12 @@
                   </template>
                 </el-table-column>
                 <el-table-column prop="storage" :label="t('common.labels.storage')" min-width="150" />
-                <el-table-column :label="t('common.labels.date')" min-width="170">
+                <el-table-column prop="dateTime" :label="t('common.labels.date')" min-width="170" sortable="custom">
                   <template #default="{ row }">
                     {{ formatDate(row.purchaseDatetime) }}
                   </template>
                 </el-table-column>
-                <el-table-column :label="t('purchases.amount')" min-width="140">
+                <el-table-column prop="totalSum" :label="t('purchases.amount')" min-width="140" sortable="custom">
                   <template #default="{ row }">
                     {{ formatCurrency(row.totalSum, row.currency.currencySign) }}
                   </template>
@@ -267,6 +268,7 @@ const supplierToAdd = ref<UserModel>()
 const currencyIds = ref<number[]>([])
 const selectedProducts = ref<ProductSearchModel[]>([])
 const searchTerm = ref<string>()
+const sortBy = ref<string>()
 const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
@@ -335,6 +337,18 @@ async function applyDrawerFilters() {
   await loadPurchases(true)
 }
 
+async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
+  if (!event.prop || !event.order) {
+    sortBy.value = undefined
+  } else {
+    sortBy.value = event.order === 'descending'
+      ? `${event.prop}_desc`
+      : event.prop
+  }
+
+  await loadPurchases(true)
+}
+
 function addSupplierFilter() {
   if (!supplierToAdd.value) return
 
@@ -386,6 +400,7 @@ async function loadPurchases(resetPage: boolean) {
       supplierIds: selectedSuppliers.value.map((supplier) => supplier.id),
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
+      sortBy: sortBy.value,
       searchTerm: searchTerm.value,
     })
 
@@ -471,12 +486,11 @@ async function removePurchase(id: string) {
 }
 
 async function onPurchaseCreated(purchase: PurchaseModel) {
-  resetFilters()
-  await loadPurchases(true)
-  const createdPurchase = purchases.value.find((item) => item.id === purchase.id)
-  if (createdPurchase) {
-    await selectPurchase(createdPurchase)
-  }
+  purchases.value = [
+    purchase,
+    ...purchases.value.filter((item) => item.id !== purchase.id),
+  ]
+  await selectPurchase(purchase)
 }
 
 async function onPurchaseUpdated(purchaseId: string) {

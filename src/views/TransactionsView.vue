@@ -148,10 +148,19 @@
                   {{ transactionSourceLabel(row.sourceType) }}
                 </el-tag>
                 <el-tag
+                  v-else-if="isSaleSource(row.sourceType) && !isReversedStatus(row.status)"
+                  :type="transactionSourceTag(row.sourceType)"
+                  effect="plain"
+                  class="source-link"
+                  @click.stop="openSaleByTransaction(row)"
+                >
+                  {{ transactionSourceLabel(row.sourceType) }}
+                </el-tag>
+                <el-tag
                   v-else
                   :type="transactionSourceTag(row.sourceType)"
                   effect="plain"
-                  :class="{ 'source-disabled': isPurchaseSource(row.sourceType) && isReversedStatus(row.status) }"
+                  :class="{ 'source-disabled': isNavigableSource(row.sourceType) && isReversedStatus(row.status) }"
                 >
                   {{ transactionSourceLabel(row.sourceType) }}
                 </el-tag>
@@ -268,6 +277,17 @@
                 {{ t('transactions.openPurchase') }}
               </el-button>
               <el-button
+                v-if="isSaleSource(selectedTransaction.sourceType)"
+                size="small"
+                type="primary"
+                plain
+                :loading="saleNavigationLoading"
+                :disabled="isReversedStatus(selectedTransaction.status)"
+                @click="openSaleByTransaction(selectedTransaction)"
+              >
+                {{ t('transactions.openSale') }}
+              </el-button>
+              <el-button
                 v-if="canDeleteTransactions && canCancelTransaction(selectedTransaction)"
                 size="small"
                 type="danger"
@@ -362,6 +382,7 @@ import {
   type TransactionType,
 } from '@/services/api/balances.ts'
 import { getPurchaseByTransactionId } from '@/services/api/purchases.ts'
+import { getSaleByTransactionId } from '@/services/api/sales.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
@@ -375,6 +396,7 @@ const { hasPermission } = usePermissions()
 const isLoading = ref(false)
 const isLoadingMore = ref(false)
 const purchaseNavigationLoading = ref(false)
+const saleNavigationLoading = ref(false)
 const createDialogOpen = ref(false)
 const cancellingTransactionId = ref<string | null>(null)
 const detailsOpen = ref(false)
@@ -720,6 +742,14 @@ function isPurchaseSource(sourceType: TransactionSourceType) {
   return sourceType === 'Purchase' || sourceType === 1
 }
 
+function isSaleSource(sourceType: TransactionSourceType) {
+  return sourceType === 'Sale' || sourceType === 2
+}
+
+function isNavigableSource(sourceType: TransactionSourceType) {
+  return isPurchaseSource(sourceType) || isSaleSource(sourceType)
+}
+
 function canCancelTransaction(transaction: BalanceTransactionModel) {
   return isManualSource(transaction.sourceType) && !isReversedStatus(transaction.status)
 }
@@ -776,6 +806,26 @@ async function openPurchaseByTransaction(transaction: BalanceTransactionModel) {
     ElMessage.error(error instanceof Error ? error.message : t('transactions.openPurchaseError'))
   } finally {
     purchaseNavigationLoading.value = false
+  }
+}
+
+async function openSaleByTransaction(transaction: BalanceTransactionModel) {
+  if (!isSaleSource(transaction.sourceType) || isReversedStatus(transaction.status) || saleNavigationLoading.value) return
+
+  saleNavigationLoading.value = true
+  try {
+    const response = await getSaleByTransactionId(transaction.id)
+    detailsOpen.value = false
+    await router.push({
+      name: 'sales',
+      query: {
+        saleId: response.sale.id,
+      },
+    })
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.openSaleError'))
+  } finally {
+    saleNavigationLoading.value = false
   }
 }
 

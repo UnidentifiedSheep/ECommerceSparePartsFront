@@ -1,6 +1,8 @@
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 
+export type SaleState = 'Draft' | 'Completed' | 'Deleted'
+
 export interface SaleModel {
   id: string
   buyer: UserModel
@@ -9,6 +11,8 @@ export interface SaleModel {
   transactionId: string
   totalSum: number
   storage: string
+  state: SaleState
+  rowVersion: number
   currency: CurrencyModel
 }
 

@@ -83,6 +83,28 @@
             </section>
 
             <section class="drawer-section">
+              <div class="drawer-section-title">{{ t('sales.state') }}</div>
+              <label class="filter-field">
+                <span>{{ t('sales.state') }}</span>
+                <el-select
+                  v-model="saleStates"
+                  multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  :placeholder="t('sales.allStates')"
+                  class="w-full"
+                >
+                  <el-option
+                    v-for="option in saleStateOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+              </label>
+            </section>
+
+            <section class="drawer-section">
               <div class="drawer-section-title">{{ t('sales.buyers') }}</div>
               <div class="filter-field">
                 <span>{{ t('sales.addBuyer') }}</span>
@@ -148,21 +170,27 @@
             class="w-full"
             height="100%"
             highlight-current-row
-            row-class-name="sale-table-row"
+            :row-class-name="saleRowClassName"
             @current-change="selectSale"
+            @sort-change="handleSortChange"
           >
             <el-table-column :label="t('sales.buyer')" min-width="180">
               <template #default="{ row }">
-                {{ row.buyer.surname }} {{ row.buyer.name }}
+                <div class="sale-buyer-cell">
+                  <span>{{ row.buyer.surname }} {{ row.buyer.name }}</span>
+                  <el-tag :type="saleStateTagType(row.state)" effect="light" size="small" round>
+                    {{ saleStateLabel(row.state) }}
+                  </el-tag>
+                </div>
               </template>
             </el-table-column>
             <el-table-column prop="storage" :label="t('sales.storage')" min-width="150" />
-            <el-table-column :label="t('common.labels.date')" min-width="170">
+            <el-table-column prop="dateTime" :label="t('common.labels.date')" min-width="170" sortable="custom">
               <template #default="{ row }">
                 {{ formatDate(row.saleDatetime) }}
               </template>
             </el-table-column>
-            <el-table-column :label="t('sales.amount')" min-width="140">
+            <el-table-column prop="totalSum" :label="t('sales.amount')" min-width="140" sortable="custom">
               <template #default="{ row }">
                 {{ formatCurrency(row.totalSum, row.currency.currencySign) }}
               </template>
@@ -170,6 +198,19 @@
             <el-table-column :label="t('common.labels.comment')" min-width="180" show-overflow-tooltip>
               <template #default="{ row }">
                 {{ row.comment || '—' }}
+              </template>
+            </el-table-column>
+            <el-table-column v-if="canDeleteSales" fixed="right" :label="t('common.labels.actions')" min-width="120">
+              <template #default="{ row }">
+                <el-button
+                  size="small"
+                  type="danger"
+                  :disabled="row.state === 'Deleted'"
+                  :loading="deletingSaleId === row.id"
+                  @click.stop="removeSale(row)"
+                >
+                  {{ t('common.actions.delete') }}
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -202,7 +243,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import CreateSaleDialog from '@/components/sales/CreateSaleDialog.vue'
 import SaleDetails from '@/components/sales/SaleDetails.vue'
@@ -211,17 +253,19 @@ import UserSelector from '@/components/selectors/UserSelector.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
-import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
+import type { SaleContentModel, SaleModel, SaleState } from '@/models/saleModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
-import { getSaleContent, getSales } from '@/services/api/sales.ts'
+import { deleteSale, getSale, getSaleContent, getSales } from '@/services/api/sales.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
 const { locale, t } = useI18n()
+const route = useRoute()
 const { hasPermission } = usePermissions()
 const canCreateSales = computed(() => hasPermission('SALES_CREATE'))
+const canDeleteSales = computed(() => hasPermission('SALES_DELETE'))
 const sales = ref<SaleModel[]>([])
 const salesTableRef = ref<TableInstance>()
 const selectedSale = ref<SaleModel>()
@@ -230,8 +274,11 @@ const currencies = ref<CurrencyModel[]>([])
 const selectedBuyers = ref<UserModel[]>([])
 const buyerToAdd = ref<UserModel>()
 const currencyIds = ref<number[]>([])
+const defaultSaleStates: SaleState[] = ['Completed']
+const saleStates = ref<SaleState[]>([...defaultSaleStates])
 const selectedProducts = ref<ProductSearchModel[]>([])
 const searchTerm = ref<string>()
+const sortBy = ref<string>()
 const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
@@ -240,10 +287,18 @@ const contentLoading = ref(false)
 const createSaleDialogOpen = ref(false)
 const productSelectorOpen = ref(false)
 const filtersDrawerOpen = ref(false)
+const deletingSaleId = ref<string>()
+
+const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(() => [
+  { label: t('sales.states.Draft'), value: 'Draft' },
+  { label: t('sales.states.Completed'), value: 'Completed' },
+  { label: t('sales.states.Deleted'), value: 'Deleted' },
+])
 
 const activeFiltersCount = computed(() => (
   selectedBuyers.value.length
   + currencyIds.value.length
+  + (isDefaultSaleStateFilter() ? 0 : 1)
   + selectedProducts.value.length
   + (searchTerm.value?.trim() ? 1 : 0)
 ))
@@ -274,6 +329,23 @@ function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
+function saleStateLabel(state: SaleState) {
+  return t(`sales.states.${state}`)
+}
+
+function saleStateTagType(state: SaleState) {
+  if (state === 'Deleted') return 'danger'
+  if (state === 'Draft') return 'info'
+  return 'success'
+}
+
+function saleRowClassName({ row }: { row: SaleModel }) {
+  return [
+    'sale-table-row',
+    `sale-table-row--${row.state.toLowerCase()}`,
+  ].join(' ')
+}
+
 function resetFilters() {
   const nextRangeEnd = new Date()
   const nextRangeStart = new Date()
@@ -286,8 +358,26 @@ function resetFilters() {
   selectedBuyers.value = []
   buyerToAdd.value = undefined
   currencyIds.value = []
+  saleStates.value = [...defaultSaleStates]
   selectedProducts.value = []
   searchTerm.value = undefined
+}
+
+function isDefaultSaleStateFilter() {
+  return saleStates.value.length === defaultSaleStates.length
+    && defaultSaleStates.every((state) => saleStates.value.includes(state))
+}
+
+async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
+  if (!event.prop || !event.order) {
+    sortBy.value = undefined
+  } else {
+    sortBy.value = event.order === 'descending'
+      ? `${event.prop}_desc`
+      : event.prop
+  }
+
+  await loadSales(true)
 }
 
 async function applyDrawerFilters() {
@@ -341,6 +431,8 @@ async function loadSales(resetPage: boolean) {
       buyerIds: selectedBuyers.value.map((buyer) => buyer.id),
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
+      states: saleStates.value,
+      sortBy: sortBy.value,
       searchTerm: searchTerm.value,
     })
 
@@ -358,6 +450,59 @@ async function loadSales(resetPage: boolean) {
     ElMessage.error(error instanceof Error ? error.message : t('sales.loadError'))
   } finally {
     salesLoading.value = false
+  }
+}
+
+async function removeSale(sale: SaleModel) {
+  if (deletingSaleId.value) return
+
+  try {
+    await ElMessageBox.confirm(t('sales.deleteConfirm'), t('sales.deleteTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  deletingSaleId.value = sale.id
+  try {
+    await deleteSale(sale.id, sale.rowVersion)
+    ElMessage.success(t('sales.deleted'))
+
+    if (selectedSale.value?.id === sale.id) {
+      selectedSale.value = undefined
+      saleContent.value = []
+    }
+
+    await loadSales(false)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('sales.deleteError'))
+  } finally {
+    deletingSaleId.value = undefined
+  }
+}
+
+async function selectSaleFromRoute() {
+  const saleId = typeof route.query.saleId === 'string' ? route.query.saleId : undefined
+  if (!saleId) return
+
+  const existingSale = sales.value.find((sale) => sale.id === saleId)
+  if (existingSale) {
+    await selectSale(existingSale)
+    return
+  }
+
+  try {
+    const response = await getSale(saleId)
+    sales.value = [
+      response.sale,
+      ...sales.value.filter((sale) => sale.id !== response.sale.id),
+    ]
+    await selectSale(response.sale)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('sales.loadError'))
   }
 }
 
@@ -384,12 +529,11 @@ async function selectSale(sale?: SaleModel) {
 }
 
 async function onSaleCreated(sale: SaleModel) {
-  resetFilters()
-  await loadSales(true)
-  const createdSale = sales.value.find((item) => item.id === sale.id)
-  if (createdSale) {
-    await selectSale(createdSale)
-  }
+  sales.value = [
+    sale,
+    ...sales.value.filter((item) => item.id !== sale.id),
+  ]
+  await selectSale(sale)
 }
 
 watch(limit, async () => loadSales(true))
@@ -397,11 +541,14 @@ watch(page, async () => loadSales(false))
 watch(dateRange, async () => loadSales(true), { deep: true })
 watch(selectedBuyers, async () => loadSales(true), { deep: true })
 watch(currencyIds, async () => loadSales(true), { deep: true })
+watch(saleStates, async () => loadSales(true), { deep: true })
 watch(selectedProducts, async () => loadSales(true), { deep: true })
 watch(searchTerm, () => loadSalesDebounced())
+watch(() => route.query.saleId, async () => selectSaleFromRoute())
 
 onMounted(async () => {
   await Promise.all([loadCurrencies(), loadSales(true)])
+  await selectSaleFromRoute()
 })
 </script>
 

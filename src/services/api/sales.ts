@@ -1,4 +1,4 @@
-import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
+import type { SaleContentModel, SaleModel, SaleState } from '@/models/saleModel.ts'
 import { mapUserModel, type UserModel } from '@/models/userModel.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
@@ -12,6 +12,8 @@ interface SaleDto {
   transactionId: string
   totalSum: number
   storage: string
+  state: SaleState
+  rowVersion: number
   currency: CurrencyModel
 }
 
@@ -46,12 +48,17 @@ export interface GetSalesRequest {
   buyerIds?: string[]
   currencyIds?: number[]
   productIds?: number[]
+  states?: SaleState[]
   sortBy?: string
   searchTerm?: string
 }
 
 export interface GetSalesResponse {
   sales: SaleModel[]
+}
+
+export interface GetSaleResponse {
+  sale: SaleModel
 }
 
 export interface GetSaleContentResponse {
@@ -90,6 +97,7 @@ export async function getSales(req: GetSalesRequest): Promise<GetSalesResponse> 
   req.buyerIds?.forEach((id) => appendParam('buyerIds', id))
   req.currencyIds?.forEach((id) => appendParam('currencyIds', id))
   req.productIds?.forEach((id) => appendParam('productIds', id))
+  req.states?.forEach((state) => appendParam('state', state))
   appendParam('sortBy', req.sortBy)
   appendParam('searchTerm', req.searchTerm)
 
@@ -102,9 +110,31 @@ export async function getSales(req: GetSalesRequest): Promise<GetSalesResponse> 
   }
 }
 
+export async function getSale(id: string): Promise<GetSaleResponse> {
+  const resp = await api.get<{ sale: SaleDto }>(`/main/sales/${id}`)
+  return {
+    sale: mapSaleModel(resp.data.sale),
+  }
+}
+
+export async function getSaleByTransactionId(transactionId: string): Promise<GetSaleResponse> {
+  const resp = await api.get<{ sale: SaleDto }>(`/main/transactions/${transactionId}/sale`)
+  return {
+    sale: mapSaleModel(resp.data.sale),
+  }
+}
+
 export async function getSaleContent(id: string): Promise<GetSaleContentResponse> {
   const resp = await api.get<GetSaleContentResponse>(`/main/sales/${id}/contents`)
   return {
     content: resp.data.content ?? [],
   }
+}
+
+export async function deleteSale(id: string, rowVersion: number): Promise<void> {
+  await api.delete(`/main/sales/${id}`, {
+    headers: {
+      'If-Match': rowVersion,
+    },
+  })
 }

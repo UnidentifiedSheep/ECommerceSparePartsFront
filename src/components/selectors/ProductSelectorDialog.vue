@@ -84,6 +84,7 @@ const size = ref(20)
 const hasNext = ref(false)
 const isLoading = ref(false)
 let productsRequestId = 0
+let isResettingOnOpen = false
 
 const searchProductsDebounced = useDebounceFn(async () => {
   await loadProducts(true)
@@ -102,6 +103,21 @@ function stockColorClass(stock: number) {
 function selectProduct(product: ProductSearchModel) {
   emit('select', product)
   isOpen.value = false
+}
+
+function resetSelectorState() {
+  isResettingOnOpen = true
+  productsRequestId += 1
+  query.value = ''
+  producerId.value = undefined
+  page.value = 0
+  products.value = []
+  hasNext.value = false
+  isLoading.value = false
+
+  queueMicrotask(() => {
+    isResettingOnOpen = false
+  })
 }
 
 async function loadProducts(resetPage: boolean) {
@@ -142,14 +158,23 @@ async function loadProducerNames(items: ProductSearchModel[]) {
 }
 
 watch(isOpen, async (open) => {
-  if (open && products.value.length === 0) {
-    await loadProducts(true)
-  }
+  if (!open) return
+
+  resetSelectorState()
+  await loadProducts(true)
 })
-watch(page, async () => loadProducts(false))
-watch(size, async () => loadProducts(true))
-watch(producerId, async () => loadProducts(true))
-watch(query, () => searchProductsDebounced())
+watch(page, async () => {
+  if (!isResettingOnOpen) await loadProducts(false)
+})
+watch(size, async () => {
+  if (!isResettingOnOpen) await loadProducts(true)
+})
+watch(producerId, async () => {
+  if (!isResettingOnOpen) await loadProducts(true)
+})
+watch(query, () => {
+  if (!isResettingOnOpen) searchProductsDebounced()
+})
 onMounted(async () => {
   if (isOpen.value) await loadProducts(true)
 })
