@@ -316,6 +316,13 @@
                   <div v-if="field.description" class="field-hint">{{ field.description }}</div>
                 </template>
 
+                <el-input
+                  v-else-if="field.control === 'TextField'"
+                  v-model="inputState[field.name]"
+                  clearable
+                  :placeholder="field.description || field.name"
+                />
+
                 <el-switch
                   v-else-if="field.type === 'boolean'"
                   v-model="inputState[field.name]"
@@ -652,12 +659,14 @@ function resetInputState() {
 }
 
 function defaultValue(field: JobSchemaField) {
+  if (field.control === 'TextField') return ''
   if (field.type === 'boolean') return false
   if (isNumberField(field)) return 0
   return ''
 }
 
 function isNumberField(field: JobSchemaField) {
+  if (field.control === 'TextField') return false
   return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
 }
 

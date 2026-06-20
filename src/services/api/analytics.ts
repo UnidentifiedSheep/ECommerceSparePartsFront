@@ -2,13 +2,16 @@ import api, { analyticsApiPrefix, clampPageSize } from '@/services/api/api.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 export type CalculationStatus =
-  | 'Calculating'
+  | 'Pending'
+  | 'Locked'
+  | 'Processing'
   | 'Failed'
   | 'Succeeded'
   | 'Cancelled'
+  | 'Calculating'
   | 'AwaitingWorker'
 
-type CalculationStatusDto = CalculationStatus | 0 | 1 | 2 | 3 | 4
+type CalculationStatusDto = CalculationStatus | 0 | 1 | 2 | 3 | 4 | 5
 
 export interface MetricInfoModel {
   systemName: string
@@ -34,8 +37,10 @@ export type MetricSortBy =
   | 'recalculatedAt_desc'
 
 export type MetricCalculationJobSortBy =
-  | 'requestId_asc'
-  | 'requestId_desc'
+  | 'jobId_asc'
+  | 'jobId_desc'
+  | 'metricId_asc'
+  | 'metricId_desc'
   | 'createdAt_asc'
   | 'createdAt_desc'
   | 'updatedAt_asc'
@@ -43,20 +48,15 @@ export type MetricCalculationJobSortBy =
   | 'status_asc'
   | 'status_desc'
 
-export interface CreateCalculationJobRequest {
-  metricSystemName?: string
-  metricPayload?: MetricPayloadRequest
-  metricId?: string
-}
-
 export interface CalculationJobModel {
-  requestId: string
-  metricId?: string | null
-  metricSystemName: string
+  jobId: string
+  metricId: string
   status: CalculationStatus
+  attempts: number
+  maxAttempts: number
+  errorMessage?: string | null
   createdAt: string
   updatedAt: string
-  errorMessage?: string | null
 }
 
 export interface GetMetricsRequest {
@@ -85,16 +85,21 @@ export interface GetMetricCalculationJobsResponse {
   jobs: CalculationJobModel[]
 }
 
-export interface CreateCalculationJobResponse {
-  requestId: string
+export interface UpsertMetricRequest {
+  metricSystemName: string
+  metricPayload: MetricPayloadRequest
+}
+
+export interface UpsertMetricResponse {
+  metric: MetricModel
 }
 
 interface CalculationJobDto extends Omit<CalculationJobModel, 'status'> {
   status: CalculationStatusDto
 }
 
-interface MetricDto extends Omit<MetricModel, 'lastCalculationJob'> {
-  lastCalculationJob: CalculationJobDto | null
+interface MetricDto extends Omit<MetricModel, 'lastMetricJob'> {
+  lastMetricJob: CalculationJobDto | null
 }
 
 export interface MetricModel {
@@ -108,15 +113,16 @@ export interface MetricModel {
   rangeEnd: string
   currencyId: number
   productId: number | null
-  lastCalculationJob: CalculationJobModel | null
+  lastMetricJob: CalculationJobModel | null
 }
 
 const statusByNumber: Record<number, CalculationStatus> = {
-  0: 'Calculating',
-  1: 'Failed',
-  2: 'Succeeded',
-  3: 'Cancelled',
-  4: 'AwaitingWorker',
+  0: 'Pending',
+  1: 'Locked',
+  2: 'Processing',
+  3: 'Failed',
+  4: 'Succeeded',
+  5: 'Cancelled',
 }
 
 function analyticsUrl(path: string): string {
@@ -135,8 +141,8 @@ function mapCalculationJob(dto: CalculationJobDto): CalculationJobModel {
 function mapMetric(dto: MetricDto): MetricModel {
   return {
     ...dto,
-    lastCalculationJob: dto.lastCalculationJob
-      ? mapCalculationJob(dto.lastCalculationJob)
+    lastMetricJob: dto.lastMetricJob
+      ? mapCalculationJob(dto.lastMetricJob)
       : null,
   }
 }
@@ -175,25 +181,16 @@ export async function getMetricCalculationJobs(
   }
 }
 
-export async function createCalculationJob(
-  req: CreateCalculationJobRequest,
-): Promise<CreateCalculationJobResponse> {
-  const resp = await api.post<CreateCalculationJobResponse>(analyticsUrl('/jobs'), {
-    ...req,
-    metricPayload: req.metricPayload
-      ? {
-          ...req.metricPayload,
-          rangeStart: toUtcDateTimeString(req.metricPayload.rangeStart),
-          rangeEnd: toUtcDateTimeString(req.metricPayload.rangeEnd),
-        }
-      : undefined,
+export async function upsertMetric(req: UpsertMetricRequest): Promise<UpsertMetricResponse> {
+  const resp = await api.post<{ metric: MetricDto }>(analyticsUrl('/metrics'), {
+    metricSystemName: req.metricSystemName,
+    metricPayload: {
+      ...req.metricPayload,
+      rangeStart: toUtcDateTimeString(req.metricPayload.rangeStart),
+      rangeEnd: toUtcDateTimeString(req.metricPayload.rangeEnd),
+    },
   })
-  return resp.data
-}
-
-export async function getCalculationJob(id: string): Promise<{ calculationJob: CalculationJobModel }> {
-  const resp = await api.get<{ calculationJob: CalculationJobDto }>(analyticsUrl(`/jobs/${id}`))
   return {
-    calculationJob: mapCalculationJob(resp.data.calculationJob),
+    metric: mapMetric(resp.data.metric),
   }
 }

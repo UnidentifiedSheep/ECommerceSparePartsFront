@@ -8,17 +8,19 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <el-button :icon="Refresh" :loading="isMetricsLoading" @click="loadMetrics(false)">
-            {{ t('common.refresh') }}
+          <el-button v-if="canViewMetrics" :icon="Refresh" :loading="isMetricsLoading" @click="loadMetrics(false)">
+            {{ t('common.actions.refresh') }}
           </el-button>
-          <el-button type="primary" :icon="Plus" @click="openCreateDrawer">
+          <el-button v-if="canCreateMetrics" type="primary" :icon="Plus" @click="openCreateDrawer">
             {{ t('analytics.createMetric') }}
           </el-button>
         </div>
       </div>
 
+      <el-empty v-if="!canViewMetrics" :description="t('analytics.noAccess')" />
+
       <el-alert
-        v-if="activeJob"
+        v-if="canViewMetrics && activeJob"
         :type="jobAlertType"
         :closable="isTerminalStatus(activeJob.status)"
         show-icon
@@ -27,7 +29,7 @@
       >
         <template #title>
           <div class="flex flex-wrap items-center gap-2">
-            <span>{{ metricName(activeJob.metricSystemName) }}</span>
+            <span>{{ t('analytics.metricCalculationUpdated') }}</span>
             <el-tag :type="statusTagType(activeJob.status)" effect="light">
               {{ statusLabel(activeJob.status) }}
             </el-tag>
@@ -41,7 +43,7 @@
         </div>
       </el-alert>
 
-      <div class="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div v-if="canViewMetrics" class="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div class="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 class="text-base font-medium text-slate-900">{{ t('analytics.availableMetrics') }}</h2>
@@ -131,17 +133,17 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column :label="t('common.status')" min-width="165">
+            <el-table-column :label="t('common.labels.status')" min-width="165">
               <template #default="{ row }">
                 <div class="flex flex-col items-start gap-1">
                   <el-tag :type="metricTagType(row)" effect="light">
                     {{ metricTagLabel(row) }}
                   </el-tag>
-                  <span v-if="row.lastCalculationJob" class="text-xs text-slate-500">
-                    {{ t('analytics.lastCalculation', { status: statusLabel(row.lastCalculationJob.status) }) }}
+                  <span v-if="row.lastMetricJob" class="text-xs text-slate-500">
+                    {{ t('analytics.lastCalculation', { status: statusLabel(row.lastMetricJob.status) }) }}
                   </span>
-                  <span v-if="row.lastCalculationJob" class="text-xs text-slate-400">
-                    {{ formatDateTime(row.lastCalculationJob.updatedAt) }}
+                  <span v-if="row.lastMetricJob" class="text-xs text-slate-400">
+                    {{ formatDateTime(row.lastMetricJob.updatedAt) }}
                   </span>
                 </div>
               </template>
@@ -158,17 +160,6 @@
                 <div class="analytics-actions-stack">
                   <el-button size="small" plain class="analytics-action-button" @click="openHistoryDrawer(row)">
                     {{ t('analytics.history') }}
-                  </el-button>
-                  <el-button
-                    class="analytics-action-button"
-                    size="small"
-                    type="primary"
-                    plain
-                    :loading="isMetricRecalculating(row)"
-                    :disabled="!canRecalculateMetric(row)"
-                    @click="recalculateMetric(row)"
-                  >
-                    {{ t('analytics.recalculate') }}
                   </el-button>
                 </div>
               </template>
@@ -239,20 +230,20 @@
                   v-model="createForm.range"
                   type="datetimerange"
                   range-separator="—"
-                  :start-placeholder="t('common.start')"
-                  :end-placeholder="t('common.end')"
+                  :start-placeholder="t('analytics.start')"
+                  :end-placeholder="t('analytics.end')"
                   format="DD.MM.YYYY HH:mm"
                   value-format="YYYY-MM-DDTHH:mm:ss"
                   class="w-full"
                 />
               </el-form-item>
 
-              <el-form-item :label="t('common.currency')" class="analytics-drawer-form-item">
+              <el-form-item :label="t('common.labels.currency')" class="analytics-drawer-form-item">
                 <el-select
                   v-model="createForm.currencyId"
                   class="w-full"
                   filterable
-                  :placeholder="t('common.selectCurrency')"
+                  :placeholder="t('analytics.selectCurrency')"
                   :loading="isCurrenciesLoading"
                 >
                   <el-option
@@ -278,7 +269,7 @@
                       {{ t('analytics.selectProduct') }}
                     </el-button>
                     <el-button v-if="selectedProduct" plain @click="selectedProduct = null">
-                      {{ t('common.clear') }}
+                      {{ t('common.actions.reset') }}
                     </el-button>
                   </div>
                 </div>
@@ -289,8 +280,8 @@
 
         <div class="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
           <div class="flex justify-end gap-3">
-            <el-button @click="createDrawerOpen = false">{{ t('common.cancel') }}</el-button>
-            <el-button type="primary" :loading="isCreating" :disabled="!canCreateJob" @click="submitJob">
+            <el-button @click="createDrawerOpen = false">{{ t('common.actions.cancel') }}</el-button>
+            <el-button type="primary" :loading="isCreating" :disabled="!canSubmitMetric" @click="submitMetric">
               {{ t('analytics.createMetric') }}
             </el-button>
           </div>
@@ -345,7 +336,7 @@
             class="analytics-history-table"
             :empty-text="t('analytics.emptyHistory')"
           >
-            <el-table-column :label="t('common.status')" min-width="150">
+            <el-table-column :label="t('common.labels.status')" min-width="150">
               <template #default="{ row }">
                 <el-tag :type="statusTagType(row.status)" effect="light">
                   {{ statusLabel(row.status) }}
@@ -360,6 +351,11 @@
             <el-table-column :label="t('analytics.updated')" min-width="170">
               <template #default="{ row }">
                 <span class="text-sm text-slate-700">{{ formatDateTime(row.updatedAt) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('analytics.attempts')" min-width="130">
+              <template #default="{ row }">
+                <span class="text-sm text-slate-700">{{ row.attempts }} / {{ row.maxAttempts }}</span>
               </template>
             </el-table-column>
             <el-table-column :label="t('analytics.error')" min-width="220" show-overflow-tooltip>
@@ -393,11 +389,10 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import {
-  createCalculationJob,
-  getCalculationJob,
   getMetricCalculationJobs,
   getMetricInfos,
   getMetrics,
+  upsertMetric,
   type CalculationJobModel,
   type CalculationStatus,
   type MetricCalculationJobSortBy,
@@ -406,6 +401,7 @@ import {
   type MetricSortBy,
 } from '@/services/api/analytics.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
+import { usePermissions } from '@/composables/usePermissions.ts'
 import {
   startMetricCalculationHub,
   type MetricCalculationJobUpdatedEvent,
@@ -439,8 +435,10 @@ const historyLimit = ref(20)
 const historyHasNext = ref(false)
 const sortBy = ref<MetricSortBy>('createdAt_desc')
 const historySortBy = ref<MetricCalculationJobSortBy>('createdAt_desc')
-const recalculatingMetrics = ref<Record<string, boolean>>({})
 let metricHubConnection: HubConnection | null = null
+const { hasPermission } = usePermissions()
+const canViewMetrics = computed(() => hasPermission('METRICS_GET'))
+const canCreateMetrics = computed(() => canViewMetrics.value && hasPermission('METRICS_CREATE'))
 
 const sortOptions = computed<Array<{ label: string, value: MetricSortBy }>>(() => [
   { label: t('analytics.sort.createdDesc'), value: 'createdAt_desc' },
@@ -470,8 +468,9 @@ const createForm = reactive<{
   range: defaultRange(),
 })
 
-const canCreateJob = computed(() => Boolean(
-  createForm.metricSystemName
+const canSubmitMetric = computed(() => Boolean(
+  canCreateMetrics.value
+  && createForm.metricSystemName
   && createForm.currencyId
   && createForm.range.length === 2
   && createForm.range[0]
@@ -539,25 +538,6 @@ function formatShortDateTime(value: string): string {
   })
 }
 
-function metricRowKey(metric: MetricModel): string {
-  return metric.id
-}
-
-function isMetricRecalculating(metric: MetricModel): boolean {
-  return Boolean(recalculatingMetrics.value[metricRowKey(metric)])
-    || Boolean(metric.lastCalculationJob && !isTerminalStatus(metric.lastCalculationJob.status))
-}
-
-function canRecalculateMetric(metric: MetricModel): boolean {
-  return Boolean(metric.id)
-    && !hasMetricTag(metric, 'Disabled')
-    && !isMetricRecalculating(metric)
-}
-
-function metricName(systemName: string): string {
-  return metricInfos.value.find((metric) => metric.systemName === systemName)?.name ?? systemName
-}
-
 function statusLabel(status: CalculationStatus): string {
   return t(`analytics.statuses.${status}`) || status
 }
@@ -566,7 +546,7 @@ function statusTagType(status: CalculationStatus): TagProps['type'] {
   if (status === 'Succeeded') return 'success'
   if (status === 'Failed') return 'danger'
   if (status === 'Cancelled') return 'info'
-  if (status === 'Calculating') return 'warning'
+  if (status === 'Calculating' || status === 'Processing' || status === 'Locked') return 'warning'
   return 'primary'
 }
 
@@ -604,8 +584,12 @@ function isTerminalStatus(status: CalculationStatus): boolean {
 }
 
 function openCreateDrawer() {
+  if (!canCreateMetrics.value) return
   if (!createForm.metricSystemName && metricInfos.value.length > 0) {
     createForm.metricSystemName = metricInfos.value[0]?.systemName
+  }
+  if (!createForm.currencyId && currencies.value.length > 0) {
+    createForm.currencyId = currencies.value[0]?.id
   }
   createDrawerOpen.value = true
 }
@@ -621,6 +605,7 @@ async function clearMetricFilter() {
 }
 
 async function openHistoryDrawer(metric: MetricModel) {
+  if (!canViewMetrics.value) return
   historyMetric.value = metric
   historyPage.value = 0
   historyDrawerOpen.value = true
@@ -632,32 +617,29 @@ function onProductSelected(product: ProductSearchModel) {
 }
 
 async function loadMetricInfos() {
+  if (!canViewMetrics.value) return
   isInfoLoading.value = true
   try {
     const resp = await getMetricInfos()
     metricInfos.value = resp.metrics
-    if (!createForm.metricSystemName && resp.metrics.length > 0) {
-      createForm.metricSystemName = resp.metrics[0]?.systemName
-    }
   } finally {
     isInfoLoading.value = false
   }
 }
 
 async function loadCurrencies() {
+  if (!canViewMetrics.value) return
   isCurrenciesLoading.value = true
   try {
     const resp = await getCurrencies({ page: 0, size: 100 })
     currencies.value = resp.currencies
-    if (!createForm.currencyId && resp.currencies.length > 0) {
-      createForm.currencyId = resp.currencies[0]?.id
-    }
   } finally {
     isCurrenciesLoading.value = false
   }
 }
 
 async function loadMetrics(resetPage: boolean) {
+  if (!canViewMetrics.value) return
   if (resetPage) page.value = 0
   isMetricsLoading.value = true
   try {
@@ -675,7 +657,7 @@ async function loadMetrics(resetPage: boolean) {
 }
 
 async function loadMetricHistory() {
-  if (!historyMetric.value) return
+  if (!canViewMetrics.value || !historyMetric.value) return
 
   isHistoryLoading.value = true
   try {
@@ -710,35 +692,58 @@ function replaceMetric(updatedMetric: MetricModel): boolean {
   return true
 }
 
+function addOrReplaceVisibleMetric(metric: MetricModel) {
+  const matchesFilter = !selectedMetricSystemName.value || selectedMetricSystemName.value === metric.systemName
+  const index = metrics.value.findIndex((item) => item.id === metric.id)
+
+  if (!matchesFilter) {
+    if (index >= 0) metrics.value.splice(index, 1)
+    return
+  }
+
+  if (index >= 0) {
+    metrics.value.splice(index, 1, metric)
+    return
+  }
+
+  metrics.value.unshift(metric)
+  if (metrics.value.length > limit.value) {
+    metrics.value.pop()
+    hasNext.value = true
+  }
+}
+
 function patchMetricJob(metricId: string, job: CalculationJobModel): MetricModel | null {
   const metric = metrics.value.find((item) => item.id === metricId)
   if (!metric) return null
 
-  metric.lastCalculationJob = job
+  metric.lastMetricJob = job
   return metric
 }
 
-function clearMetricRecalculation(metricId: string | null | undefined) {
-  if (!metricId) return
-  recalculatingMetrics.value = {
-    ...recalculatingMetrics.value,
-    [metricId]: false,
-  }
-}
-
 async function handleMetricCalculationJobUpdated(event: MetricCalculationJobUpdatedEvent) {
-  const resp = await getCalculationJob(event.requestId)
+  if (!canViewMetrics.value) return
+
+  if (!event.metricId) {
+    await loadMetrics(false)
+    return
+  }
+
   const job: CalculationJobModel = {
-    ...resp.calculationJob,
-    status: event.calculationStatus,
-    errorMessage: event.errorMessage,
+    jobId: event.jobId,
+    metricId: event.metricId,
+    status: event.status,
+    attempts: event.attempts,
+    maxAttempts: event.maxAttempts,
+    errorMessage: event.errorMessage ?? null,
+    createdAt: event.createdAt ?? new Date().toISOString(),
+    updatedAt: event.updatedAt ?? new Date().toISOString(),
   }
   activeJob.value = job
 
-  const metricId = event.metricId ?? job.metricId
-  const visibleMetric = metricId ? patchMetricJob(metricId, job) : null
+  const visibleMetric = patchMetricJob(job.metricId, job)
 
-  if (historyDrawerOpen.value && historyMetric.value && metricId === historyMetric.value.id) {
+  if (historyDrawerOpen.value && historyMetric.value && job.metricId === historyMetric.value.id) {
     await loadMetricHistory()
   }
 
@@ -747,11 +752,8 @@ async function handleMetricCalculationJobUpdated(event: MetricCalculationJobUpda
   }
 
   if (job.status !== 'Succeeded') {
-    clearMetricRecalculation(metricId)
     return
   }
-
-  clearMetricRecalculation(metricId)
 
   if (visibleMetric) {
     const updatedMetric = await loadMetricSnapshot(visibleMetric)
@@ -767,12 +769,12 @@ async function handleMetricCalculationJobUpdated(event: MetricCalculationJobUpda
   await loadMetrics(true)
 }
 
-async function submitJob() {
-  if (!canCreateJob.value || !createForm.metricSystemName || !createForm.currencyId || !selectedProduct.value) return
+async function submitMetric() {
+  if (!canSubmitMetric.value || !createForm.metricSystemName || !createForm.currencyId || !selectedProduct.value) return
 
   isCreating.value = true
   try {
-    const resp = await createCalculationJob({
+    const resp = await upsertMetric({
       metricSystemName: createForm.metricSystemName,
       metricPayload: {
         currencyId: createForm.currencyId,
@@ -781,52 +783,16 @@ async function submitJob() {
         productId: selectedProduct.value.id,
       },
     })
+
+    addOrReplaceVisibleMetric(resp.metric)
     createDrawerOpen.value = false
     ElNotification.success({
-      title: t('analytics.creatingTitle'),
-      message: t('analytics.calculationStarted'),
+      title: t('analytics.metricSavedTitle'),
+      message: t('analytics.metricSavedMessage'),
     })
-    await refreshJob(resp.requestId)
   } finally {
     isCreating.value = false
   }
-}
-
-async function recalculateMetric(metric: MetricModel) {
-  if (!metric.id) {
-    ElNotification.warning({
-      title: t('analytics.recalcFailedTitle'),
-      message: t('analytics.noMetricId'),
-    })
-    return
-  }
-
-  const key = metricRowKey(metric)
-  recalculatingMetrics.value = {
-    ...recalculatingMetrics.value,
-    [key]: true,
-  }
-
-  try {
-    const resp = await createCalculationJob({
-      metricId: metric.id,
-    })
-    ElNotification.success({
-      title: t('analytics.recalculationStarted'),
-      message: t('analytics.calculationStarted'),
-    })
-    await refreshJob(resp.requestId)
-  } finally {
-    recalculatingMetrics.value = {
-      ...recalculatingMetrics.value,
-      [key]: false,
-    }
-  }
-}
-
-async function refreshJob(id: string) {
-  const resp = await getCalculationJob(id)
-  activeJob.value = resp.calculationJob
 }
 
 watch(page, async () => loadMetrics(false))
@@ -853,6 +819,8 @@ watch(historyDrawerOpen, (isOpen) => {
 })
 
 onMounted(async () => {
+  if (!canViewMetrics.value) return
+
   await Promise.all([
     loadMetricInfos(),
     loadCurrencies(),

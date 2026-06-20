@@ -5,14 +5,45 @@ import type { CalculationStatus } from '@/services/api/analytics.ts'
 import { getCurrentLocale } from '@/i18n'
 
 export interface MetricCalculationJobUpdatedEvent {
+  jobId: string
   metricId: string | null
-  requestId: string
-  calculationStatus: CalculationStatus
+  status: CalculationStatus
+  attempts: number
+  maxAttempts: number
+  createdAt?: string
+  updatedAt?: string
   errorMessage: string | null
+}
+
+interface MetricCalculationJobUpdatedDto {
+  jobId?: string
+  metricId?: string | null
+  status?: CalculationStatus
+  attempts?: number
+  maxAttempts?: number
+  createdAt?: string
+  updatedAt?: string
+  errorMessage?: string | null
+  requestId?: string
+  calculationStatus?: CalculationStatus
 }
 
 function hubUrl(): string {
   return `${apiBaseUrl}${analyticsApiPrefix}/hubs/calculation-jobs`
+}
+
+function mapEvent(event: MetricCalculationJobUpdatedDto): MetricCalculationJobUpdatedEvent {
+  const updatedAt = event.updatedAt ?? new Date().toISOString()
+  return {
+    jobId: event.jobId ?? event.requestId ?? '',
+    metricId: event.metricId ?? null,
+    status: event.status ?? event.calculationStatus ?? 'Processing',
+    attempts: event.attempts ?? 0,
+    maxAttempts: event.maxAttempts ?? 0,
+    createdAt: event.createdAt,
+    updatedAt,
+    errorMessage: event.errorMessage ?? null,
+  }
 }
 
 export async function startMetricCalculationHub(
@@ -30,8 +61,8 @@ export async function startMetricCalculationHub(
     .configureLogging(LogLevel.Warning)
     .build()
 
-  connection.on('MetricCalculationJobUpdated', (event: MetricCalculationJobUpdatedEvent) => {
-    void onUpdated(event)
+  connection.on('MetricCalculationJobUpdated', (event: MetricCalculationJobUpdatedDto) => {
+    void onUpdated(mapEvent(event))
   })
 
   await connection.start()

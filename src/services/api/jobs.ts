@@ -75,7 +75,7 @@ export interface CreateJobResponse {
   job: JobModel
 }
 
-export type JobSchemaFieldControl = 'UploadFile' | string
+export type JobSchemaFieldControl = 'UploadFile' | 'TextField' | string
 
 export interface JobSchemaField {
   name: string
