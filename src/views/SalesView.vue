@@ -171,16 +171,13 @@
             height="100%"
             highlight-current-row
             :row-class-name="saleRowClassName"
-            @current-change="selectSale"
+            @current-change="handleCurrentSaleChange"
             @sort-change="handleSortChange"
           >
             <el-table-column :label="t('sales.buyer')" min-width="180">
               <template #default="{ row }">
                 <div class="sale-buyer-cell">
-                  <span>{{ row.buyer.surname }} {{ row.buyer.name }}</span>
-                  <el-tag :type="saleStateTagType(row.state)" effect="light" size="small" round>
-                    {{ saleStateLabel(row.state) }}
-                  </el-tag>
+                  <span class="sale-buyer-name">{{ row.buyer.surname }} {{ row.buyer.name }}</span>
                 </div>
               </template>
             </el-table-column>
@@ -200,17 +197,30 @@
                 {{ row.comment || '—' }}
               </template>
             </el-table-column>
-            <el-table-column v-if="canDeleteSales" fixed="right" :label="t('common.labels.actions')" min-width="120">
+            <el-table-column v-if="canEditSales || canDeleteSales" fixed="right" :label="t('common.labels.actions')" min-width="210">
               <template #default="{ row }">
-                <el-button
-                  size="small"
-                  type="danger"
-                  :disabled="row.state === 'Deleted'"
-                  :loading="deletingSaleId === row.id"
-                  @click.stop="removeSale(row)"
-                >
-                  {{ t('common.actions.delete') }}
-                </el-button>
+                <div class="sale-actions">
+                  <el-button
+                    v-if="canEditSales"
+                    size="small"
+                    plain
+                    :disabled="row.state === 'Deleted'"
+                    :loading="editingSaleId === row.id"
+                    @click.stop="openEditSale(row)"
+                  >
+                    {{ t('common.actions.edit') }}
+                  </el-button>
+                  <el-button
+                    v-if="canDeleteSales"
+                    size="small"
+                    type="danger"
+                    :disabled="row.state === 'Deleted'"
+                    :loading="deletingSaleId === row.id"
+                    @click.stop="removeSale(row)"
+                  >
+                    {{ t('common.actions.delete') }}
+                  </el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -236,6 +246,15 @@
       @created="onSaleCreated"
     />
 
+    <EditSaleDialog
+      v-if="canEditSales"
+      v-model="editSaleDialogOpen"
+      :sale="saleToEdit"
+      :content="saleContentToEdit"
+      :currencies="currencies"
+      @updated="onSaleUpdated"
+    />
+
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProductFilter" />
   </div>
 </template>
@@ -247,6 +266,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import CreateSaleDialog from '@/components/sales/CreateSaleDialog.vue'
+import EditSaleDialog from '@/components/sales/EditSaleDialog.vue'
 import SaleDetails from '@/components/sales/SaleDetails.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
@@ -265,6 +285,7 @@ const { locale, t } = useI18n()
 const route = useRoute()
 const { hasPermission } = usePermissions()
 const canCreateSales = computed(() => hasPermission('SALES_CREATE'))
+const canEditSales = computed(() => hasPermission('SALES_EDIT'))
 const canDeleteSales = computed(() => hasPermission('SALES_DELETE'))
 const sales = ref<SaleModel[]>([])
 const salesTableRef = ref<TableInstance>()
@@ -284,10 +305,15 @@ const limit = ref(20)
 const hasNext = ref(false)
 const salesLoading = ref(false)
 const contentLoading = ref(false)
+const isSettingCurrentSale = ref(false)
 const createSaleDialogOpen = ref(false)
+const editSaleDialogOpen = ref(false)
 const productSelectorOpen = ref(false)
 const filtersDrawerOpen = ref(false)
 const deletingSaleId = ref<string>()
+const editingSaleId = ref<string>()
+const saleToEdit = ref<SaleModel>()
+const saleContentToEdit = ref<SaleContentModel[]>([])
 
 const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(() => [
   { label: t('sales.states.Draft'), value: 'Draft' },
@@ -327,16 +353,6 @@ function formatDate(value?: string | null) {
 
 function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
-}
-
-function saleStateLabel(state: SaleState) {
-  return t(`sales.states.${state}`)
-}
-
-function saleStateTagType(state: SaleState) {
-  if (state === 'Deleted') return 'danger'
-  if (state === 'Draft') return 'info'
-  return 'success'
 }
 
 function saleRowClassName({ row }: { row: SaleModel }) {
@@ -484,6 +500,23 @@ async function removeSale(sale: SaleModel) {
   }
 }
 
+async function openEditSale(sale: SaleModel) {
+  if (editingSaleId.value || sale.state === 'Deleted') return
+
+  editingSaleId.value = sale.id
+  try {
+    const resp = await getSaleContent(sale.id)
+    saleToEdit.value = sale
+    saleContentToEdit.value = resp.content
+    editSaleDialogOpen.value = true
+  } catch (error) {
+    saleContentToEdit.value = []
+    ElMessage.error(error instanceof Error ? error.message : t('sales.loadContentError'))
+  } finally {
+    editingSaleId.value = undefined
+  }
+}
+
 async function selectSaleFromRoute() {
   const saleId = typeof route.query.saleId === 'string' ? route.query.saleId : undefined
   if (!saleId) return
@@ -506,10 +539,20 @@ async function selectSaleFromRoute() {
   }
 }
 
+async function handleCurrentSaleChange(sale?: SaleModel) {
+  if (isSettingCurrentSale.value) return
+  await selectSale(sale)
+}
+
 async function selectSale(sale?: SaleModel) {
   selectedSale.value = sale
-  await nextTick()
-  salesTableRef.value?.setCurrentRow(sale)
+  isSettingCurrentSale.value = true
+  try {
+    await nextTick()
+    salesTableRef.value?.setCurrentRow(sale)
+  } finally {
+    isSettingCurrentSale.value = false
+  }
 
   if (!sale) {
     saleContent.value = []
@@ -536,6 +579,22 @@ async function onSaleCreated(sale: SaleModel) {
   await selectSale(sale)
 }
 
+async function onSaleUpdated(saleId: string) {
+  try {
+    const response = await getSale(saleId)
+    const index = sales.value.findIndex((item) => item.id === response.sale.id)
+    if (index >= 0) {
+      sales.value.splice(index, 1, response.sale)
+    } else {
+      sales.value = [response.sale, ...sales.value]
+    }
+    await selectSale(response.sale)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('sales.loadError'))
+    await loadSales(false)
+  }
+}
+
 watch(limit, async () => loadSales(true))
 watch(page, async () => loadSales(false))
 watch(dateRange, async () => loadSales(true), { deep: true })
@@ -545,6 +604,11 @@ watch(saleStates, async () => loadSales(true), { deep: true })
 watch(selectedProducts, async () => loadSales(true), { deep: true })
 watch(searchTerm, () => loadSalesDebounced())
 watch(() => route.query.saleId, async () => selectSaleFromRoute())
+watch(editSaleDialogOpen, (open) => {
+  if (open) return
+  saleToEdit.value = undefined
+  saleContentToEdit.value = []
+})
 
 onMounted(async () => {
   await Promise.all([loadCurrencies(), loadSales(true)])

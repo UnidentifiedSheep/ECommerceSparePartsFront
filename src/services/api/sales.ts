@@ -36,6 +36,18 @@ export interface CreateSaleRequest {
   confirmationCode?: string | null
 }
 
+export interface EditSaleContentRequest extends NewSaleContentRequest {
+  id?: number | null
+}
+
+export interface EditSaleRequest {
+  currencyId: number
+  saleDateTime: string
+  content: EditSaleContentRequest[]
+  comment?: string | null
+  confirmationCode?: string | null
+}
+
 export interface CreateSaleResponse {
   sale: SaleModel
 }
@@ -133,6 +145,17 @@ export async function getSaleContent(id: string): Promise<GetSaleContentResponse
 
 export async function deleteSale(id: string, rowVersion: number): Promise<void> {
   await api.delete(`/main/sales/${id}`, {
+    headers: {
+      'If-Match': rowVersion,
+    },
+  })
+}
+
+export async function editSale(id: string, rowVersion: number, req: EditSaleRequest): Promise<void> {
+  await api.put(`/main/sales/${id}`, {
+    ...req,
+    saleDateTime: toUtcDateTimeString(req.saleDateTime),
+  }, {
     headers: {
       'If-Match': rowVersion,
     },

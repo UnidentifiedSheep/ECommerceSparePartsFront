@@ -1,4 +1,5 @@
 import type { ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
+import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type {
   EditProductReservationModel,
   ProductReservationHistoryModel,
@@ -59,6 +60,14 @@ export interface GetProductSizeResponse {
 
 export interface GetProductWeightResponse {
   productWeight: ProductWeightModel
+}
+
+export interface GetProductsByIdsResponse {
+  products: ProductSearchModel[]
+}
+
+export interface GetProductStockResponse {
+  stock: number
 }
 
 export interface GetProductReservationsRequest {
@@ -172,6 +181,27 @@ export async function getProductReservations(req: GetProductReservationsRequest)
   return {
     reservations: resp.data.reservations.map(mapProductReservationModel),
   }
+}
+
+export async function getProductsByIds(ids: number[]): Promise<GetProductsByIdsResponse> {
+  const params = new URLSearchParams()
+  ids.forEach((id) => params.append('id', String(id)))
+
+  const resp = await api.get<GetProductsByIdsResponse>('/main/products', {
+    params,
+  })
+
+  return resp.data
+}
+
+export async function getProductStock(productId: number, storageName?: string | null): Promise<GetProductStockResponse> {
+  const resp = await api.get<GetProductStockResponse>(`/main/products/${productId}/stock`, {
+    params: {
+      storageName: storageName || undefined,
+    },
+  })
+
+  return resp.data
 }
 
 export async function createProductReservation(req: CreateProductReservationRequest): Promise<CreateProductReservationResponse> {

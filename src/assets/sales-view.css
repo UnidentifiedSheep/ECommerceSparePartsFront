@@ -165,15 +165,19 @@
 
 .sale-buyer-cell {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
   min-width: 0;
 }
 
-.sale-buyer-cell span {
+.sale-buyer-name {
+  display: block;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 :deep(.sale-table-row) {
@@ -214,6 +218,18 @@
 
 :deep(.sale-table-row:hover > td) {
   background: #ecfdf5 !important;
+}
+
+.sale-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.sale-actions :deep(.el-button) {
+  margin-left: 0;
 }
 
 :deep(.sale-table-row--completed:hover > td) {
