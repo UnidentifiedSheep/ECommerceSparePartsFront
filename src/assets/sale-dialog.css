@@ -197,8 +197,34 @@
   min-height: 32px;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
+}
+
+.force-payment-control {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.force-payment-control span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.force-payment-help {
+  color: #94a3b8;
+  cursor: help;
+  font-size: 14px;
+}
+
+.sale-discount-field {
+  padding-left: 12px;
 }
 
 .discount-control strong,
@@ -210,9 +236,25 @@
 
 .discount-editor {
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 4px;
   min-width: 0;
+}
+
+.discount-apply-all {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.discount-apply-all span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .discount-value {
@@ -542,9 +584,7 @@
   }
 
   .discount-control {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
+    gap: 12px;
   }
 
   .discount-mode {
@@ -575,6 +615,10 @@
   .span-6,
   .span-12 {
     grid-column: 1;
+  }
+
+  .sale-discount-field {
+    padding-left: 0;
   }
 
   .dialog-footer {

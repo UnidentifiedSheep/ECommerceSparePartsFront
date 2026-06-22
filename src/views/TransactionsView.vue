@@ -779,9 +779,44 @@ async function confirmCancelTransaction(transaction: BalanceTransactionModel) {
     detailsOpen.value = false
     await reloadTransactions()
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : t('transactions.cancelError'))
+    const shouldForceCancel = await confirmForceCancelTransaction(error)
+    if (shouldForceCancel) {
+      await forceCancelTransaction(transaction)
+    }
   } finally {
     cancellingTransactionId.value = null
+  }
+}
+
+async function confirmForceCancelTransaction(error: unknown) {
+  try {
+    await ElMessageBox.confirm(
+      error instanceof Error
+        ? t('transactions.forceCancelConfirmWithReason', { reason: error.message })
+        : t('transactions.forceCancelConfirm'),
+      t('transactions.forceCancelTitle'),
+      {
+        confirmButtonText: t('transactions.forceCancelTransaction'),
+        cancelButtonText: t('transactions.close'),
+        type: 'warning',
+      },
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function forceCancelTransaction(transaction: BalanceTransactionModel) {
+  cancellingTransactionId.value = transaction.id
+  try {
+    await deleteBalanceTransaction(transaction.id, true)
+    ElMessage.success(t('transactions.cancelled'))
+    selectedTransaction.value = null
+    detailsOpen.value = false
+    await reloadTransactions()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.cancelError'))
   }
 }
 
@@ -854,6 +889,8 @@ function transactionStatusValues(status: TransactionStatus) {
   if ((numericStatus & 2) === 2) values.push('CompletionApplied')
   if ((numericStatus & 4) === 4) values.push('Reversed')
   if ((numericStatus & 8) === 8) values.push('ReversedApplied')
+  if ((numericStatus & 16) === 16) values.push('CompletionProfileApplied')
+  if ((numericStatus & 32) === 32) values.push('ReversalProfileApplied')
   return values
 }
 
@@ -865,20 +902,24 @@ function transactionStatusLabelByValue(status: string) {
     CompletionApplied: t('transactions.statuses.CompletionApplied'),
     Reversed: t('transactions.statuses.Reversed'),
     ReversedApplied: t('transactions.statuses.ReversedApplied'),
+    CompletionProfileApplied: t('transactions.statuses.CompletionProfileApplied'),
+    ReversalProfileApplied: t('transactions.statuses.ReversalProfileApplied'),
     0: t('transactions.statuses.Pending'),
     1: t('transactions.statuses.Completed'),
     2: t('transactions.statuses.CompletionApplied'),
     4: t('transactions.statuses.Reversed'),
     8: t('transactions.statuses.ReversedApplied'),
+    16: t('transactions.statuses.CompletionProfileApplied'),
+    32: t('transactions.statuses.ReversalProfileApplied'),
   }
 
   return labels[value] ?? value
 }
 
 function transactionStatusTagType(status: string) {
-  if (status === 'Reversed' || status === 'ReversedApplied' || status === '4' || status === '8') return 'danger'
+  if (status === 'Reversed' || status === 'ReversedApplied' || status === 'ReversalProfileApplied' || status === '4' || status === '8' || status === '32') return 'danger'
   if (status === 'Pending' || status === '0') return 'warning'
-  if (status === 'CompletionApplied' || status === '2') return 'success'
+  if (status === 'CompletionApplied' || status === 'CompletionProfileApplied' || status === '2' || status === '16') return 'success'
   return 'info'
 }
 
@@ -886,8 +927,10 @@ function isReversedStatus(status: TransactionStatus) {
   return transactionStatusValues(status).some((value) => (
     value === 'Reversed'
     || value === 'ReversedApplied'
+    || value === 'ReversalProfileApplied'
     || value === '4'
     || value === '8'
+    || value === '32'
   ))
 }
 

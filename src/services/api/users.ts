@@ -1,4 +1,5 @@
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
+import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import { mapUserModel, type UserModel } from '@/models/userModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
@@ -81,6 +82,21 @@ export interface GetUserStoragesResponse {
 
 export interface GetUserDiscountResponse {
   discount: number
+}
+
+export interface UserFinancialProfileModel {
+  balance: number
+}
+
+export interface UserBalanceModel {
+  currency: CurrencyModel
+  balance: number
+}
+
+export interface GetUserFinancialInfoResponse {
+  financialProfile: UserFinancialProfileModel | null
+  baseCurrency: CurrencyModel
+  balances: UserBalanceModel[]
 }
 
 export interface AddStorageToUserRequest {
@@ -166,6 +182,15 @@ export async function getUserStorages(userId: string, page = 0, limit = 100): Pr
 export async function getUserDiscount(userId: string): Promise<GetUserDiscountResponse> {
   const resp = await api.get<GetUserDiscountResponse>(`/main/users/${userId}/discount`)
   return resp.data
+}
+
+export async function getUserFinancialInfo(userId: string): Promise<GetUserFinancialInfoResponse> {
+  const resp = await api.get<GetUserFinancialInfoResponse>(`/main/users/${userId}/finances`)
+  return {
+    financialProfile: resp.data.financialProfile,
+    baseCurrency: resp.data.baseCurrency,
+    balances: resp.data.balances ?? [],
+  }
 }
 
 export async function changeUserDiscount(req: ChangeUserDiscountRequest) {

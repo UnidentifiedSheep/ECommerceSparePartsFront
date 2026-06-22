@@ -8,34 +8,41 @@
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
       <el-form-item :label="t('transactions.operationType')" prop="operationMode">
         <el-radio-group v-model="form.operationMode" class="transaction-mode-group">
-          <el-radio-button label="UserToUser">{{ t('transactions.userToUser') }}</el-radio-button>
           <el-radio-button label="SystemToUser">{{ t('transactions.systemToUser') }}</el-radio-button>
           <el-radio-button label="UserToSystem">{{ t('transactions.userToSystem') }}</el-radio-button>
         </el-radio-group>
       </el-form-item>
 
-      <template v-if="form.operationMode === 'UserToUser'">
-        <el-form-item :label="t('transactions.sender')" prop="senderId">
-          <UserSelector
-            v-model:selected-user="sender"
-            :place-holder="t('transactions.selectSender')"
-          />
-        </el-form-item>
-
-        <el-form-item :label="t('transactions.receiver')" prop="receiverId">
-          <UserSelector
-            v-model:selected-user="receiver"
-            :place-holder="t('transactions.selectReceiver')"
-          />
-        </el-form-item>
-      </template>
-
-      <el-form-item v-else :label="systemUserLabel" prop="userId">
+      <el-form-item :label="systemUserLabel" prop="userId">
         <UserSelector
           v-model:selected-user="systemTransactionUser"
           :place-holder="systemUserPlaceholder"
         />
       </el-form-item>
+
+      <div v-if="systemTransactionUser" class="transaction-finances" v-loading="isFinancialInfoLoading">
+        <template v-if="financialInfo">
+          <div class="finance-main">
+            <span>{{ t('transactions.financialBalance') }}</span>
+            <strong :class="financeAmountClass(financialBalance)">
+              {{ formatFinanceAmount(financialBalance, financialInfo.baseCurrency) }}
+            </strong>
+            <small>{{ financialBalanceHint }}</small>
+          </div>
+          <div v-if="financialInfo.balances.length > 0" class="finance-balances">
+            <div
+              v-for="balance in financialInfo.balances"
+              :key="balance.currency.id"
+            >
+              <span>{{ balance.currency.shortName }}</span>
+              <strong :class="financeAmountClass(balance.balance)">
+                {{ formatFinanceAmount(balance.balance, balance.currency) }}
+              </strong>
+            </div>
+          </div>
+        </template>
+        <span v-else-if="financialInfoError" class="finance-error">{{ financialInfoError }}</span>
+      </div>
 
       <div class="transaction-form-grid">
         <el-form-item :label="t('common.labels.currency')" prop="currencyId">
@@ -71,6 +78,13 @@
           class="w-full"
         />
       </el-form-item>
+
+      <el-form-item :label="t('transactions.forcePayment')">
+        <div class="transaction-force-payment">
+          <el-switch v-model="form.forcePayment" />
+          <span>{{ t('transactions.forcePaymentHint') }}</span>
+        </div>
+      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -89,23 +103,20 @@ import UserSelector from '@/components/selectors/UserSelector.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import {
-  createBalanceTransaction,
   createSystemBalanceTransaction,
   type SystemTransactionDirection,
 } from '@/services/api/balances.ts'
+import { getUserFinancialInfo, type GetUserFinancialInfoResponse } from '@/services/api/users.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
-type TransactionOperationMode = 'UserToUser' | SystemTransactionDirection
-
 interface CreateTransactionForm {
-  operationMode: TransactionOperationMode
-  senderId: string
-  receiverId: string
+  operationMode: SystemTransactionDirection
   userId: string
   amount: number
   currencyId: number
   transactionDateTime: string
+  forcePayment: boolean
 }
 
 const props = defineProps<{
@@ -118,26 +129,27 @@ const emit = defineEmits<{
   created: []
 }>()
 
-const { t } = useI18n()
+const { locale, t } = useI18n()
 const dialogOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
 })
 
 const formRef = ref<FormInstance>()
-const sender = ref<UserModel>()
-const receiver = ref<UserModel>()
 const systemTransactionUser = ref<UserModel>()
 const isSubmitting = ref(false)
+const isFinancialInfoLoading = ref(false)
+const financialInfo = ref<GetUserFinancialInfoResponse | null>(null)
+const financialInfoError = ref('')
+let financialInfoRequestId = 0
 
 const form = reactive<CreateTransactionForm>({
-  operationMode: 'UserToUser',
-  senderId: '',
-  receiverId: '',
+  operationMode: 'SystemToUser',
   userId: '',
   amount: 0.01,
   currencyId: 0,
   transactionDateTime: toLocalDateTimeInputValue(new Date()),
+  forcePayment: false,
 })
 
 const systemUserLabel = computed(() => (
@@ -146,30 +158,18 @@ const systemUserLabel = computed(() => (
 const systemUserPlaceholder = computed(() => (
   form.operationMode === 'SystemToUser' ? t('transactions.selectReceiver') : t('transactions.selectSender')
 ))
+const financialBalance = computed(() => financialInfo.value?.financialProfile?.balance ?? 0)
+const financialBalanceHint = computed(() => {
+  if (financialBalance.value < 0) return t('transactions.userOwesUs')
+  if (financialBalance.value > 0) return t('transactions.weOweUser')
+  return t('transactions.noDebt')
+})
 const rules = computed<FormRules<CreateTransactionForm>>(() => ({
   operationMode: [{ required: true, message: t('transactions.selectOperationType'), trigger: 'change' }],
-  senderId: [
-    {
-      validator: (_rule, value, callback) => {
-        if (form.operationMode !== 'UserToUser' || value) callback()
-        else callback(new Error(t('transactions.selectSender')))
-      },
-      trigger: 'change',
-    },
-  ],
-  receiverId: [
-    {
-      validator: (_rule, value, callback) => {
-        if (form.operationMode !== 'UserToUser' || value) callback()
-        else callback(new Error(t('transactions.selectReceiver')))
-      },
-      trigger: 'change',
-    },
-  ],
   userId: [
     {
       validator: (_rule, value, callback) => {
-        if (form.operationMode === 'UserToUser' || value) callback()
+        if (value) callback()
         else callback(new Error(t('transactions.selectUser')))
       },
       trigger: 'change',
@@ -196,26 +196,15 @@ const rules = computed<FormRules<CreateTransactionForm>>(() => ({
   transactionDateTime: [{ required: true, message: t('transactions.selectDateTime'), trigger: 'change' }],
 }))
 
-watch(sender, (user) => {
-  form.senderId = user?.id ?? ''
-})
-
-watch(receiver, (user) => {
-  form.receiverId = user?.id ?? ''
-})
-
 watch(systemTransactionUser, (user) => {
   form.userId = user?.id ?? ''
+  void loadFinancialInfo(user?.id)
 })
 
 watch(() => form.operationMode, () => {
-  sender.value = undefined
-  receiver.value = undefined
   systemTransactionUser.value = undefined
-  form.senderId = ''
-  form.receiverId = ''
   form.userId = ''
-  formRef.value?.clearValidate(['senderId', 'receiverId', 'userId'])
+  formRef.value?.clearValidate(['userId'])
 })
 
 watch(dialogOpen, (open) => {
@@ -228,30 +217,16 @@ async function submit() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
-  if (form.operationMode === 'UserToUser' && form.senderId === form.receiverId) {
-    ElMessage.warning(t('transactions.sameUsers'))
-    return
-  }
-
   isSubmitting.value = true
   try {
-    if (form.operationMode === 'UserToUser') {
-      await createBalanceTransaction({
-        senderId: form.senderId,
-        receiverId: form.receiverId,
-        amount: form.amount,
-        currencyId: form.currencyId,
-        transactionDateTime: toUtcDateTimeString(form.transactionDateTime),
-      })
-    } else {
-      await createSystemBalanceTransaction({
-        userId: form.userId,
-        direction: form.operationMode,
-        amount: form.amount,
-        currencyId: form.currencyId,
-        transactionDateTime: toUtcDateTimeString(form.transactionDateTime),
-      })
-    }
+    await createSystemBalanceTransaction({
+      userId: form.userId,
+      direction: form.operationMode,
+      amount: form.amount,
+      currencyId: form.currencyId,
+      transactionDateTime: toUtcDateTimeString(form.transactionDateTime),
+      forcePayment: form.forcePayment,
+    })
 
     ElMessage.success(t('transactions.created'))
     emit('created')
@@ -264,24 +239,58 @@ async function submit() {
 }
 
 function resetForm() {
-  sender.value = undefined
-  receiver.value = undefined
   systemTransactionUser.value = undefined
-  form.operationMode = 'UserToUser'
-  form.senderId = ''
-  form.receiverId = ''
+  financialInfo.value = null
+  financialInfoError.value = ''
+  form.operationMode = 'SystemToUser'
   form.userId = ''
   form.amount = 0.01
   form.currencyId = props.currencies[0]?.id ?? 0
   form.transactionDateTime = toLocalDateTimeInputValue(new Date())
+  form.forcePayment = false
   formRef.value?.clearValidate()
+}
+
+async function loadFinancialInfo(userId?: string) {
+  const requestId = ++financialInfoRequestId
+  financialInfo.value = null
+  financialInfoError.value = ''
+  if (!userId) return
+
+  isFinancialInfoLoading.value = true
+  try {
+    const response = await getUserFinancialInfo(userId)
+    if (requestId !== financialInfoRequestId) return
+    financialInfo.value = response
+  } catch (error) {
+    if (requestId !== financialInfoRequestId) return
+    financialInfoError.value = error instanceof Error ? error.message : t('transactions.loadFinancialInfoError')
+  } finally {
+    if (requestId === financialInfoRequestId) {
+      isFinancialInfoLoading.value = false
+    }
+  }
+}
+
+function formatFinanceAmount(value: number, currency: CurrencyModel) {
+  return `${value.toLocaleString(locale.value, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })} ${currency.currencySign || currency.shortName}`.trim()
+}
+
+function financeAmountClass(value: number) {
+  return {
+    'finance-negative': value < 0,
+    'finance-positive': value > 0,
+  }
 }
 </script>
 
 <style scoped>
 .transaction-mode-group {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
 }
 
@@ -293,6 +302,80 @@ function resetForm() {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 180px;
   gap: 12px;
+}
+
+.transaction-finances {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.finance-main {
+  display: grid;
+  gap: 3px;
+}
+
+.finance-main span,
+.finance-balances span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.finance-main strong {
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.finance-main small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.finance-balances {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.finance-balances div {
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+}
+
+.finance-balances strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.finance-negative {
+  color: #dc2626 !important;
+}
+
+.finance-positive {
+  color: #047857 !important;
+}
+
+.finance-error {
+  color: #dc2626;
+  font-size: 13px;
+}
+
+.transaction-force-payment {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 10px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.3;
 }
 
 :deep(.el-select),

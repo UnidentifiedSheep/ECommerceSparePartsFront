@@ -3,7 +3,16 @@ import type { UserModel } from '@/models/userModel.ts'
 
 export type TransactionPartyType = 'User' | 'System' | number
 export type TransactionType = 'Transfer' | 'Refund' | 'Fee' | 'Adjustment' | number
-export type TransactionStatus = 'Pending' | 'Completed' | 'CompletionApplied' | 'Reversed' | 'ReversedApplied' | string | number
+export type TransactionStatus =
+  | 'Pending'
+  | 'Completed'
+  | 'CompletionApplied'
+  | 'Reversed'
+  | 'ReversedApplied'
+  | 'CompletionProfileApplied'
+  | 'ReversalProfileApplied'
+  | string
+  | number
 export type TransactionLogicalOperator = 'And' | 'Or'
 export type TransactionSourceType = 'Manual' | 'Purchase' | 'Sale' | 'Logistic' | number
 
@@ -41,14 +50,6 @@ export interface GetBalanceTransactionsResponse {
   transactions: BalanceTransactionModel[]
 }
 
-export interface CreateBalanceTransactionRequest {
-  senderId: string
-  receiverId: string
-  amount: number
-  currencyId: number
-  transactionDateTime: string
-}
-
 export type SystemTransactionDirection = 'UserToSystem' | 'SystemToUser'
 
 export interface CreateSystemBalanceTransactionRequest {
@@ -57,6 +58,7 @@ export interface CreateSystemBalanceTransactionRequest {
   amount: number
   currencyId: number
   transactionDateTime: string
+  forcePayment?: boolean
 }
 
 export async function getBalanceTransactions(
@@ -80,14 +82,12 @@ export async function getBalanceTransactions(
   return resp.data
 }
 
-export async function createBalanceTransaction(req: CreateBalanceTransactionRequest): Promise<void> {
+export async function createSystemBalanceTransaction(req: CreateSystemBalanceTransactionRequest): Promise<void> {
   await api.post('/main/transactions', req)
 }
 
-export async function createSystemBalanceTransaction(req: CreateSystemBalanceTransactionRequest): Promise<void> {
-  await api.post('/main/transactions/system', req)
-}
-
-export async function deleteBalanceTransaction(id: string): Promise<void> {
-  await api.delete(`/main/transactions/${id}`)
+export async function deleteBalanceTransaction(id: string, forcePayment = false): Promise<void> {
+  await api.delete(`/main/transactions/${id}`, {
+    params: forcePayment ? { forcePayment } : undefined,
+  })
 }

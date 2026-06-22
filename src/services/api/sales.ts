@@ -33,6 +33,7 @@ export interface CreateSaleRequest {
   contents: NewSaleContentRequest[]
   comment?: string | null
   payedSum?: number | null
+  forcePayment?: boolean
   confirmationCode?: string | null
 }
 
@@ -45,6 +46,7 @@ export interface EditSaleRequest {
   saleDateTime: string
   content: EditSaleContentRequest[]
   comment?: string | null
+  forcePayment?: boolean
   confirmationCode?: string | null
 }
 

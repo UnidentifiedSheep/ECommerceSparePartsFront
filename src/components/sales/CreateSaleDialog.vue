@@ -102,7 +102,16 @@
               <el-input-number v-model="form.payedSum" :min="0" :precision="2" :controls="false" class="w-full" />
             </el-form-item>
 
-            <el-form-item :label="t('sales.userDiscount')" class="span-3">
+            <el-form-item :label="t('sales.forcePayment')" class="span-3">
+              <div class="force-payment-control">
+                <el-switch v-model="form.forcePayment" size="small" />
+                <el-tooltip :content="t('sales.forcePaymentHint')" placement="top">
+                  <el-icon class="force-payment-help"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </div>
+            </el-form-item>
+
+            <el-form-item :label="t('sales.userDiscount')" class="span-3 sale-discount-field">
               <div class="discount-control">
                 <div v-if="!isDiscountLoading" class="discount-editor">
                   <el-input-number
@@ -140,11 +149,14 @@
                   </el-tooltip>
                 </div>
                 <span v-else>{{ t('sales.loading') }}</span>
-                <el-switch
-                  v-model="form.applyUserDiscountToAll"
-                  :disabled="!form.buyer || isDiscountLoading"
-                  :active-text="t('sales.forAll')"
-                />
+                <div class="discount-apply-all">
+                  <span>{{ t('sales.forAll') }}</span>
+                  <el-switch
+                    v-model="form.applyUserDiscountToAll"
+                    size="small"
+                    :disabled="!form.buyer || isDiscountLoading"
+                  />
+                </div>
               </div>
             </el-form-item>
 
@@ -277,7 +289,7 @@
 
 <script setup lang="ts">
 import { computed, h, reactive, ref, watch } from 'vue'
-import { Check, Close, Delete, Plus, RefreshRight } from '@element-plus/icons-vue'
+import { Check, Close, Delete, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
@@ -334,6 +346,7 @@ const form = reactive({
   saleDateTime: toLocalDateTimeInputValue(new Date()),
   comment: '',
   payedSum: undefined as number | undefined,
+  forcePayment: false,
   applyUserDiscountToAll: false,
   items: [] as SaleItemForm[],
 })
@@ -405,6 +418,7 @@ function resetForm() {
   form.saleDateTime = toLocalDateTimeInputValue(new Date())
   form.comment = ''
   form.payedSum = undefined
+  form.forcePayment = false
   form.applyUserDiscountToAll = false
   form.items = []
   backendUserDiscount.value = 0
@@ -562,6 +576,7 @@ async function save(confirmationCode?: string) {
       })),
       comment: form.comment.trim() || null,
       payedSum: form.payedSum ?? null,
+      forcePayment: form.forcePayment,
       confirmationCode: confirmationCode ?? null,
     })
 

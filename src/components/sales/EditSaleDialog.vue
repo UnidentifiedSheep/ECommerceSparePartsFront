@@ -94,7 +94,16 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item :label="t('sales.userDiscount')" class="span-3">
+            <el-form-item :label="t('sales.forcePayment')" class="span-3">
+              <div class="force-payment-control">
+                <el-switch v-model="form.forcePayment" size="small" />
+                <el-tooltip :content="t('sales.forcePaymentHint')" placement="top">
+                  <el-icon class="force-payment-help"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </div>
+            </el-form-item>
+
+            <el-form-item :label="t('sales.userDiscount')" class="span-3 sale-discount-field">
               <div class="discount-control">
                 <div v-if="!isDiscountLoading" class="discount-editor">
                   <el-input-number
@@ -132,11 +141,14 @@
                   </el-tooltip>
                 </div>
                 <span v-else>{{ t('sales.loading') }}</span>
-                <el-switch
-                  v-model="form.applyUserDiscountToAll"
-                  :disabled="isDiscountLoading"
-                  :active-text="t('sales.forAll')"
-                />
+                <div class="discount-apply-all">
+                  <span>{{ t('sales.forAll') }}</span>
+                  <el-switch
+                    v-model="form.applyUserDiscountToAll"
+                    size="small"
+                    :disabled="isDiscountLoading"
+                  />
+                </div>
               </div>
             </el-form-item>
 
@@ -268,7 +280,7 @@
 
 <script setup lang="ts">
 import { computed, h, reactive, ref, watch } from 'vue'
-import { Check, Close, Delete, Plus, RefreshRight } from '@element-plus/icons-vue'
+import { Check, Close, Delete, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
@@ -334,6 +346,7 @@ const form = reactive({
   currencyId: undefined as number | undefined,
   saleDateTime: toLocalDateTimeInputValue(new Date()),
   comment: '',
+  forcePayment: false,
   applyUserDiscountToAll: false,
   items: [] as EditSaleItemForm[],
 })
@@ -405,6 +418,7 @@ function resetForm() {
     ? toLocalDateTimeInputValue(new Date(props.sale.saleDatetime))
     : toLocalDateTimeInputValue(new Date())
   form.comment = props.sale?.comment ?? ''
+  form.forcePayment = false
   form.applyUserDiscountToAll = false
   initialCountsByProductId.value = props.content.reduce<Record<number, number>>((acc, item) => {
     if (item.product.id === undefined) return acc
@@ -669,6 +683,7 @@ async function save(confirmationCode?: string) {
         comment: item.comment.trim() || null,
       })),
       comment: form.comment.trim() || null,
+      forcePayment: form.forcePayment,
       confirmationCode: confirmationCode ?? null,
     })
 

@@ -145,20 +145,63 @@
                     <div v-if="userStorages.length === 0" class="text-sm text-slate-400">{{ t('users.noStorages') }}</div>
                   </div>
 
-                  <el-divider content-position="left">{{ t('users.permissions') }}</el-divider>
-                    <div class="flex flex-wrap gap-2">
-                      <el-tag
-                        v-for="permission in userPermissions"
-                        :key="permission"
-                        class="cursor-pointer"
-                        effect="plain"
-                        round
-                        @click="openPermission(permission)"
-                      >
-                        {{ permission }}
-                      </el-tag>
-                    <span v-if="userPermissions.length === 0" class="text-sm text-slate-400">{{ t('users.noDirectPermissions') }}</span>
-                  </div>
+                  <el-collapse v-model="openDetailsSections" class="user-details-collapse" @change="handleDetailsSectionsChange">
+                    <el-collapse-item name="finances">
+                      <template #title>
+                        <span class="text-sm font-semibold text-slate-900">{{ t('users.financialInfo') }}</span>
+                      </template>
+
+                      <div v-loading="financialInfoLoading" class="grid gap-3 pb-4">
+                        <template v-if="userFinancialInfo">
+                          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div class="text-xs uppercase tracking-wide text-slate-500">{{ t('users.financialBalance') }}</div>
+                            <div class="mt-2 text-2xl font-semibold" :class="financeAmountClass(financialBalance)">
+                              {{ formatFinanceAmount(financialBalance, userFinancialInfo.baseCurrency) }}
+                            </div>
+                            <div class="mt-1 text-sm text-slate-500">{{ financialBalanceHint }}</div>
+                          </div>
+
+                          <div v-if="userFinancialInfo.balances.length > 0" class="grid grid-cols-2 gap-3">
+                            <div
+                              v-for="balance in userFinancialInfo.balances"
+                              :key="balance.currency.id"
+                              class="rounded-xl border border-slate-200 bg-white p-3"
+                            >
+                              <div class="text-xs font-semibold text-slate-500">{{ balance.currency.shortName }}</div>
+                              <div class="mt-1 text-base font-semibold" :class="financeAmountClass(balance.balance)">
+                                {{ formatFinanceAmount(balance.balance, balance.currency) }}
+                              </div>
+                            </div>
+                          </div>
+                          <div v-else class="text-sm text-slate-400">{{ t('users.noBalances') }}</div>
+                        </template>
+
+                        <div v-else-if="financialInfoError" class="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+                          {{ financialInfoError }}
+                        </div>
+                      </div>
+                    </el-collapse-item>
+
+                    <el-collapse-item name="permissions">
+                      <template #title>
+                        <span class="text-sm font-semibold text-slate-900">{{ t('users.permissions') }}</span>
+                      </template>
+
+                      <div class="flex flex-wrap gap-2 pb-4">
+                        <el-tag
+                          v-for="permission in userPermissions"
+                          :key="permission"
+                          class="cursor-pointer"
+                          effect="plain"
+                          round
+                          @click="openPermission(permission)"
+                        >
+                          {{ permission }}
+                        </el-tag>
+                        <span v-if="userPermissions.length === 0" class="text-sm text-slate-400">{{ t('users.noDirectPermissions') }}</span>
+                      </div>
+                    </el-collapse-item>
+                  </el-collapse>
                 </div>
               </template>
 
@@ -343,16 +386,18 @@ import ProductReservationsDialog from '@/components/products/ProductReservations
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
+import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { getRoles, type RoleModel } from '@/services/api/roles.ts'
 import { getStorages } from '@/services/api/storages.ts'
-import type { UserEmailModel } from '@/services/api/users.ts'
+import type { GetUserFinancialInfoResponse, UserEmailModel } from '@/services/api/users.ts'
 import {
   addStorageToUser,
   changeUserDiscount,
   createUser,
   getEmailOptions,
   getUserDiscount,
+  getUserFinancialInfo,
   getUserFullInfo,
   getUsers,
   getUserStorages,
@@ -389,6 +434,11 @@ const userPermissions = ref<string[]>([])
 const userEmails = ref<UserEmailModel[]>([])
 const userStorages = ref<StorageModel[]>([])
 const userDiscount = ref<number>(0)
+const openDetailsSections = ref<string[]>([])
+const userFinancialInfo = ref<GetUserFinancialInfoResponse | null>(null)
+const financialInfoLoading = ref(false)
+const financialInfoError = ref('')
+let financialInfoRequestId = 0
 
 const allStorages = ref<StorageModel[]>([])
 const storageDialogOpen = ref(false)
@@ -416,6 +466,12 @@ const createUserForm = reactive({
 })
 
 const discountText = computed(() => `${(userDiscount.value * 100).toFixed(2)}%`)
+const financialBalance = computed(() => userFinancialInfo.value?.financialProfile?.balance ?? 0)
+const financialBalanceHint = computed(() => {
+  if (financialBalance.value < 0) return t('users.userOwesUs')
+  if (financialBalance.value > 0) return t('users.weOweUser')
+  return t('users.noDebt')
+})
 const filledCreateUserEmails = computed(() => (
   createUserForm.emails.filter((email) => email.email.trim() !== '')
 ))
@@ -475,6 +531,19 @@ function formatDate(value?: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)
+}
+
+function formatFinanceAmount(value: number, currency: CurrencyModel) {
+  return `${value.toLocaleString(locale.value, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })} ${currency.currencySign || currency.shortName}`.trim()
+}
+
+function financeAmountClass(value: number) {
+  if (value < 0) return 'text-red-600'
+  if (value > 0) return 'text-emerald-700'
+  return 'text-slate-900'
 }
 
 function resetFilters() {
@@ -611,6 +680,11 @@ function clearDetails() {
   userEmails.value = []
   userStorages.value = []
   userDiscount.value = 0
+  openDetailsSections.value = []
+  userFinancialInfo.value = null
+  financialInfoError.value = ''
+  financialInfoLoading.value = false
+  financialInfoRequestId += 1
 }
 
 async function selectUser(user?: UserModel) {
@@ -638,8 +712,39 @@ async function selectUser(user?: UserModel) {
     userStorages.value = storages.storages
     userDiscount.value = discount.discount
     discountFormValue.value = discount.discount * 100
+    openDetailsSections.value = []
+    userFinancialInfo.value = null
+    financialInfoError.value = ''
   } finally {
     detailsLoading.value = false
+  }
+}
+
+function handleDetailsSectionsChange(value: string | string[]) {
+  const sections = Array.isArray(value) ? value : [value]
+  if (sections.includes('finances')) {
+    void loadSelectedUserFinancialInfo()
+  }
+}
+
+async function loadSelectedUserFinancialInfo() {
+  const userId = selectedUser.value?.id
+  if (!userId || userFinancialInfo.value || financialInfoLoading.value) return
+
+  const requestId = ++financialInfoRequestId
+  financialInfoLoading.value = true
+  financialInfoError.value = ''
+  try {
+    const response = await getUserFinancialInfo(userId)
+    if (requestId !== financialInfoRequestId) return
+    userFinancialInfo.value = response
+  } catch (error) {
+    if (requestId !== financialInfoRequestId) return
+    financialInfoError.value = error instanceof Error ? error.message : t('users.loadFinancialInfoError')
+  } finally {
+    if (requestId === financialInfoRequestId) {
+      financialInfoLoading.value = false
+    }
   }
 }
 
@@ -791,5 +896,18 @@ onMounted(async () => {
 :deep(.create-user-dialog .el-dialog__body) {
   max-height: min(760px, calc(100vh - 180px));
   overflow-y: auto;
+}
+
+.user-details-collapse {
+  border-top: 1px solid rgb(226 232 240);
+  border-bottom: 0;
+}
+
+.user-details-collapse :deep(.el-collapse-item__header) {
+  background: transparent;
+}
+
+.user-details-collapse :deep(.el-collapse-item__content) {
+  padding-bottom: 0;
 }
 </style>
