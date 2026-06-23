@@ -9,17 +9,19 @@ export interface MetricCalculationJobUpdatedEvent {
   metricId: string | null
   status: CalculationStatus
   attempts: number
-  maxAttempts: number
+  maxAttempts?: number
   createdAt?: string
   updatedAt?: string
-  errorMessage: string | null
+  errorMessage?: string | null
 }
 
 interface MetricCalculationJobUpdatedDto {
   jobId?: string
+  id?: string
   metricId?: string | null
   status?: CalculationStatus
   attempts?: number
+  currentAttempt?: number
   maxAttempts?: number
   createdAt?: string
   updatedAt?: string
@@ -29,17 +31,22 @@ interface MetricCalculationJobUpdatedDto {
 }
 
 function hubUrl(): string {
-  return `${apiBaseUrl}${analyticsApiPrefix}/hubs/calculation-jobs`
+  return `${apiBaseUrl}${analyticsApiPrefix}/hubs/metrics`
 }
 
-function mapEvent(event: MetricCalculationJobUpdatedDto): MetricCalculationJobUpdatedEvent {
+function mapEvent(event: MetricCalculationJobUpdatedDto): MetricCalculationJobUpdatedEvent | null {
+  const jobId = event.jobId ?? event.id ?? event.requestId
+  const status = event.status ?? event.calculationStatus
+
+  if (!jobId || !status) return null
+
   const updatedAt = event.updatedAt ?? new Date().toISOString()
   return {
-    jobId: event.jobId ?? event.requestId ?? '',
+    jobId,
     metricId: event.metricId ?? null,
-    status: event.status ?? event.calculationStatus ?? 'Processing',
-    attempts: event.attempts ?? 0,
-    maxAttempts: event.maxAttempts ?? 0,
+    status,
+    attempts: event.attempts ?? event.currentAttempt ?? 0,
+    maxAttempts: event.maxAttempts,
     createdAt: event.createdAt,
     updatedAt,
     errorMessage: event.errorMessage ?? null,
@@ -61,9 +68,13 @@ export async function startMetricCalculationHub(
     .configureLogging(LogLevel.Warning)
     .build()
 
-  connection.on('MetricCalculationJobUpdated', (event: MetricCalculationJobUpdatedDto) => {
-    void onUpdated(mapEvent(event))
-  })
+  const handleUpdated = (payload: MetricCalculationJobUpdatedDto) => {
+    const event = mapEvent(payload)
+    if (event) void onUpdated(event)
+  }
+
+  connection.on('JobStatusUpdated', handleUpdated)
+  connection.on('MetricCalculationJobUpdated', handleUpdated)
 
   await connection.start()
   return connection

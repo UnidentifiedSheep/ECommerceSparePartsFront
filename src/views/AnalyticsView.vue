@@ -209,6 +209,8 @@
                   v-model="createForm.metricSystemName"
                   class="w-full"
                   filterable
+                  :teleported="false"
+                  popper-class="analytics-drawer-select-popper"
                   :placeholder="t('analytics.selectMetric')"
                 >
                   <el-option
@@ -234,6 +236,8 @@
                   :end-placeholder="t('analytics.end')"
                   format="DD.MM.YYYY HH:mm"
                   value-format="YYYY-MM-DDTHH:mm:ss"
+                  :teleported="false"
+                  popper-class="analytics-drawer-date-popper"
                   class="w-full"
                 />
               </el-form-item>
@@ -245,6 +249,8 @@
                   filterable
                   :placeholder="t('analytics.selectCurrency')"
                   :loading="isCurrenciesLoading"
+                  :teleported="false"
+                  popper-class="analytics-drawer-select-popper"
                 >
                   <el-option
                     v-for="currency in currencies"
@@ -721,23 +727,68 @@ function patchMetricJob(metricId: string, job: CalculationJobModel): MetricModel
   return metric
 }
 
+function patchVisibleJobByEvent(event: MetricCalculationJobUpdatedEvent): CalculationJobModel | null {
+  const updatedAt = event.updatedAt ?? new Date().toISOString()
+  const historyIndex = historyJobs.value.findIndex((job) => job.jobId === event.jobId)
+  const visibleMetric = metrics.value.find((metric) => metric.lastMetricJob?.jobId === event.jobId)
+  const sourceJob = historyIndex >= 0
+    ? historyJobs.value[historyIndex]
+    : visibleMetric?.lastMetricJob
+
+  if (!sourceJob) return null
+
+  const patchedJob: CalculationJobModel = {
+    ...sourceJob,
+    metricId: event.metricId ?? sourceJob.metricId,
+    status: event.status,
+    attempts: event.attempts,
+    maxAttempts: event.maxAttempts ?? sourceJob.maxAttempts,
+    errorMessage: event.errorMessage ?? sourceJob.errorMessage ?? null,
+    updatedAt,
+  }
+
+  if (historyIndex >= 0) {
+    historyJobs.value.splice(historyIndex, 1, patchedJob)
+  }
+
+  if (visibleMetric?.lastMetricJob?.jobId === event.jobId) {
+    visibleMetric.lastMetricJob = patchedJob
+  }
+
+  activeJob.value = patchedJob
+  return patchedJob
+}
+
 async function handleMetricCalculationJobUpdated(event: MetricCalculationJobUpdatedEvent) {
   if (!canViewMetrics.value) return
 
   if (!event.metricId) {
-    await loadMetrics(false)
+    const patchedJob = patchVisibleJobByEvent(event)
+    if (!patchedJob) {
+      await loadMetrics(false)
+      return
+    }
+
+    if (isTerminalStatus(patchedJob.status) && patchedJob.status === 'Succeeded') {
+      const visibleMetric = metrics.value.find((metric) => metric.id === patchedJob.metricId)
+      if (visibleMetric) {
+        const updatedMetric = await loadMetricSnapshot(visibleMetric)
+        if (updatedMetric) replaceMetric(updatedMetric)
+      }
+    }
     return
   }
 
+  const existingJob = patchVisibleJobByEvent(event)
   const job: CalculationJobModel = {
-    jobId: event.jobId,
+    jobId: existingJob?.jobId ?? event.jobId,
     metricId: event.metricId,
     status: event.status,
     attempts: event.attempts,
-    maxAttempts: event.maxAttempts,
-    errorMessage: event.errorMessage ?? null,
-    createdAt: event.createdAt ?? new Date().toISOString(),
-    updatedAt: event.updatedAt ?? new Date().toISOString(),
+    maxAttempts: event.maxAttempts ?? existingJob?.maxAttempts ?? 0,
+    errorMessage: event.errorMessage ?? existingJob?.errorMessage ?? null,
+    createdAt: event.createdAt ?? existingJob?.createdAt ?? new Date().toISOString(),
+    updatedAt: event.updatedAt ?? existingJob?.updatedAt ?? new Date().toISOString(),
   }
   activeJob.value = job
 
@@ -961,6 +1012,15 @@ onBeforeUnmount(async () => {
 .analytics-drawer-form-item :deep(.el-select),
 .analytics-drawer-form-item :deep(.el-date-editor) {
   width: 100%;
+}
+
+.analytics-drawer-form-item :deep(.analytics-drawer-select-popper) {
+  width: 100%;
+  min-width: 0;
+}
+
+.analytics-drawer-form-item :deep(.analytics-drawer-date-popper) {
+  max-width: calc(100vw - 40px);
 }
 
 .analytics-drawer-form-item :deep(.el-form-item__label) {
