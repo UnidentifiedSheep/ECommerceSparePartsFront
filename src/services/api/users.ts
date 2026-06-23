@@ -114,6 +114,11 @@ export interface ChangeUserDiscountRequest {
   newDiscountRate: number
 }
 
+export interface AddPermissionToUserRequest {
+  userId: string
+  permission: string
+}
+
 export async function getUsers(req: GetUsersRequest): Promise<GetUsersResponse> {
   const params = new URLSearchParams()
   const appendParam = (key: string, value: unknown) => {
@@ -197,6 +202,16 @@ export async function changeUserDiscount(req: ChangeUserDiscountRequest) {
   await api.patch(`/main/users/${req.userId}/discount`, {
     newDiscountRate: req.newDiscountRate,
   })
+}
+
+export async function addPermissionToUser(req: AddPermissionToUserRequest) {
+  await api.post(`/main/users/${req.userId}/permissions/`, {
+    permission: req.permission,
+  })
+}
+
+export async function removePermissionFromUser(req: AddPermissionToUserRequest) {
+  await api.delete(`/main/users/${req.userId}/permissions/${encodeURIComponent(req.permission)}`)
 }
 
 export async function addStorageToUser(req: AddStorageToUserRequest) {

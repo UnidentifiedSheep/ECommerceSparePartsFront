@@ -20,6 +20,11 @@ export interface ResetPasswordRequest {
   newPassword: string
 }
 
+export interface ChangePasswordRequest {
+  previousPassword: string
+  newPassword: string
+}
+
 export async function login(req: LoginRequest): Promise<LoginResponse> {
   const resp = await api.post<LoginResponse>('/main/auth/login', req)
   return resp.data
@@ -31,4 +36,8 @@ export async function sendPasswordRecoveryEmail(req: PasswordRecoveryRequest): P
 
 export async function resetPassword(req: ResetPasswordRequest): Promise<void> {
   await api.post('/main/auth/password/reset', req)
+}
+
+export async function changePassword(req: ChangePasswordRequest): Promise<void> {
+  await api.post('/main/auth/password/', req)
 }

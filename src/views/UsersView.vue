@@ -184,20 +184,45 @@
 
                     <el-collapse-item name="permissions">
                       <template #title>
-                        <span class="text-sm font-semibold text-slate-900">{{ t('users.permissions') }}</span>
+                        <div class="flex w-full items-center justify-between pr-3">
+                          <span class="text-sm font-semibold text-slate-900">{{ t('users.permissions') }}</span>
+                          <el-button
+                            size="small"
+                            type="primary"
+                            plain
+                            @click.stop="openAddPermissionDialog"
+                          >
+                            {{ t('users.addPermission') }}
+                          </el-button>
+                        </div>
                       </template>
 
                       <div class="flex flex-wrap gap-2 pb-4">
-                        <el-tag
+                        <el-tooltip
                           v-for="permission in userPermissions"
                           :key="permission"
-                          class="cursor-pointer"
-                          effect="plain"
-                          round
-                          @click="openPermission(permission)"
+                          placement="top"
+                          :show-after="300"
                         >
-                          {{ permission }}
-                        </el-tag>
+                          <template #content>
+                            <div class="max-w-[320px]">
+                              <div class="font-semibold">{{ permissionTooltipTitle(permission) }}</div>
+                              <div class="mt-1 text-xs opacity-80">{{ permission }}</div>
+                              <div class="mt-2 text-sm">{{ permissionTooltipDescription(permission) }}</div>
+                            </div>
+                          </template>
+                          <el-tag
+                            class="cursor-pointer"
+                            effect="plain"
+                            round
+                            closable
+                            :disable-transitions="true"
+                            @click="openPermission(permission)"
+                            @close="confirmRemovePermission(permission)"
+                          >
+                            {{ permission }}
+                          </el-tag>
+                        </el-tooltip>
                         <span v-if="userPermissions.length === 0" class="text-sm text-slate-400">{{ t('users.noDirectPermissions') }}</span>
                       </div>
                     </el-collapse-item>
@@ -365,6 +390,37 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="permissionDialogOpen" :title="t('users.addPermission')" width="560">
+      <el-form label-position="top">
+        <el-form-item :label="t('permissions.title')">
+          <el-select
+            v-model="permissionToAttach"
+            filterable
+            class="w-full"
+            :placeholder="t('users.selectPermission')"
+          >
+            <el-option
+              v-for="permission in attachablePermissions"
+              :key="permission.systemName"
+              :label="permissionOptionLabel(permission)"
+              :value="permission.systemName"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="permissionDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!permissionToAttach"
+          :loading="permissionAttachLoading"
+          @click="attachPermission"
+        >
+          {{ t('common.actions.add') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <ProductReservationsDialog
       v-if="selectedUser && canViewProductReservations"
       v-model="reservationsDialogOpen"
@@ -379,7 +435,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
-import { ElNotification } from 'element-plus'
+import { ElMessageBox, ElNotification } from 'element-plus'
 import { MoreFilled, View } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
@@ -390,8 +446,11 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { getRoles, type RoleModel } from '@/services/api/roles.ts'
 import { getStorages } from '@/services/api/storages.ts'
+import { getPermissions } from '@/services/api/permissions.ts'
+import type { PermissionModel } from '@/models/permissionModel.ts'
 import type { GetUserFinancialInfoResponse, UserEmailModel } from '@/services/api/users.ts'
 import {
+  addPermissionToUser,
   addStorageToUser,
   changeUserDiscount,
   createUser,
@@ -401,6 +460,7 @@ import {
   getUserFullInfo,
   getUsers,
   getUserStorages,
+  removePermissionFromUser,
   removeStorageFromUser,
 } from '@/services/api/users.ts'
 import { useI18n } from '@/i18n'
@@ -434,18 +494,24 @@ const userPermissions = ref<string[]>([])
 const userEmails = ref<UserEmailModel[]>([])
 const userStorages = ref<StorageModel[]>([])
 const userDiscount = ref<number>(0)
+const permissionsCatalog = ref<PermissionModel[]>([])
 const openDetailsSections = ref<string[]>([])
 const userFinancialInfo = ref<GetUserFinancialInfoResponse | null>(null)
 const financialInfoLoading = ref(false)
 const financialInfoError = ref('')
 let financialInfoRequestId = 0
+let permissionsCatalogRequestId = 0
+let rolesRequestId = 0
 
 const allStorages = ref<StorageModel[]>([])
 const storageDialogOpen = ref(false)
 const storageToAttach = ref<string>()
 const discountDialogOpen = ref(false)
 const reservationsDialogOpen = ref(false)
+const permissionDialogOpen = ref(false)
+const permissionAttachLoading = ref(false)
 const discountFormValue = ref<number>(0)
+const permissionToAttach = ref('')
 const createUserDialogOpen = ref(false)
 const rolesLoading = ref(false)
 const roleOptions = ref<RoleModel[]>([])
@@ -493,6 +559,13 @@ const attachableStorages = computed(() => {
   const attached = new Set(userStorages.value.map((storage) => storage.name))
   return allStorages.value.filter((storage) => !attached.has(storage.name))
 })
+const permissionsBySystemName = computed(() => new Map(
+  permissionsCatalog.value.map((permission) => [permission.systemName, permission]),
+))
+const attachablePermissions = computed(() => {
+  const attached = new Set(userPermissions.value)
+  return permissionsCatalog.value.filter((permission) => !attached.has(permission.systemName))
+})
 
 const loadUsersDebounced = useDebounceFn(async () => {
   await loadUsers(true)
@@ -519,6 +592,18 @@ function emailTypeLabel(type?: string | null) {
     default:
       return type || t('users.notSpecified')
   }
+}
+
+function permissionTooltipTitle(systemName: string) {
+  return permissionsBySystemName.value.get(systemName)?.name || systemName
+}
+
+function permissionTooltipDescription(systemName: string) {
+  return permissionsBySystemName.value.get(systemName)?.description || t('users.noPermissionDescription')
+}
+
+function permissionOptionLabel(permission: PermissionModel) {
+  return `${permission.name} (${permission.systemName})`
 }
 
 function formatDate(value?: string | null) {
@@ -620,9 +705,10 @@ function removeCreateUserPhone(index: number) {
   createUserForm.phones.splice(index, 1)
 }
 
-async function loadRoles(searchTerm?: string) {
-  if (rolesLoading.value) return
+async function loadRoles(searchTerm?: string, force = false) {
+  if (rolesLoading.value && !force) return
 
+  const requestId = ++rolesRequestId
   rolesLoading.value = true
   try {
     const resp = await getRoles({
@@ -630,9 +716,12 @@ async function loadRoles(searchTerm?: string) {
       page: 0,
       size: 100,
     })
+    if (requestId !== rolesRequestId) return
     roleOptions.value = resp.roles
   } finally {
-    rolesLoading.value = false
+    if (requestId === rolesRequestId) {
+      rolesLoading.value = false
+    }
   }
 }
 
@@ -810,6 +899,13 @@ async function loadAllStorages() {
   allStorages.value = resp.storages
 }
 
+async function loadPermissionsCatalog() {
+  const requestId = ++permissionsCatalogRequestId
+  const resp = await getPermissions()
+  if (requestId !== permissionsCatalogRequestId) return
+  permissionsCatalog.value = resp.permissions
+}
+
 function openAddStorageDialog() {
   storageToAttach.value = undefined
   storageDialogOpen.value = true
@@ -822,10 +918,67 @@ function openPermission(permission: string) {
   })
 }
 
+function openAddPermissionDialog() {
+  permissionToAttach.value = ''
+  permissionDialogOpen.value = true
+}
+
 function handleUserAction(command: string) {
   if (command === 'reservations') {
     reservationsDialogOpen.value = true
   }
+}
+
+async function attachPermission() {
+  if (!selectedUser.value || !permissionToAttach.value || permissionAttachLoading.value) return
+
+  permissionAttachLoading.value = true
+  try {
+    await addPermissionToUser({
+      userId: selectedUser.value.id,
+      permission: permissionToAttach.value,
+    })
+    if (!userPermissions.value.includes(permissionToAttach.value)) {
+      userPermissions.value = [...userPermissions.value, permissionToAttach.value]
+    }
+    permissionDialogOpen.value = false
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.permissionAdded'),
+      type: 'success',
+    })
+  } finally {
+    permissionAttachLoading.value = false
+  }
+}
+
+async function confirmRemovePermission(permission: string) {
+  if (!selectedUser.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      t('users.removePermissionConfirm', { permission }),
+      t('users.removePermissionTitle'),
+      {
+        confirmButtonText: t('common.actions.delete'),
+        cancelButtonText: t('common.actions.cancel'),
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  await removePermissionFromUser({
+    userId: selectedUser.value.id,
+    permission,
+  })
+  userPermissions.value = userPermissions.value.filter((item) => item !== permission)
+  ElNotification({
+    title: t('common.labels.success'),
+    message: t('users.permissionRemoved'),
+    type: 'success',
+  })
 }
 
 async function attachStorage() {
@@ -885,9 +1038,15 @@ watch(limit, async () => loadUsers(true))
 watch(page, async () => loadUsers(false))
 watch(searchTerm, () => loadUsersDebounced())
 watch(selectedRoleFilters, async () => loadUsers(true))
+watch(locale, async () => {
+  await Promise.all([
+    loadPermissionsCatalog(),
+    loadRoles(undefined, true),
+  ])
+})
 watch(() => route.query.userId, async () => selectUserFromRoute())
 onMounted(async () => {
-  await Promise.all([loadUsers(true), loadAllStorages(), loadRoles(), loadEmailOptions()])
+  await Promise.all([loadUsers(true), loadAllStorages(), loadRoles(), loadEmailOptions(), loadPermissionsCatalog()])
   await selectUserFromRoute()
 })
 </script>

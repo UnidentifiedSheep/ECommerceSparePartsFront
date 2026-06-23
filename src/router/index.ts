@@ -11,7 +11,9 @@ import ProductsView from '@/views/ProductsView.vue'
 import ProducersView from '@/views/ProducersView.vue'
 import PurchasesView from '@/views/PurchasesView.vue'
 import ReservationsView from '@/views/ReservationsView.vue'
+import RolesView from '@/views/RolesView.vue'
 import SalesView from '@/views/SalesView.vue'
+import SettingsView from '@/views/SettingsView.vue'
 import StoragesView from '@/views/StoragesView.vue'
 import TransactionsView from '@/views/TransactionsView.vue'
 import UsersView from '@/views/UsersView.vue'
@@ -71,6 +73,12 @@ const routes = [
         meta: { requiresAuth: true },
       },
       {
+        path: '/roles',
+        name: 'roles',
+        component: RolesView,
+        meta: { requiresAuth: true },
+      },
+      {
         path: '/producers',
         name: 'producers',
         component: ProducersView,
@@ -104,6 +112,12 @@ const routes = [
         path: '/transactions',
         name: 'transactions',
         component: TransactionsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/settings',
+        name: 'settings',
+        component: SettingsView,
         meta: { requiresAuth: true },
       },
     ],

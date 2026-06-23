@@ -26,6 +26,7 @@
         <User class="h-6 w-6 text-gray-200" />
         <template #dropdown>
           <el-dropdown-menu>
+            <el-dropdown-item :icon="Setting" @click="openSettings">{{ t('settings.title') }}</el-dropdown-item>
             <el-dropdown-item :icon="IconExit" @click="logout">{{ t('common.actions.logout') }}</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -76,6 +77,7 @@
         </template>
 
         <el-menu-item index="/users" @click="openRoute('/users')">{{ t('nav.users') }}</el-menu-item>
+        <el-menu-item index="/roles" @click="openRoute('/roles')">{{ t('nav.roles') }}</el-menu-item>
         <el-menu-item index="/permissions" @click="openRoute('/permissions')">{{ t('nav.permissions') }}</el-menu-item>
         <el-menu-item index="/currencies" @click="openRoute('/currencies')">{{ t('nav.currencies') }}</el-menu-item>
       </el-sub-menu>
@@ -96,7 +98,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataAnalysis, Key, Menu, Search, Tickets, User } from '@element-plus/icons-vue'
+import { DataAnalysis, Key, Menu, Search, Setting, Tickets, User } from '@element-plus/icons-vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import IconExit from '@/components/icons/IconExit.vue'
 import IconRoute from '@/components/icons/IconRoute.vue'
@@ -132,6 +134,10 @@ function openProductSearch() {
       size: 20,
     },
   })
+}
+
+function openSettings() {
+  router.push('/settings')
 }
 
 function logout() {
