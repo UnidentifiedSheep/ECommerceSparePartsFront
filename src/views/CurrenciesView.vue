@@ -54,11 +54,6 @@
           <el-table-column prop="currencySign" :label="t('common.labels.symbol')" min-width="120" />
         </el-table>
 
-        <template #footer>
-          <div class="flex justify-start">
-            <ZeroPagination v-model:page="page" v-model:size="limit" :has-next="hasNext" />
-          </div>
-        </template>
       </el-card>
 
       <section class="min-h-[420px] min-w-0 rounded-md border border-slate-200 bg-white shadow-sm">
@@ -170,9 +165,6 @@ const currencies = ref<CurrencyModel[]>([])
 const currencyHistory = ref<CurrencyRateHistoryModel[]>([])
 const selectedCurrency = ref<CurrencyModel>()
 const searchTerm = ref('')
-const page = ref(0)
-const limit = ref(20)
-const hasNext = ref(false)
 const historyPage = ref(0)
 const historyLimit = ref(20)
 const historyHasNext = ref(false)
@@ -222,20 +214,14 @@ const filteredCurrencies = computed(() => {
   })
 })
 
-async function loadCurrencies(resetPage: boolean) {
+async function loadCurrencies() {
   if (isLoading.value) return
 
   isLoading.value = true
   try {
-    if (resetPage) page.value = 0
-
-    const resp = await getCurrencies({
-      page: page.value,
-      size: limit.value,
-    })
+    const resp = await getCurrencies()
 
     currencies.value = resp.currencies
-    hasNext.value = resp.currencies.length === limit.value
     if (!selectedCurrency.value && resp.currencies.length > 0) {
       await selectCurrency(resp.currencies[0] as CurrencyModel)
     }
@@ -330,7 +316,7 @@ async function submitCreate() {
     })
 
     createDialogOpen.value = false
-    await loadCurrencies(true)
+    await loadCurrencies()
   } finally {
     isCreating.value = false
   }
@@ -347,18 +333,16 @@ async function submitUpdateRates() {
       message: t('currencies.ratesUpdatedMessage'),
       type: 'success',
     })
-    await loadCurrencies(false)
+    await loadCurrencies()
     await loadCurrencyHistory(false)
   } finally {
     isUpdatingRates.value = false
   }
 }
 
-watch(limit, async () => loadCurrencies(true))
-watch(page, async () => loadCurrencies(false))
 watch(historyLimit, async () => loadCurrencyHistory(true))
 watch(historyPage, async () => loadCurrencyHistory(false))
-onMounted(async () => loadCurrencies(true))
+onMounted(async () => loadCurrencies())
 </script>
 
 <style scoped>

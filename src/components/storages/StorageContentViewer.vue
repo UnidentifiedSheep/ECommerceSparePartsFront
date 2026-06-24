@@ -168,7 +168,7 @@ async function loadContent() {
 }
 
 async function loadCurrencies() {
-  const resp = await getCurrencies({ page: 0, size: 50 })
+  const resp = await getCurrencies()
   currencies.value = resp.currencies
 
   const firstCurrency = resp.currencies[0]

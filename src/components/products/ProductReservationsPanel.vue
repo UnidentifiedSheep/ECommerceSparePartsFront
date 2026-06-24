@@ -542,7 +542,7 @@ async function loadCurrencies() {
 
   isCurrenciesLoading.value = true
   try {
-    const resp = await getCurrencies({ page: 0, size: 100 })
+    const resp = await getCurrencies()
     currencies.value = resp.currencies
   } finally {
     isCurrenciesLoading.value = false

@@ -451,7 +451,7 @@ onMounted(async () => {
 
 async function loadCurrencies() {
   try {
-    const response = await getCurrencies({ page: 0, size: 100 })
+    const response = await getCurrencies()
     currencies.value = response.currencies
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('transactions.loadCurrenciesError'))

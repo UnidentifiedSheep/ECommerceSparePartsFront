@@ -811,10 +811,7 @@ async function loadCurrencyOptions() {
 
   isCurrencyOptionsLoading.value = true
   try {
-    const resp = await getCurrencies({
-      page: 0,
-      size: 100,
-    })
+    const resp = await getCurrencies()
     currencyOptions.value = resp.currencies
     if (!addStorageContentForm.currencyId) {
       addStorageContentForm.currencyId = resp.currencies[0]?.id

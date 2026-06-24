@@ -1,11 +1,6 @@
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
-export interface GetCurrenciesRequest {
-  page: number
-  size: number
-}
-
 export interface GetCurrenciesResponse {
   currencies: CurrencyModel[]
 }
@@ -40,13 +35,8 @@ export interface CreateCurrencyResponse {
   id: number
 }
 
-export async function getCurrencies(req: GetCurrenciesRequest): Promise<GetCurrenciesResponse> {
-  const resp = await api.get<GetCurrenciesResponse>('/main/currencies', {
-    params: {
-      ...req,
-      size: clampPageSize(req.size),
-    },
-  })
+export async function getCurrencies(): Promise<GetCurrenciesResponse> {
+  const resp = await api.get<GetCurrenciesResponse>('/main/currencies')
   return resp.data
 }
 
