@@ -75,7 +75,66 @@ export interface CreateJobResponse {
   job: JobModel
 }
 
-export type JobSchemaFieldControl = 'UploadFile' | 'TextField' | string
+export interface JobScheduleModel {
+  id: string
+  name: string
+  description: string | null
+  jobSystemName: string
+  inputState: string
+  maxAttempts: number
+  cron: string
+  localizedCron: string
+  lastQueuedAt: string | null
+  nextRunAt: string | null
+  enabled: boolean
+}
+
+export interface GetJobSchedulesRequest {
+  page: number
+  size: number
+  systemNames?: string[]
+  nextRunFrom?: string | null
+  nextRunTo?: string | null
+  sortBy?: string
+}
+
+export interface GetJobSchedulesResponse {
+  schedules: JobScheduleModel[]
+}
+
+export interface NewJobScheduleRequest {
+  name: string
+  description?: string | null
+  jobSystemName: string
+  inputState: string
+  maxAttempts: number
+  cron: string
+  enabled: boolean
+}
+
+export interface CreateJobScheduleResponse {
+  schedule: JobScheduleModel
+}
+
+interface PatchField<T> {
+  isSet: boolean
+  value: T
+}
+
+export interface PatchJobScheduleRequest {
+  name?: PatchField<string>
+  description?: PatchField<string | null>
+  inputState?: PatchField<string>
+  maxAttempts?: PatchField<number>
+  cron?: PatchField<string>
+  enabled?: PatchField<boolean>
+}
+
+export interface UpdateJobScheduleResponse {
+  schedule: JobScheduleModel
+}
+
+export type JobSchemaFieldControl = 'UploadFile' | 'TextField' | 'DatePicker' | 'EntitySelector' | string
 
 export interface JobSchemaField {
   name: string
@@ -85,6 +144,8 @@ export interface JobSchemaField {
   required?: boolean
   control?: JobSchemaFieldControl
   accepts?: string[]
+  dependsOnEntity?: string
+  dependsOnField?: string
 }
 
 export interface JobInitStateSchema {
@@ -133,5 +194,47 @@ export async function getServiceJobState(serviceKey: string, jobId: string): Pro
 
 export async function createServiceJob(serviceKey: string, req: CreateJobRequest): Promise<CreateJobResponse> {
   const resp = await api.post<CreateJobResponse>(`/${serviceKey}/jobs`, req)
+  return resp.data
+}
+
+export function patchField<T>(value: T): PatchField<T> {
+  return {
+    isSet: true,
+    value,
+  }
+}
+
+export async function getServiceJobSchedules(
+  serviceKey: string,
+  req: GetJobSchedulesRequest,
+): Promise<GetJobSchedulesResponse> {
+  const params = new URLSearchParams()
+  params.append('page', String(req.page))
+  params.append('size', String(req.size))
+  if (req.sortBy) params.append('sortBy', req.sortBy)
+  if (req.nextRunFrom) params.append('nextRunFrom', req.nextRunFrom)
+  if (req.nextRunTo) params.append('nextRunTo', req.nextRunTo)
+  req.systemNames?.forEach((systemName) => params.append('systemName', systemName))
+
+  const resp = await api.get<GetJobSchedulesResponse>(`/${serviceKey}/jobs/schedules`, {
+    params,
+  })
+  return resp.data
+}
+
+export async function createServiceJobSchedule(
+  serviceKey: string,
+  req: NewJobScheduleRequest,
+): Promise<CreateJobScheduleResponse> {
+  const resp = await api.post<CreateJobScheduleResponse>(`/${serviceKey}/jobs/schedules`, req)
+  return resp.data
+}
+
+export async function updateServiceJobSchedule(
+  serviceKey: string,
+  scheduleId: string,
+  patch: PatchJobScheduleRequest,
+): Promise<UpdateJobScheduleResponse> {
+  const resp = await api.patch<UpdateJobScheduleResponse>(`/${serviceKey}/jobs/schedules/${scheduleId}`, patch)
   return resp.data
 }

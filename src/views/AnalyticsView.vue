@@ -127,9 +127,9 @@
             <el-table-column :label="t('analytics.parameters')" min-width="230">
               <template #default="{ row }">
                 <div class="flex flex-col gap-1 text-sm text-slate-700">
-                  <span>{{ formatShortDateTime(row.rangeStart) }} — {{ formatShortDateTime(row.rangeEnd) }}</span>
-                  <span class="text-xs text-slate-500">{{ metricCurrencyLabel(row.currencyId) }}</span>
-                  <span class="text-xs text-slate-500">{{ metricProductLabel(row) }}</span>
+                  <span>{{ metricParametersLabel(row) }}</span>
+                  <span v-if="row.currencyId" class="text-xs text-slate-500">{{ metricCurrencyLabel(row.currencyId) }}</span>
+                  <span v-if="row.productId" class="text-xs text-slate-500">{{ metricProductLabel(row) }}</span>
                 </div>
               </template>
             </el-table-column>
@@ -227,59 +227,94 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item :label="t('analytics.period')" class="analytics-drawer-form-item">
-                <el-date-picker
-                  v-model="createForm.range"
-                  type="datetimerange"
-                  range-separator="—"
-                  :start-placeholder="t('analytics.start')"
-                  :end-placeholder="t('analytics.end')"
-                  format="DD.MM.YYYY HH:mm"
-                  value-format="YYYY-MM-DDTHH:mm:ss"
-                  :teleported="false"
-                  popper-class="analytics-drawer-date-popper"
-                  class="w-full"
-                />
-              </el-form-item>
+              <el-alert
+                v-if="schemaError"
+                type="error"
+                :closable="false"
+                :title="schemaError"
+                show-icon
+                class="mb-4"
+              />
 
-              <el-form-item :label="t('common.labels.currency')" class="analytics-drawer-form-item">
-                <el-select
-                  v-model="createForm.currencyId"
-                  class="w-full"
-                  filterable
-                  :placeholder="t('analytics.selectCurrency')"
-                  :loading="isCurrenciesLoading"
-                  :teleported="false"
-                  popper-class="analytics-drawer-select-popper"
+              <template v-else-if="schemaFields.length > 0">
+                <el-form-item
+                  v-for="field in schemaFields"
+                  :key="field.name"
+                  :label="fieldLabel(field)"
+                  :required="field.required"
+                  class="analytics-drawer-form-item"
                 >
-                  <el-option
-                    v-for="currency in currencies"
-                    :key="currency.id"
-                    :label="`${currency.shortName} (${currency.currencySign})`"
-                    :value="currency.id"
+                  <el-input
+                    v-if="field.control === 'TextField'"
+                    v-model="inputState[field.name]"
+                    clearable
+                    :placeholder="field.description || field.name"
                   />
-                </el-select>
-              </el-form-item>
 
-              <el-form-item :label="t('analytics.exactProduct')" class="analytics-drawer-form-item">
-                <div class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 pb-4 pt-3">
-                  <div v-if="selectedProduct" class="mb-4">
-                    <div class="text-sm font-medium text-slate-900">{{ selectedProduct.name }}</div>
-                    <div class="mt-1 text-xs text-slate-500">{{ selectedProduct.sku }}</div>
-                  </div>
-                  <div v-else class="mb-4 text-sm text-slate-500">
-                    {{ t('analytics.productRequired') }}
-                  </div>
-                  <div class="flex flex-wrap gap-3">
-                    <el-button :icon="Search" @click="productDialogOpen = true">
-                      {{ t('analytics.selectProduct') }}
-                    </el-button>
-                    <el-button v-if="selectedProduct" plain @click="selectedProduct = null">
-                      {{ t('common.actions.reset') }}
-                    </el-button>
-                  </div>
-                </div>
-              </el-form-item>
+                  <el-date-picker
+                    v-else-if="field.control === 'DatePicker'"
+                    v-model="inputState[field.name]"
+                    type="date"
+                    format="DD.MM.YYYY"
+                    value-format="YYYY-MM-DD"
+                    :teleported="false"
+                    popper-class="analytics-drawer-date-popper"
+                    class="w-full"
+                    :placeholder="field.description || field.name"
+                  />
+
+                  <template v-else-if="field.control === 'EntitySelector'">
+                    <el-select
+                      v-if="isSupportedEntitySelector(field)"
+                      v-model="inputState[field.name]"
+                      filterable
+                      clearable
+                      :remote="field.dependsOnEntity === 'Product'"
+                      :remote-method="(query: string) => searchEntityOptions(field, query)"
+                      class="w-full"
+                      :loading="isEntityLoading(field)"
+                      :placeholder="field.description || field.name"
+                      :teleported="false"
+                      popper-class="analytics-drawer-select-popper"
+                      @visible-change="(isOpen: boolean) => loadEntityOptionsOnOpen(field, isOpen)"
+                    >
+                      <el-option
+                        v-for="option in entityOptions(field)"
+                        :key="String(entityOptionValue(field, option))"
+                        :label="entityOptionLabel(field, option)"
+                        :value="entityOptionValue(field, option)"
+                      />
+                    </el-select>
+                    <el-input
+                      v-else
+                      v-model="inputState[field.name]"
+                      :placeholder="field.description || field.name"
+                    />
+                  </template>
+
+                  <el-switch
+                    v-else-if="field.type === 'boolean'"
+                    v-model="inputState[field.name]"
+                  />
+
+                  <el-input-number
+                    v-else-if="isNumberField(field)"
+                    v-model="inputState[field.name]"
+                    class="w-full"
+                    controls-position="right"
+                  />
+
+                  <el-input
+                    v-else
+                    v-model="inputState[field.name]"
+                    :placeholder="field.description || field.name"
+                  />
+
+                  <div v-if="field.description" class="mt-1 text-xs text-slate-500">{{ field.description }}</div>
+                </el-form-item>
+              </template>
+
+              <el-empty v-else :description="t('analytics.noInput')" />
             </el-form>
           </fieldset>
         </div>
@@ -380,17 +415,15 @@
       </div>
     </el-drawer>
 
-    <ProductSelectorDialog v-model="productDialogOpen" @select="onProductSelected" />
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { ElNotification, type TagProps } from 'element-plus'
+import { ElMessage, ElNotification, type TagProps } from 'element-plus'
 import type { HubConnection } from '@microsoft/signalr'
-import { Close, Plus, Refresh, Search } from '@element-plus/icons-vue'
+import { Close, Plus, Refresh } from '@element-plus/icons-vue'
 import MetricDataViewer from '@/components/analytics/MetricDataViewer.vue'
-import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
@@ -403,10 +436,13 @@ import {
   type CalculationStatus,
   type MetricCalculationJobSortBy,
   type MetricInfoModel,
+  type MetricInitStateSchema,
   type MetricModel,
+  type MetricSchemaField,
   type MetricSortBy,
 } from '@/services/api/analytics.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
+import { searchProducts } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import {
   startMetricCalculationHub,
@@ -419,20 +455,22 @@ const { locale, t } = useI18n()
 const metricInfos = ref<MetricInfoModel[]>([])
 const metrics = ref<MetricModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
-const selectedProduct = ref<ProductSearchModel | null>(null)
+const products = ref<ProductSearchModel[]>([])
 const activeJob = ref<CalculationJobModel | null>(null)
 const historyMetric = ref<MetricModel | null>(null)
 const historyJobs = ref<CalculationJobModel[]>([])
 const metricInfoSearch = ref('')
 const selectedMetricSystemName = ref<string | null>(null)
-const productDialogOpen = ref(false)
 const createDrawerOpen = ref(false)
 const historyDrawerOpen = ref(false)
 const isInfoLoading = ref(false)
 const isMetricsLoading = ref(false)
 const isHistoryLoading = ref(false)
 const isCurrenciesLoading = ref(false)
+const isProductsLoading = ref(false)
 const isCreating = ref(false)
+const schemaError = ref<string | null>(null)
+const schemaFields = ref<MetricSchemaField[]>([])
 const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
@@ -441,6 +479,7 @@ const historyLimit = ref(20)
 const historyHasNext = ref(false)
 const sortBy = ref<MetricSortBy>('createdAt_desc')
 const historySortBy = ref<MetricCalculationJobSortBy>('createdAt_desc')
+const inputState = reactive<Record<string, string | number | boolean | null>>({})
 let metricHubConnection: HubConnection | null = null
 const { hasPermission } = usePermissions()
 const canViewMetrics = computed(() => hasPermission('METRICS_GET'))
@@ -464,24 +503,17 @@ const historySortOptions = computed<Array<{ label: string, value: MetricCalculat
   { label: t('analytics.sort.statusDesc'), value: 'status_desc' },
 ])
 
-const createForm = reactive<{
-  metricSystemName?: string
-  currencyId?: number
-  range: string[]
-}>({
+type EntitySelectorOption = CurrencyModel | ProductSearchModel
+
+const createForm = reactive<{ metricSystemName?: string }>({
   metricSystemName: undefined,
-  currencyId: undefined,
-  range: defaultRange(),
 })
 
 const canSubmitMetric = computed(() => Boolean(
   canCreateMetrics.value
   && createForm.metricSystemName
-  && createForm.currencyId
-  && createForm.range.length === 2
-  && createForm.range[0]
-  && createForm.range[1]
-  && selectedProduct.value,
+  && !schemaError.value
+  && schemaFields.value.every((field) => !field.required || !isEmptyValue(inputState[field.name])),
 ))
 
 const jobAlertType = computed(() => {
@@ -507,33 +539,21 @@ const selectedMetricInfo = computed(() =>
   metricInfos.value.find((metric) => metric.systemName === selectedMetricSystemName.value) ?? null,
 )
 
+const selectedCreateMetricInfo = computed(() =>
+  metricInfos.value.find((metric) => metric.systemName === createForm.metricSystemName) ?? null,
+)
+
 const metricsSubtitle = computed(() => selectedMetricInfo.value
   ? t('analytics.filterSubtitle', { name: selectedMetricInfo.value.name })
   : t('analytics.savedMetricsSubtitle'),
 )
 
-function defaultRange(): string[] {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(start.getDate() - 30)
-  return [toLocalDateTime(start), toLocalDateTime(end)]
-}
-
-function toLocalDateTime(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return [
-    date.getFullYear(),
-    pad(date.getMonth() + 1),
-    pad(date.getDate()),
-  ].join('-') + `T${pad(date.getHours())}:${pad(date.getMinutes())}:00`
-}
-
-function formatDateTime(value: string): string {
+function formatDateTime(value?: string | null): string {
   if (!value) return '-'
   return new Date(value).toLocaleString(locale.value)
 }
 
-function formatShortDateTime(value: string): string {
+function formatShortDateTime(value?: string | null): string {
   if (!value) return '-'
   return new Date(value).toLocaleString(locale.value, {
     day: '2-digit',
@@ -575,10 +595,19 @@ function metricTagType(metric: MetricModel): TagProps['type'] {
   return 'success'
 }
 
-function metricCurrencyLabel(currencyId: number): string {
+function metricCurrencyLabel(currencyId?: number | null): string {
+  if (!currencyId) return t('analytics.currencyNotFound')
   const currency = currencies.value.find((item) => item.id === currencyId)
   if (!currency) return t('analytics.currencyNotFound')
   return `${currency.shortName} (${currency.currencySign})`
+}
+
+function metricParametersLabel(metric: MetricModel): string {
+  if (metric.rangeStart || metric.rangeEnd) {
+    return `${formatShortDateTime(metric.rangeStart)} - ${formatShortDateTime(metric.rangeEnd)}`
+  }
+
+  return '-'
 }
 
 function metricProductLabel(metric: MetricModel): string {
@@ -589,14 +618,98 @@ function isTerminalStatus(status: CalculationStatus): boolean {
   return ['Succeeded', 'Failed', 'Cancelled'].includes(status)
 }
 
+function resetInputState() {
+  Object.keys(inputState).forEach((key) => {
+    delete inputState[key]
+  })
+}
+
+function parseCreateSchema() {
+  schemaError.value = null
+  schemaFields.value = []
+  resetInputState()
+
+  const rawSchema = selectedCreateMetricInfo.value?.inputSchema
+  if (!rawSchema) return
+
+  try {
+    const parsed = JSON.parse(rawSchema) as MetricInitStateSchema
+    schemaFields.value = Array.isArray(parsed.fields) ? parsed.fields : []
+    schemaFields.value.forEach((field) => {
+      inputState[field.name] = defaultFieldValue(field)
+    })
+  } catch {
+    schemaError.value = t('analytics.schemaError')
+  }
+}
+
+function defaultFieldValue(field: MetricSchemaField) {
+  if (field.control === 'TextField') return ''
+  if (field.control === 'DatePicker') return ''
+  if (field.control === 'EntitySelector') return null
+  if (field.type === 'boolean') return false
+  if (isNumberField(field)) return 0
+  return ''
+}
+
+function isNumberField(field: MetricSchemaField) {
+  if (['TextField', 'DatePicker', 'EntitySelector'].includes(field.control ?? '')) return false
+  return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
+}
+
+function fieldLabel(field: MetricSchemaField) {
+  return field.label || field.name
+}
+
+function isEmptyValue(value: unknown) {
+  return value === null || value === undefined || value === ''
+}
+
+function isSupportedEntitySelector(field: MetricSchemaField) {
+  return field.dependsOnEntity === 'Currency' || field.dependsOnEntity === 'Product'
+}
+
+function isEntityLoading(field: MetricSchemaField) {
+  if (field.dependsOnEntity === 'Currency') return isCurrenciesLoading.value
+  if (field.dependsOnEntity === 'Product') return isProductsLoading.value
+  return false
+}
+
+function entityOptions(field: MetricSchemaField): EntitySelectorOption[] {
+  if (field.dependsOnEntity === 'Currency') return currencies.value
+  if (field.dependsOnEntity === 'Product') return products.value
+  return []
+}
+
+function entityOptionValue(field: MetricSchemaField, option: EntitySelectorOption): string | number {
+  const key = field.dependsOnField ?? 'id'
+  const value = option[key as keyof EntitySelectorOption]
+  return typeof value === 'number' || typeof value === 'string'
+    ? value
+    : option.id
+}
+
+function entityOptionLabel(field: MetricSchemaField, option: EntitySelectorOption) {
+  if (field.dependsOnEntity === 'Currency') {
+    const currency = option as CurrencyModel
+    return `${currency.shortName} (${currency.currencySign})`
+  }
+
+  if (field.dependsOnEntity === 'Product') {
+    const product = option as ProductSearchModel
+    return `${product.sku} - ${product.name}`
+  }
+
+  return String(entityOptionValue(field, option))
+}
+
 function openCreateDrawer() {
   if (!canCreateMetrics.value) return
   if (!createForm.metricSystemName && metricInfos.value.length > 0) {
     createForm.metricSystemName = metricInfos.value[0]?.systemName
   }
-  if (!createForm.currencyId && currencies.value.length > 0) {
-    createForm.currencyId = currencies.value[0]?.id
-  }
+  parseCreateSchema()
+  void loadSchemaEntities()
   createDrawerOpen.value = true
 }
 
@@ -618,16 +731,15 @@ async function openHistoryDrawer(metric: MetricModel) {
   await loadMetricHistory()
 }
 
-function onProductSelected(product: ProductSearchModel) {
-  selectedProduct.value = product
-}
-
 async function loadMetricInfos() {
   if (!canViewMetrics.value) return
   isInfoLoading.value = true
   try {
     const resp = await getMetricInfos()
     metricInfos.value = resp.metrics
+    if (!createForm.metricSystemName && resp.metrics.length > 0) {
+      createForm.metricSystemName = resp.metrics[0]?.systemName
+    }
   } finally {
     isInfoLoading.value = false
   }
@@ -635,6 +747,7 @@ async function loadMetricInfos() {
 
 async function loadCurrencies() {
   if (!canViewMetrics.value) return
+  if (currencies.value.length > 0) return
   isCurrenciesLoading.value = true
   try {
     const resp = await getCurrencies()
@@ -642,6 +755,57 @@ async function loadCurrencies() {
   } finally {
     isCurrenciesLoading.value = false
   }
+}
+
+async function loadProducts(query = '') {
+  if (!canViewMetrics.value) return
+  isProductsLoading.value = true
+  try {
+    const resp = await searchProducts({
+      query: query.trim() || undefined,
+      page: 0,
+      size: 20,
+      sortBy: 'id_asc',
+    })
+    products.value = resp.products
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('analytics.loadError'))
+  } finally {
+    isProductsLoading.value = false
+  }
+}
+
+async function loadProductsIfNeeded() {
+  if (products.value.length > 0 || isProductsLoading.value) return
+  await loadProducts()
+}
+
+async function loadEntityOptionsOnOpen(field: MetricSchemaField, isOpen: boolean) {
+  if (!isOpen) return
+  await loadEntityOptions(field)
+}
+
+async function loadEntityOptions(field: MetricSchemaField) {
+  if (field.dependsOnEntity === 'Currency') {
+    await loadCurrencies()
+    return
+  }
+
+  if (field.dependsOnEntity === 'Product') {
+    await loadProductsIfNeeded()
+  }
+}
+
+function searchEntityOptions(field: MetricSchemaField, query: string) {
+  if (field.dependsOnEntity === 'Product') {
+    void loadProducts(query)
+  }
+}
+
+async function loadSchemaEntities() {
+  await Promise.all(schemaFields.value
+    .filter((field) => field.control === 'EntitySelector' && isSupportedEntitySelector(field))
+    .map((field) => loadEntityOptions(field)))
 }
 
 async function loadMetrics(resetPage: boolean) {
@@ -821,18 +985,19 @@ async function handleMetricCalculationJobUpdated(event: MetricCalculationJobUpda
 }
 
 async function submitMetric() {
-  if (!canSubmitMetric.value || !createForm.metricSystemName || !createForm.currencyId || !selectedProduct.value) return
+  if (!canCreateMetrics.value || !createForm.metricSystemName || schemaError.value) return
+
+  const missingField = schemaFields.value.find((field) => field.required && isEmptyValue(inputState[field.name]))
+  if (missingField) {
+    ElMessage.warning(t('analytics.fillField', { field: fieldLabel(missingField) }))
+    return
+  }
 
   isCreating.value = true
   try {
     const resp = await upsertMetric({
       metricSystemName: createForm.metricSystemName,
-      metricPayload: {
-        currencyId: createForm.currencyId,
-        rangeStart: createForm.range[0] as string,
-        rangeEnd: createForm.range[1] as string,
-        productId: selectedProduct.value.id,
-      },
+      inputPayload: { ...inputState },
     })
 
     addOrReplaceVisibleMetric(resp.metric)
@@ -849,6 +1014,10 @@ async function submitMetric() {
 watch(page, async () => loadMetrics(false))
 watch(limit, async () => loadMetrics(true))
 watch(sortBy, async () => loadMetrics(true))
+watch(() => createForm.metricSystemName, async () => {
+  parseCreateSchema()
+  await loadSchemaEntities()
+})
 watch(historyPage, async () => {
   if (historyDrawerOpen.value) await loadMetricHistory()
 })

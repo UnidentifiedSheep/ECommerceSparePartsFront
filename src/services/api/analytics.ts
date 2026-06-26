@@ -1,5 +1,4 @@
 import api, { analyticsApiPrefix, clampPageSize } from '@/services/api/api.ts'
-import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 export type CalculationStatus =
   | 'Pending'
@@ -17,13 +16,25 @@ export interface MetricInfoModel {
   systemName: string
   name: string
   description: string
+  inputSchema: string
 }
 
-export interface MetricPayloadRequest {
-  currencyId: number
-  rangeStart: string
-  rangeEnd: string
-  productId?: number
+export type MetricSchemaFieldControl = 'UploadFile' | 'TextField' | 'DatePicker' | 'EntitySelector' | string
+
+export interface MetricSchemaField {
+  name: string
+  type: string
+  label?: string
+  description?: string
+  required?: boolean
+  control?: MetricSchemaFieldControl
+  accepts?: string[]
+  dependsOnEntity?: string
+  dependsOnField?: string
+}
+
+export interface MetricInitStateSchema {
+  fields: MetricSchemaField[]
 }
 
 export type MetricSortBy =
@@ -87,7 +98,7 @@ export interface GetMetricCalculationJobsResponse {
 
 export interface UpsertMetricRequest {
   metricSystemName: string
-  metricPayload: MetricPayloadRequest
+  inputPayload: Record<string, string | number | boolean | null>
 }
 
 export interface UpsertMetricResponse {
@@ -112,7 +123,7 @@ export interface MetricModel {
   rangeStart: string
   rangeEnd: string
   currencyId: number
-  productId: number | null
+  productId?: number | null
   lastMetricJob: CalculationJobModel | null
 }
 
@@ -184,11 +195,7 @@ export async function getMetricCalculationJobs(
 export async function upsertMetric(req: UpsertMetricRequest): Promise<UpsertMetricResponse> {
   const resp = await api.post<{ metric: MetricDto }>(analyticsUrl('/metrics'), {
     metricSystemName: req.metricSystemName,
-    metricPayload: {
-      ...req.metricPayload,
-      rangeStart: toUtcDateTimeString(req.metricPayload.rangeStart),
-      rangeEnd: toUtcDateTimeString(req.metricPayload.rangeEnd),
-    },
+    inputPayload: JSON.stringify(req.inputPayload),
   })
   return {
     metric: mapMetric(resp.data.metric),
