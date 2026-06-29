@@ -238,3 +238,7 @@ export async function updateServiceJobSchedule(
   const resp = await api.patch<UpdateJobScheduleResponse>(`/${serviceKey}/jobs/schedules/${scheduleId}`, patch)
   return resp.data
 }
+
+export async function deleteServiceJobSchedule(serviceKey: string, scheduleId: string): Promise<void> {
+  await api.delete(`/${serviceKey}/jobs/schedules/${scheduleId}`)
+}

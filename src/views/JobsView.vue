@@ -339,11 +339,22 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="" width="120" fixed="right">
+        <el-table-column label="" width="210" fixed="right">
           <template #default="{ row }: { row: JobScheduleModel }">
-            <el-button plain size="small" @click="openEditScheduleDrawer(row)">
-              {{ t('common.actions.edit') }}
-            </el-button>
+            <div class="schedule-row-actions">
+              <el-button plain size="small" @click="openEditScheduleDrawer(row)">
+                {{ t('common.actions.edit') }}
+              </el-button>
+              <el-button
+                plain
+                type="danger"
+                size="small"
+                :loading="deletingScheduleId === row.id"
+                @click="deleteSchedule(row)"
+              >
+                {{ t('common.actions.delete') }}
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -765,12 +776,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { HubConnection } from '@microsoft/signalr'
-import { ElMessage, ElNotification } from 'element-plus'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { Filter } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import {
   createServiceJobSchedule,
   createServiceJob,
+  deleteServiceJobSchedule,
   getGatewayJobs,
   getServiceJobSchedules,
   getServiceJobs,
@@ -875,6 +887,7 @@ const selectedStateJob = ref<JobModel | null>(null)
 const jobState = ref('')
 const loadingStateJobId = ref<string | null>(null)
 const updatingScheduleId = ref<string | null>(null)
+const deletingScheduleId = ref<string | null>(null)
 const uploads = ref<UploadFileModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const products = ref<ProductSearchModel[]>([])
@@ -1562,6 +1575,13 @@ function isNumberField(field: JobSchemaField) {
   return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
 }
 
+function normalizedInputState() {
+  return Object.fromEntries(schemaFields.value.map((field): [string, string | number | boolean | null] => {
+    const value = inputState[field.name]
+    return [field.name, !field.required && isEmptyValue(value) ? null : value ?? null]
+  }))
+}
+
 function fieldLabel(field: JobSchemaField) {
   return field.label || field.name
 }
@@ -1661,7 +1681,7 @@ async function submitJob() {
   try {
     await createServiceJob(serviceKey, {
       systemName,
-      inputState: JSON.stringify(inputState),
+      inputState: JSON.stringify(normalizedInputState()),
       maxAttempts: maxAttempts.value,
     })
     ElMessage.success(t('jobs.created'))
@@ -1713,12 +1733,13 @@ async function submitSchedule() {
 
   isSavingSchedule.value = true
   try {
+    const payloadState = JSON.stringify(normalizedInputState())
     if (drawerMode.value === 'schedule-create') {
       const response = await createServiceJobSchedule(selectedJob.value.serviceKey, {
         name: scheduleForm.name.trim(),
         description: scheduleForm.description.trim() || null,
         jobSystemName: scheduleForm.jobSystemName,
-        inputState: JSON.stringify(inputState),
+        inputState: payloadState,
         maxAttempts: scheduleForm.maxAttempts,
         cron: scheduleForm.cron.trim(),
         enabled: scheduleForm.enabled,
@@ -1729,7 +1750,7 @@ async function submitSchedule() {
       const response = await updateServiceJobSchedule(selectedJob.value.serviceKey, selectedSchedule.value.id, {
         name: patchField(scheduleForm.name.trim()),
         description: patchField(scheduleForm.description.trim() || null),
-        inputState: patchField(JSON.stringify(inputState)),
+        inputState: patchField(payloadState),
         maxAttempts: patchField(scheduleForm.maxAttempts),
         cron: patchField(scheduleForm.cron.trim()),
         enabled: patchField(scheduleForm.enabled),
@@ -1853,6 +1874,36 @@ async function toggleScheduleEnabled(row: JobScheduleModel, enabled: boolean) {
     ElMessage.error(error instanceof Error ? error.message : t('jobs.scheduleSaveError'))
   } finally {
     updatingScheduleId.value = null
+  }
+}
+
+async function deleteSchedule(row: JobScheduleModel) {
+  if (!selectedScheduleService.value) return
+
+  try {
+    await ElMessageBox.confirm(t('jobs.deleteScheduleConfirm'), t('jobs.deleteScheduleTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
+      confirmButtonClass: 'el-button--danger',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  deletingScheduleId.value = row.id
+  try {
+    await deleteServiceJobSchedule(selectedScheduleService.value, row.id)
+    schedules.value = schedules.value.filter((schedule) => schedule.id !== row.id)
+    if (selectedSchedule.value?.id === row.id) {
+      selectedSchedule.value = null
+      drawerOpen.value = false
+    }
+    ElMessage.success(t('jobs.scheduleDeleted'))
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.scheduleDeleteError'))
+  } finally {
+    deletingScheduleId.value = null
   }
 }
 
@@ -2163,6 +2214,16 @@ function formatFileSize(size: number) {
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.schedule-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedule-row-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .current-jobs-footer {

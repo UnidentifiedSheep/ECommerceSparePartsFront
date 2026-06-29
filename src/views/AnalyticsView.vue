@@ -657,6 +657,13 @@ function isNumberField(field: MetricSchemaField) {
   return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
 }
 
+function normalizedInputPayload() {
+  return Object.fromEntries(schemaFields.value.map((field): [string, string | number | boolean | null] => {
+    const value = inputState[field.name]
+    return [field.name, !field.required && isEmptyValue(value) ? null : value ?? null]
+  }))
+}
+
 function fieldLabel(field: MetricSchemaField) {
   return field.label || field.name
 }
@@ -997,7 +1004,7 @@ async function submitMetric() {
   try {
     const resp = await upsertMetric({
       metricSystemName: createForm.metricSystemName,
-      inputPayload: { ...inputState },
+      inputPayload: normalizedInputPayload(),
     })
 
     addOrReplaceVisibleMetric(resp.metric)

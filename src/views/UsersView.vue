@@ -87,6 +87,13 @@
                       <template #dropdown>
                         <el-dropdown-menu>
                           <el-dropdown-item
+                            v-if="canEditUserInfo"
+                            command="editInfo"
+                            :icon="Edit"
+                          >
+                            {{ t('users.editInfo') }}
+                          </el-dropdown-item>
+                          <el-dropdown-item
                             v-if="canViewProductReservations"
                             command="reservations"
                             :icon="View"
@@ -107,9 +114,28 @@
                       <el-button class="mt-3" size="small" @click="discountDialogOpen = true">{{ t('common.actions.change') }}</el-button>
                     </div>
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
-                      <div class="text-xs uppercase tracking-wide text-slate-500">{{ t('common.labels.roles') }}</div>
+                      <div class="flex items-center justify-between gap-2">
+                        <div class="text-xs uppercase tracking-wide text-slate-500">{{ t('common.labels.roles') }}</div>
+                        <el-button
+                          v-if="canManageUserRoles"
+                          size="small"
+                          plain
+                          @click="openAddRoleDialog"
+                        >
+                          {{ t('users.addRole') }}
+                        </el-button>
+                      </div>
                       <div class="mt-2 flex flex-wrap gap-2">
-                        <el-tag v-for="role in userRoles" :key="role" round>{{ roleDisplayName(role) }}</el-tag>
+                        <el-tag
+                          v-for="role in userRoles"
+                          :key="role"
+                          round
+                          :closable="canRemoveUserRole(role)"
+                          :disable-transitions="true"
+                          @close="confirmRemoveRole(role)"
+                        >
+                          {{ roleDisplayName(role) }}
+                        </el-tag>
                         <span v-if="userRoles.length === 0" class="text-sm text-slate-400">{{ t('users.noRoles') }}</span>
                       </div>
                     </div>
@@ -118,14 +144,28 @@
                   <el-divider content-position="left">{{ t('users.contacts') }}</el-divider>
                     <div class="grid gap-3 pb-4">
                       <div v-for="email in userEmails" :key="email.email" class="rounded-xl bg-slate-50 p-3 text-sm">
-                        <div class="flex items-center gap-2">
-                          <span class="font-medium text-slate-900">{{ email.email }}</span>
-                          <el-tag v-if="email.isPrimary" size="small" type="success">{{ t('users.primary') }}</el-tag>
-                          <el-tag size="small" :type="email.confirmed ? 'success' : 'warning'">
-                            {{ email.confirmed ? t('users.confirmed') : t('users.notConfirmed') }}
-                          </el-tag>
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                              <span class="break-all font-medium text-slate-900">{{ email.email }}</span>
+                              <el-tag v-if="email.isPrimary" size="small" type="success">{{ t('users.primary') }}</el-tag>
+                              <el-tag size="small" :type="email.confirmed ? 'success' : 'warning'">
+                                {{ email.confirmed ? t('users.confirmed') : t('users.notConfirmed') }}
+                              </el-tag>
+                            </div>
+                            <div class="mt-1 text-xs text-slate-500">{{ emailTypeLabel(email.emailType) }}</div>
+                          </div>
+                          <el-button
+                            v-if="canManageUserEmails"
+                            size="small"
+                            type="danger"
+                            plain
+                            :loading="removingEmail === email.email"
+                            @click="confirmRemoveEmail(email.email)"
+                          >
+                            {{ t('common.actions.delete') }}
+                          </el-button>
                         </div>
-                        <div class="mt-1 text-xs text-slate-500">{{ emailTypeLabel(email.emailType) }}</div>
                       </div>
                       <div v-if="userEmails.length === 0" class="text-sm text-slate-400">{{ t('users.noEmails') }}</div>
                     </div>
@@ -390,6 +430,69 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="editInfoDialogOpen" :title="t('users.editInfo')" width="560">
+      <el-form label-position="top">
+        <div class="grid grid-cols-2 gap-4">
+          <el-form-item :label="t('common.labels.firstName')" required>
+            <el-input v-model="editInfoForm.name" />
+          </el-form-item>
+          <el-form-item :label="t('common.labels.surname')" required>
+            <el-input v-model="editInfoForm.surname" />
+          </el-form-item>
+        </div>
+
+        <el-form-item :label="t('common.labels.description')">
+          <el-input v-model="editInfoForm.description" type="textarea" :rows="3" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editInfoDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!canSaveEditInfo"
+          :loading="editInfoSaving"
+          @click="saveUserInfo"
+        >
+          {{ t('common.actions.save') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="roleDialogOpen" :title="t('users.addRole')" width="560">
+      <el-form label-position="top">
+        <el-form-item :label="t('common.labels.roles')">
+          <el-select
+            v-model="roleToAttach"
+            filterable
+            remote
+            reserve-keyword
+            class="w-full"
+            :placeholder="t('users.selectRole')"
+            :loading="rolesLoading"
+            :remote-method="searchRoles"
+          >
+            <el-option
+              v-for="role in attachableRoles"
+              :key="role.systemName"
+              :label="roleOptionLabel(role)"
+              :value="role.systemName"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="roleDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!roleToAttach"
+          :loading="roleAttachLoading"
+          @click="attachRole"
+        >
+          {{ t('common.actions.add') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="permissionDialogOpen" :title="t('users.addPermission')" width="560">
       <el-form label-position="top">
         <el-form-item :label="t('permissions.title')">
@@ -436,7 +539,7 @@ import type { TableInstance } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElMessageBox, ElNotification } from 'element-plus'
-import { MoreFilled, View } from '@element-plus/icons-vue'
+import { Edit, MoreFilled, View } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
@@ -451,16 +554,20 @@ import type { PermissionModel } from '@/models/permissionModel.ts'
 import type { GetUserFinancialInfoResponse, UserEmailModel } from '@/services/api/users.ts'
 import {
   addPermissionToUser,
+  addRoleToUser,
   addStorageToUser,
   changeUserDiscount,
   createUser,
+  editUserInfo,
   getEmailOptions,
   getUserDiscount,
   getUserFinancialInfo,
   getUserFullInfo,
   getUsers,
   getUserStorages,
+  removeEmailFromUser,
   removePermissionFromUser,
+  removeRoleFromUser,
   removeStorageFromUser,
 } from '@/services/api/users.ts'
 import { useI18n } from '@/i18n'
@@ -479,6 +586,9 @@ const router = useRouter()
 const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
 const canCreateUsers = computed(() => hasPermission('USERS_CREATE'))
+const canEditUserInfo = canCreateUsers
+const canManageUserEmails = computed(() => hasPermission('USERS_MAILS_CREATE'))
+const canManageUserRoles = computed(() => hasPermission('USERS_ROLES_CREATE'))
 const canViewProductReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
 const selectedUser = ref<UserModel>()
 const searchTerm = ref<string>()
@@ -507,11 +617,17 @@ const allStorages = ref<StorageModel[]>([])
 const storageDialogOpen = ref(false)
 const storageToAttach = ref<string>()
 const discountDialogOpen = ref(false)
+const editInfoDialogOpen = ref(false)
 const reservationsDialogOpen = ref(false)
 const permissionDialogOpen = ref(false)
+const roleDialogOpen = ref(false)
 const permissionAttachLoading = ref(false)
+const roleAttachLoading = ref(false)
+const editInfoSaving = ref(false)
+const removingEmail = ref('')
 const discountFormValue = ref<number>(0)
 const permissionToAttach = ref('')
+const roleToAttach = ref('')
 const createUserDialogOpen = ref(false)
 const rolesLoading = ref(false)
 const roleOptions = ref<RoleModel[]>([])
@@ -529,6 +645,12 @@ const createUserForm = reactive({
   roles: [] as string[],
   emails: [] as CreateUserEmailForm[],
   phones: [] as string[],
+})
+
+const editInfoForm = reactive({
+  name: '',
+  surname: '',
+  description: '',
 })
 
 const discountText = computed(() => `${(userDiscount.value * 100).toFixed(2)}%`)
@@ -555,6 +677,11 @@ const canSaveCreateUser = computed(() => (
   && createUserForm.surname.trim() !== ''
   && emailValidationMessage.value === ''
 ))
+const canSaveEditInfo = computed(() => (
+  editInfoForm.name.trim() !== ''
+  && editInfoForm.surname.trim() !== ''
+  && !editInfoSaving.value
+))
 const attachableStorages = computed(() => {
   const attached = new Set(userStorages.value.map((storage) => storage.name))
   return allStorages.value.filter((storage) => !attached.has(storage.name))
@@ -565,6 +692,10 @@ const permissionsBySystemName = computed(() => new Map(
 const attachablePermissions = computed(() => {
   const attached = new Set(userPermissions.value)
   return permissionsCatalog.value.filter((permission) => !attached.has(permission.systemName))
+})
+const attachableRoles = computed(() => {
+  const attached = new Set(userRoles.value)
+  return roleOptions.value.filter((role) => !isSystemRole(role) && !attached.has(role.systemName))
 })
 
 const loadUsersDebounced = useDebounceFn(async () => {
@@ -579,6 +710,27 @@ function roleDisplayName(systemName: string) {
 function roleOptionLabel(role: RoleModel) {
   const name = role.localizedName || role.systemName
   return role.description ? `${name} — ${role.description}` : name
+}
+
+function normalizeRoleName(value?: string | null) {
+  return (value ?? '').trim().toLocaleLowerCase()
+}
+
+function isSystemRole(role: RoleModel | string) {
+  if (typeof role === 'string') {
+    return normalizeRoleName(role) === 'system'
+  }
+
+  const systemName = normalizeRoleName(role.systemName)
+  const localizedName = normalizeRoleName(role.localizedName)
+  return systemName === 'system'
+    || localizedName === 'system'
+    || localizedName === 'система'
+    || localizedName === 'sistem'
+}
+
+function canRemoveUserRole(role: string) {
+  return canManageUserRoles.value && !isSystemRole(role)
 }
 
 function emailTypeLabel(type?: string | null) {
@@ -809,6 +961,17 @@ async function selectUser(user?: UserModel) {
   }
 }
 
+async function reloadSelectedUserFullInfo() {
+  if (!selectedUser.value) return
+
+  const fullInfo = await getUserFullInfo(selectedUser.value.id)
+  selectedUser.value = fullInfo.user
+  users.value = users.value.map((user) => (user.id === fullInfo.user.id ? fullInfo.user : user))
+  userRoles.value = fullInfo.roles
+  userPermissions.value = fullInfo.permissions
+  userEmails.value = fullInfo.emails
+}
+
 function handleDetailsSectionsChange(value: string | string[]) {
   const sections = Array.isArray(value) ? value : [value]
   if (sections.includes('finances')) {
@@ -923,9 +1086,76 @@ function openAddPermissionDialog() {
   permissionDialogOpen.value = true
 }
 
+async function openAddRoleDialog() {
+  roleToAttach.value = ''
+  roleDialogOpen.value = true
+  await loadRoles(undefined, true)
+}
+
+function openEditInfoDialog() {
+  if (!selectedUser.value) return
+
+  editInfoForm.name = selectedUser.value.name
+  editInfoForm.surname = selectedUser.value.surname
+  editInfoForm.description = selectedUser.value.description ?? ''
+  editInfoDialogOpen.value = true
+}
+
 function handleUserAction(command: string) {
+  if (command === 'editInfo') {
+    openEditInfoDialog()
+    return
+  }
+
   if (command === 'reservations') {
     reservationsDialogOpen.value = true
+  }
+}
+
+function applyUserInfo(userId: string, userInfo: { name: string; surname: string; description?: string | null }) {
+  const normalizedInfo = {
+    name: userInfo.name,
+    surname: userInfo.surname,
+    description: userInfo.description ?? undefined,
+  }
+
+  const patchUser = (user: UserModel): UserModel => ({
+    ...user,
+    userInfo: normalizedInfo,
+    name: normalizedInfo.name,
+    surname: normalizedInfo.surname,
+    description: normalizedInfo.description,
+  })
+
+  users.value = users.value.map((user) => (user.id === userId ? patchUser(user) : user))
+  if (selectedUser.value?.id === userId) {
+    selectedUser.value = patchUser(selectedUser.value)
+  }
+}
+
+async function saveUserInfo() {
+  if (!selectedUser.value || !canSaveEditInfo.value) return
+
+  const userId = selectedUser.value.id
+  editInfoSaving.value = true
+  try {
+    const response = await editUserInfo({
+      userId,
+      userInfo: {
+        name: editInfoForm.name.trim(),
+        surname: editInfoForm.surname.trim(),
+        description: editInfoForm.description.trim() || null,
+      },
+    })
+    applyUserInfo(userId, response.userInfo)
+    editInfoDialogOpen.value = false
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.infoUpdated'),
+      type: 'success',
+    })
+  } finally {
+    editInfoSaving.value = false
   }
 }
 
@@ -950,6 +1180,56 @@ async function attachPermission() {
   } finally {
     permissionAttachLoading.value = false
   }
+}
+
+async function attachRole() {
+  if (!selectedUser.value || !roleToAttach.value || roleAttachLoading.value) return
+
+  roleAttachLoading.value = true
+  try {
+    await addRoleToUser({
+      userId: selectedUser.value.id,
+      roleName: roleToAttach.value,
+    })
+    await reloadSelectedUserFullInfo()
+    roleDialogOpen.value = false
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.roleAdded'),
+      type: 'success',
+    })
+  } finally {
+    roleAttachLoading.value = false
+  }
+}
+
+async function confirmRemoveRole(role: string) {
+  if (!selectedUser.value || !canRemoveUserRole(role)) return
+
+  try {
+    await ElMessageBox.confirm(
+      t('users.removeRoleConfirm', { role: roleDisplayName(role) }),
+      t('users.removeRoleTitle'),
+      {
+        confirmButtonText: t('common.actions.delete'),
+        cancelButtonText: t('common.actions.cancel'),
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  await removeRoleFromUser({
+    userId: selectedUser.value.id,
+    roleName: role,
+  })
+  await reloadSelectedUserFullInfo()
+  ElNotification({
+    title: t('common.labels.success'),
+    message: t('users.roleRemoved'),
+    type: 'success',
+  })
 }
 
 async function confirmRemovePermission(permission: string) {
@@ -979,6 +1259,40 @@ async function confirmRemovePermission(permission: string) {
     message: t('users.permissionRemoved'),
     type: 'success',
   })
+}
+
+async function confirmRemoveEmail(email: string) {
+  if (!selectedUser.value || removingEmail.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      t('users.removeEmailConfirm', { email }),
+      t('users.removeEmailTitle'),
+      {
+        confirmButtonText: t('common.actions.delete'),
+        cancelButtonText: t('common.actions.cancel'),
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  removingEmail.value = email
+  try {
+    await removeEmailFromUser({
+      userId: selectedUser.value.id,
+      email,
+    })
+    userEmails.value = userEmails.value.filter((item) => item.email !== email)
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.emailRemoved'),
+      type: 'success',
+    })
+  } finally {
+    removingEmail.value = ''
+  }
 }
 
 async function attachStorage() {

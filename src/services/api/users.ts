@@ -1,7 +1,7 @@
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
-import { mapUserModel, type UserModel } from '@/models/userModel.ts'
+import { mapUserModel, type UserInfoModel, type UserModel } from '@/models/userModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
 export interface GetUsersRequest {
@@ -48,6 +48,15 @@ export interface CreateUserRequest {
 
 export interface CreateUserResponse {
   user: UserModel
+}
+
+export interface EditUserInfoRequest {
+  userId: string
+  userInfo: CreateUserInfoRequest
+}
+
+export interface EditUserInfoResponse {
+  userInfo: UserInfoModel
 }
 
 export interface UserEmailOptionsModel {
@@ -119,6 +128,16 @@ export interface AddPermissionToUserRequest {
   permission: string
 }
 
+export interface AddRoleToUserRequest {
+  userId: string
+  roleName: string
+}
+
+export interface RemoveEmailFromUserRequest {
+  userId: string
+  email: string
+}
+
 export async function getUsers(req: GetUsersRequest): Promise<GetUsersResponse> {
   const params = new URLSearchParams()
   const appendParam = (key: string, value: unknown) => {
@@ -154,6 +173,13 @@ export async function createUser(req: CreateUserRequest): Promise<CreateUserResp
   return {
     user: mapUserModel(resp.data.user),
   }
+}
+
+export async function editUserInfo(req: EditUserInfoRequest): Promise<EditUserInfoResponse> {
+  const resp = await api.put<EditUserInfoResponse>(`/main/users/${req.userId}/info`, {
+    userInfo: req.userInfo,
+  })
+  return resp.data
 }
 
 export async function getEmailOptions(): Promise<GetEmailOptionsResponse> {
@@ -210,8 +236,22 @@ export async function addPermissionToUser(req: AddPermissionToUserRequest) {
   })
 }
 
+export async function addRoleToUser(req: AddRoleToUserRequest) {
+  await api.post(`/main/users/${req.userId}/roles/`, {
+    role: req.roleName,
+  })
+}
+
+export async function removeRoleFromUser(req: AddRoleToUserRequest) {
+  await api.delete(`/main/users/${req.userId}/roles/${encodeURIComponent(req.roleName)}`)
+}
+
 export async function removePermissionFromUser(req: AddPermissionToUserRequest) {
   await api.delete(`/main/users/${req.userId}/permissions/${encodeURIComponent(req.permission)}`)
+}
+
+export async function removeEmailFromUser(req: RemoveEmailFromUserRequest) {
+  await api.delete(`/main/users/${req.userId}/emails/${encodeURIComponent(req.email)}`)
 }
 
 export async function addStorageToUser(req: AddStorageToUserRequest) {
