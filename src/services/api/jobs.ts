@@ -134,7 +134,14 @@ export interface UpdateJobScheduleResponse {
   schedule: JobScheduleModel
 }
 
-export type JobSchemaFieldControl = 'UploadFile' | 'TextField' | 'DatePicker' | 'EntitySelector' | string
+export type JobSchemaFieldControl =
+  | 'UploadFile'
+  | 'TextField'
+  | 'DatePicker'
+  | 'EntitySelector'
+  | 'EnumSelector'
+  | 'NamedObjectSelector'
+  | string
 
 export interface JobSchemaField {
   name: string
@@ -148,14 +155,34 @@ export interface JobSchemaField {
   dependsOnField?: string
 }
 
+export interface JobCsvSchemaField {
+  propertyName: string
+  names: string[]
+  type: string
+  required: boolean
+  label?: string | null
+  description?: string | null
+}
+
 export interface JobInitStateSchema {
   fields: JobSchemaField[]
+  csvSchema?: JobCsvSchemaField[]
 }
 
 export interface ServiceJobDefinition {
   serviceKey: string
   service: JobsServiceModel
   job: JobDefinitionModel
+}
+
+export interface NamedObjectModel {
+  systemName: string
+  name: string | null
+  description: string | null
+}
+
+export interface GetNamedObjectsResponse {
+  namedObjects: NamedObjectModel[]
 }
 
 export async function getGatewayJobs(): Promise<GetGatewayJobsResponse> {
@@ -241,4 +268,9 @@ export async function updateServiceJobSchedule(
 
 export async function deleteServiceJobSchedule(serviceKey: string, scheduleId: string): Promise<void> {
   await api.delete(`/${serviceKey}/jobs/schedules/${scheduleId}`)
+}
+
+export async function getServiceNamedObjects(serviceKey: string, groupName: string): Promise<GetNamedObjectsResponse> {
+  const resp = await api.get<GetNamedObjectsResponse>(`/${serviceKey}/named-objects/${encodeURIComponent(groupName)}`)
+  return resp.data
 }

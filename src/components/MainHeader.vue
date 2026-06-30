@@ -80,6 +80,7 @@
         <el-menu-item index="/roles" @click="openRoute('/roles')">{{ t('nav.roles') }}</el-menu-item>
         <el-menu-item index="/permissions" @click="openRoute('/permissions')">{{ t('nav.permissions') }}</el-menu-item>
         <el-menu-item index="/currencies" @click="openRoute('/currencies')">{{ t('nav.currencies') }}</el-menu-item>
+        <el-menu-item index="/service-settings" @click="openRoute('/service-settings')">{{ t('nav.serviceSettings') }}</el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="control">

@@ -160,11 +160,11 @@ async function loadContent() {
   const resp = await getStorageContent({
     storageName: storage.value.name,
     page: 0,
-    limit: 50,
+    size: 50,
     showZeroContent: showZeroContent.value,
   })
 
-  content.value = resp.content
+  content.value = resp.contents
 }
 
 async function loadCurrencies() {

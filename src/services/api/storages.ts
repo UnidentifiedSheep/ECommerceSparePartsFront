@@ -145,14 +145,15 @@ export interface EditStorageRouteRequest {
 
 export interface GetStorageContentRequest {
   storageName?: string
-  articleId?: number
+  productId?: number
   page: number
-  limit: number
+  size?: number
+  limit?: number
   showZeroContent?: boolean
 }
 
 export interface GetStorageContentResponse {
-  content: StorageContentModel[]
+  contents: StorageContentModel[]
 }
 
 export interface AddStorageContentItemRequest {
@@ -274,17 +275,23 @@ export async function deleteStorageRoute(id: string) {
 }
 
 export async function getStorageContent(req: GetStorageContentRequest): Promise<GetStorageContentResponse> {
-  const resp = await api.get<GetStorageContentResponse>('/main/storages/content', {
+  const size = req.size ?? req.limit ?? 20
+  const resp = await api.get<GetStorageContentResponse & { content?: StorageContentModel[] }>('/main/storages/contents', {
     params: {
-      ...req,
-      limit: clampPageSize(req.limit),
+      storageName: req.storageName,
+      productId: req.productId,
+      page: req.page,
+      size: clampPageSize(size),
+      showZeroContent: req.showZeroContent,
     },
   })
-  return resp.data
+  return {
+    contents: resp.data.contents ?? resp.data.content ?? [],
+  }
 }
 
 export async function addStorageContent(req: AddStorageContentRequest) {
-  await api.post('/main/storages/content', {
+  await api.post('/main/storages/contents', {
     ...req,
     storageContent: req.storageContent.map((item) => ({
       ...item,
@@ -301,7 +308,7 @@ export async function editStorageContent(req: EditStorageContentRequest) {
   if (req.buyPrice !== undefined) model.buyPrice = patchField(req.buyPrice)
   if (req.currencyId !== undefined) model.currencyId = patchField(req.currencyId)
 
-  await api.patch('/main/storages/content', {
+  await api.patch('/main/storages/contents', {
     editedFields: {
       [req.id]: {
         model,
@@ -312,7 +319,7 @@ export async function editStorageContent(req: EditStorageContentRequest) {
 }
 
 export async function deleteStorageContent(id: number, rowVersion: number) {
-  await api.delete(`/main/storages/content/${id}`, {
+  await api.delete(`/main/storages/contents/${id}`, {
     params: { rowVersion },
   })
 }

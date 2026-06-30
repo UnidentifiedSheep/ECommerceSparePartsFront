@@ -425,7 +425,7 @@
 
 .item-footer {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto auto auto;
+  grid-template-columns: minmax(260px, 1fr) auto auto auto auto;
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -443,6 +443,32 @@
 
 .stock-value {
   font-weight: 650;
+}
+
+.stock-badge {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 2px 8px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.stock-badge:hover:not(:disabled) {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.stock-badge:disabled {
+  cursor: default;
+  opacity: .72;
 }
 
 .stock-value--ok {
@@ -465,6 +491,10 @@
 }
 
 .remove-item-button {
+  justify-self: end;
+}
+
+.item-actions-button {
   justify-self: end;
 }
 

@@ -170,6 +170,24 @@
                       <div v-if="userEmails.length === 0" class="text-sm text-slate-400">{{ t('users.noEmails') }}</div>
                     </div>
 
+                    <div class="grid gap-3 pb-4">
+                      <div v-for="phone in userPhones" :key="phone.number" class="rounded-xl bg-slate-50 p-3 text-sm">
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                              <span class="break-all font-medium text-slate-900">{{ phone.number }}</span>
+                              <el-tag v-if="phone.isPrimary" size="small" type="success">{{ t('users.primary') }}</el-tag>
+                              <el-tag size="small" :type="phone.isConfirmed ? 'success' : 'warning'">
+                                {{ phone.isConfirmed ? t('users.confirmed') : t('users.notConfirmed') }}
+                              </el-tag>
+                            </div>
+                            <div class="mt-1 text-xs text-slate-500">{{ phoneTypeLabel(phone.type) }}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-if="userPhones.length === 0" class="text-sm text-slate-400">{{ t('users.noPhones') }}</div>
+                    </div>
+
                   <div class="flex items-center justify-between">
                     <el-divider content-position="left">{{ t('users.storages') }}</el-divider>
                     <el-button size="small" type="primary" @click="openAddStorageDialog">{{ t('users.addStorage') }}</el-button>
@@ -380,12 +398,34 @@
         </div>
         <div class="grid gap-3">
           <div
-            v-for="phoneIndex in createUserForm.phones.length"
-            :key="phoneIndex"
-            class="grid grid-cols-[1fr_auto] items-center gap-3"
+            v-for="(phone, index) in createUserForm.phones"
+            :key="index"
+            class="rounded-xl border border-slate-200 bg-slate-50 p-3"
           >
-            <el-input v-model="createUserForm.phones[phoneIndex - 1]" placeholder="+7..." />
-            <el-button type="danger" plain @click="removeCreateUserPhone(phoneIndex - 1)">{{ t('common.actions.delete') }}</el-button>
+            <div class="grid grid-cols-[minmax(0,1fr)_160px_auto] items-start gap-3">
+              <el-form-item class="mb-0" :label="t('users.phoneNumber')">
+                <el-input v-model="phone.number" placeholder="+7..." />
+              </el-form-item>
+              <el-form-item class="mb-0" :label="t('common.labels.type')">
+                <el-select v-model="phone.type" class="w-full">
+                  <el-option :label="t('users.personalPhone')" value="Personal" />
+                  <el-option :label="t('users.workPhone')" value="Work" />
+                  <el-option :label="t('users.unknownPhone')" value="Unknown" />
+                </el-select>
+              </el-form-item>
+              <el-button
+                class="mt-[30px]"
+                type="danger"
+                plain
+                @click="removeCreateUserPhone(index)"
+              >
+                {{ t('common.actions.delete') }}
+              </el-button>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+              <el-checkbox v-model="phone.isPrimary" @change="setPrimaryCreateUserPhone(index)">{{ t('users.primary') }}</el-checkbox>
+              <el-checkbox v-model="phone.isConfirmed">{{ t('users.confirmed') }}</el-checkbox>
+            </div>
           </div>
           <div v-if="createUserForm.phones.length === 0" class="rounded-xl bg-slate-50 p-3 text-sm text-slate-400">
             {{ t('users.noPhones') }}
@@ -569,11 +609,19 @@ import {
   removePermissionFromUser,
   removeRoleFromUser,
   removeStorageFromUser,
+  type UserPhoneModel,
 } from '@/services/api/users.ts'
 import { useI18n } from '@/i18n'
 
 interface CreateUserEmailForm {
   email: string
+  type: string
+  isPrimary: boolean
+  isConfirmed: boolean
+}
+
+interface CreateUserPhoneForm {
+  number: string
   type: string
   isPrimary: boolean
   isConfirmed: boolean
@@ -602,6 +650,7 @@ const detailsLoading = ref(false)
 const userRoles = ref<string[]>([])
 const userPermissions = ref<string[]>([])
 const userEmails = ref<UserEmailModel[]>([])
+const userPhones = ref<UserPhoneModel[]>([])
 const userStorages = ref<StorageModel[]>([])
 const userDiscount = ref<number>(0)
 const permissionsCatalog = ref<PermissionModel[]>([])
@@ -644,7 +693,7 @@ const createUserForm = reactive({
   description: '',
   roles: [] as string[],
   emails: [] as CreateUserEmailForm[],
-  phones: [] as string[],
+  phones: [] as CreateUserPhoneForm[],
 })
 
 const editInfoForm = reactive({
@@ -746,6 +795,19 @@ function emailTypeLabel(type?: string | null) {
   }
 }
 
+function phoneTypeLabel(type?: string | null) {
+  switch (type) {
+    case 'Personal':
+      return t('users.personalPhone')
+    case 'Work':
+      return t('users.workPhone')
+    case 'Unknown':
+      return t('users.unknownPhone')
+    default:
+      return type || t('users.notSpecified')
+  }
+}
+
 function permissionTooltipTitle(systemName: string) {
   return permissionsBySystemName.value.get(systemName)?.name || systemName
 }
@@ -811,6 +873,15 @@ function createDefaultEmail(isPrimary = false): CreateUserEmailForm {
   }
 }
 
+function createDefaultPhone(isPrimary = false): CreateUserPhoneForm {
+  return {
+    number: '',
+    type: 'Personal',
+    isPrimary,
+    isConfirmed: false,
+  }
+}
+
 async function openCreateUserDialog() {
   await loadEmailOptions()
   resetCreateUserForm()
@@ -850,11 +921,25 @@ function setPrimaryCreateUserEmail(index: number) {
 }
 
 function addCreateUserPhone() {
-  createUserForm.phones.push('')
+  createUserForm.phones.push(createDefaultPhone(createUserForm.phones.length === 0))
 }
 
 function removeCreateUserPhone(index: number) {
+  const wasPrimary = createUserForm.phones[index]?.isPrimary
   createUserForm.phones.splice(index, 1)
+
+  if (wasPrimary && createUserForm.phones.length > 0) {
+    const firstPhone = createUserForm.phones[0]
+    if (firstPhone) firstPhone.isPrimary = true
+  }
+}
+
+function setPrimaryCreateUserPhone(index: number) {
+  if (!createUserForm.phones[index]?.isPrimary) return
+
+  createUserForm.phones.forEach((phone, phoneIndex) => {
+    phone.isPrimary = phoneIndex === index
+  })
 }
 
 async function loadRoles(searchTerm?: string, force = false) {
@@ -919,6 +1004,7 @@ function clearDetails() {
   userRoles.value = []
   userPermissions.value = []
   userEmails.value = []
+  userPhones.value = []
   userStorages.value = []
   userDiscount.value = 0
   openDetailsSections.value = []
@@ -950,6 +1036,7 @@ async function selectUser(user?: UserModel) {
     userRoles.value = fullInfo.roles
     userPermissions.value = fullInfo.permissions
     userEmails.value = fullInfo.emails
+    userPhones.value = fullInfo.phones
     userStorages.value = storages.storages
     userDiscount.value = discount.discount
     discountFormValue.value = discount.discount * 100
@@ -970,6 +1057,7 @@ async function reloadSelectedUserFullInfo() {
   userRoles.value = fullInfo.roles
   userPermissions.value = fullInfo.permissions
   userEmails.value = fullInfo.emails
+  userPhones.value = fullInfo.phones
 }
 
 function handleDetailsSectionsChange(value: string | string[]) {
@@ -1037,8 +1125,13 @@ async function saveCreateUser() {
         isConfirmed: email.isConfirmed,
       })),
     phones: createUserForm.phones
-      .map((phone) => phone.trim())
-      .filter((phone) => phone !== ''),
+      .filter((phone) => phone.number.trim() !== '')
+      .map((phone) => ({
+        number: phone.number.trim(),
+        type: phone.type,
+        isPrimary: phone.isPrimary,
+        isConfirmed: phone.isConfirmed,
+      })),
     roles: createUserForm.roles,
   })
 

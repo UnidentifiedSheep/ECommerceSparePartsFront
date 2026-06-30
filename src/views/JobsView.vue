@@ -678,7 +678,7 @@
                   :placeholder="field.description || field.name"
                 />
 
-                <template v-else-if="field.control === 'EntitySelector'">
+                <template v-else-if="field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector'">
                   <el-select
                     v-if="isSupportedEntitySelector(field)"
                     v-model="inputState[field.name]"
@@ -730,6 +730,43 @@
               <el-input-number v-model="maxAttempts" :min="1" :max="20" controls-position="right" />
             </el-form-item>
           </el-form>
+
+            <section v-if="csvSchemaFields.length > 0" class="csv-schema-panel">
+              <div class="csv-schema-header">
+                <div>
+                  <h3>{{ t('jobs.csvSchema.title') }}</h3>
+                  <p>{{ t('jobs.csvSchema.description') }}</p>
+                </div>
+                <el-tag effect="light" round>{{ t('jobs.csvSchema.columns', { count: csvSchemaFields.length }) }}</el-tag>
+              </div>
+              <div class="csv-schema-table">
+                <div class="csv-schema-row csv-schema-row--head">
+                  <span>{{ t('jobs.csvSchema.column') }}</span>
+                  <span>{{ t('jobs.csvSchema.headers') }}</span>
+                  <span>{{ t('jobs.csvSchema.type') }}</span>
+                  <span>{{ t('jobs.csvSchema.required') }}</span>
+                </div>
+                <div
+                  v-for="column in csvSchemaFields"
+                  :key="column.propertyName"
+                  class="csv-schema-row"
+                >
+                  <span>
+                    <strong>{{ csvColumnLabel(column) }}</strong>
+                    <small v-if="column.description">{{ column.description }}</small>
+                  </span>
+                  <span class="csv-schema-aliases">
+                    <code v-for="name in column.names" :key="name">{{ name }}</code>
+                  </span>
+                  <span>{{ column.type }}</span>
+                  <span>
+                    <el-tag :type="column.required ? 'danger' : 'info'" effect="light" round>
+                      {{ column.required ? t('jobs.csvSchema.yes') : t('jobs.csvSchema.no') }}
+                    </el-tag>
+                  </span>
+                </div>
+              </div>
+            </section>
         </div>
 
         <footer class="job-drawer-footer">
@@ -787,15 +824,18 @@ import {
   getServiceJobSchedules,
   getServiceJobs,
   getServiceJobState,
+  getServiceNamedObjects,
   patchField,
   updateServiceJobSchedule,
   type JobDefinitionModel,
+  type JobCsvSchemaField,
   type JobInitStateSchema,
   type JobModel,
   type JobScheduleModel,
   type JobSchemaField,
   type JobStatus,
   type JobsServiceModel,
+  type NamedObjectModel,
   type ServiceJobDefinition,
 } from '@/services/api/jobs.ts'
 import { getUploads, uploadFile, type UploadFileModel } from '@/services/api/uploads.ts'
@@ -815,7 +855,12 @@ interface ServiceCard {
   error: string | null
 }
 
-type EntitySelectorOption = CurrencyModel | ProductSearchModel
+interface EnumSelectorOption {
+  value: string
+  label: string
+}
+
+type EntitySelectorOption = CurrencyModel | ProductSearchModel | EnumSelectorOption | NamedObjectModel
 type CronBuilderMode = 'daily' | 'weekly' | 'monthly' | 'intervalMinutes' | 'intervalHours' | 'advanced'
 
 const isLoadingJobs = ref(false)
@@ -856,6 +901,7 @@ const selectedJob = ref<ServiceJobDefinition | null>(null)
 const selectedSchedule = ref<JobScheduleModel | null>(null)
 const schemaError = ref<string | null>(null)
 const schemaFields = ref<JobSchemaField[]>([])
+const csvSchemaFields = ref<JobCsvSchemaField[]>([])
 const maxAttempts = ref(3)
 const scheduleForm = reactive({
   jobSystemName: '',
@@ -891,7 +937,9 @@ const deletingScheduleId = ref<string | null>(null)
 const uploads = ref<UploadFileModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const products = ref<ProductSearchModel[]>([])
+const namedObjects = ref<Record<string, NamedObjectModel[]>>({})
 const inputState = reactive<Record<string, string | number | boolean | null>>({})
+const loadingNamedObjectGroups = ref<Set<string>>(new Set())
 const fileInputRefs = new Map<string, HTMLInputElement>()
 let jobHubConnection: HubConnection | null = null
 let jobHubServiceKey: string | null = null
@@ -1244,6 +1292,33 @@ async function loadProductsIfNeeded() {
   await loadProducts()
 }
 
+function namedObjectsCacheKey(serviceKey: string, groupName: string) {
+  return `${serviceKey}:${groupName}`
+}
+
+async function loadNamedObjects(groupName: string) {
+  const serviceKey = selectedJob.value?.serviceKey
+  if (!serviceKey) return
+
+  const key = namedObjectsCacheKey(serviceKey, groupName)
+  if (namedObjects.value[key]?.length || loadingNamedObjectGroups.value.has(key)) return
+
+  loadingNamedObjectGroups.value = new Set([...loadingNamedObjectGroups.value, key])
+  try {
+    const response = await getServiceNamedObjects(serviceKey, groupName)
+    namedObjects.value = {
+      ...namedObjects.value,
+      [key]: response.namedObjects,
+    }
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.loadError'))
+  } finally {
+    const next = new Set(loadingNamedObjectGroups.value)
+    next.delete(key)
+    loadingNamedObjectGroups.value = next
+  }
+}
+
 async function loadEntityOptionsOnOpen(field: JobSchemaField, isOpen: boolean) {
   if (!isOpen) return
   await loadEntityOptions(field)
@@ -1257,6 +1332,11 @@ async function loadEntityOptions(field: JobSchemaField) {
 
   if (field.dependsOnEntity === 'Product') {
     await loadProductsIfNeeded()
+    return
+  }
+
+  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
+    await loadNamedObjects(field.dependsOnEntity)
   }
 }
 
@@ -1268,7 +1348,11 @@ function searchEntityOptions(field: JobSchemaField, query: string) {
 
 async function loadSchemaEntities() {
   await Promise.all(schemaFields.value
-    .filter((field) => field.control === 'EntitySelector' && isSupportedEntitySelector(field))
+    .filter((field) => (
+      field.control === 'EntitySelector'
+      || field.control === 'EnumSelector'
+      || field.control === 'NamedObjectSelector'
+    ) && isSupportedEntitySelector(field))
     .map((field) => loadEntityOptions(field)))
 }
 
@@ -1541,18 +1625,24 @@ function hydrateInputState(rawState: string) {
 function parseSchema(rawSchema: string) {
   schemaError.value = null
   schemaFields.value = []
+  csvSchemaFields.value = []
 
   if (!rawSchema) return
 
   try {
     const parsed = JSON.parse(rawSchema) as JobInitStateSchema
     schemaFields.value = Array.isArray(parsed.fields) ? parsed.fields : []
+    csvSchemaFields.value = Array.isArray(parsed.csvSchema) ? parsed.csvSchema : []
     schemaFields.value.forEach((field) => {
       inputState[field.name] = defaultValue(field)
     })
   } catch {
     schemaError.value = t('jobs.schemaError')
   }
+}
+
+function csvColumnLabel(column: JobCsvSchemaField) {
+  return column.label || column.propertyName
 }
 
 function resetInputState() {
@@ -1564,14 +1654,14 @@ function resetInputState() {
 function defaultValue(field: JobSchemaField) {
   if (field.control === 'TextField') return ''
   if (field.control === 'DatePicker') return ''
-  if (field.control === 'EntitySelector') return null
+  if (field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector') return null
   if (field.type === 'boolean') return false
   if (isNumberField(field)) return 0
   return ''
 }
 
 function isNumberField(field: JobSchemaField) {
-  if (['TextField', 'DatePicker', 'EntitySelector'].includes(field.control ?? '')) return false
+  if (['TextField', 'DatePicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return false
   return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
 }
 
@@ -1587,22 +1677,40 @@ function fieldLabel(field: JobSchemaField) {
 }
 
 function isSupportedEntitySelector(field: JobSchemaField) {
-  return field.dependsOnEntity === 'Currency' || field.dependsOnEntity === 'Product'
+  return field.dependsOnEntity === 'Currency'
+    || field.dependsOnEntity === 'Product'
+    || field.dependsOnEntity === 'ExchangeRateProvider'
+    || (field.control === 'NamedObjectSelector' && Boolean(field.dependsOnEntity))
 }
 
 function isEntityLoading(field: JobSchemaField) {
   if (field.dependsOnEntity === 'Currency') return isLoadingCurrencies.value
   if (field.dependsOnEntity === 'Product') return isLoadingProducts.value
+  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedJob.value) {
+    return loadingNamedObjectGroups.value.has(namedObjectsCacheKey(selectedJob.value.serviceKey, field.dependsOnEntity))
+  }
   return false
 }
 
 function entityOptions(field: JobSchemaField): EntitySelectorOption[] {
   if (field.dependsOnEntity === 'Currency') return currencies.value
   if (field.dependsOnEntity === 'Product') return products.value
+  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedJob.value) {
+    return namedObjects.value[namedObjectsCacheKey(selectedJob.value.serviceKey, field.dependsOnEntity)] ?? []
+  }
+  if (field.dependsOnEntity === 'ExchangeRateProvider') {
+    return [
+      { value: 'Cbr', label: t('common.exchangeRateProviders.Cbr') },
+      { value: 'MoneyConvert', label: t('common.exchangeRateProviders.MoneyConvert') },
+    ]
+  }
   return []
 }
 
 function entityOptionValue(field: JobSchemaField, option: EntitySelectorOption): string | number {
+  if ('value' in option) return option.value
+  if ('systemName' in option) return option.systemName
+
   const key = field.dependsOnField ?? 'id'
   const value = option[key as keyof EntitySelectorOption]
   return typeof value === 'number' || typeof value === 'string'
@@ -1611,6 +1719,9 @@ function entityOptionValue(field: JobSchemaField, option: EntitySelectorOption):
 }
 
 function entityOptionLabel(field: JobSchemaField, option: EntitySelectorOption) {
+  if ('label' in option) return option.label
+  if ('systemName' in option) return option.name || option.systemName
+
   if (field.dependsOnEntity === 'Currency') {
     const currency = option as CurrencyModel
     return `${currency.shortName} (${currency.currencySign})`
@@ -2599,6 +2710,94 @@ function formatFileSize(size: number) {
   font-size: 12px;
 }
 
+.csv-schema-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+  margin: 4px 0 16px;
+  padding: 12px;
+}
+
+.csv-schema-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.csv-schema-header h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.csv-schema-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.csv-schema-table {
+  display: grid;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.csv-schema-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(210px, 1.6fr) 90px 130px;
+  gap: 10px;
+  align-items: center;
+  min-width: 620px;
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 12px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.csv-schema-row:first-child {
+  border-top: 0;
+}
+
+.csv-schema-row--head {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.csv-schema-row strong,
+.csv-schema-row small {
+  display: block;
+}
+
+.csv-schema-row small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.csv-schema-aliases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.csv-schema-aliases code {
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
 .hidden-file-input {
   display: none;
 }
@@ -2614,6 +2813,10 @@ function formatFileSize(size: number) {
 @media (max-width: 900px) {
   .jobs-page {
     padding: 16px;
+  }
+
+  .csv-schema-row {
+    min-width: 620px;
   }
 
   .jobs-workspace {

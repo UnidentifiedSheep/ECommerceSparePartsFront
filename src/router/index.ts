@@ -13,6 +13,7 @@ import PurchasesView from '@/views/PurchasesView.vue'
 import ReservationsView from '@/views/ReservationsView.vue'
 import RolesView from '@/views/RolesView.vue'
 import SalesView from '@/views/SalesView.vue'
+import ServiceSettingsView from '@/views/ServiceSettingsView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import StoragesView from '@/views/StoragesView.vue'
 import TransactionsView from '@/views/TransactionsView.vue'
@@ -106,6 +107,12 @@ const routes = [
         path: '/jobs',
         name: 'jobs',
         component: JobsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/service-settings',
+        name: 'service-settings',
+        component: ServiceSettingsView,
         meta: { requiresAuth: true },
       },
       {

@@ -989,14 +989,14 @@ async function loadStorageContent() {
   isStorageContentLoading.value = true
   try {
     const resp = await getStorageContent({
-      articleId: productId.value,
+      productId: productId.value,
       page: storageContentPage.value,
-      limit: storageContentSize.value,
+      size: storageContentSize.value,
       showZeroContent: showZeroStorageContent.value,
     })
 
-    storageContent.value = resp.content
-    storageContentHasNext.value = resp.content.length === storageContentSize.value
+    storageContent.value = resp.contents
+    storageContentHasNext.value = resp.contents.length === storageContentSize.value
   } finally {
     isStorageContentLoading.value = false
   }

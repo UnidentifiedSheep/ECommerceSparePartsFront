@@ -76,7 +76,7 @@ export interface GetSaleResponse {
 }
 
 export interface GetSaleContentResponse {
-  content: SaleContentModel[]
+  contents: SaleContentModel[]
 }
 
 function mapSaleModel(dto: SaleDto): SaleModel {
@@ -139,9 +139,9 @@ export async function getSaleByTransactionId(transactionId: string): Promise<Get
 }
 
 export async function getSaleContent(id: string): Promise<GetSaleContentResponse> {
-  const resp = await api.get<GetSaleContentResponse>(`/main/sales/${id}/contents`)
+  const resp = await api.get<GetSaleContentResponse & { content?: SaleContentModel[] }>(`/main/sales/${id}/contents`)
   return {
-    content: resp.data.content ?? [],
+    contents: resp.data.contents ?? resp.data.content ?? [],
   }
 }
 

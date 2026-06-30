@@ -185,7 +185,7 @@
           <div v-else class="items-list">
             <article
               v-for="(item, index) in form.items"
-              :key="item.product?.id ?? index"
+              :key="`sale-item-${index}`"
               class="sale-item"
             >
               <div class="sale-item-main">
@@ -195,9 +195,16 @@
                     <div class="truncate text-sm font-semibold text-slate-950">{{ item.product?.name }}</div>
                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                       <span class="sku-pill">{{ item.product?.sku || '—' }}</span>
-                      <span :class="stockColorClass(item.product?.stock ?? 0)">
-                        {{ t('sales.available') }}: {{ (item.product?.stock ?? 0).toLocaleString(locale) }}
-                      </span>
+                      <button
+                        type="button"
+                        class="stock-badge"
+                        :class="stockColorClass(item.product?.stock ?? 0)"
+                        :disabled="!form.storageName || !item.product"
+                        @click="openStorageBatches(item)"
+                      >
+                        {{ t('sales.available') }}:
+                        {{ isStockLoading ? t('sales.loading') : (item.product?.stock ?? 0).toLocaleString(locale) }}
+                      </button>
                       <span v-if="item.product">
                         {{ t('sales.selected') }}: {{ selectedProductCount(item).toLocaleString(locale) }}
                       </span>
@@ -260,6 +267,19 @@
                 <span v-if="itemDiscount(item) > 0" class="discount-note">
                   {{ t('sales.discount') }}: {{ formatCurrency(itemDiscount(item), selectedCurrency?.currencySign) }}
                 </span>
+                <el-dropdown trigger="click" placement="bottom-end">
+                  <el-button class="item-actions-button" :icon="MoreFilled" text />
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item
+                        :disabled="!form.storageName || !item.product"
+                        @click="openStorageBatches(item)"
+                      >
+                        {{ t('sales.storageBatches') }}
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
                 <el-button class="remove-item-button" :icon="Delete" text type="danger" @click="removeItem(index)" />
               </div>
             </article>
@@ -284,14 +304,22 @@
     </template>
 
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
+    <StorageContentBatchesDialog
+      v-model="storageBatchesOpen"
+      :storage-name="form.storageName"
+      :product-id="storageBatchesProduct?.id"
+      :product-name="storageBatchesProduct?.name"
+      :product-sku="storageBatchesProduct?.sku"
+    />
   </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, h, reactive, ref, watch } from 'vue'
-import { Check, Close, Delete, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
+import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
+import StorageContentBatchesDialog from '@/components/sales/StorageContentBatchesDialog.vue'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
@@ -299,6 +327,7 @@ import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleModel } from '@/models/saleModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import { ApiError } from '@/models/errorModel.ts'
+import { getProductStock } from '@/services/api/products.ts'
 import { createSale } from '@/services/api/sales.ts'
 import { getUserDiscount } from '@/services/api/users.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
@@ -331,13 +360,17 @@ const emit = defineEmits<{
 }>()
 
 const productSelectorOpen = ref(false)
+const storageBatchesOpen = ref(false)
+const storageBatchesProduct = ref<ProductSearchModel>()
 const isSaving = ref(false)
+const isStockLoading = ref(false)
 const isDiscountLoading = ref(false)
 const backendUserDiscount = ref(0)
 const saleDiscount = ref(0)
 const isDiscountEditing = ref(false)
 const discountDraftPercent = ref<number>()
 let discountRequestId = 0
+let stockRequestId = 0
 
 const form = reactive({
   buyer: undefined as UserModel | undefined,
@@ -427,20 +460,29 @@ function resetForm() {
   discountDraftPercent.value = undefined
 }
 
-function addProduct(product: ProductSearchModel) {
-  if (product.stock <= 0) {
+async function addProduct(product: ProductSearchModel) {
+  if (!form.storageName) {
+    ElMessage.warning(t('sales.selectStorage'))
+    return
+  }
+
+  const storageStock = await loadProductStorageStock(product.id)
+  if (storageStock <= 0) {
     ElMessage.warning(t('sales.noStock'))
     return
   }
 
   const selectedCount = selectedProductCountById(product.id)
-  if (selectedCount >= product.stock) {
+  if (selectedCount >= storageStock) {
     ElMessage.warning(t('sales.allStockAdded'))
     return
   }
 
   form.items.push({
-    product,
+    product: {
+      ...product,
+      stock: storageStock,
+    },
     count: 1,
     price: 0,
     priceWithDiscount: undefined,
@@ -450,8 +492,64 @@ function addProduct(product: ProductSearchModel) {
   applyDiscountModesToItems()
 }
 
+async function loadProductStorageStock(productId: number) {
+  if (!form.storageName) return 0
+
+  try {
+    const resp = await getProductStock(productId, form.storageName)
+    return resp.stock
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('sales.loadStockError'))
+    return 0
+  }
+}
+
+async function loadCurrentProductStocks() {
+  const storageName = form.storageName
+  const ids = [...new Set(form.items.map((item) => item.product?.id).filter((id): id is number => Boolean(id)))]
+  const requestId = ++stockRequestId
+
+  if (!storageName || ids.length === 0) {
+    if (!storageName) {
+      form.items.forEach((item) => {
+        if (item.product) item.product.stock = 0
+      })
+    }
+    return
+  }
+
+  isStockLoading.value = true
+  try {
+    const results = await Promise.all(ids.map(async (id) => ({
+      id,
+      stock: (await getProductStock(id, storageName)).stock,
+    })))
+    if (requestId !== stockRequestId) return
+
+    const stocksById = new Map(results.map((product) => [product.id, product.stock]))
+    form.items.forEach((item) => {
+      if (!item.product) return
+      item.product.stock = stocksById.get(item.product.id) ?? item.product.stock
+    })
+  } catch (error) {
+    if (requestId === stockRequestId) {
+      ElMessage.error(error instanceof Error ? error.message : t('sales.loadStockError'))
+    }
+  } finally {
+    if (requestId === stockRequestId) {
+      isStockLoading.value = false
+    }
+  }
+}
+
 function removeItem(index: number) {
   form.items.splice(index, 1)
+}
+
+function openStorageBatches(item: SaleItemForm) {
+  if (!item.product || !form.storageName) return
+  storageBatchesProduct.value = item.product
+  storageBatchesOpen.value = true
 }
 
 function itemDiscount(item: SaleItemForm) {
@@ -708,6 +806,11 @@ watch(() => form.applyUserDiscountToAll, (enabled) => {
       item.priceWithDiscount = undefined
     }
   })
+})
+
+watch(() => form.storageName, () => {
+  storageBatchesOpen.value = false
+  void loadCurrentProductStocks()
 })
 
 watch(

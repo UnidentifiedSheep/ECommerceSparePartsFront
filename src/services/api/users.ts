@@ -37,12 +37,19 @@ export interface CreateUserEmailRequest {
   type: string
 }
 
+export interface CreateUserPhoneRequest {
+  number: string
+  type: string
+  isConfirmed: boolean
+  isPrimary: boolean
+}
+
 export interface CreateUserRequest {
   userName: string
   password: string
   userInfo: CreateUserInfoRequest
   emails: CreateUserEmailRequest[]
-  phones: string[]
+  phones: CreateUserPhoneRequest[]
   roles: string[]
 }
 
@@ -78,9 +85,17 @@ export interface UserEmailModel {
   updatedAt?: string
 }
 
+export interface UserPhoneModel {
+  number: string
+  type: string
+  isConfirmed: boolean
+  isPrimary: boolean
+}
+
 export interface GetUserFullInfoResponse {
   user: UserModel
   emails: UserEmailModel[]
+  phones: UserPhoneModel[]
   roles: string[]
   permissions: string[]
 }
@@ -191,6 +206,7 @@ export async function getUserFullInfo(userId: string): Promise<GetUserFullInfoRe
   const resp = await api.get<{
     user: UserModel
     emails: UserEmailModel[]
+    phones?: UserPhoneModel[]
     roles: string[]
     permissions: string[]
   }>(`/main/users/${userId}/info`)
@@ -198,6 +214,7 @@ export async function getUserFullInfo(userId: string): Promise<GetUserFullInfoRe
   return {
     user: mapUserModel(resp.data.user),
     emails: resp.data.emails,
+    phones: resp.data.phones ?? [],
     roles: resp.data.roles,
     permissions: resp.data.permissions,
   }

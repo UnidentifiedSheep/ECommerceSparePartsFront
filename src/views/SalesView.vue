@@ -507,7 +507,7 @@ async function openEditSale(sale: SaleModel) {
   try {
     const resp = await getSaleContent(sale.id)
     saleToEdit.value = sale
-    saleContentToEdit.value = resp.content
+    saleContentToEdit.value = resp.contents
     editSaleDialogOpen.value = true
   } catch (error) {
     saleContentToEdit.value = []
@@ -562,7 +562,7 @@ async function selectSale(sale?: SaleModel) {
   contentLoading.value = true
   try {
     const resp = await getSaleContent(sale.id)
-    saleContent.value = resp.content
+    saleContent.value = resp.contents
   } catch (error) {
     saleContent.value = []
     ElMessage.error(error instanceof Error ? error.message : t('sales.loadContentError'))

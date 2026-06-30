@@ -187,10 +187,16 @@
                     <div class="truncate text-sm font-semibold text-slate-950">{{ item.product.name }}</div>
                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                       <span class="sku-pill">{{ item.product.sku || '—' }}</span>
-                      <span :class="stockColorClass(availableProductStock(item))">
+                      <button
+                        type="button"
+                        class="stock-badge"
+                        :class="stockColorClass(availableProductStock(item))"
+                        :disabled="!props.sale?.storage"
+                        @click="openStorageBatches(item)"
+                      >
                         {{ t('sales.available') }}:
                         {{ isStockLoading ? t('sales.loading') : availableProductStock(item).toLocaleString(locale) }}
-                      </span>
+                      </button>
                       <span>{{ t('sales.selected') }}: {{ selectedProductCount(item).toLocaleString(locale) }}</span>
                     </div>
                     <div v-if="hasStockError(item)" class="stock-error">
@@ -251,6 +257,19 @@
                 <span v-if="itemDiscount(item) > 0" class="discount-note">
                   {{ t('sales.discount') }}: {{ formatCurrency(itemDiscount(item), selectedCurrency?.currencySign) }}
                 </span>
+                <el-dropdown trigger="click" placement="bottom-end">
+                  <el-button class="item-actions-button" :icon="MoreFilled" text />
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item
+                        :disabled="!props.sale?.storage"
+                        @click="openStorageBatches(item)"
+                      >
+                        {{ t('sales.storageBatches') }}
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
                 <el-button class="remove-item-button" :icon="Delete" text type="danger" @click="removeItem(index)" />
               </div>
             </article>
@@ -275,14 +294,22 @@
     </template>
 
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
+    <StorageContentBatchesDialog
+      v-model="storageBatchesOpen"
+      :storage-name="props.sale?.storage"
+      :product-id="storageBatchesProduct?.id"
+      :product-name="storageBatchesProduct?.name"
+      :product-sku="storageBatchesProduct?.sku"
+    />
   </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, h, reactive, ref, watch } from 'vue'
-import { Check, Close, Delete, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
+import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
+import StorageContentBatchesDialog from '@/components/sales/StorageContentBatchesDialog.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
@@ -331,6 +358,8 @@ const emit = defineEmits<{
 }>()
 
 const productSelectorOpen = ref(false)
+const storageBatchesOpen = ref(false)
+const storageBatchesProduct = ref<EditSaleProductForm>()
 const isSaving = ref(false)
 const isStockLoading = ref(false)
 const isDiscountLoading = ref(false)
@@ -527,6 +556,12 @@ async function loadProductStorageStock(productId: number) {
 
 function removeItem(index: number) {
   form.items.splice(index, 1)
+}
+
+function openStorageBatches(item: EditSaleItemForm) {
+  if (!props.sale?.storage) return
+  storageBatchesProduct.value = item.product
+  storageBatchesOpen.value = true
 }
 
 function itemDiscount(item: EditSaleItemForm) {

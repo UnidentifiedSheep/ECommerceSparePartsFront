@@ -19,7 +19,14 @@ export interface MetricInfoModel {
   inputSchema: string
 }
 
-export type MetricSchemaFieldControl = 'UploadFile' | 'TextField' | 'DatePicker' | 'EntitySelector' | string
+export type MetricSchemaFieldControl =
+  | 'UploadFile'
+  | 'TextField'
+  | 'DatePicker'
+  | 'EntitySelector'
+  | 'EnumSelector'
+  | 'NamedObjectSelector'
+  | string
 
 export interface MetricSchemaField {
   name: string
@@ -103,6 +110,16 @@ export interface UpsertMetricRequest {
 
 export interface UpsertMetricResponse {
   metric: MetricModel
+}
+
+export interface NamedObjectModel {
+  systemName: string
+  name: string | null
+  description: string | null
+}
+
+export interface GetNamedObjectsResponse {
+  namedObjects: NamedObjectModel[]
 }
 
 interface CalculationJobDto extends Omit<CalculationJobModel, 'status'> {
@@ -200,4 +217,9 @@ export async function upsertMetric(req: UpsertMetricRequest): Promise<UpsertMetr
   return {
     metric: mapMetric(resp.data.metric),
   }
+}
+
+export async function getAnalyticsNamedObjects(groupName: string): Promise<GetNamedObjectsResponse> {
+  const resp = await api.get<GetNamedObjectsResponse>(analyticsUrl(`/named-objects/${encodeURIComponent(groupName)}`))
+  return resp.data
 }

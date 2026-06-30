@@ -263,7 +263,7 @@
                     :placeholder="field.description || field.name"
                   />
 
-                  <template v-else-if="field.control === 'EntitySelector'">
+                  <template v-else-if="field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector'">
                     <el-select
                       v-if="isSupportedEntitySelector(field)"
                       v-model="inputState[field.name]"
@@ -428,6 +428,7 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import {
+  getAnalyticsNamedObjects,
   getMetricCalculationJobs,
   getMetricInfos,
   getMetrics,
@@ -440,6 +441,7 @@ import {
   type MetricModel,
   type MetricSchemaField,
   type MetricSortBy,
+  type NamedObjectModel,
 } from '@/services/api/analytics.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { searchProducts } from '@/services/api/search.ts'
@@ -456,6 +458,7 @@ const metricInfos = ref<MetricInfoModel[]>([])
 const metrics = ref<MetricModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const products = ref<ProductSearchModel[]>([])
+const namedObjects = ref<Record<string, NamedObjectModel[]>>({})
 const activeJob = ref<CalculationJobModel | null>(null)
 const historyMetric = ref<MetricModel | null>(null)
 const historyJobs = ref<CalculationJobModel[]>([])
@@ -468,6 +471,7 @@ const isMetricsLoading = ref(false)
 const isHistoryLoading = ref(false)
 const isCurrenciesLoading = ref(false)
 const isProductsLoading = ref(false)
+const loadingNamedObjectGroups = ref<Set<string>>(new Set())
 const isCreating = ref(false)
 const schemaError = ref<string | null>(null)
 const schemaFields = ref<MetricSchemaField[]>([])
@@ -503,7 +507,12 @@ const historySortOptions = computed<Array<{ label: string, value: MetricCalculat
   { label: t('analytics.sort.statusDesc'), value: 'status_desc' },
 ])
 
-type EntitySelectorOption = CurrencyModel | ProductSearchModel
+interface EnumSelectorOption {
+  value: string
+  label: string
+}
+
+type EntitySelectorOption = CurrencyModel | ProductSearchModel | EnumSelectorOption | NamedObjectModel
 
 const createForm = reactive<{ metricSystemName?: string }>({
   metricSystemName: undefined,
@@ -646,14 +655,14 @@ function parseCreateSchema() {
 function defaultFieldValue(field: MetricSchemaField) {
   if (field.control === 'TextField') return ''
   if (field.control === 'DatePicker') return ''
-  if (field.control === 'EntitySelector') return null
+  if (field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector') return null
   if (field.type === 'boolean') return false
   if (isNumberField(field)) return 0
   return ''
 }
 
 function isNumberField(field: MetricSchemaField) {
-  if (['TextField', 'DatePicker', 'EntitySelector'].includes(field.control ?? '')) return false
+  if (['TextField', 'DatePicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return false
   return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
 }
 
@@ -673,22 +682,40 @@ function isEmptyValue(value: unknown) {
 }
 
 function isSupportedEntitySelector(field: MetricSchemaField) {
-  return field.dependsOnEntity === 'Currency' || field.dependsOnEntity === 'Product'
+  return field.dependsOnEntity === 'Currency'
+    || field.dependsOnEntity === 'Product'
+    || field.dependsOnEntity === 'ExchangeRateProvider'
+    || (field.control === 'NamedObjectSelector' && Boolean(field.dependsOnEntity))
 }
 
 function isEntityLoading(field: MetricSchemaField) {
   if (field.dependsOnEntity === 'Currency') return isCurrenciesLoading.value
   if (field.dependsOnEntity === 'Product') return isProductsLoading.value
+  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
+    return loadingNamedObjectGroups.value.has(field.dependsOnEntity)
+  }
   return false
 }
 
 function entityOptions(field: MetricSchemaField): EntitySelectorOption[] {
   if (field.dependsOnEntity === 'Currency') return currencies.value
   if (field.dependsOnEntity === 'Product') return products.value
+  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
+    return namedObjects.value[field.dependsOnEntity] ?? []
+  }
+  if (field.dependsOnEntity === 'ExchangeRateProvider') {
+    return [
+      { value: 'Cbr', label: t('common.exchangeRateProviders.Cbr') },
+      { value: 'MoneyConvert', label: t('common.exchangeRateProviders.MoneyConvert') },
+    ]
+  }
   return []
 }
 
 function entityOptionValue(field: MetricSchemaField, option: EntitySelectorOption): string | number {
+  if ('value' in option) return option.value
+  if ('systemName' in option) return option.systemName
+
   const key = field.dependsOnField ?? 'id'
   const value = option[key as keyof EntitySelectorOption]
   return typeof value === 'number' || typeof value === 'string'
@@ -697,6 +724,9 @@ function entityOptionValue(field: MetricSchemaField, option: EntitySelectorOptio
 }
 
 function entityOptionLabel(field: MetricSchemaField, option: EntitySelectorOption) {
+  if ('label' in option) return option.label
+  if ('systemName' in option) return option.name || option.systemName
+
   if (field.dependsOnEntity === 'Currency') {
     const currency = option as CurrencyModel
     return `${currency.shortName} (${currency.currencySign})`
@@ -787,6 +817,25 @@ async function loadProductsIfNeeded() {
   await loadProducts()
 }
 
+async function loadNamedObjects(groupName: string) {
+  if (namedObjects.value[groupName]?.length || loadingNamedObjectGroups.value.has(groupName)) return
+
+  loadingNamedObjectGroups.value = new Set([...loadingNamedObjectGroups.value, groupName])
+  try {
+    const response = await getAnalyticsNamedObjects(groupName)
+    namedObjects.value = {
+      ...namedObjects.value,
+      [groupName]: response.namedObjects,
+    }
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('analytics.loadError'))
+  } finally {
+    const next = new Set(loadingNamedObjectGroups.value)
+    next.delete(groupName)
+    loadingNamedObjectGroups.value = next
+  }
+}
+
 async function loadEntityOptionsOnOpen(field: MetricSchemaField, isOpen: boolean) {
   if (!isOpen) return
   await loadEntityOptions(field)
@@ -800,6 +849,11 @@ async function loadEntityOptions(field: MetricSchemaField) {
 
   if (field.dependsOnEntity === 'Product') {
     await loadProductsIfNeeded()
+    return
+  }
+
+  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
+    await loadNamedObjects(field.dependsOnEntity)
   }
 }
 
@@ -811,7 +865,11 @@ function searchEntityOptions(field: MetricSchemaField, query: string) {
 
 async function loadSchemaEntities() {
   await Promise.all(schemaFields.value
-    .filter((field) => field.control === 'EntitySelector' && isSupportedEntitySelector(field))
+    .filter((field) => (
+      field.control === 'EntitySelector'
+      || field.control === 'EnumSelector'
+      || field.control === 'NamedObjectSelector'
+    ) && isSupportedEntitySelector(field))
     .map((field) => loadEntityOptions(field)))
 }
 
