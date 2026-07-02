@@ -1,61 +1,66 @@
 <template>
-  <section class="metric-data-viewer" :class="{ 'metric-data-viewer--compact': densityMode === 'compact' }">
-    <div class="metric-data-viewer__toolbar">
-      <div class="metric-data-viewer__heading">
-        <div class="metric-data-viewer__title">{{ t('analytics.viewer.title') }}</div>
+  <section class="metric-data-viewer">
+    <div class="metric-data-viewer__header">
+      <div class="metric-data-viewer__title-block">
+        <h3>{{ metric.name || metric.systemName }}</h3>
+        <p v-if="metric.description">{{ metric.description }}</p>
       </div>
 
-      <div v-if="hasData" class="metric-data-viewer__actions">
-        <el-input
-          v-model="searchQuery"
-          class="metric-data-viewer__search"
-          clearable
-          :placeholder="t('analytics.viewer.search')"
-          size="small"
-        />
-        <el-radio-group v-model="densityMode" size="small">
-          <el-radio-button label="comfortable">{{ t('analytics.viewer.comfortable') }}</el-radio-button>
-          <el-radio-button label="compact">{{ t('analytics.viewer.compact') }}</el-radio-button>
-        </el-radio-group>
-        <el-button size="small" plain @click="expandAll">{{ t('analytics.viewer.expand') }}</el-button>
-        <el-button size="small" plain @click="collapseAll">{{ t('analytics.viewer.collapse') }}</el-button>
-        <el-button size="small" type="primary" plain @click="copyJson">{{ t('analytics.viewer.copyJson') }}</el-button>
+      <button
+        v-if="hasData"
+        type="button"
+        class="metric-data-viewer__copy-json"
+        :aria-label="t('analytics.viewer.copyJson')"
+        @click="copyJson"
+      >
+        <span class="ti ti-file-text" aria-hidden="true" />
+      </button>
+    </div>
+
+    <div class="metric-data-viewer__meta">
+      <div>
+        <span>{{ t('analytics.viewer.period') }}</span>
+        <strong>{{ periodLabel }}</strong>
+      </div>
+      <div v-if="metric.currencyId">
+        <span>{{ t('analytics.viewer.currency') }}</span>
+        <strong>{{ metric.currencyId }}</strong>
+      </div>
+      <div v-if="metric.lastMetricJob">
+        <span>{{ t('common.labels.status') }}</span>
+        <strong>{{ statusLabel(metric.lastMetricJob.status) }}</strong>
+      </div>
+      <div v-if="metric.lastMetricJob">
+        <span>{{ t('analytics.viewer.updatedAt') }}</span>
+        <strong>{{ formatDateTime(metric.lastMetricJob.updatedAt) }}</strong>
       </div>
     </div>
 
     <div v-if="parseError" class="metric-data-viewer__error">
-      <div class="metric-data-viewer__error-title">{{ t('analytics.viewer.parseError') }}</div>
-      <pre class="metric-data-viewer__raw">{{ data }}</pre>
+      <div>{{ t('analytics.viewer.parseError') }}</div>
+      <pre>{{ metric.data }}</pre>
     </div>
 
     <div v-else-if="!hasData" class="metric-data-viewer__empty">
       {{ t('analytics.viewer.empty') }}
     </div>
 
-    <div v-else-if="visibleRootEntries.length === 0" class="metric-data-viewer__empty">
-      {{ t('analytics.viewer.noSearchResults') }}
-    </div>
+    <template v-else>
+      <div v-if="allNumbersAreZero" class="metric-data-viewer__zero-note">
+        {{ t('analytics.viewer.allZeroHint') }}
+      </div>
 
-    <div v-else class="metric-data-viewer__content">
-      <MetricNode
-        v-for="entry in visibleRootEntries"
-        :key="entry.path"
-        :label="entry.label"
-        :path="entry.path"
-        :value="entry.value"
-        :level="0"
-        :expanded="expanded"
-        :search-query="normalizedSearchQuery"
-        @toggle="toggleExpanded"
-        @copy="copyValue"
-      />
-    </div>
+      <div class="metric-data-viewer__content">
+        <MetricDataRenderer :data="parsedData" />
+      </div>
+    </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref, watch, type Component, type PropType, type VNodeChild } from 'vue'
-import { ElButton, ElNotification } from 'element-plus'
+import { computed, defineComponent, h, type PropType, type VNodeChild } from 'vue'
+import { ElNotification } from 'element-plus'
+import type { MetricModel } from '@/services/api/analytics.ts'
 import { useI18n } from '@/i18n'
 
 type JsonPrimitive = string | number | boolean | null
@@ -65,710 +70,499 @@ interface JsonObject {
 }
 type JsonArray = JsonValue[]
 
-interface MetricEntry {
-  label: string
-  path: string
-  value: JsonValue
+interface MetricCardData {
+  key: string
+  value: JsonPrimitive
+}
+
+interface MetricSectionData {
+  key: string
+  cards: MetricCardData[]
+  sections: MetricSectionData[]
 }
 
 const props = defineProps<{
-  data?: string | null
+  metric: MetricModel
 }>()
 
-const expanded = ref<Set<string>>(new Set())
-const searchQuery = ref('')
-const densityMode = ref<'comfortable' | 'compact'>('comfortable')
 const { locale, t } = useI18n()
 
-const parsedData = computed<JsonValue | null>(() => {
-  if (!props.data?.trim()) {
-    return null
-  }
+const parsedDataState = computed<{ value: JsonValue | null, error: boolean }>(() => {
+  const rawData = props.metric.data?.trim()
+  if (!rawData) return { value: null, error: false }
 
   try {
-    return JSON.parse(props.data) as JsonValue
+    return { value: unwrapRootData(JSON.parse(rawData) as JsonValue), error: false }
   } catch {
-    return null
+    return { value: null, error: true }
   }
 })
 
-const parseError = computed(() => Boolean(props.data?.trim()) && parsedData.value === null)
+const parsedData = computed(() => parsedDataState.value.value)
+const parseError = computed(() => parsedDataState.value.error)
+const hasData = computed(() => !parseError.value && parsedData.value !== null && hasRenderableData(parsedData.value))
+const allNumbersAreZero = computed(() => {
+  const numbers = collectNumbers(parsedData.value)
+  return numbers.length > 0 && numbers.every((value) => value === 0)
+})
 
-const rootEntries = computed<MetricEntry[]>(() => {
-  if (parseError.value || parsedData.value === null) {
-    return []
-  }
+const periodLabel = computed(() => {
+  const start = formatDateTime(props.metric.rangeStart)
+  const endDate = props.metric.rangeEnd ? new Date(props.metric.rangeEnd) : null
+  const end = endDate && endDate.getTime() > Date.now()
+    ? t('analytics.viewer.present')
+    : formatDateTime(props.metric.rangeEnd)
 
-  const value = unwrapRootData(parsedData.value)
+  return `${start} - ${end}`
+})
 
-  if (isObject(value)) {
-    return getEntries(value).map(([key, entryValue]) => ({
-      label: key,
-      path: key,
-      value: entryValue,
-    }))
+const MetricDataRenderer = defineComponent({
+  name: 'MetricDataRenderer',
+  props: {
+    data: {
+      type: [String, Number, Boolean, Object, Array, null] as PropType<JsonValue | null>,
+      default: null,
+    },
+  },
+  setup(rendererProps) {
+    return (): VNodeChild => renderMetricData(rendererProps.data)
+  },
+})
+
+function renderMetricData(data: unknown): VNodeChild {
+  const value = normalizeUnknownJson(data)
+  if (value === null) return h('div')
+
+  if (isPlainObject(value)) {
+    const sections: MetricSectionData[] = []
+    const cards: MetricCardData[] = []
+
+    Object.entries(value).forEach(([key, entryValue]) => {
+      if (isPlainObject(entryValue)) {
+        sections.push(buildSection(key, entryValue))
+        return
+      }
+
+      if (Array.isArray(entryValue)) {
+        sections.push(buildSection(key, arrayToObject(entryValue)))
+        return
+      }
+
+      cards.push({ key, value: entryValue })
+    })
+
+    return h('div', { class: 'metric-data-viewer__rendered' }, [
+      cards.length > 0 ? renderCards(cards) : null,
+      ...sections.map((section) => renderSection(section)),
+    ])
   }
 
   if (Array.isArray(value)) {
-    return value.map((entryValue, index) => ({
-      label: t('analytics.viewer.item', { index: index + 1 }),
-      path: String(index),
-      value: entryValue,
-    }))
+    return renderSection(buildSection(t('analytics.viewer.value'), arrayToObject(value)))
   }
 
-  return [{ label: t('analytics.viewer.value'), path: 'value', value }]
-})
+  return renderCards([{ key: t('analytics.viewer.value'), value }])
+}
 
-const hasData = computed(() => rootEntries.value.length > 0)
-const normalizedSearchQuery = computed(() => normalizeSearch(searchQuery.value))
-const visibleRootEntries = computed(() => {
-  if (!normalizedSearchQuery.value) {
-    return rootEntries.value
+function buildSection(key: string, value: JsonObject): MetricSectionData {
+  const section: MetricSectionData = {
+    key,
+    cards: [],
+    sections: [],
   }
 
-  return rootEntries.value.filter((entry) => matchesEntry(entry.label, entry.value, normalizedSearchQuery.value))
-})
+  Object.entries(value).forEach(([entryKey, entryValue]) => {
+    if (isPlainObject(entryValue)) {
+      section.sections.push(buildSection(entryKey, entryValue))
+      return
+    }
 
-watch(
-  () => props.data,
-  () => {
-    expanded.value = new Set(rootEntries.value.filter((entry) => isContainer(entry.value)).map((entry) => entry.path))
-  },
-  { immediate: true },
-)
+    if (Array.isArray(entryValue)) {
+      section.sections.push(buildSection(entryKey, arrayToObject(entryValue)))
+      return
+    }
 
-watch(normalizedSearchQuery, (query) => {
-  if (!query) {
-    expanded.value = new Set(rootEntries.value.filter((entry) => isContainer(entry.value)).map((entry) => entry.path))
-    return
+    section.cards.push({ key: entryKey, value: entryValue })
+  })
+
+  return section
+}
+
+function renderSection(section: MetricSectionData): VNodeChild {
+  return h('section', { class: 'metric-data-viewer__section', key: section.key }, [
+    h('h4', { class: 'metric-data-viewer__section-title' }, section.key),
+    section.cards.length > 0 ? renderCards(section.cards) : null,
+    ...section.sections.map((childSection) => renderSection(childSection)),
+  ])
+}
+
+function renderCards(cards: MetricCardData[]): VNodeChild {
+  return h('div', { class: 'metric-data-viewer__cards' }, cards.map((card) => renderCard(card)))
+}
+
+function renderCard(card: MetricCardData): VNodeChild {
+  const valueType = metricValueType(card.value)
+
+  return h('article', { class: 'metric-data-viewer__card', key: card.key }, [
+    h('div', { class: 'metric-data-viewer__card-icon' }, [
+      h('span', { class: `ti ${iconClass(valueType)}`, 'aria-hidden': 'true' }),
+    ]),
+    h('div', { class: 'metric-data-viewer__card-body' }, [
+      h('div', { class: 'metric-data-viewer__card-label' }, card.key),
+      h('div', { class: ['metric-data-viewer__card-value', `metric-data-viewer__card-value--${valueType}`] }, formatMetricValue(card.value)),
+    ]),
+  ])
+}
+
+function normalizeUnknownJson(value: unknown): JsonValue | null {
+  if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
+    return value as JsonPrimitive
   }
 
-  const paths = new Set<string>()
-  rootEntries.value.forEach((entry) => collectMatchingContainerPaths(entry.value, entry.path, query, paths))
-  expanded.value = paths
-})
-
-function unwrapRootData(value: JsonValue | null): JsonValue | null {
-  if (!isObject(value)) {
-    return value
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeUnknownJson(item)) as JsonArray
   }
+
+  if (typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .map(([key, entryValue]) => [key, normalizeUnknownJson(entryValue)])) as JsonObject
+  }
+
+  return String(value)
+}
+
+function unwrapRootData(value: JsonValue): JsonValue {
+  if (!isPlainObject(value)) return value
 
   const keys = Object.keys(value)
   if (keys.length === 1 && keys[0] === 'data') {
-    return value.data as JsonValue
+    return value.data ?? null
   }
 
   return value
 }
 
-function isObject(value: JsonValue | null): value is JsonObject {
+function isPlainObject(value: JsonValue | null): value is JsonObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function isContainer(value: JsonValue): value is JsonObject | JsonArray {
-  return (Array.isArray(value) && value.length > 0) || (isObject(value) && Object.keys(value).length > 0)
+function arrayToObject(value: JsonArray): JsonObject {
+  return Object.fromEntries(value.map((entry, index) => [t('analytics.viewer.item', { index: index + 1 }), entry]))
 }
 
-function getEntries(value: JsonObject | JsonArray): Array<[string, JsonValue]> {
-  if (Array.isArray(value)) {
-    return value.map((entryValue, index): [string, JsonValue] => [t('analytics.viewer.item', { index: index + 1 }), entryValue])
-  }
-
-  return Object.entries(value)
+function hasRenderableData(value: JsonValue): boolean {
+  if (Array.isArray(value)) return value.length > 0
+  if (isPlainObject(value)) return Object.keys(value).length > 0
+  return true
 }
 
-function formatLabel(value: string): string {
-  return value
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^./, (first) => first.toUpperCase())
+function collectNumbers(value: JsonValue | null): number[] {
+  if (typeof value === 'number' && Number.isFinite(value)) return [value]
+  if (Array.isArray(value)) return value.flatMap((entry) => collectNumbers(entry))
+  if (isPlainObject(value)) return Object.values(value).flatMap((entry) => collectNumbers(entry))
+  return []
 }
 
-function formatValue(value: JsonValue): string {
-  if (value === null) {
-    return '-'
+function metricValueType(value: JsonPrimitive): 'number' | 'date' | 'boolean' | 'text' {
+  if (typeof value === 'number') return 'number'
+  if (typeof value === 'boolean') return 'boolean'
+  if (typeof value === 'string' && isIsoDate(value)) return 'date'
+  return 'text'
+}
+
+function iconClass(type: ReturnType<typeof metricValueType>): string {
+  if (type === 'number') return 'ti-hash'
+  if (type === 'date') return 'ti-calendar'
+  if (type === 'boolean') return 'ti-toggle-left'
+  return 'ti-file-text'
+}
+
+function formatMetricValue(value: JsonPrimitive): string {
+  if (value === null) return '-'
+
+  if (typeof value === 'number') {
+    return new Intl.NumberFormat(locale.value, { maximumFractionDigits: 4 }).format(value)
   }
 
   if (typeof value === 'boolean') {
     return value ? t('analytics.viewer.yes') : t('analytics.viewer.no')
   }
 
-  if (typeof value === 'number') {
-    return new Intl.NumberFormat(locale.value, { maximumFractionDigits: 4 }).format(value)
-  }
-
   if (typeof value === 'string' && isIsoDate(value)) {
-    const date = new Date(value)
-    return new Intl.DateTimeFormat(locale.value, {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(date)
+    return formatDateTime(value)
   }
 
   return String(value)
 }
 
-function normalizeSearch(value: string): string {
-  return value.trim().toLocaleLowerCase(locale.value)
-}
-
-function matchesEntry(label: string, value: JsonValue, query: string): boolean {
-  if (!query) {
-    return true
-  }
-
-  if (matchesSelf(label, value, query)) {
-    return true
-  }
-
-  if (!isContainer(value)) {
-    return false
-  }
-
-  return getEntries(value).some(([key, entryValue]) => matchesEntry(key, entryValue, query))
-}
-
-function matchesSelf(label: string, value: JsonValue, query: string): boolean {
-  const formattedLabel = normalizeSearch(formatLabel(label))
-  if (formattedLabel.includes(query) || normalizeSearch(label).includes(query)) {
-    return true
-  }
-
-  if (isContainer(value)) {
-    return false
-  }
-
-  return normalizeSearch(formatValue(value)).includes(query) || normalizeSearch(String(value)).includes(query)
-}
-
-function primitiveKind(value: JsonValue): string {
-  if (value === null) {
-    return 'null'
-  }
-
-  if (typeof value === 'boolean') {
-    return value ? 'boolean-true' : 'boolean-false'
-  }
-
-  if (typeof value === 'number') {
-    return 'number'
-  }
-
-  if (typeof value === 'string' && isIsoDate(value)) {
-    return 'date'
-  }
-
-  return 'text'
+function statusLabel(status: string): string {
+  return t(`analytics.statuses.${status}`) || status
 }
 
 function isIsoDate(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value) && !Number.isNaN(new Date(value).getTime())
+  return /^\d{4}-\d{2}-\d{2}T/.test(value) && !Number.isNaN(new Date(value).getTime())
 }
 
-function stringifyValue(value: JsonValue | null): string {
-  if (value === null || typeof value !== 'object') {
-    return formatValue(value)
-  }
-
-  return JSON.stringify(value, null, 2)
+function formatDateTime(value?: string | null): string {
+  if (!value) return '-'
+  return new Date(value).toLocaleString(locale.value)
 }
 
-function expandAll(): void {
-  const paths = new Set<string>()
-  rootEntries.value.forEach((entry) => collectContainerPaths(entry.value, entry.path, paths))
-  expanded.value = paths
-}
-
-function collapseAll(): void {
-  expanded.value = new Set()
-}
-
-function collectContainerPaths(value: JsonValue, path: string, paths: Set<string>): void {
-  if (!isContainer(value)) {
-    return
-  }
-
-  paths.add(path)
-  getEntries(value).forEach(([key, entryValue]) => collectContainerPaths(entryValue, `${path}.${key}`, paths))
-}
-
-function collectMatchingContainerPaths(value: JsonValue, path: string, query: string, paths: Set<string>): boolean {
-  if (!isContainer(value)) {
-    return matchesSelf(path.split('.').pop() ?? path, value, query)
-  }
-
-  const matchedSelf = matchesSelf(path.split('.').pop() ?? path, value, query)
-  let matchedChildren = false
-  getEntries(value).forEach(([key, entryValue]) => {
-    matchedChildren = collectMatchingContainerPaths(entryValue, `${path}.${key}`, query, paths) || matchedChildren
-  })
-
-  if (matchedSelf || matchedChildren) {
-    paths.add(path)
-    return true
-  }
-
-  return false
-}
-
-function toggleExpanded(path: string): void {
-  const next = new Set(expanded.value)
-  if (next.has(path)) {
-    next.delete(path)
-  } else {
-    next.add(path)
-  }
-  expanded.value = next
-}
-
-function copyJson(): void {
-  void copyToClipboard(stringifyValue(unwrapRootData(parsedData.value)))
-}
-
-function copyValue(value: JsonValue): void {
-  void copyToClipboard(stringifyValue(value))
-}
-
-async function copyToClipboard(value: string): Promise<void> {
-  await navigator.clipboard.writeText(value)
+async function copyJson(): Promise<void> {
+  await navigator.clipboard.writeText(props.metric.data ?? '')
   ElNotification.success({
     title: t('analytics.viewer.copiedTitle'),
     message: t('analytics.viewer.copiedMessage'),
     duration: 1600,
   })
 }
-
-const MetricNode: Component = defineComponent({
-  name: 'MetricNode',
-  props: {
-    label: {
-      type: String,
-      required: true,
-    },
-    path: {
-      type: String,
-      required: true,
-    },
-    value: {
-      type: [String, Number, Boolean, Object, Array, null] as PropType<JsonValue>,
-      required: true,
-    },
-    level: {
-      type: Number,
-      required: true,
-    },
-    expanded: {
-      type: Object as PropType<Set<string>>,
-      required: true,
-    },
-    searchQuery: {
-      type: String,
-      default: '',
-    },
-  },
-  emits: {
-    toggle: (...args: [string]) => args.length === 1,
-    copy: (...args: [JsonValue]) => args.length === 1,
-  },
-  setup(nodeProps, { emit }) {
-    return (): VNodeChild => {
-      const isExpanded = nodeProps.expanded.has(nodeProps.path)
-      const hasChildren = isContainer(nodeProps.value)
-
-      if (!hasChildren) {
-        const kind = primitiveKind(nodeProps.value)
-        const isMatched = matchesSelf(nodeProps.label, nodeProps.value, nodeProps.searchQuery)
-
-        return h('div', {
-          class: ['metric-data-viewer__row', `metric-data-viewer__row--${kind}`, { 'metric-data-viewer__row--match': nodeProps.searchQuery && isMatched }],
-          style: {
-            marginLeft: nodeProps.level > 0 ? `${nodeProps.level * 12}px` : undefined,
-          },
-        }, [
-          h('div', { class: 'metric-data-viewer__field' }, `${formatLabel(nodeProps.label)}:`),
-          h('div', { class: ['metric-data-viewer__value', `metric-data-viewer__value--${kind}`] }, formatValue(nodeProps.value)),
-          h(ElButton, {
-            class: 'metric-data-viewer__copy',
-            size: 'small',
-            text: true,
-            onClick: () => emit('copy', nodeProps.value),
-          }, () => t('analytics.viewer.copy')),
-        ])
-      }
-
-      const childEntries = getEntries(nodeProps.value)
-      const groupMatched = matchesSelf(nodeProps.label, nodeProps.value, nodeProps.searchQuery)
-      const visibleChildEntries = nodeProps.searchQuery && !groupMatched
-        ? childEntries.filter(([key, entryValue]) => matchesEntry(key, entryValue, nodeProps.searchQuery))
-        : childEntries
-      const childNodes = visibleChildEntries.map(([key, entryValue]) => h(MetricNode, {
-        key: `${nodeProps.path}.${key}`,
-        label: key,
-        path: `${nodeProps.path}.${key}`,
-        value: entryValue,
-        level: nodeProps.level + 1,
-        expanded: nodeProps.expanded,
-        searchQuery: nodeProps.searchQuery,
-        onToggle: (path: string) => emit('toggle', path),
-        onCopy: (value: JsonValue) => emit('copy', value),
-      }))
-
-      return h('section', {
-        class: ['metric-data-viewer__group', { 'metric-data-viewer__group--match': nodeProps.searchQuery && groupMatched }],
-        style: {
-          marginLeft: nodeProps.level > 0 ? `${nodeProps.level * 12}px` : undefined,
-        },
-      }, [
-        h('div', { class: 'metric-data-viewer__group-header' }, [
-          h('button', {
-            class: 'metric-data-viewer__group-toggle',
-            type: 'button',
-            onClick: () => emit('toggle', nodeProps.path),
-          }, [
-            h('span', { class: 'metric-data-viewer__group-name' }, formatLabel(nodeProps.label)),
-          ]),
-          h('div', { class: 'metric-data-viewer__group-actions' }, [
-            h(ElButton, {
-              size: 'small',
-              text: true,
-              onClick: () => emit('copy', nodeProps.value),
-            }, () => t('analytics.viewer.copy')),
-            h(ElButton, {
-              size: 'small',
-              plain: true,
-              onClick: () => emit('toggle', nodeProps.path),
-            }, () => (isExpanded ? t('analytics.viewer.collapse') : t('analytics.viewer.expand'))),
-          ]),
-        ]),
-        isExpanded ? h('div', { class: 'metric-data-viewer__group-body' }, childNodes) : null,
-      ])
-    }
-  },
-})
 </script>
 
 <style>
 .metric-data-viewer {
-  --metric-accent: #1d4ed8;
-  --metric-accent-soft: #eff6ff;
-  --metric-border: #d8e0ec;
-  --metric-border-strong: #b8c4d6;
-  --metric-muted: #64748b;
-  --metric-text: #0f172a;
-  --metric-surface: #ffffff;
-  --metric-subtle: #f8fafc;
-
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 100%;
-  overflow-x: auto;
-  color: var(--metric-text);
+  display: grid;
+  gap: 14px;
+  color: #0f172a;
 }
 
-.metric-data-viewer__toolbar {
+.metric-data-viewer__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  min-height: 50px;
-  padding: 12px 14px;
-  background: var(--metric-surface);
-  border: 1px solid var(--metric-border);
-  border-radius: 8px;
 }
 
-.metric-data-viewer__heading {
-  display: flex;
-  flex-direction: column;
+.metric-data-viewer__title-block {
   min-width: 0;
 }
 
-.metric-data-viewer__title {
-  font-size: 17px;
-  font-weight: 650;
-  line-height: 1.25;
-  color: var(--metric-text);
+.metric-data-viewer__title-block h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
-.metric-data-viewer__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
+.metric-data-viewer__title-block p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
-.metric-data-viewer__search {
-  width: 220px;
-}
-
-.metric-data-viewer__content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 680px;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__group {
-  overflow: hidden;
-  background: var(--metric-surface);
-  border: 1px solid var(--metric-border);
+.metric-data-viewer__copy-json {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8e0ec;
   border-radius: 8px;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__group--match {
-  border-color: #93c5fd;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__group-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: center;
-  gap: 14px;
-  min-height: 50px;
-  padding: 12px 14px 12px 16px;
-  background: var(--metric-subtle);
-  border-left: 3px solid var(--metric-accent);
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__group-toggle {
-  display: flex;
-  align-items: center;
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0;
-  text-align: left;
-  color: inherit;
-  background: transparent;
-  border: 0;
+  background: #ffffff;
+  color: #475569;
   cursor: pointer;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__group-name {
+.metric-data-viewer__copy-json:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.metric-data-viewer__meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric-data-viewer__meta div {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.metric-data-viewer__meta span,
+.metric-data-viewer__meta strong {
+  display: block;
+  min-width: 0;
   overflow: hidden;
-  font-size: 16px;
-  font-style: italic;
-  font-weight: 650;
-  line-height: 1.3;
-  color: var(--metric-accent);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__group-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__group-body {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin-left: 14px;
-  padding: 6px 14px 10px 14px;
-  border-top: 1px solid var(--metric-border);
-  border-left: 1px solid #dbe4f0;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__row {
-  display: grid;
-  grid-template-columns: minmax(190px, 28%) minmax(220px, 1fr) max-content;
-  column-gap: 16px;
-  row-gap: 0;
-  align-items: baseline;
-  min-height: 34px;
-  padding: 7px 0;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid #edf1f7;
-  border-radius: 0;
-  transition: background-color 0.15s ease;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__row:hover,
-.metric-data-viewer__row:focus-within {
-  background: #f8fafc;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__row--match {
-  background: #fffbeb;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__row--match:hover,
-.metric-data-viewer__row--match:focus-within {
-  background: #fef3c7;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__row:last-child {
-  border-bottom: 0;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__field {
-  min-width: 0;
-  font-size: 14px;
-  font-style: italic;
-  font-weight: 650;
-  line-height: 1.35;
-  color: #334155;
-  overflow-wrap: anywhere;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__value {
-  min-width: 0;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--metric-text);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-variant-numeric: tabular-nums;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__value--number {
+.metric-data-viewer__meta span {
+  color: #64748b;
+  font-size: 12px;
   font-weight: 600;
+}
+
+.metric-data-viewer__meta strong {
+  margin-top: 3px;
   color: #0f172a;
+  font-size: 13px;
+  font-weight: 650;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__value--date {
-  color: #475569;
+.metric-data-viewer__zero-note {
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px 12px;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__value--boolean-true {
-  font-weight: 600;
-  color: #15803d;
+.metric-data-viewer__content,
+.metric-data-viewer__rendered {
+  display: grid;
+  gap: 16px;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__value--boolean-false {
-  font-weight: 600;
-  color: #b45309;
+.metric-data-viewer__section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 2px;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__value--null {
-  color: #94a3b8;
+.metric-data-viewer__section .metric-data-viewer__section {
+  margin-left: 12px;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__copy {
-  flex: 0 0 auto;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer__row:hover .metric-data-viewer__copy,
-.metric-data-viewer__row:focus-within .metric-data-viewer__copy {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.metric-data-viewer--compact {
-  gap: 8px;
-}
-
-.metric-data-viewer--compact .metric-data-viewer__toolbar {
-  min-height: 42px;
-  padding: 8px 10px;
-}
-
-.metric-data-viewer--compact .metric-data-viewer__title {
+.metric-data-viewer__section-title {
+  margin: 0;
+  color: #334155;
   font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
-.metric-data-viewer--compact .metric-data-viewer__content {
-  gap: 8px;
-  min-width: 620px;
+.metric-data-viewer__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer--compact .metric-data-viewer__group-header {
-  min-height: 40px;
-  padding: 8px 10px 8px 12px;
+.metric-data-viewer__card {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer--compact .metric-data-viewer__group-name {
+.metric-data-viewer__card-icon {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ti-hash::before {
+  content: "#";
+}
+
+.ti-calendar::before {
+  content: "C";
+}
+
+.ti-toggle-left::before {
+  content: "T";
+}
+
+.ti-file-text::before {
+  content: "F";
+}
+
+.metric-data-viewer__card-body {
+  min-width: 0;
+}
+
+.metric-data-viewer__card-label {
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.metric-data-viewer__card-value {
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: pre-wrap;
+}
+
+.metric-data-viewer__card-value--text {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.metric-data-viewer__card-value--date,
+.metric-data-viewer__card-value--boolean {
   font-size: 14px;
 }
 
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer--compact .metric-data-viewer__group-body {
-  margin-left: 10px;
-  padding: 4px 10px 6px 10px;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer--compact .metric-data-viewer__row {
-  grid-template-columns: minmax(160px, 26%) minmax(200px, 1fr) max-content;
-  column-gap: 12px;
-  min-height: 28px;
-  padding: 4px 0;
-}
-
-/*noinspection CssUnusedSymbol*/
-.metric-data-viewer--compact .metric-data-viewer__field,
-.metric-data-viewer--compact .metric-data-viewer__value {
-  font-size: 13px;
-  line-height: 1.3;
+.metric-data-viewer__card-value--number {
+  font-variant-numeric: tabular-nums;
 }
 
 .metric-data-viewer__empty,
 .metric-data-viewer__error {
-  padding: 18px;
-  color: var(--metric-muted);
-  background: var(--metric-surface);
-  border: 1px solid var(--metric-border);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 14px;
+  padding: 16px;
 }
 
 .metric-data-viewer__error {
-  color: #991b1b;
   border-color: #fecaca;
+  color: #991b1b;
 }
 
-.metric-data-viewer__error-title {
-  margin-bottom: 10px;
-  font-size: 14px;
-  font-weight: 650;
-}
-
-.metric-data-viewer__raw {
-  max-height: 260px;
-  padding: 12px;
+.metric-data-viewer__error pre {
+  max-height: 240px;
   overflow: auto;
-  font-size: 13px;
-  color: #7f1d1d;
-  background: #fff7f7;
+  margin: 10px 0 0;
   border: 1px solid #fecaca;
   border-radius: 6px;
+  background: #fff7f7;
+  color: #7f1d1d;
+  font-size: 12px;
+  padding: 10px;
+  white-space: pre-wrap;
 }
 
+@media (max-width: 900px) {
+  .metric-data-viewer__meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .metric-data-viewer__meta,
+  .metric-data-viewer__cards {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

@@ -18,26 +18,23 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column fixed="right" :label="t('common.labels.actions')" min-width="180">
+        <el-table-column fixed="right" :label="t('common.labels.actions')" width="92" align="right">
           <template #default="scope">
-            <el-button
+            <div class="storage-actions">
+            <ActionIconButton
               v-show="allowEdit"
-              link
-              type="warning"
-              size="small"
+              :label="t('common.actions.edit')"
+              :icon="Edit"
               @click.prevent="openEditDialog(scope.row)"
-            >
-              {{ t('common.actions.edit') }}
-            </el-button>
-            <el-button
+            />
+            <ActionIconButton
               v-show="allowDelete"
-              link
-              type="danger"
-              size="small"
+              :label="t('common.actions.delete')"
+              :icon="Delete"
+              tone="danger"
               @click.prevent="removeStorage(scope.$index)"
-            >
-              {{ t('common.actions.delete') }}
-            </el-button>
+            />
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -69,8 +66,9 @@
 import { onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification, type TableInstance } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Delete, Edit, Plus } from '@element-plus/icons-vue'
 import type { StorageModel } from '@/models/storageModel.ts'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import CreateStorageDialogue from '@/components/storages/CreateStorageDialogue.vue'
 import EditStorageDialog from '@/components/storages/EditStorageDialog.vue'
@@ -167,3 +165,12 @@ watch(page, async () => loadStorages(false))
 watch(() => props.searchField, () => updateDebounce())
 watch(() => props.storageType, async () => loadStorages(true))
 </script>
+
+<style scoped>
+.storage-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+</style>

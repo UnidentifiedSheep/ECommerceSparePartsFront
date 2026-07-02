@@ -76,14 +76,13 @@
 
       <el-table-column fixed="right" label="" width="128" align="right">
         <template #default="{ row }">
-          <el-button :icon="Clock" size="small" text @click="openHistoryDialog(row)" />
-          <el-button v-if="canEdit" :icon="Edit" size="small" text @click="openEditDialog(row)" />
-          <el-button
+          <ActionIconButton :label="t('reservations.history')" :icon="Clock" @click="openHistoryDialog(row)" />
+          <ActionIconButton v-if="canEdit" :label="t('common.actions.edit')" :icon="Edit" @click="openEditDialog(row)" />
+          <ActionIconButton
             v-if="canDelete && row.status !== 'Canceled'"
+            :label="t('common.actions.delete')"
             :icon="Delete"
-            size="small"
-            text
-            type="danger"
+            tone="danger"
             @click="removeReservation(row)"
           />
         </template>
@@ -279,6 +278,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Clock, Delete, Edit, Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
@@ -779,8 +779,8 @@ onMounted(async () => loadReservations())
 }
 
 .picker-value:hover {
-  border-color: #60a5fa;
-  background: #eff6ff;
+  border-color: #cbd5e1;
+  background: #ffffff;
 }
 
 .picker-value span {
@@ -800,14 +800,14 @@ onMounted(async () => loadReservations())
 .user-id-link {
   border: 0;
   background: transparent;
-  color: #2563eb;
+  color: #047857;
   cursor: help;
   font: inherit;
   padding: 0;
 }
 
 .user-id-link:hover {
-  color: #1d4ed8;
+  color: #065f46;
   text-decoration: underline;
 }
 

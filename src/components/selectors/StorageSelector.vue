@@ -9,6 +9,7 @@
     :loading="isLoading"
     :placeholder="placeholder"
     class="w-full"
+    :popper-class="popperClass"
     @visible-change="onVisibleChange"
   >
     <el-option
@@ -29,6 +30,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import type { StorageModel } from '@/models/storageModel.ts'
+import { useSelectInfiniteScroll } from '@/composables/useSelectInfiniteScroll.ts'
 import { type StorageType, toText } from '@/enums/storageType.ts'
 import { getStorages } from '@/services/api/storages.ts'
 import { useI18n } from '@/i18n'
@@ -50,9 +52,14 @@ const selectedStorageName = defineModel<string | undefined>({ required: true })
 const storages = ref<StorageModel[]>([])
 const searchTerm = ref('')
 const isLoading = ref(false)
+const page = ref(0)
+const limit = ref(50)
+const hasNextPage = ref(true)
+const popperClass = `storage-selector-${Math.random().toString(36).slice(2)}`
+const { attach: attachScroll, detach: detachScroll } = useSelectInfiniteScroll(popperClass, () => loadStorages(false))
 
 const loadStoragesDebounced = useDebounceFn(async () => {
-  await loadStorages()
+  await loadStorages(true)
 }, 300)
 
 function ensureSelectedStorage() {
@@ -66,16 +73,28 @@ function ensureSelectedStorage() {
   } as StorageModel)
 }
 
-async function loadStorages() {
+async function loadStorages(reset = false) {
+  if (isLoading.value) return
+  if (reset) {
+    page.value = 0
+    hasNextPage.value = true
+    storages.value = []
+  }
+
+  if (!hasNextPage.value) return
+
   isLoading.value = true
   try {
     const resp = await getStorages({
-      page: 0,
-      limit: 50,
+      page: page.value,
+      limit: limit.value,
       searchTerm: searchTerm.value.trim() || undefined,
       type: props.type,
     })
-    storages.value = resp.storages
+    const existingNames = new Set(storages.value.map((storage) => storage.name))
+    storages.value.push(...resp.storages.filter((storage) => !existingNames.has(storage.name)))
+    hasNextPage.value = resp.storages.length === limit.value
+    page.value += 1
     ensureSelectedStorage()
   } finally {
     isLoading.value = false
@@ -88,15 +107,21 @@ function onSearch(query: string) {
 }
 
 function onVisibleChange(open: boolean) {
-  if (open && storages.value.length === 0) {
-    loadStorages()
+  if (!open) {
+    detachScroll()
+    return
+  }
+
+  attachScroll()
+  if (storages.value.length === 0) {
+    loadStorages(true)
   }
 }
 
 watch(selectedStorageName, ensureSelectedStorage)
-watch(() => props.type, () => loadStorages())
+watch(() => props.type, () => loadStorages(true))
 
-onMounted(loadStorages)
+onMounted(() => loadStorages(true))
 </script>
 
 <style scoped>

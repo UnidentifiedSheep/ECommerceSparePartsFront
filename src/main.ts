@@ -8,6 +8,7 @@ import App from './App.vue'
 import router from './router'
 import ElementPlus, { ElNotification } from 'element-plus'
 import 'element-plus/dist/index.css'
+import './assets/theme.css'
 import { ApiError } from '@/models/errorModel.ts'
 import { t } from '@/i18n'
 

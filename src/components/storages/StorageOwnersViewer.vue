@@ -19,7 +19,7 @@
             :key="owner.id"
             class="pb-3 last:pb-0"
           >
-            <el-card shadow="hover">
+            <el-card shadow="never">
               <div class="flex items-center justify-between">
 
                 <!-- Left -->

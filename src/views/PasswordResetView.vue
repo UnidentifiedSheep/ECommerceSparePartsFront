@@ -1,27 +1,24 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-100 px-4 py-10">
-    <div class="w-full max-w-md rounded-lg bg-white px-10 py-9 shadow-lg">
-      <div class="pb-8 text-center">
-        <h1 class="text-2xl font-semibold text-gray-900">{{ t('auth.resetTitle') }}</h1>
-        <p class="mt-2 text-sm text-gray-500">
-          {{ t('auth.resetHint') }}
-        </p>
-      </div>
+  <AuthShell>
+    <div class="auth-form__header">
+      <h1>{{ t('auth.resetTitle') }}</h1>
+      <p>{{ t('auth.resetHint') }}</p>
+    </div>
 
+    <form class="auth-form" @submit.prevent="submitReset">
       <el-alert
         v-if="!token"
         type="error"
         show-icon
         :closable="false"
-        class="mb-6"
         :title="t('auth.invalidResetLinkTitle')"
       >
         <p class="text-sm">{{ t('auth.invalidResetLinkMessage') }}</p>
       </el-alert>
 
       <template v-else>
-        <div class="pb-5">
-          <label for="new-password" class="block pb-2 font-semibold text-gray-700">{{ t('auth.newPassword') }}</label>
+        <div class="auth-field">
+          <label for="new-password" class="auth-field__label">{{ t('auth.newPassword') }}</label>
           <el-input
             id="new-password"
             v-model="newPassword"
@@ -29,11 +26,14 @@
             :placeholder="t('auth.newPasswordPlaceholder')"
             show-password
             :disabled="isDone"
+            required
+            size="large"
+            autocomplete="new-password"
           />
         </div>
 
-        <div class="pb-6">
-          <label for="confirm-password" class="block pb-2 font-semibold text-gray-700">{{ t('auth.confirmPassword') }}</label>
+        <div class="auth-field">
+          <label for="confirm-password" class="auth-field__label">{{ t('auth.confirmPassword') }}</label>
           <el-input
             id="confirm-password"
             v-model="confirmPassword"
@@ -41,43 +41,47 @@
             :placeholder="t('auth.confirmPasswordPlaceholder')"
             show-password
             :disabled="isDone"
-            @keyup.enter="submitReset"
+            required
+            size="large"
+            autocomplete="new-password"
           />
-          <p v-if="passwordMismatch" class="mt-3 text-sm text-red-600">
+          <p v-if="passwordMismatch" class="auth-form__message">
             {{ t('auth.passwordMismatch') }}
           </p>
         </div>
 
         <el-alert
           v-if="isDone"
-        type="success"
-        show-icon
-        :closable="false"
-        class="mb-6"
-        :title="t('auth.resetDoneTitle')"
-      >
-        <p class="text-sm">{{ t('auth.resetDoneMessage') }}</p>
-      </el-alert>
+          type="success"
+          show-icon
+          :closable="false"
+          :title="t('auth.resetDoneTitle')"
+        >
+          <p class="text-sm">{{ t('auth.resetDoneMessage') }}</p>
+        </el-alert>
       </template>
 
-      <div class="flex flex-col gap-4 pt-1">
+      <div class="auth-form__actions">
         <el-button
           v-if="token && !isDone"
+          native-type="submit"
           type="primary"
           size="large"
+          class="auth-form__submit"
           :loading="isLoading"
           :disabled="!canSubmit"
-          @click="submitReset"
         >
           {{ t('auth.savePassword') }}
         </el-button>
 
-        <RouterLink to="/auth" class="text-center text-sm font-medium text-blue-600 hover:text-blue-700">
-          {{ t('auth.goToLogin') }}
-        </RouterLink>
+        <div class="auth-form__secondary-action">
+          <RouterLink to="/auth" class="auth-form__link">
+            {{ t('auth.goToLogin') }}
+          </RouterLink>
+        </div>
       </div>
-    </div>
-  </div>
+    </form>
+  </AuthShell>
 </template>
 
 <script setup lang="ts">
@@ -87,6 +91,7 @@ import { ElNotification } from 'element-plus'
 import { ApiError } from '@/models/errorModel.ts'
 import { resetPassword } from '@/services/api/authApi.ts'
 import { useI18n } from '@/i18n'
+import AuthShell from '@/components/auth/AuthShell.vue'
 
 const route = useRoute()
 const { t } = useI18n()

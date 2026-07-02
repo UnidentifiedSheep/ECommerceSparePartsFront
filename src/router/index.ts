@@ -3,6 +3,7 @@ import AuthView from '@/views/AuthView.vue'
 import AnalyticsView from '@/views/AnalyticsView.vue'
 import CurrenciesView from '@/views/CurrenciesView.vue'
 import JobsView from '@/views/JobsView.vue'
+import MarkupsView from '@/views/MarkupsView.vue'
 import PasswordRecoveryView from '@/views/PasswordRecoveryView.vue'
 import PasswordResetView from '@/views/PasswordResetView.vue'
 import PermissionsView from '@/views/PermissionsView.vue'
@@ -65,6 +66,12 @@ const routes = [
         path: '/currencies',
         name: 'currencies',
         component: CurrenciesView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/markups',
+        name: 'markups',
+        component: MarkupsView,
         meta: { requiresAuth: true },
       },
       {

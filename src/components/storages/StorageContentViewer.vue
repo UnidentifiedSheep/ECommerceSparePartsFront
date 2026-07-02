@@ -29,10 +29,12 @@
           {{ formatDate(row.purchaseDatetime) }}
         </template>
       </el-table-column>
-      <el-table-column fixed="right" :label="t('common.labels.actions')" min-width="180">
+      <el-table-column fixed="right" :label="t('common.labels.actions')" width="92" align="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openEditDialog(row)">{{ t('common.actions.edit') }}</el-button>
-          <el-button size="small" type="danger" @click="removeItem(row)">{{ t('common.actions.delete') }}</el-button>
+          <div class="content-actions">
+            <ActionIconButton :label="t('common.actions.edit')" :icon="Edit" @click="openEditDialog(row)" />
+            <ActionIconButton :label="t('common.actions.delete')" :icon="Delete" tone="danger" @click="removeItem(row)" />
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -114,6 +116,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
+import { Delete, Edit } from '@element-plus/icons-vue'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
@@ -261,3 +265,12 @@ watch(storage, loadContent, { immediate: true })
 watch(showZeroContent, loadContent)
 onMounted(loadCurrencies)
 </script>
+
+<style scoped>
+.content-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+</style>

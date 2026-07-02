@@ -156,6 +156,11 @@ export interface GetStorageContentResponse {
   contents: StorageContentModel[]
 }
 
+type StorageContentDto = StorageContentModel & {
+  quantity?: number
+  stock?: number
+}
+
 export interface AddStorageContentItemRequest {
   productId: number
   currencyId: number
@@ -276,7 +281,7 @@ export async function deleteStorageRoute(id: string) {
 
 export async function getStorageContent(req: GetStorageContentRequest): Promise<GetStorageContentResponse> {
   const size = req.size ?? req.limit ?? 20
-  const resp = await api.get<GetStorageContentResponse & { content?: StorageContentModel[] }>('/main/storages/contents', {
+  const resp = await api.get<{ contents?: StorageContentDto[]; content?: StorageContentDto[] }>('/main/storages/contents', {
     params: {
       storageName: req.storageName,
       productId: req.productId,
@@ -285,8 +290,13 @@ export async function getStorageContent(req: GetStorageContentRequest): Promise<
       showZeroContent: req.showZeroContent,
     },
   })
+  const contents = resp.data.contents ?? resp.data.content ?? []
+
   return {
-    contents: resp.data.contents ?? resp.data.content ?? [],
+    contents: contents.map((item) => ({
+      ...item,
+      count: item.count ?? item.quantity ?? item.stock ?? 0,
+    })),
   }
 }
 

@@ -21,17 +21,45 @@
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
 }
 
-/* semantic color variables for this project */
 :root {
-  --color-background: #f3f3f3;
-  --color-background-soft: #f8f8f8;
-  --color-background-mute: #f2f2f2;
+  --app-bg: #f3f7f4;
+  --app-bg-soft: #f8fbf9;
+  --app-surface: #ffffff;
+  --app-surface-tinted: #fbfdfb;
+  --app-header-bg: #ffffff;
+  --app-topbar-bg: #f8fafc;
+  --app-border: #d9e6df;
+  --app-border-strong: #c8d8d0;
+  --app-text: #102033;
+  --app-text-muted: #607086;
+  --app-primary: #047857;
+  --app-primary-soft: #ecfdf5;
 
-  --color-border: rgba(60,60,60,0.12);
-  --color-border-hover: rgba(60,60,60,0.29);
+  --color-background: var(--app-bg);
+  --color-background-soft: var(--app-bg-soft);
+  --color-background-mute: #edf4f0;
 
-  --color-heading: #2c3e50;
-  --color-text: #2c3e50;
+  --color-border: var(--app-border);
+  --color-border-hover: var(--app-border-strong);
+
+  --color-heading: var(--app-text);
+  --color-text: var(--app-text);
+
+  --el-color-primary: var(--app-primary);
+  --el-color-primary-dark-2: #065f46;
+  --el-color-primary-light-3: #059669;
+  --el-color-primary-light-5: #10b981;
+  --el-color-primary-light-7: #86efac;
+  --el-color-primary-light-8: #bbf7d0;
+  --el-color-primary-light-9: var(--app-primary-soft);
+  --el-border-color: var(--app-border);
+  --el-border-color-light: #e3ece7;
+  --el-border-color-lighter: #edf3ef;
+  --el-fill-color-light: var(--app-bg-soft);
+  --el-fill-color-lighter: #fbfdfb;
+  --el-text-color-primary: var(--app-text);
+  --el-text-color-regular: #334155;
+  --el-text-color-secondary: var(--app-text-muted);
 }
 
 *,
@@ -52,9 +80,6 @@ body {
   min-height: 100vh;
   color: var(--color-text);
   background: var(--color-background);
-  transition:
-    color 0.5s,
-    background-color 0.5s;
   line-height: 1.6;
   font-family:
     Inter,

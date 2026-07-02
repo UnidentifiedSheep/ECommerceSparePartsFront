@@ -1,40 +1,39 @@
 <template>
   <div class="service-settings-page">
-    <section class="service-settings-hero">
-      <div>
-        <h1>{{ t('serviceSettings.title') }}</h1>
-        <p>{{ t('serviceSettings.description') }}</p>
-      </div>
-      <el-button type="primary" :loading="isLoadingServices" @click="loadServices">
-        {{ t('common.actions.refresh') }}
-      </el-button>
-    </section>
+    <PageHeader :title="t('serviceSettings.title')" :description="t('serviceSettings.description')">
+      <template #actions>
+        <el-button type="primary" :loading="isLoadingServices" @click="loadServices">
+          {{ t('common.actions.refresh') }}
+        </el-button>
+      </template>
+    </PageHeader>
 
-    <section class="service-strip">
-      <button
-        v-for="service in serviceCards"
-        :key="service.key"
-        type="button"
-        class="service-card"
-        :class="{ unavailable: !service.available, active: selectedService === service.key }"
-        :disabled="!service.available"
-        @click="selectService(service.key)"
-      >
-        <div class="service-card-title">
-          <span>{{ serviceLabel(service.key) }}</span>
-          <el-tag :type="service.available ? 'success' : 'danger'" effect="light" round>
-            {{ service.available ? t('serviceSettings.available') : t('serviceSettings.unavailable') }}
-          </el-tag>
-        </div>
-        <div class="service-card-meta">
-          {{ service.available ? t('serviceSettings.selectService') : t('common.messages.serviceUnavailable') }}
-        </div>
-      </button>
-    </section>
+    <div class="service-settings-content">
+      <section class="service-strip">
+        <button
+          v-for="service in serviceCards"
+          :key="service.key"
+          type="button"
+          class="service-card"
+          :class="{ unavailable: !service.available, active: selectedService === service.key }"
+          :disabled="!service.available"
+          @click="selectService(service.key)"
+        >
+          <div class="service-card-title">
+            <span>{{ serviceLabel(service.key) }}</span>
+            <el-tag :type="service.available ? 'success' : 'info'" effect="plain">
+              {{ service.available ? t('serviceSettings.available') : t('serviceSettings.unavailable') }}
+            </el-tag>
+          </div>
+          <div class="service-card-meta">
+            {{ service.available ? t('serviceSettings.selectService') : t('common.messages.serviceUnavailable') }}
+          </div>
+        </button>
+      </section>
 
-    <el-empty v-if="!canManageSettings" :description="t('serviceSettings.noAccess')" />
+      <el-empty v-if="!canManageSettings" :description="t('serviceSettings.noAccess')" />
 
-    <section v-else class="settings-workspace">
+      <section v-else class="settings-workspace">
       <aside class="settings-list-panel">
         <div class="settings-list-toolbar">
           <div>
@@ -97,79 +96,20 @@
           />
 
           <el-form v-else label-position="top" class="setting-form">
-            <template v-if="schemaFields.length > 0">
-              <el-form-item
-                v-for="field in schemaFields"
-                :key="field.name"
-                :label="fieldLabel(field)"
-                :required="field.required"
-              >
-                <el-input
-                  v-if="field.control === 'TextField'"
-                  v-model="inputState[field.name]"
-                  clearable
-                  :placeholder="field.description || field.name"
-                />
-
-                <el-date-picker
-                  v-else-if="field.control === 'DatePicker'"
-                  v-model="inputState[field.name]"
-                  type="date"
-                  format="DD.MM.YYYY"
-                  value-format="YYYY-MM-DD"
-                  class="w-full"
-                  :placeholder="field.description || field.name"
-                />
-
-                <template v-else-if="field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector'">
-                  <el-select
-                    v-if="isSupportedSelector(field)"
-                    v-model="inputState[field.name]"
-                    filterable
-                    clearable
-                    :remote="field.dependsOnEntity === 'Product'"
-                    :remote-method="(query: string) => searchSelectorOptions(field, query)"
-                    class="w-full"
-                    :loading="isSelectorLoading(field)"
-                    :placeholder="field.description || field.name"
-                    @visible-change="(isOpen: boolean) => loadSelectorOptionsOnOpen(field, isOpen)"
-                  >
-                    <el-option
-                      v-for="option in selectorOptions(field)"
-                      :key="String(selectorOptionValue(field, option))"
-                      :label="selectorOptionLabel(field, option)"
-                      :value="selectorOptionValue(field, option)"
-                    />
-                  </el-select>
-                  <el-input
-                    v-else
-                    v-model="inputState[field.name]"
-                    :placeholder="field.description || field.name"
-                  />
-                </template>
-
-                <el-switch
-                  v-else-if="field.type === 'boolean'"
-                  v-model="inputState[field.name]"
-                />
-
-                <el-input-number
-                  v-else-if="isNumberField(field)"
-                  v-model="inputState[field.name]"
-                  class="w-full"
-                  controls-position="right"
-                />
-
-                <el-input
-                  v-else
-                  v-model="inputState[field.name]"
-                  :placeholder="field.description || field.name"
-                />
-
-                <div v-if="field.description" class="field-hint">{{ field.description }}</div>
-              </el-form-item>
-            </template>
-            <el-empty v-else :description="t('serviceSettings.noInput')" />
+            <DynamicSchemaForm
+              :fields="schemaFields"
+              :model-value="inputState"
+              :empty-text="t('serviceSettings.noInput')"
+              :is-supported-selector="isSupportedSelector"
+              :is-selector-loading="isSelectorLoading"
+              :selector-options="selectorOptions"
+              :selector-option-value="selectorOptionValue"
+              :selector-option-label="selectorOptionLabel"
+              :search-selector-options="searchSelectorOptions"
+              :load-selector-options-on-open="loadSelectorOptionsOnOpen"
+              @update-field="setInputStateField"
+              @selector-load-more="loadMoreSelectorOptions"
+            />
           </el-form>
 
           <section v-if="readonlyOutputFields.length > 0" class="readonly-state">
@@ -183,8 +123,9 @@
                 :key="field.name"
                 class="readonly-state-field"
               >
-                <span>{{ field.name }}</span>
+                <span>{{ field.label }}</span>
                 <strong>{{ field.value }}</strong>
+                <small v-if="field.description">{{ field.description }}</small>
               </div>
             </div>
           </section>
@@ -192,13 +133,16 @@
 
         <el-empty v-else :description="t('serviceSettings.selectSetting')" />
       </main>
-    </section>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import PageHeader from '@/components/common/PageHeader.vue'
+import DynamicSchemaForm, { type FieldValue } from '@/components/schema/DynamicSchemaForm.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { useI18n } from '@/i18n'
@@ -235,6 +179,8 @@ interface EnumSelectorOption {
 
 interface ReadonlyOutputField {
   name: string
+  label: string
+  description?: string
   value: string
 }
 
@@ -261,6 +207,10 @@ const isLoadingSettings = ref(false)
 const isSaving = ref(false)
 const currencies = ref<CurrencyModel[]>([])
 const products = ref<ProductSearchModel[]>([])
+const productsQuery = ref('')
+const productsPage = ref(0)
+const productsLimit = ref(50)
+const productsHasNext = ref(true)
 const namedObjects = ref<Record<string, NamedObjectModel[]>>({})
 const isLoadingCurrencies = ref(false)
 const isLoadingProducts = ref(false)
@@ -346,7 +296,7 @@ function selectSetting(setting: SettingModel | null) {
   }
 
   parseSettingSchema(setting.inputData)
-  hydrateOutputData(setting.outputData)
+  hydrateOutputData(setting.outputData, setting.outputMetadata)
   void loadSchemaSelectors()
 }
 
@@ -368,30 +318,69 @@ function parseSettingSchema(rawSchema: string) {
   }
 }
 
-function hydrateOutputData(rawOutput: string) {
+function hydrateOutputData(rawOutput: string, rawOutputMetadata?: string | null) {
   if (!rawOutput) return
 
   try {
     const parsed = JSON.parse(rawOutput) as Record<string, string | number | boolean | null>
+    const outputMetadataFields = parseOutputMetadataFields(rawOutputMetadata)
     schemaFields.value.forEach((field) => {
       const currentValue = findCurrentFieldValue(parsed, field.name)
       if (currentValue.found) {
         inputState[field.name] = normalizeFieldValue(field, currentValue.value)
       }
     })
-    readonlyOutputFields.value = buildReadonlyOutputFields(parsed)
+    readonlyOutputFields.value = buildReadonlyOutputFields(parsed, outputMetadataFields)
   } catch {
     schemaError.value = t('serviceSettings.outputParseError')
   }
 }
 
-function buildReadonlyOutputFields(source: Record<string, unknown>): ReadonlyOutputField[] {
+function parseOutputMetadataFields(rawOutputMetadata?: string | null): SettingSchemaField[] {
+  if (!rawOutputMetadata) return []
+
+  const parsed = JSON.parse(rawOutputMetadata || '{}') as SettingSchema
+  return Array.isArray(parsed.fields) ? parsed.fields : []
+}
+
+function buildReadonlyOutputFields(source: Record<string, unknown>, outputMetadataFields: SettingSchemaField[]): ReadonlyOutputField[] {
+  if (outputMetadataFields.length > 0) {
+    const metadataFieldNames = new Set(outputMetadataFields.map((field) => normalizeKey(field.name)))
+    const describedFields = outputMetadataFields
+      .map((field): ReadonlyOutputField | null => {
+        const currentValue = findCurrentFieldValue(source, field.name)
+        if (!currentValue.found) return null
+
+        const readonlyField: ReadonlyOutputField = {
+          name: field.name,
+          label: fieldLabel(field),
+          description: field.description,
+          value: formatReadonlyValue(currentValue.value, field),
+        }
+        return readonlyField
+      })
+      .filter((field): field is ReadonlyOutputField => field !== null)
+
+    return [
+      ...describedFields,
+      ...buildFallbackReadonlyOutputFields(source, metadataFieldNames),
+    ]
+  }
+
+  return buildFallbackReadonlyOutputFields(
+    source,
+    new Set(schemaFields.value.map((field) => normalizeKey(field.name))),
+  )
+}
+
+function buildFallbackReadonlyOutputFields(source: Record<string, unknown>, excludedFieldNames: Set<string>): ReadonlyOutputField[] {
   const editableFieldNames = new Set(schemaFields.value.map((field) => normalizeKey(field.name)))
 
   return Object.entries(source)
-    .filter(([key]) => !editableFieldNames.has(normalizeKey(key)))
+    .filter(([key]) => !editableFieldNames.has(normalizeKey(key)) && !excludedFieldNames.has(normalizeKey(key)))
     .map(([key, value]) => ({
       name: key,
+      label: key,
       value: formatReadonlyValue(value),
     }))
 }
@@ -400,14 +389,15 @@ function normalizeKey(key: string) {
   return key.toLowerCase()
 }
 
-function formatReadonlyValue(value: unknown): string {
+function formatReadonlyValue(value: unknown, field?: SettingSchemaField): string {
   if (value === null || value === undefined || value === '') return '—'
+  if (field?.control === 'EnumSelector') return String(normalizeEnumValue(field, value as string | number | boolean))
   if (typeof value === 'boolean') return value ? t('serviceSettings.yes') : t('serviceSettings.no')
   if (typeof value === 'string' || typeof value === 'number') return String(value)
   return JSON.stringify(value)
 }
 
-function findCurrentFieldValue(source: Record<string, string | number | boolean | null>, fieldName: string) {
+function findCurrentFieldValue(source: Record<string, unknown>, fieldName: string) {
   if (Object.prototype.hasOwnProperty.call(source, fieldName)) {
     return { found: true, value: source[fieldName] }
   }
@@ -426,11 +416,12 @@ function findCurrentFieldValue(source: Record<string, string | number | boolean 
   return { found: false, value: null }
 }
 
-function normalizeFieldValue(field: SettingSchemaField, value: string | number | boolean | null | undefined) {
+function normalizeFieldValue(field: SettingSchemaField, value: unknown) {
   if (value === null || value === undefined) return defaultValue(field)
   if (field.control === 'DatePicker' && typeof value === 'string') return value.slice(0, 10)
-  if (field.control === 'EnumSelector') return normalizeEnumValue(field, value)
-  return value
+  if (field.control === 'EnumSelector' && isPrimitiveSettingValue(value)) return normalizeEnumValue(field, value)
+  if (isPrimitiveSettingValue(value)) return value
+  return JSON.stringify(value)
 }
 
 function normalizeEnumValue(field: SettingSchemaField, value: string | number | boolean) {
@@ -439,6 +430,10 @@ function normalizeEnumValue(field: SettingSchemaField, value: string | number | 
   }
 
   return typeof value === 'boolean' ? String(value) : value
+}
+
+function isPrimitiveSettingValue(value: unknown): value is string | number | boolean | null {
+  return value === null || ['string', 'number', 'boolean'].includes(typeof value)
 }
 
 function defaultValue(field: SettingSchemaField) {
@@ -461,6 +456,10 @@ function fieldLabel(field: SettingSchemaField) {
 
 function isEmptyValue(value: unknown) {
   return value === null || value === undefined || value === ''
+}
+
+function setInputStateField(name: string, value: FieldValue) {
+  inputState[name] = value
 }
 
 function normalizedInputState() {
@@ -541,16 +540,28 @@ async function loadCurrenciesIfNeeded() {
   }
 }
 
-async function loadProducts(query = '') {
+async function loadProducts(query = '', reset = true) {
+  if (isLoadingProducts.value) return
+  if (reset) {
+    productsQuery.value = query
+    productsPage.value = 0
+    productsHasNext.value = true
+    products.value = []
+  }
+  if (!productsHasNext.value) return
+
   isLoadingProducts.value = true
   try {
     const response = await searchProducts({
-      query: query.trim() || undefined,
-      page: 0,
-      size: 20,
+      query: productsQuery.value.trim() || undefined,
+      page: productsPage.value,
+      size: productsLimit.value,
       sortBy: 'id_asc',
     })
-    products.value = response.products
+    const existingIds = new Set(products.value.map((product) => product.id))
+    products.value.push(...response.products.filter((product) => !existingIds.has(product.id)))
+    productsHasNext.value = response.products.length === productsLimit.value
+    productsPage.value += 1
   } finally {
     isLoadingProducts.value = false
   }
@@ -608,7 +619,13 @@ async function loadSelectorOptions(field: SettingSchemaField) {
 
 function searchSelectorOptions(field: SettingSchemaField, query: string) {
   if (field.dependsOnEntity === 'Product') {
-    void loadProducts(query)
+    void loadProducts(query, true)
+  }
+}
+
+function loadMoreSelectorOptions(field: SettingSchemaField) {
+  if (field.dependsOnEntity === 'Product') {
+    void loadProducts(productsQuery.value, false)
   }
 }
 
@@ -647,11 +664,13 @@ onMounted(loadServices)
 <style scoped>
 .service-settings-page {
   min-height: calc(100vh - 56px);
-  background: #f5f7fb;
+  background: #f7f8fa;
+}
+
+.service-settings-content {
   padding: 24px;
 }
 
-.service-settings-hero,
 .settings-list-toolbar,
 .setting-editor-header {
   display: flex;
@@ -660,11 +679,6 @@ onMounted(loadServices)
   gap: 16px;
 }
 
-.service-settings-hero {
-  margin-bottom: 18px;
-}
-
-.service-settings-hero h1,
 .settings-list-toolbar h2,
 .setting-editor-header h2 {
   margin: 0;
@@ -672,11 +686,6 @@ onMounted(loadServices)
   font-weight: 700;
 }
 
-.service-settings-hero h1 {
-  font-size: 28px;
-}
-
-.service-settings-hero p,
 .settings-list-toolbar p,
 .setting-editor-header p {
   margin: 6px 0 0;
@@ -700,14 +709,15 @@ onMounted(loadServices)
 }
 
 .service-card.active {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: #94a3b8;
+  background: #f8fafc;
 }
 
 .service-card.unavailable {
-  background: #fff7f7;
-  border-color: #fecaca;
+  background: #f8fafc;
+  border-color: #e2e8f0;
   cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .service-card-title {
@@ -755,8 +765,13 @@ onMounted(loadServices)
 
 .setting-row.active,
 .setting-row:hover {
-  border-color: #93c5fd;
-  background: #eff6ff;
+  border-color: #cbd5e1;
+  background: #ffffff;
+}
+
+.setting-row.active {
+  border-color: #047857;
+  background: #f7fdf9;
 }
 
 .setting-row strong,
@@ -787,13 +802,6 @@ onMounted(loadServices)
 
 .setting-form {
   max-width: 720px;
-}
-
-.field-hint {
-  margin-top: 6px;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.4;
 }
 
 .readonly-state {
@@ -832,7 +840,8 @@ onMounted(loadServices)
 }
 
 .readonly-state-field span,
-.readonly-state-field strong {
+.readonly-state-field strong,
+.readonly-state-field small {
   display: block;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -847,6 +856,13 @@ onMounted(loadServices)
   margin-top: 4px;
   color: #111827;
   font-size: 14px;
+}
+
+.readonly-state-field small {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 @media (max-width: 1100px) {

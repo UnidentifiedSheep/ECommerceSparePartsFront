@@ -1,12 +1,7 @@
 <template>
-  <main class="min-h-screen bg-slate-50 px-6 py-6">
-    <section class="flex w-full flex-col gap-5">
-      <div class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
-        <div>
-          <h1 class="text-2xl font-semibold text-slate-900">{{ t('analytics.title') }}</h1>
-          <p class="mt-1 text-sm text-slate-500">{{ t('analytics.description') }}</p>
-        </div>
-
+  <main class="min-h-screen bg-slate-50">
+    <PageHeader :title="t('analytics.title')" :description="t('analytics.description')">
+      <template #actions>
         <div class="flex items-center gap-2">
           <el-button v-if="canViewMetrics" :icon="Refresh" :loading="isMetricsLoading" @click="loadMetrics(false)">
             {{ t('common.actions.refresh') }}
@@ -15,8 +10,10 @@
             {{ t('analytics.createMetric') }}
           </el-button>
         </div>
-      </div>
+      </template>
+    </PageHeader>
 
+    <section class="flex w-full flex-col gap-5 px-6 py-6">
       <el-empty v-if="!canViewMetrics" :description="t('analytics.noAccess')" />
 
       <el-alert
@@ -44,7 +41,7 @@
       </el-alert>
 
       <div v-if="canViewMetrics" class="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <aside class="rounded-lg border border-slate-200 bg-white p-5">
           <div class="mb-4 flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 class="text-base font-medium text-slate-900">{{ t('analytics.availableMetrics') }}</h2>
             <el-tag type="info" effect="plain">{{ filteredMetricInfos.length }}</el-tag>
@@ -86,7 +83,7 @@
           </div>
         </aside>
 
-        <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <section class="rounded-lg border border-slate-200 bg-white">
           <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
             <div>
               <h2 class="text-base font-medium text-slate-900">{{ t('analytics.metrics') }}</h2>
@@ -112,7 +109,7 @@
             <el-table-column type="expand" width="48">
               <template #default="{ row }">
                 <div class="bg-slate-50 px-5 py-4">
-                  <MetricDataViewer :data="row.data" />
+                  <MetricDataViewer :metric="row" />
                 </div>
               </template>
             </el-table-column>
@@ -198,7 +195,7 @@
 
       <div class="flex h-full flex-col">
         <div class="flex-1 overflow-auto px-5 pb-6 pt-2">
-          <fieldset class="rounded-2xl border border-slate-200 px-4 pb-6 pt-4">
+          <fieldset class="rounded-lg border border-slate-200 px-4 pb-6 pt-4">
             <legend class="px-2">
               <span class="text-base font-semibold text-slate-900">{{ t('analytics.metricParameters') }}</span>
             </legend>
@@ -236,85 +233,21 @@
                 class="mb-4"
               />
 
-              <template v-else-if="schemaFields.length > 0">
-                <el-form-item
-                  v-for="field in schemaFields"
-                  :key="field.name"
-                  :label="fieldLabel(field)"
-                  :required="field.required"
-                  class="analytics-drawer-form-item"
-                >
-                  <el-input
-                    v-if="field.control === 'TextField'"
-                    v-model="inputState[field.name]"
-                    clearable
-                    :placeholder="field.description || field.name"
-                  />
-
-                  <el-date-picker
-                    v-else-if="field.control === 'DatePicker'"
-                    v-model="inputState[field.name]"
-                    type="date"
-                    format="DD.MM.YYYY"
-                    value-format="YYYY-MM-DD"
-                    :teleported="false"
-                    popper-class="analytics-drawer-date-popper"
-                    class="w-full"
-                    :placeholder="field.description || field.name"
-                  />
-
-                  <template v-else-if="field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector'">
-                    <el-select
-                      v-if="isSupportedEntitySelector(field)"
-                      v-model="inputState[field.name]"
-                      filterable
-                      clearable
-                      :remote="field.dependsOnEntity === 'Product'"
-                      :remote-method="(query: string) => searchEntityOptions(field, query)"
-                      class="w-full"
-                      :loading="isEntityLoading(field)"
-                      :placeholder="field.description || field.name"
-                      :teleported="false"
-                      popper-class="analytics-drawer-select-popper"
-                      @visible-change="(isOpen: boolean) => loadEntityOptionsOnOpen(field, isOpen)"
-                    >
-                      <el-option
-                        v-for="option in entityOptions(field)"
-                        :key="String(entityOptionValue(field, option))"
-                        :label="entityOptionLabel(field, option)"
-                        :value="entityOptionValue(field, option)"
-                      />
-                    </el-select>
-                    <el-input
-                      v-else
-                      v-model="inputState[field.name]"
-                      :placeholder="field.description || field.name"
-                    />
-                  </template>
-
-                  <el-switch
-                    v-else-if="field.type === 'boolean'"
-                    v-model="inputState[field.name]"
-                  />
-
-                  <el-input-number
-                    v-else-if="isNumberField(field)"
-                    v-model="inputState[field.name]"
-                    class="w-full"
-                    controls-position="right"
-                  />
-
-                  <el-input
-                    v-else
-                    v-model="inputState[field.name]"
-                    :placeholder="field.description || field.name"
-                  />
-
-                  <div v-if="field.description" class="mt-1 text-xs text-slate-500">{{ field.description }}</div>
-                </el-form-item>
-              </template>
-
-              <el-empty v-else :description="t('analytics.noInput')" />
+              <DynamicSchemaForm
+                v-else
+                :fields="schemaFields"
+                :model-value="inputState"
+                :empty-text="t('analytics.noInput')"
+                :is-supported-selector="isSupportedEntitySelector"
+                :is-selector-loading="isEntityLoading"
+                :selector-options="entityOptions"
+                :selector-option-value="entityOptionValue"
+                :selector-option-label="entityOptionLabel"
+                :search-selector-options="searchEntityOptions"
+                :load-selector-options-on-open="loadEntityOptionsOnOpen"
+                @update-field="setInputStateField"
+                @selector-load-more="loadMoreEntityOptions"
+              />
             </el-form>
           </fieldset>
         </div>
@@ -424,7 +357,9 @@ import { ElMessage, ElNotification, type TagProps } from 'element-plus'
 import type { HubConnection } from '@microsoft/signalr'
 import { Close, Plus, Refresh } from '@element-plus/icons-vue'
 import MetricDataViewer from '@/components/analytics/MetricDataViewer.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import DynamicSchemaForm, { type FieldValue } from '@/components/schema/DynamicSchemaForm.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import {
@@ -458,6 +393,10 @@ const metricInfos = ref<MetricInfoModel[]>([])
 const metrics = ref<MetricModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const products = ref<ProductSearchModel[]>([])
+const productsQuery = ref('')
+const productsPage = ref(0)
+const productsLimit = ref(50)
+const productsHasNext = ref(true)
 const namedObjects = ref<Record<string, NamedObjectModel[]>>({})
 const activeJob = ref<CalculationJobModel | null>(null)
 const historyMetric = ref<MetricModel | null>(null)
@@ -681,6 +620,10 @@ function isEmptyValue(value: unknown) {
   return value === null || value === undefined || value === ''
 }
 
+function setInputStateField(name: string, value: FieldValue) {
+  inputState[name] = value
+}
+
 function isSupportedEntitySelector(field: MetricSchemaField) {
   return field.dependsOnEntity === 'Currency'
     || field.dependsOnEntity === 'Product'
@@ -794,17 +737,29 @@ async function loadCurrencies() {
   }
 }
 
-async function loadProducts(query = '') {
+async function loadProducts(query = '', reset = true) {
   if (!canViewMetrics.value) return
+  if (isProductsLoading.value) return
+  if (reset) {
+    productsQuery.value = query
+    productsPage.value = 0
+    productsHasNext.value = true
+    products.value = []
+  }
+  if (!productsHasNext.value) return
+
   isProductsLoading.value = true
   try {
     const resp = await searchProducts({
-      query: query.trim() || undefined,
-      page: 0,
-      size: 20,
+      query: productsQuery.value.trim() || undefined,
+      page: productsPage.value,
+      size: productsLimit.value,
       sortBy: 'id_asc',
     })
-    products.value = resp.products
+    const existingIds = new Set(products.value.map((product) => product.id))
+    products.value.push(...resp.products.filter((product) => !existingIds.has(product.id)))
+    productsHasNext.value = resp.products.length === productsLimit.value
+    productsPage.value += 1
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('analytics.loadError'))
   } finally {
@@ -859,7 +814,13 @@ async function loadEntityOptions(field: MetricSchemaField) {
 
 function searchEntityOptions(field: MetricSchemaField, query: string) {
   if (field.dependsOnEntity === 'Product') {
-    void loadProducts(query)
+    void loadProducts(query, true)
+  }
+}
+
+function loadMoreEntityOptions(field: MetricSchemaField) {
+  if (field.dependsOnEntity === 'Product') {
+    void loadProducts(productsQuery.value, false)
   }
 }
 
@@ -1152,19 +1113,17 @@ onBeforeUnmount(async () => {
   border-radius: 6px;
   transition:
     background-color 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    border-color 0.15s ease;
 }
 
 .analytics-metric-filter-button:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
+  background: #ffffff;
+  border-color: #cbd5e1;
 }
 
 .analytics-metric-filter-button--active {
-  background: #eff6ff;
-  border-color: #2563eb;
-  box-shadow: inset 3px 0 0 #2563eb;
+  background: #f7fdf9;
+  border-color: #047857;
 }
 
 .analytics-clear-filter-button {

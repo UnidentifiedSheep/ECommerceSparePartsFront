@@ -1,22 +1,20 @@
 <template>
-  <div class="min-h-[calc(100vh-56px)] bg-slate-50">
-    <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
-      <div>
-        <h1 class="text-2xl font-semibold text-slate-900">{{ t('users.title') }}</h1>
-        <p class="text-sm text-slate-500">{{ t('users.description') }}</p>
-      </div>
-      <el-button v-if="canCreateUsers" type="primary" @click="openCreateUserDialog">{{ t('users.createUser') }}</el-button>
-    </div>
+  <div class="users-page">
+    <PageHeader :title="t('users.title')" :description="t('users.description')">
+      <template #actions>
+        <el-button v-if="canCreateUsers" type="primary" @click="openCreateUserDialog">{{ t('users.createUser') }}</el-button>
+      </template>
+    </PageHeader>
 
-    <div class="p-4">
-      <el-card shadow="hover">
-        <el-row :gutter="20" align="bottom">
-          <el-col :span="8">
-            <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.search') }}</label>
+    <div class="users-content">
+      <section class="users-panel users-filter-panel">
+        <div class="users-filter-toolbar">
+          <div class="users-filter-toolbar__search">
+            <label class="users-field-label">{{ t('common.labels.search') }}</label>
             <el-input v-model="searchTerm" clearable :placeholder="t('users.searchPlaceholder')" />
-          </el-col>
-          <el-col :span="6">
-            <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.roles') }}</label>
+          </div>
+          <div class="users-filter-toolbar__roles">
+            <label class="users-field-label">{{ t('common.labels.roles') }}</label>
             <el-select
               v-model="selectedRoleFilters"
               multiple
@@ -36,86 +34,88 @@
                 :value="role.systemName"
               />
             </el-select>
-          </el-col>
-          <el-col :span="4">
-            <el-button plain @click="resetFilters">{{ t('users.resetFilters') }}</el-button>
-          </el-col>
-        </el-row>
-      </el-card>
+          </div>
+          <el-button class="users-filter-toolbar__action" plain @click="resetFilters">{{ t('users.resetFilters') }}</el-button>
+        </div>
+      </section>
 
-      <div class="pt-4">
-        <el-row :gutter="24">
-          <el-col :span="14">
-            <el-card shadow="hover" class="h-[760px]">
-              <el-table
-                ref="usersTableRef"
-                :data="users"
-                class="w-full"
-                height="100%"
-                highlight-current-row
-                @current-change="selectUser"
-              >
-                <el-table-column prop="surname" :label="t('common.labels.surname')" min-width="140" />
-                <el-table-column prop="name" :label="t('common.labels.firstName')" min-width="140" />
-                <el-table-column prop="userName" :label="t('common.labels.login')" min-width="180" />
-                <el-table-column :label="t('users.lastLogin')" min-width="170">
-                  <template #default="{ row }">
-                    {{ formatDate(row.lastLoginAt) }}
-                  </template>
-                </el-table-column>
-              </el-table>
+      <div class="users-workspace">
+        <section class="users-panel users-list-panel">
+          <header class="users-panel-header">
+            <div>
+              <h2>{{ t('users.title') }}</h2>
+              <p>{{ users.length.toLocaleString(locale) }} · {{ t('common.labels.page', { page: page + 1 }) }}</p>
+            </div>
+          </header>
 
-              <template #footer>
-                <ZeroPagination v-model:page="page" v-model:size="limit" :has-next="hasNext" />
+          <el-table
+            ref="usersTableRef"
+            v-loading="usersLoading"
+            :data="users"
+            class="users-table"
+            height="100%"
+            highlight-current-row
+            @current-change="selectUser"
+          >
+            <el-table-column prop="surname" :label="t('common.labels.surname')" min-width="140" />
+            <el-table-column prop="name" :label="t('common.labels.firstName')" min-width="140" />
+            <el-table-column prop="userName" :label="t('common.labels.login')" min-width="180" />
+            <el-table-column :label="t('users.lastLogin')" min-width="170">
+              <template #default="{ row }">
+                {{ formatDate(row.lastLoginAt) }}
               </template>
-            </el-card>
-          </el-col>
+            </el-table-column>
+          </el-table>
 
-          <el-col :span="10">
-            <el-card shadow="hover" class="h-[760px] overflow-hidden">
-              <template v-if="selectedUser">
-                <div class="mb-4 rounded-xl bg-slate-50 p-4">
-                  <div class="flex items-start justify-between gap-3">
-                    <div>
-                      <div class="text-lg font-semibold text-slate-900">
-                        {{ selectedUser.surname }} {{ selectedUser.name }}
-                      </div>
-                      <div class="mt-1 text-sm text-slate-500">{{ selectedUser.userName }}</div>
-                    </div>
-                    <el-dropdown trigger="click" @command="handleUserAction">
-                      <el-button :icon="MoreFilled" circle plain />
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item
-                            v-if="canEditUserInfo"
-                            command="editInfo"
-                            :icon="Edit"
-                          >
-                            {{ t('users.editInfo') }}
-                          </el-dropdown-item>
-                          <el-dropdown-item
-                            v-if="canViewProductReservations"
-                            command="reservations"
-                            :icon="View"
-                          >
-                            {{ t('users.viewReservations') }}
-                          </el-dropdown-item>
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
+          <footer class="users-panel-footer">
+            <ZeroPagination v-model:page="page" v-model:size="limit" :has-next="hasNext" />
+          </footer>
+        </section>
+
+        <section class="users-panel users-details-panel">
+          <template v-if="selectedUser">
+            <div class="user-details-header">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="user-details-title">
+                    {{ selectedUser.surname }} {{ selectedUser.name }}
                   </div>
+                  <div class="user-details-subtitle">{{ selectedUser.userName }}</div>
                 </div>
+                <el-dropdown trigger="click" @command="handleUserAction">
+                  <el-button :icon="MoreFilled" circle plain />
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item
+                        v-if="canEditUserInfo"
+                        command="editInfo"
+                        :icon="Edit"
+                      >
+                        {{ t('users.editInfo') }}
+                      </el-dropdown-item>
+                      <el-dropdown-item
+                        v-if="canViewProductReservations"
+                        command="reservations"
+                        :icon="View"
+                      >
+                        {{ t('users.viewReservations') }}
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </div>
 
-                <div v-loading="detailsLoading" class="h-[calc(100%-96px)] overflow-auto pr-1">
+            <div v-loading="detailsLoading" class="users-details-scroll">
                   <div class="grid grid-cols-2 gap-3 pb-4">
-                    <div class="rounded-xl border border-slate-200 bg-white p-4">
-                      <div class="text-xs uppercase tracking-wide text-slate-500">{{ t('users.discount') }}</div>
+                    <div class="rounded-lg border border-slate-200 bg-white p-4">
+                      <div class="text-sm font-medium text-slate-600">{{ t('users.discount') }}</div>
                       <div class="mt-2 text-2xl font-semibold text-slate-900">{{ discountText }}</div>
                       <el-button class="mt-3" size="small" @click="discountDialogOpen = true">{{ t('common.actions.change') }}</el-button>
                     </div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <div class="rounded-lg border border-slate-200 bg-white p-4">
                       <div class="flex items-center justify-between gap-2">
-                        <div class="text-xs uppercase tracking-wide text-slate-500">{{ t('common.labels.roles') }}</div>
+                        <div class="text-sm font-medium text-slate-600">{{ t('common.labels.roles') }}</div>
                         <el-button
                           v-if="canManageUserRoles"
                           size="small"
@@ -143,7 +143,7 @@
 
                   <el-divider content-position="left">{{ t('users.contacts') }}</el-divider>
                     <div class="grid gap-3 pb-4">
-                      <div v-for="email in userEmails" :key="email.email" class="rounded-xl bg-slate-50 p-3 text-sm">
+                      <div v-for="email in userEmails" :key="email.email" class="rounded-lg bg-slate-50 p-3 text-sm">
                         <div class="flex items-start justify-between gap-3">
                           <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
@@ -171,7 +171,7 @@
                     </div>
 
                     <div class="grid gap-3 pb-4">
-                      <div v-for="phone in userPhones" :key="phone.number" class="rounded-xl bg-slate-50 p-3 text-sm">
+                      <div v-for="phone in userPhones" :key="phone.number" class="rounded-lg bg-slate-50 p-3 text-sm">
                         <div class="flex items-start justify-between gap-3">
                           <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
@@ -193,7 +193,7 @@
                     <el-button size="small" type="primary" @click="openAddStorageDialog">{{ t('users.addStorage') }}</el-button>
                   </div>
                   <div class="grid gap-3 pb-4">
-                    <div v-for="storage in userStorages" :key="storage.name" class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+                    <div v-for="storage in userStorages" :key="storage.name" class="flex items-center justify-between rounded-lg bg-slate-50 p-3">
                       <div>
                         <div class="font-medium text-slate-900">{{ storage.name }}</div>
                         <div class="text-sm text-slate-500">{{ storage.location || t('users.locationMissing') }}</div>
@@ -211,8 +211,8 @@
 
                       <div v-loading="financialInfoLoading" class="grid gap-3 pb-4">
                         <template v-if="userFinancialInfo">
-                          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <div class="text-xs uppercase tracking-wide text-slate-500">{{ t('users.financialBalance') }}</div>
+                          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div class="text-sm font-medium text-slate-600">{{ t('users.financialBalance') }}</div>
                             <div class="mt-2 text-2xl font-semibold" :class="financeAmountClass(financialBalance)">
                               {{ formatFinanceAmount(financialBalance, userFinancialInfo.baseCurrency) }}
                             </div>
@@ -223,7 +223,7 @@
                             <div
                               v-for="balance in userFinancialInfo.balances"
                               :key="balance.currency.id"
-                              class="rounded-xl border border-slate-200 bg-white p-3"
+                              class="rounded-lg border border-slate-200 bg-white p-3"
                             >
                               <div class="text-xs font-semibold text-slate-500">{{ balance.currency.shortName }}</div>
                               <div class="mt-1 text-base font-semibold" :class="financeAmountClass(balance.balance)">
@@ -234,7 +234,7 @@
                           <div v-else class="text-sm text-slate-400">{{ t('users.noBalances') }}</div>
                         </template>
 
-                        <div v-else-if="financialInfoError" class="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+                        <div v-else-if="financialInfoError" class="rounded-lg bg-red-50 p-3 text-sm text-red-600">
                           {{ financialInfoError }}
                         </div>
                       </div>
@@ -291,9 +291,7 @@
               <template v-else>
                 <el-empty :description="t('users.selectToView')" />
               </template>
-            </el-card>
-          </el-col>
-        </el-row>
+        </section>
       </div>
     </div>
 
@@ -359,7 +357,7 @@
           <div
             v-for="(email, index) in createUserForm.emails"
             :key="index"
-            class="rounded-xl border border-slate-200 bg-slate-50 p-3"
+            class="rounded-lg border border-slate-200 bg-slate-50 p-3"
           >
             <div class="grid grid-cols-[minmax(0,1fr)_160px_auto] items-start gap-3">
               <el-form-item class="mb-0" :label="t('common.labels.address')">
@@ -400,7 +398,7 @@
           <div
             v-for="(phone, index) in createUserForm.phones"
             :key="index"
-            class="rounded-xl border border-slate-200 bg-slate-50 p-3"
+            class="rounded-lg border border-slate-200 bg-slate-50 p-3"
           >
             <div class="grid grid-cols-[minmax(0,1fr)_160px_auto] items-start gap-3">
               <el-form-item class="mb-0" :label="t('users.phoneNumber')">
@@ -427,7 +425,7 @@
               <el-checkbox v-model="phone.isConfirmed">{{ t('users.confirmed') }}</el-checkbox>
             </div>
           </div>
-          <div v-if="createUserForm.phones.length === 0" class="rounded-xl bg-slate-50 p-3 text-sm text-slate-400">
+          <div v-if="createUserForm.phones.length === 0" class="rounded-lg bg-slate-50 p-3 text-sm text-slate-400">
             {{ t('users.noPhones') }}
           </div>
         </div>
@@ -581,6 +579,7 @@ import { useDebounceFn } from '@vueuse/core'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { Edit, MoreFilled, View } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
@@ -1459,6 +1458,133 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.users-page {
+  min-height: calc(100vh - 56px);
+  background: #f7f8fa;
+}
+
+.users-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.users-panel {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.users-filter-panel {
+  padding: 16px;
+}
+
+.users-filter-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(240px, 360px) max-content;
+  align-items: end;
+  gap: 12px;
+}
+
+.users-filter-toolbar__search,
+.users-filter-toolbar__roles {
+  min-width: 0;
+}
+
+.users-field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.users-workspace {
+  display: grid;
+  grid-template-columns: minmax(520px, 58%) minmax(360px, 42%);
+  gap: 16px;
+  min-height: min(760px, calc(100vh - 220px));
+}
+
+.users-list-panel,
+.users-details-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.users-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 14px 16px;
+}
+
+.users-panel-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.users-panel-header p {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.users-table {
+  flex: 1;
+}
+
+.users-table :deep(.el-table__header th) {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+}
+
+.users-table :deep(.el-table__cell) {
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.users-panel-footer {
+  border-top: 1px solid #e2e8f0;
+  padding: 12px 16px;
+}
+
+.user-details-header {
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.user-details-title {
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.user-details-subtitle {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.users-details-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
 :deep(.create-user-dialog .el-dialog__body) {
   max-height: min(760px, calc(100vh - 180px));
   overflow-y: auto;
@@ -1475,5 +1601,36 @@ onMounted(async () => {
 
 .user-details-collapse :deep(.el-collapse-item__content) {
   padding-bottom: 0;
+}
+
+@media (max-width: 1180px) {
+  .users-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .users-content {
+    padding: 12px;
+  }
+
+  .users-filter-panel,
+  .users-details-scroll,
+  .user-details-header {
+    padding: 12px;
+  }
+
+  .users-filter-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .users-filter-toolbar__action {
+    width: 100%;
+  }
+
+  .users-filter-toolbar__action :deep(.el-button),
+  .users-filter-toolbar__action {
+    width: 100%;
+  }
 }
 </style>

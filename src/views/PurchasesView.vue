@@ -155,7 +155,7 @@
               >
                 <el-table-column :label="t('purchases.supplier')" min-width="180">
                   <template #default="{ row }">
-                    {{ row.supplier.surname }} {{ row.supplier.name }}
+                    <UserHoverCard :user="row.supplier" />
                   </template>
                 </el-table-column>
                 <el-table-column prop="storage" :label="t('common.labels.storage')" min-width="150" />
@@ -173,25 +173,26 @@
                   v-if="canEditPurchases || canDeletePurchases"
                   fixed="right"
                   :label="t('common.labels.actions')"
-                  min-width="180"
+                  width="92"
+                  align="right"
                 >
                   <template #default="{ row }">
-                    <el-button
+                    <div class="purchase-actions">
+                    <ActionIconButton
                       v-if="canEditPurchases"
-                      size="small"
+                      :label="t('common.actions.edit')"
+                      :icon="Edit"
                       :loading="editPurchaseLoadingId === row.id"
                       @click.stop="openEditPurchase(row)"
-                    >
-                      {{ t('common.actions.edit') }}
-                    </el-button>
-                    <el-button
+                    />
+                    <ActionIconButton
                       v-if="canDeletePurchases"
-                      size="small"
-                      type="danger"
+                      :label="t('common.actions.delete')"
+                      :icon="Delete"
+                      tone="danger"
                       @click.stop="removePurchase(row.id)"
-                    >
-                      {{ t('common.actions.delete') }}
-                    </el-button>
+                    />
+                    </div>
                   </template>
                 </el-table-column>
               </el-table>
@@ -234,6 +235,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
+import { Delete, Edit } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
@@ -242,6 +244,8 @@ import EditPurchaseDialog from '@/components/purchases/EditPurchaseDialog.vue'
 import PurchaseDetails from '@/components/purchases/PurchaseDetails.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
+import UserHoverCard from '@/components/users/UserHoverCard.vue'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'

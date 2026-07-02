@@ -1,14 +1,12 @@
 <template>
   <div class="sales-page">
-    <div class="sales-header">
-      <div>
-        <h1>{{ t('sales.title') }}</h1>
-        <p>{{ t('sales.description') }}</p>
-      </div>
+    <PageHeader :title="t('sales.title')" :description="t('sales.description')">
+      <template #actions>
       <el-button v-if="canCreateSales" type="primary" size="large" @click="createSaleDialogOpen = true">
         {{ t('sales.create') }}
       </el-button>
-    </div>
+      </template>
+    </PageHeader>
 
     <div class="sales-content">
       <section class="sales-toolbar">
@@ -174,52 +172,51 @@
             @current-change="handleCurrentSaleChange"
             @sort-change="handleSortChange"
           >
-            <el-table-column :label="t('sales.buyer')" min-width="180">
+            <el-table-column :label="t('sales.buyer')" min-width="140">
               <template #default="{ row }">
                 <div class="sale-buyer-cell">
-                  <span class="sale-buyer-name">{{ row.buyer.surname }} {{ row.buyer.name }}</span>
+                  <UserHoverCard :user="row.buyer" class="sale-buyer-name" />
                 </div>
               </template>
             </el-table-column>
-            <el-table-column prop="storage" :label="t('sales.storage')" min-width="150" />
-            <el-table-column prop="dateTime" :label="t('common.labels.date')" min-width="170" sortable="custom">
+            <el-table-column :label="t('common.labels.status')" width="108">
+              <template #default="{ row }">
+                <span class="sale-state" :class="`sale-state--${row.state.toLowerCase()}`">
+                  {{ t(`sales.states.${row.state}`) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="storage" :label="t('sales.storage')" min-width="100" show-overflow-tooltip />
+            <el-table-column prop="dateTime" :label="t('common.labels.date')" min-width="132" sortable="custom">
               <template #default="{ row }">
                 {{ formatDate(row.saleDatetime) }}
               </template>
             </el-table-column>
-            <el-table-column prop="totalSum" :label="t('sales.amount')" min-width="140" sortable="custom">
+            <el-table-column prop="totalSum" :label="t('sales.amount')" width="106" sortable="custom" align="right">
               <template #default="{ row }">
-                {{ formatCurrency(row.totalSum, row.currency.currencySign) }}
+                <span class="sale-amount">{{ formatCurrency(row.totalSum, row.currency.currencySign) }}</span>
               </template>
             </el-table-column>
-            <el-table-column :label="t('common.labels.comment')" min-width="180" show-overflow-tooltip>
-              <template #default="{ row }">
-                {{ row.comment || '—' }}
-              </template>
-            </el-table-column>
-            <el-table-column v-if="canEditSales || canDeleteSales" fixed="right" :label="t('common.labels.actions')" min-width="210">
+            <el-table-column v-if="canEditSales || canDeleteSales" :label="t('common.labels.actions')" width="88" align="right">
               <template #default="{ row }">
                 <div class="sale-actions">
-                  <el-button
+                  <ActionIconButton
                     v-if="canEditSales"
-                    size="small"
-                    plain
+                    :label="t('common.actions.edit')"
+                    :icon="Edit"
                     :disabled="row.state === 'Deleted'"
                     :loading="editingSaleId === row.id"
                     @click.stop="openEditSale(row)"
-                  >
-                    {{ t('common.actions.edit') }}
-                  </el-button>
-                  <el-button
+                  />
+                  <ActionIconButton
                     v-if="canDeleteSales"
-                    size="small"
-                    type="danger"
+                    :label="t('common.actions.delete')"
+                    :icon="Delete"
+                    tone="danger"
                     :disabled="row.state === 'Deleted'"
                     :loading="deletingSaleId === row.id"
                     @click.stop="removeSale(row)"
-                  >
-                    {{ t('common.actions.delete') }}
-                  </el-button>
+                  />
                 </div>
               </template>
             </el-table-column>
@@ -263,6 +260,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Edit } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import CreateSaleDialog from '@/components/sales/CreateSaleDialog.vue'
@@ -270,6 +268,9 @@ import EditSaleDialog from '@/components/sales/EditSaleDialog.vue'
 import SaleDetails from '@/components/sales/SaleDetails.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
+import UserHoverCard from '@/components/users/UserHoverCard.vue'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'

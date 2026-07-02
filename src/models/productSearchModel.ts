@@ -17,6 +17,7 @@ export interface ProductSearchModel {
   sku: string
   name: string
   producerId: number
+  indicator?: string | null
   stock: number
   dimensions?: ProductDimensionsModel | null
   weight?: ProductWeightModel | null

@@ -8,7 +8,7 @@
     </div>
 
     <div class="p-4">
-      <el-card shadow="hover">
+      <el-card shadow="never">
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <div>

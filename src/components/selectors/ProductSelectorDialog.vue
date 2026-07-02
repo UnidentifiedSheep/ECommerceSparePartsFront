@@ -31,18 +31,20 @@
         :empty-text="t('products.notFound')"
         @row-dblclick="selectProduct"
       >
-        <el-table-column prop="sku" :label="t('products.sku')" min-width="150" />
+        <el-table-column prop="sku" :label="t('products.sku')" min-width="150">
+          <template #default="{ row }">
+            <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
+          </template>
+        </el-table-column>
         <el-table-column prop="name" :label="t('common.labels.name')" min-width="280" show-overflow-tooltip />
         <el-table-column :label="t('common.labels.producer')" min-width="180">
           <template #default="{ row }">
             {{ producerName(row.producerId) }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('products.stock')" min-width="110" align="right">
+        <el-table-column :label="t('products.stock')" min-width="140">
           <template #default="{ row }">
-            <span :class="stockColorClass(row.stock)">
-              {{ row.stock.toLocaleString(locale) }}
-            </span>
+            <ProductStockCell :stock="row.stock" />
           </template>
         </el-table-column>
         <el-table-column fixed="right" label="" width="96" align="right">
@@ -62,6 +64,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
+import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
+import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
@@ -69,7 +73,7 @@ import { getProducer } from '@/services/api/producers.ts'
 import { searchProducts } from '@/services/api/search.ts'
 import { useI18n } from '@/i18n'
 
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   select: [product: ProductSearchModel]
@@ -92,12 +96,6 @@ const searchProductsDebounced = useDebounceFn(async () => {
 
 function producerName(id: number) {
   return producerNames.value[id] ?? '-'
-}
-
-function stockColorClass(stock: number) {
-  if (stock <= 0) return 'text-red-700 font-semibold'
-  if (stock <= 5) return 'text-amber-600 font-semibold'
-  return 'text-emerald-700 font-semibold'
 }
 
 function selectProduct(product: ProductSearchModel) {

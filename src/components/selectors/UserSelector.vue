@@ -6,6 +6,9 @@
     :filter-method="onSearch"
     :placeholder="resolvedPlaceHolder"
     :clearable="clearable"
+    :loading="isLoading"
+    :popper-class="popperClass"
+    @visible-change="onVisibleChange"
   >
     <el-option
       v-for="user in users"
@@ -20,6 +23,8 @@
 import {GeneralSearchStrategy} from "@/enums/generalSearchStrategy.ts";
 import type {UserModel} from "@/models/userModel.ts";
 import {computed, onMounted, ref, watch} from "vue";
+import {useDebounceFn} from "@vueuse/core";
+import {useSelectInfiniteScroll} from "@/composables/useSelectInfiniteScroll.ts";
 import {getUsers} from "@/services/api/users.ts";
 import {useI18n} from "@/i18n";
 
@@ -35,10 +40,13 @@ const props = withDefaults(defineProps<{
 
 const {t} = useI18n()
 const resolvedPlaceHolder = computed(() => props.placeHolder ?? t('users.selectUser'))
+const loadDebounced = useDebounceFn(async () => loadNext(true), 250)
+const popperClass = `user-selector-${Math.random().toString(36).slice(2)}`
+const { attach: attachScroll, detach: detachScroll } = useSelectInfiniteScroll(popperClass, () => loadNext(false))
 
 function onSearch(query: string) {
   searchTerm.value = query
-  loadNext(true)
+  loadDebounced()
 }
 
 const selectedUser = defineModel<UserModel>('selected-user')
@@ -81,6 +89,18 @@ async function loadNext(reset: boolean = false) {
   }
 }
 
+function onVisibleChange(open: boolean) {
+  if (!open) {
+    detachScroll()
+    return
+  }
+
+  attachScroll()
+  if (users.value.length === 0) {
+    loadNext(true)
+  }
+}
+
 function ensureSelectedUser() {
   if (!selectedUser.value) return
   const exists = users.value.some((user) => user.id === selectedUser.value?.id)
@@ -89,7 +109,6 @@ function ensureSelectedUser() {
   }
 }
 
-watch(searchTerm, async () => await loadNext(true));
 watch(selectedUser, ensureSelectedUser)
 onMounted(async () => await loadNext(true));
 </script>

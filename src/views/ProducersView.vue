@@ -1,15 +1,13 @@
 <template>
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
-    <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
-      <div>
-        <h1 class="text-2xl font-semibold text-slate-900">{{ t('producers.title') }}</h1>
-        <p class="text-sm text-slate-500">{{ t('producers.description') }}</p>
-      </div>
-      <el-button type="primary" @click="openCreateDialog">{{ t('producers.addProducer') }}</el-button>
-    </div>
+    <PageHeader :title="t('producers.title')" :description="t('producers.description')">
+      <template #actions>
+        <el-button type="primary" @click="openCreateDialog">{{ t('producers.addProducer') }}</el-button>
+      </template>
+    </PageHeader>
 
     <div class="p-4">
-      <el-card shadow="hover">
+      <el-card shadow="never">
         <el-row :gutter="20" align="bottom">
           <el-col :span="8">
             <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('producers.search') }}</label>
@@ -24,7 +22,7 @@
       <div class="pt-4">
         <el-row :gutter="24">
           <el-col :span="14">
-            <el-card shadow="hover" class="h-[760px]">
+            <el-card shadow="never" class="h-[760px]">
               <el-table
                 :data="producers"
                 class="w-full"
@@ -38,10 +36,12 @@
                     {{ row.description || '—' }}
                   </template>
                 </el-table-column>
-                <el-table-column fixed="right" :label="t('common.labels.actions')" min-width="180">
+                <el-table-column fixed="right" :label="t('common.labels.actions')" width="92" align="right">
                   <template #default="{ row }">
-                    <el-button size="small" @click="openEditDialog(row)">{{ t('common.actions.edit') }}</el-button>
-                    <el-button size="small" type="danger" @click="removeProducer(row.id)">{{ t('common.actions.delete') }}</el-button>
+                    <div class="producer-actions">
+                      <ActionIconButton :label="t('common.actions.edit')" :icon="Edit" @click="openEditDialog(row)" />
+                      <ActionIconButton :label="t('common.actions.delete')" :icon="Delete" tone="danger" @click="removeProducer(row.id)" />
+                    </div>
                   </template>
                 </el-table-column>
               </el-table>
@@ -53,9 +53,9 @@
           </el-col>
 
           <el-col :span="10">
-            <el-card shadow="hover" class="h-[760px] overflow-hidden">
+            <el-card shadow="never" class="h-[760px] overflow-hidden">
               <template v-if="selectedProducer">
-                <div class="mb-4 rounded-xl bg-slate-50 p-4">
+                <div class="mb-4 rounded-lg bg-slate-50 p-4">
                   <div class="flex items-start justify-between gap-3">
                     <div>
                       <div class="text-lg font-semibold text-slate-900">{{ selectedProducer.name }}</div>
@@ -71,9 +71,14 @@
                   <el-table :data="otherNames" stripe>
                     <el-table-column prop="otherName" :label="t('producers.otherName')" min-width="180" />
                     <el-table-column prop="whereUsed" :label="t('producers.whereUsed')" min-width="180" />
-                    <el-table-column fixed="right" :label="t('common.labels.actions')" min-width="120">
+                    <el-table-column fixed="right" :label="t('common.labels.actions')" width="72" align="right">
                       <template #default="{ row }">
-                        <el-button size="small" type="danger" @click="removeOtherName(row.otherName)">{{ t('common.actions.delete') }}</el-button>
+                        <ActionIconButton
+                          :label="t('common.actions.delete')"
+                          :icon="Delete"
+                          tone="danger"
+                          @click="removeOtherName(row.otherName)"
+                        />
                       </template>
                     </el-table-column>
                   </el-table>
@@ -140,9 +145,12 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
+import { Delete, Edit } from '@element-plus/icons-vue'
 import type { ProducerOtherNameModel } from '@/models/producerModel.ts'
 import type { ProducerSearchModel } from '@/models/producerSearchModel.ts'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
 import {
   addProducerOtherName,
   createProducer,
@@ -360,4 +368,10 @@ onMounted(async () => loadProducers(true))
 </script>
 
 <style scoped>
+.producer-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
 </style>

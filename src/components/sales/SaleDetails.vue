@@ -82,7 +82,10 @@
     </template>
 
     <template v-else>
-      <el-empty :description="t('sales.selectToView')" />
+      <div class="sale-details-empty">
+        <h2>{{ t('sales.detailsTitle') }}</h2>
+        <p>{{ t('sales.selectToView') }}</p>
+      </div>
     </template>
   </div>
 </template>
@@ -115,7 +118,8 @@ function formatPercent(value: number) {
 
 <style scoped>
 .sale-details {
-  height: 760px;
+  height: 100%;
+  min-height: calc(100vh - 238px);
   overflow: auto;
   padding: 16px;
 }
@@ -126,7 +130,7 @@ function formatPercent(value: number) {
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 14px;
+  padding: 2px 0 14px;
 }
 
 .details-header h2 {
@@ -144,7 +148,7 @@ function formatPercent(value: number) {
 
 .details-header strong {
   color: #047857;
-  font-size: 18px;
+  font-size: 20px;
   white-space: nowrap;
 }
 
@@ -176,15 +180,17 @@ function formatPercent(value: number) {
 
 .content-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 70px 100px 82px 110px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: start;
   gap: 12px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 12px;
+  background: #ffffff;
 }
 
 .product-cell {
+  grid-column: 1 / -1;
   min-width: 0;
 }
 
@@ -226,7 +232,8 @@ function formatPercent(value: number) {
   font-size: 13px;
   font-weight: 750;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .row-details,
@@ -287,6 +294,33 @@ function formatPercent(value: number) {
 
 .detail-row strong {
   margin-top: 0;
+}
+
+.sale-details-empty {
+  display: flex;
+  min-height: 360px;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px dashed #cfd8e5;
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 28px;
+  text-align: center;
+}
+
+.sale-details-empty h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.sale-details-empty p {
+  margin: 8px auto 0;
+  max-width: 320px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 @media (max-width: 760px) {

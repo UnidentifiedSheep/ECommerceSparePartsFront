@@ -1,27 +1,25 @@
 <template>
-  <div class="min-h-[calc(100vh-56px)] bg-slate-50">
-    <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
-      <div>
-        <h1 class="text-2xl font-semibold text-slate-900">{{ t('products.title') }}</h1>
-        <p class="text-sm text-slate-500">{{ t('products.description') }}</p>
-      </div>
-      <el-button v-if="canCreateProducts" type="primary" @click="createDialogOpen = true">{{ t('products.createProducts') }}</el-button>
-    </div>
+  <div class="product-page">
+    <PageHeader :title="t('products.title')" :description="t('products.description')">
+      <template #actions>
+        <el-button v-if="canCreateProducts" type="primary" @click="createDialogOpen = true">{{ t('products.createProducts') }}</el-button>
+      </template>
+    </PageHeader>
 
-    <div class="p-4">
-      <el-card shadow="hover">
-        <div class="flex flex-col gap-3">
-          <div class="grid grid-cols-[220px_minmax(300px,1fr)_300px_auto_auto_auto] items-end gap-3">
-            <div>
-              <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('products.searchMode') }}</label>
+    <div class="product-content">
+      <section class="product-panel product-search-panel">
+        <div class="product-panel__body">
+          <div class="product-search-toolbar">
+            <div class="product-search-toolbar__mode">
+              <label class="product-field-label">{{ t('products.searchMode') }}</label>
               <el-select v-model="form.searchMode" size="large" class="w-full" @change="applyFilters">
                 <el-option :label="t('products.searchAll')" value="all" />
                 <el-option :label="t('products.searchSku')" value="sku" />
               </el-select>
             </div>
 
-            <div>
-              <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.search') }}</label>
+            <div class="product-search-toolbar__query">
+              <label class="product-field-label">{{ t('common.labels.search') }}</label>
               <el-input
                 v-model="form.query"
                 clearable
@@ -31,34 +29,38 @@
               />
             </div>
 
-            <div>
-              <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.producer') }}</label>
+            <div class="product-search-toolbar__producer">
+              <label class="product-field-label">{{ t('common.labels.producer') }}</label>
               <ProducerSelector v-model="form.producerId" :placeholder="t('products.allProducers')" />
             </div>
 
-            <el-badge v-if="form.searchMode === 'all'" :value="dimensionFiltersCount" :hidden="dimensionFiltersCount === 0">
+            <el-badge
+              v-if="form.searchMode === 'all'"
+              class="product-search-toolbar__action"
+              :value="dimensionFiltersCount"
+              :hidden="dimensionFiltersCount === 0"
+            >
               <el-button size="large" plain @click="filtersDrawerOpen = true">{{ t('products.filters') }}</el-button>
             </el-badge>
 
-            <el-button size="large" type="primary" @click="applyFilters">{{ t('products.find') }}</el-button>
-            <el-button size="large" plain @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
+            <el-button class="product-search-toolbar__action product-search-toolbar__button" size="large" type="primary" @click="applyFilters">{{ t('products.find') }}</el-button>
+            <el-button class="product-search-toolbar__action product-search-toolbar__button" size="large" plain @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
           </div>
 
-          <div v-if="activeFilters.length > 0" class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-            <span class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ t('products.active') }}</span>
+          <div v-if="activeFilters.length > 0" class="product-active-filters">
+            <span class="product-active-filters__label">{{ t('products.active') }}</span>
             <el-tag
               v-for="filter in activeFilters"
               :key="filter.key"
               closable
               effect="plain"
-              round
               @close="clearFilter(filter.key)"
             >
               {{ filter.label }}
             </el-tag>
           </div>
         </div>
-      </el-card>
+      </section>
 
       <el-drawer
         v-model="filtersDrawerOpen"
@@ -66,20 +68,18 @@
         size="min(440px, 100vw)"
         class="product-filters-drawer"
       >
-        <div class="flex h-full flex-col">
-          <div class="flex-1 overflow-auto px-5 pb-6 pt-2">
-            <fieldset class="rounded-2xl border border-slate-200 px-4 pb-6 pt-4">
-              <legend class="px-2">
-                <span class="inline-flex items-center gap-1.5 text-base font-semibold text-slate-900">
-                  {{ t('products.dimensions') }}
-                  <el-tooltip :content="t('products.dimensionsHint')" placement="top">
-                    <el-icon class="cursor-help text-slate-400"><InfoFilled /></el-icon>
-                  </el-tooltip>
-                </span>
-              </legend>
+        <div class="product-filter-drawer">
+          <div class="product-filter-drawer__body">
+            <section class="product-filter-section">
+              <div class="product-filter-section__title">
+                <span>{{ t('products.dimensions') }}</span>
+                <el-tooltip :content="t('products.dimensionsHint')" placement="top">
+                  <el-icon class="cursor-help text-slate-400"><InfoFilled /></el-icon>
+                </el-tooltip>
+              </div>
 
               <el-form label-position="top">
-                <el-form-item :label="t('products.measurementUnit')" class="mb-5">
+                <el-form-item :label="t('products.measurementUnit')">
                   <el-select v-model="form.dimensionUnit" class="w-full">
                     <el-option
                       v-for="unit in dimensionSearchUnitOptions"
@@ -89,49 +89,53 @@
                     />
                   </el-select>
                 </el-form-item>
-
-                  <div class="dimension-groups">
-                    <fieldset class="rounded-xl border border-slate-200 bg-slate-50 px-4 pb-4 pt-3">
-                      <legend class="px-2 text-sm font-medium text-slate-700">{{ t('products.length') }}</legend>
-                      <div class="grid grid-cols-2 gap-3">
-                        <el-form-item :label="t('products.from')" class="dimension-range-item">
-                          <el-input-number v-model="form.lengthMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                      </el-form-item>
-                      <el-form-item :label="t('products.to')" class="dimension-range-item">
-                          <el-input-number v-model="form.lengthMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                        </el-form-item>
-                      </div>
-                    </fieldset>
-
-                    <fieldset class="rounded-xl border border-slate-200 bg-slate-50 px-4 pb-4 pt-3">
-                      <legend class="px-2 text-sm font-medium text-slate-700">{{ t('products.width') }}</legend>
-                      <div class="grid grid-cols-2 gap-3">
-                        <el-form-item :label="t('products.from')" class="dimension-range-item">
-                          <el-input-number v-model="form.widthMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                      </el-form-item>
-                      <el-form-item :label="t('products.to')" class="dimension-range-item">
-                          <el-input-number v-model="form.widthMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                        </el-form-item>
-                      </div>
-                    </fieldset>
-
-                    <fieldset class="rounded-xl border border-slate-200 bg-slate-50 px-4 pb-4 pt-3">
-                      <legend class="px-2 text-sm font-medium text-slate-700">{{ t('products.height') }}</legend>
-                      <div class="grid grid-cols-2 gap-3">
-                        <el-form-item :label="t('products.from')" class="dimension-range-item">
-                          <el-input-number v-model="form.heightMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                      </el-form-item>
-                      <el-form-item :label="t('products.to')" class="dimension-range-item">
-                          <el-input-number v-model="form.heightMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                        </el-form-item>
-                      </div>
-                    </fieldset>
-                  </div>
               </el-form>
-            </fieldset>
+            </section>
+
+            <section class="product-filter-section">
+              <div class="product-filter-section__title">{{ t('products.length') }}</div>
+              <div class="dimension-range-grid">
+                <label class="dimension-range-field">
+                  <span>{{ t('products.from') }}</span>
+                  <el-input-number v-model="form.lengthMin" :min="0" :precision="2" :controls="false" class="w-full" />
+                </label>
+                <label class="dimension-range-field">
+                  <span>{{ t('products.to') }}</span>
+                  <el-input-number v-model="form.lengthMax" :min="0" :precision="2" :controls="false" class="w-full" />
+                </label>
+              </div>
+            </section>
+
+            <section class="product-filter-section">
+              <div class="product-filter-section__title">{{ t('products.width') }}</div>
+              <div class="dimension-range-grid">
+                <label class="dimension-range-field">
+                  <span>{{ t('products.from') }}</span>
+                  <el-input-number v-model="form.widthMin" :min="0" :precision="2" :controls="false" class="w-full" />
+                </label>
+                <label class="dimension-range-field">
+                  <span>{{ t('products.to') }}</span>
+                  <el-input-number v-model="form.widthMax" :min="0" :precision="2" :controls="false" class="w-full" />
+                </label>
+              </div>
+            </section>
+
+            <section class="product-filter-section">
+              <div class="product-filter-section__title">{{ t('products.height') }}</div>
+              <div class="dimension-range-grid">
+                <label class="dimension-range-field">
+                  <span>{{ t('products.from') }}</span>
+                  <el-input-number v-model="form.heightMin" :min="0" :precision="2" :controls="false" class="w-full" />
+                </label>
+                <label class="dimension-range-field">
+                  <span>{{ t('products.to') }}</span>
+                  <el-input-number v-model="form.heightMax" :min="0" :precision="2" :controls="false" class="w-full" />
+                </label>
+              </div>
+            </section>
           </div>
 
-          <div class="sticky bottom-0 border-t border-slate-200 bg-white px-5 py-4">
+          <div class="product-filter-drawer__footer">
             <div class="flex justify-end gap-3">
               <el-button @click="clearDimensionFilters">{{ t('products.clear') }}</el-button>
               <el-button type="primary" @click="applyFilters">{{ t('purchases.apply') }}</el-button>
@@ -140,29 +144,38 @@
         </div>
       </el-drawer>
 
-      <el-card shadow="hover" class="mt-4">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <div>
-              <h2 class="text-lg font-semibold text-slate-900">{{ t('products.results') }}</h2>
-              <p class="text-sm text-slate-500">{{ resultTitle }}</p>
-            </div>
+      <section class="product-panel product-results-panel">
+        <header class="product-results-header">
+          <div>
+            <h2>{{ t('products.results') }}</h2>
+            <p>{{ resultTitle }}</p>
           </div>
-        </template>
+          <div class="product-results-meta">
+            {{ products.length.toLocaleString(locale) }}
+          </div>
+        </header>
 
-        <el-table v-loading="isLoading" :data="products" stripe @sort-change="handleSortChange">
-          <el-table-column prop="sku" :label="t('products.sku')" min-width="160" sortable="custom" />
+        <el-table
+          v-loading="isLoading"
+          :data="products"
+          class="products-table"
+          @sort-change="handleSortChange"
+          @row-dblclick="(row: ProductSearchModel) => openCrosses(row.id)"
+        >
+          <el-table-column prop="sku" :label="t('products.sku')" min-width="160" sortable="custom">
+            <template #default="{ row }">
+              <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
+            </template>
+          </el-table-column>
           <el-table-column prop="name" :label="t('common.labels.name')" min-width="260" />
           <el-table-column prop="producerId" :label="t('common.labels.producer')" min-width="180" sortable="custom">
             <template #default="{ row }">
               {{ producerName(row.producerId) }}
             </template>
           </el-table-column>
-          <el-table-column prop="stock" :label="t('products.stock')" min-width="120" align="right" sortable="custom">
+          <el-table-column prop="stock" :label="t('products.stock')" min-width="150" sortable="custom">
             <template #default="{ row }">
-              <span :class="stockColorClass(row.stock)">
-                {{ row.stock.toLocaleString(locale) }}
-              </span>
+              <ProductStockCell :stock="row.stock" />
             </template>
           </el-table-column>
           <el-table-column prop="volume" :label="t('products.dimensions')" min-width="220" sortable="custom">
@@ -182,17 +195,17 @@
               <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
-          <el-table-column fixed="right" :label="t('common.labels.actions')" width="120">
+          <el-table-column fixed="right" label="" width="64" align="right">
             <template #default="{ row }">
-              <el-button size="small" type="primary" plain @click="openCrosses(row.id)">{{ t('products.crosses') }}</el-button>
+              <ActionIconButton :label="t('products.crosses')" :icon="Link" @click="openCrosses(row.id)" />
             </template>
           </el-table-column>
         </el-table>
 
-        <template #footer>
+        <footer class="product-results-footer">
           <ZeroPagination v-model:page="page" v-model:size="size" :has-next="hasNext" />
-        </template>
-      </el-card>
+        </footer>
+      </section>
     </div>
 
     <CreateProductsCrossesDialog v-if="canCreateProducts" v-model="createDialogOpen" @saved="loadProducts" />
@@ -202,9 +215,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { InfoFilled } from '@element-plus/icons-vue'
+import { InfoFilled, Link } from '@element-plus/icons-vue'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
+import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
+import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { getProducer } from '@/services/api/producers.ts'
@@ -305,12 +322,6 @@ function formatDimension(value: number) {
 
 function producerName(id: number) {
   return producerNames.value[id] ?? '—'
-}
-
-function stockColorClass(stock: number) {
-  if (stock <= 0) return 'text-red-700 font-semibold'
-  if (stock <= 5) return 'text-amber-600 font-semibold'
-  return 'text-emerald-700 font-semibold'
 }
 
 function openCrosses(productId: number) {
@@ -542,40 +553,265 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.product-page {
+  min-height: calc(100vh - 56px);
+  background: #f7f8fa;
+}
+
+.product-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.product-panel {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.product-panel__body {
+  padding: 16px;
+}
+
+.product-field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.product-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+}
+
+.product-active-filters__label {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.product-results-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.product-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 14px 16px;
+}
+
+.product-results-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.product-results-header p {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.product-results-meta {
+  flex: 0 0 auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 4px 9px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.product-results-footer {
+  border-top: 1px solid #e2e8f0;
+  padding: 12px 16px;
+}
+
+.products-table {
+  flex: 1;
+}
+
+.products-table :deep(.el-table__header th) {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+}
+
+.products-table :deep(.el-table__row) {
+  cursor: default;
+}
+
+.products-table :deep(.el-table__cell) {
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
 :deep(.product-filters-drawer .el-drawer__header) {
   margin-bottom: 0;
-  padding: 20px 20px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 18px 20px;
 }
 
 :deep(.product-filters-drawer .el-drawer__body) {
   padding: 0;
 }
 
-:deep(.product-filters-drawer .el-form-item) {
-  margin-bottom: 16px;
+.product-filter-drawer {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
 }
 
-:deep(.product-filters-drawer .dimension-range-item) {
+.product-filter-drawer__body {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 20px 24px;
+}
+
+.product-filter-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+}
+
+.product-filter-section + .product-filter-section {
+  margin-top: 14px;
+}
+
+.product-filter-section__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dimension-range-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.dimension-range-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dimension-range-field > span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.product-filter-drawer__footer {
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 14px 20px;
+}
+
+:deep(.product-filters-drawer .el-form-item) {
   margin-bottom: 0;
 }
 
-.dimension-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.product-search-toolbar {
+  display: grid;
+  grid-template-columns: 220px minmax(280px, 1fr) minmax(220px, 300px) max-content max-content max-content;
+  align-items: end;
+  gap: 12px;
+}
+
+.product-search-toolbar__mode,
+.product-search-toolbar__query,
+.product-search-toolbar__producer {
+  min-width: 0;
+}
+
+.product-search-toolbar__action {
+  align-self: end;
+}
+
+.product-search-toolbar__button {
+  min-width: 104px;
 }
 
 @media (max-width: 640px) {
+  .product-content {
+    padding: 12px;
+  }
+
+  .product-panel__body {
+    padding: 12px;
+  }
+
+  .product-results-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .product-results-footer {
+    padding: 12px;
+  }
+
+  .product-search-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .product-search-toolbar__action,
+  .product-search-toolbar__button,
+  .product-search-toolbar__action :deep(.el-button) {
+    width: 100%;
+  }
+
   :deep(.product-filters-drawer .el-drawer__header) {
-    padding: 16px 14px 12px;
+    padding: 16px 14px;
   }
 
-  :deep(.product-filters-drawer .el-drawer__body) {
-    padding: 0;
+  .product-filter-drawer__body {
+    padding: 10px 14px 20px;
   }
 
-  :deep(.product-filters-drawer .el-drawer__footer) {
+  .product-filter-drawer__footer {
     padding: 12px 14px;
+  }
+
+  .dimension-range-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1180px) {
+  .product-search-toolbar {
+    grid-template-columns: minmax(180px, 220px) minmax(260px, 1fr) minmax(220px, 280px);
+  }
+
+  .product-search-toolbar__action,
+  .product-search-toolbar__button,
+  .product-search-toolbar__action :deep(.el-button) {
+    width: 100%;
   }
 }
 </style>

@@ -40,7 +40,7 @@
 
     <main class="space-y-4 p-4">
       <div class="grid items-start gap-4 xl:grid-cols-[minmax(340px,35%)_minmax(0,65%)]">
-        <section v-loading="isLoading" class="min-w-0 rounded-md border border-slate-200 bg-white shadow-sm">
+        <section v-loading="isLoading" class="min-w-0 rounded-md border border-slate-200 bg-white">
           <template v-if="product">
             <div class="space-y-4 p-4">
               <div class="overflow-hidden rounded-md border border-slate-200 bg-slate-50">
@@ -106,7 +106,7 @@
                         :loading="isDeletingImage && galleryImageIndex === index"
                         circle
                         type="danger"
-                        class="absolute right-3 top-3 shadow"
+                        class="absolute right-3 top-3"
                         @click.stop="removeImage(image, index)"
                       />
                     </div>
@@ -119,7 +119,7 @@
                     :key="`thumb-${image}-${index}`"
                     :class="[
                       'h-14 overflow-hidden rounded border bg-white p-0.5 transition',
-                      galleryImageIndex === index ? 'border-blue-500 ring-1 ring-blue-200' : 'border-slate-200',
+                      galleryImageIndex === index ? 'border-slate-900 ring-1 ring-slate-200' : 'border-slate-200',
                     ]"
                     type="button"
                     @click="showGalleryImage(index)"
@@ -133,7 +133,9 @@
 
               <dl class="grid content-start grid-cols-[112px_minmax(0,1fr)] gap-x-4 gap-y-3 text-sm">
                 <dt class="text-slate-500">{{ t('products.sku') }}</dt>
-                <dd class="min-w-0 break-all font-medium text-slate-900">{{ product.sku }}</dd>
+                <dd class="min-w-0">
+                  <ProductSkuCell :sku="product.sku" :indicator="product.indicator" />
+                </dd>
 
                 <dt class="text-slate-500">{{ t('common.labels.producer') }}</dt>
                 <dd class="font-medium text-slate-900">{{ product.producerName || '-' }}</dd>
@@ -175,7 +177,9 @@
                 </dd>
 
                 <dt class="text-slate-500">{{ t('products.stock') }}</dt>
-                <dd :class="['font-semibold', stockColorClass(product.stock)]">{{ formatNumber(product.stock) }}</dd>
+                <dd>
+                  <ProductStockCell :stock="product.stock" />
+                </dd>
               </dl>
 
               <el-divider v-if="canViewStorageContent" class="!my-3" />
@@ -221,11 +225,9 @@
                       class="storage-content-table"
                     >
                       <el-table-column prop="storageName" :label="t('common.labels.storage')" min-width="150" show-overflow-tooltip />
-                      <el-table-column prop="count" :label="t('common.labels.count')" width="84" align="right">
+                      <el-table-column prop="count" :label="t('common.labels.count')" width="120" align="right">
                         <template #default="{ row }">
-                          <span :class="['font-semibold', stockColorClass(row.count)]">
-                            {{ formatNumber(row.count) }}
-                          </span>
+                          <ProductStockCell :stock="row.count" />
                         </template>
                       </el-table-column>
                       <el-table-column :label="t('products.details.purchase')" width="110" align="right">
@@ -279,7 +281,7 @@
           <el-empty v-else-if="!isLoading" :description="t('products.details.productNotFound')" />
         </section>
 
-        <section class="flex min-h-[760px] min-w-0 flex-col rounded-md border border-slate-200 bg-white shadow-sm">
+        <section class="product-crosses-panel">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
             <div>
               <h2 class="text-lg font-semibold text-slate-900">{{ t('products.details.productCrosses') }}</h2>
@@ -293,6 +295,15 @@
                 :placeholder="t('products.details.crossSearchPlaceholder')"
                 class="min-w-64 flex-1 sm:w-80"
               />
+              <el-button
+                v-if="canCreateCrosses"
+                :icon="Plus"
+                type="primary"
+                plain
+                @click="crossDialogOpen = true"
+              >
+                {{ t('products.addCrosses') }}
+              </el-button>
             </div>
           </div>
 
@@ -305,32 +316,23 @@
             class="crosses-table flex-1"
             @sort-change="handleSortChange"
           >
-            <el-table-column prop="sku" :label="t('products.sku')" min-width="150" sortable="custom">
+            <el-table-column prop="sku" :label="t('products.sku')" min-width="145" sortable="custom">
               <template #default="{ row }">
-                <span class="font-medium text-slate-900">{{ row.sku }}</span>
+                <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
               </template>
             </el-table-column>
-            <el-table-column prop="name" :label="t('common.labels.name')" min-width="260" show-overflow-tooltip sortable="custom" />
-            <el-table-column prop="producerName" :label="t('common.labels.producer')" min-width="160" sortable="custom">
+            <el-table-column prop="name" :label="t('common.labels.name')" min-width="210" show-overflow-tooltip sortable="custom" />
+            <el-table-column prop="producerName" :label="t('common.labels.producer')" min-width="130" sortable="custom">
               <template #default="{ row }">
                 {{ row.producerName || '-' }}
               </template>
             </el-table-column>
-            <el-table-column :label="t('common.labels.description')" min-width="220" show-overflow-tooltip>
+            <el-table-column prop="count" :label="t('products.stock')" width="128" align="right" sortable="custom">
               <template #default="{ row }">
-                <span :class="row.description ? 'text-slate-700' : 'text-slate-400'">
-                  {{ row.description || '-' }}
-                </span>
+                <ProductStockCell :stock="row.stock" />
               </template>
             </el-table-column>
-            <el-table-column prop="count" :label="t('products.stock')" width="120" align="right" sortable="custom">
-              <template #default="{ row }">
-                <span :class="['font-semibold', stockColorClass(row.stock)]">
-                  {{ row.stock }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column fixed="right" label="" width="72" align="right">
+            <el-table-column label="" width="72" align="right">
               <template #default="{ row }">
                 <el-button :icon="View" size="small" text @click="openProduct(row.id)" />
               </template>
@@ -515,6 +517,8 @@ import CreateProductsCrossesDialog from '@/components/products/CreateProductsCro
 import ProductEditDialog from '@/components/products/ProductEditDialog.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import ProductSizeDialog from '@/components/products/ProductSizeDialog.vue'
+import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
+import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import ProductWeightDialog from '@/components/products/ProductWeightDialog.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
@@ -673,14 +677,6 @@ function formatNumber(value: number) {
 
 function formatMoney(value: number, currencySign?: string) {
   return `${formatNumber(value)} ${currencySign ?? ''}`.trim()
-}
-
-function stockColorClass(stock: number) {
-  if (stock <= 0) return 'text-red-700'
-  if (stock <= 2) return 'text-orange-600'
-  if (stock <= 5) return 'text-amber-600'
-  if (stock <= 10) return 'text-lime-700'
-  return 'text-emerald-700'
 }
 
 function openProduct(id: number) {
@@ -1069,8 +1065,35 @@ onMounted(async () => loadDetails())
 </script>
 
 <style scoped>
+.product-crosses-panel {
+  display: flex;
+  min-width: 0;
+  min-height: calc(100vh - 176px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 8px;
+  background: white;
+}
+
+:deep(.crosses-table .el-table__header th) {
+  background: rgb(248 250 252);
+  color: rgb(71 85 105);
+  font-weight: 700;
+}
+
 :deep(.crosses-table .el-table__cell) {
   padding-top: 10px;
   padding-bottom: 10px;
+}
+
+:deep(.crosses-table .stock-cell) {
+  justify-content: flex-end;
+}
+
+@media (max-width: 1280px) {
+  .product-crosses-panel {
+    min-height: 620px;
+  }
 }
 </style>

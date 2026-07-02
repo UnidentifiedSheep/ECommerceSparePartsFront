@@ -1,59 +1,56 @@
 <template>
-  <div class="relative flex min-h-screen items-center justify-center bg-gray-100 px-4 py-12">
-    <div class="absolute right-5 top-5">
-      <LocaleSwitcher variant="light" />
+  <AuthShell>
+    <div class="auth-form__header">
+      <h1>{{ t('auth.welcome') }}</h1>
+      <p>{{ t('auth.hint') }}</p>
     </div>
 
-    <div class="bg-white p-10 rounded-lg shadow-lg w-full max-w-sm">
-      <div class="text-center pb-8">
-        <h2 class="text-3xl font-bold text-gray-800">{{ t('auth.welcome') }}</h2>
-        <p class="text-gray-500">{{ t('auth.hint') }}</p>
+    <form class="auth-form" @submit.prevent="handleLogin">
+      <div class="auth-field">
+        <label for="email" class="auth-field__label">Email</label>
+        <el-input
+          id="email"
+          v-model="email"
+          type="email"
+          :placeholder="t('auth.emailPlaceholder')"
+          required
+          size="large"
+          autocomplete="email"
+        />
       </div>
 
-      <div>
-        <div class="pb-6">
-          <label for="email" class="block text-gray-700 font-semibold">Email</label>
-          <el-input
-            v-model="email"
-            type="email"
-            id="email"
-            :placeholder="t('auth.emailPlaceholder')"
-            required
-          />
+      <div class="auth-field">
+        <div class="auth-field__row">
+          <label for="password" class="auth-field__label">{{ t('auth.password') }}</label>
+          <RouterLink to="/recovery" class="auth-form__link">
+            {{ t('auth.forgotPassword') }}
+          </RouterLink>
         </div>
-
-        <div class="pb-3">
-          <div class="flex items-center justify-between gap-3">
-            <label for="password" class="block text-gray-700 font-semibold">{{ t('auth.password') }}</label>
-            <RouterLink to="/recovery" class="text-sm text-blue-600 hover:text-blue-700">
-              {{ t('auth.forgotPassword') }}
-            </RouterLink>
-          </div>
-          <el-input
-            v-model="password"
-            type="password"
-            id="password"
-            :placeholder="t('auth.passwordPlaceholder')"
-            required
-            show-password
-            @keyup.enter="handleLogin"
-          />
-        </div>
-
-        <div class="flex justify-center pt-5">
-          <el-button
-            @click="handleLogin"
-            type="primary"
-            class="w-100"
-            size="large"
-            :loading="loading"
-          >
-            {{ t('auth.login') }}
-          </el-button>
-        </div>
+        <el-input
+          id="password"
+          v-model="password"
+          type="password"
+          :placeholder="t('auth.passwordPlaceholder')"
+          required
+          size="large"
+          show-password
+          autocomplete="current-password"
+        />
       </div>
-    </div>
-  </div>
+
+      <div class="auth-form__actions">
+        <el-button
+          native-type="submit"
+          type="primary"
+          class="auth-form__submit"
+          size="large"
+          :loading="loading"
+        >
+          {{ t('auth.login') }}
+        </el-button>
+      </div>
+    </form>
+  </AuthShell>
 </template>
 
 <script setup lang="ts">
@@ -65,7 +62,7 @@ import { login } from '@/services/api/authApi.ts'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import { useI18n } from '@/i18n'
-import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
+import AuthShell from '@/components/auth/AuthShell.vue'
 
 const authStore = useAuthStore()
 const { t } = useI18n()

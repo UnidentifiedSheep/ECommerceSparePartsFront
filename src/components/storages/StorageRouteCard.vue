@@ -20,8 +20,8 @@
         <el-button size="small" plain @click="$emit('toggle', route)">
           {{ route.isActive ? t('storages.routesPanel.disable') : t('storages.routesPanel.enable') }}
         </el-button>
-        <el-button size="small" @click="$emit('edit', route)">{{ t('common.actions.edit') }}</el-button>
-        <el-button size="small" type="danger" plain @click="$emit('remove', route)">{{ t('common.actions.delete') }}</el-button>
+        <ActionIconButton :label="t('common.actions.edit')" :icon="Edit" @click="$emit('edit', route)" />
+        <ActionIconButton :label="t('common.actions.delete')" :icon="Delete" tone="danger" @click="$emit('remove', route)" />
       </div>
     </div>
 
@@ -63,6 +63,8 @@
 </template>
 
 <script setup lang="ts">
+import { Delete, Edit } from '@element-plus/icons-vue'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import type { StorageRouteModel } from '@/models/storageRouteModel.ts'
 import { pricingTypeToText } from '@/enums/logisticPricingType.ts'
 import { routeTypeToText } from '@/enums/routeType.ts'
@@ -113,7 +115,7 @@ function formatMoney(value: number) {
 }
 
 .route-card:hover {
-  border-color: #93c5fd;
+  border-color: #cbd5e1;
 }
 
 .route-card__top {

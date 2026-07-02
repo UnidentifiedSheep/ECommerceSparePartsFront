@@ -6,6 +6,7 @@ export interface SettingModel {
   description: string
   inputData: string
   outputData: string
+  outputMetadata?: string | null
 }
 
 export interface GetSettingsResponse {

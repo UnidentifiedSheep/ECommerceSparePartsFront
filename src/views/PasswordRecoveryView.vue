@@ -1,22 +1,22 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-100 px-4 py-10">
-    <div class="w-full max-w-md rounded-lg bg-white px-10 py-9 shadow-lg">
-      <div class="pb-8 text-center">
-        <h1 class="text-2xl font-semibold text-gray-900">{{ t('auth.recoveryTitle') }}</h1>
-        <p class="mt-2 text-sm text-gray-500">
-          {{ t('auth.recoveryHint') }}
-        </p>
-      </div>
+  <AuthShell>
+    <div class="auth-form__header">
+      <h1>{{ t('auth.recoveryTitle') }}</h1>
+      <p>{{ t('auth.recoveryHint') }}</p>
+    </div>
 
-      <div class="pb-6">
-        <label for="recovery-email" class="block pb-2 font-semibold text-gray-700">Email</label>
+    <form class="auth-form" @submit.prevent="submitRecovery">
+      <div class="auth-field">
+        <label for="recovery-email" class="auth-field__label">Email</label>
         <el-input
           id="recovery-email"
           v-model="email"
           type="email"
           :placeholder="t('auth.recoveryEmailPlaceholder')"
           :disabled="isSent"
-          @keyup.enter="submitRecovery"
+          required
+          size="large"
+          autocomplete="email"
         />
       </div>
 
@@ -25,29 +25,31 @@
         type="success"
         show-icon
         :closable="false"
-        class="mb-6"
         :title="t('auth.recoverySentTitle')"
       >
         <p class="text-sm">{{ t('auth.recoverySentMessage') }}</p>
       </el-alert>
 
-      <div class="flex flex-col gap-4 pt-1">
+      <div class="auth-form__actions">
         <el-button
+          native-type="submit"
           type="primary"
           size="large"
+          class="auth-form__submit"
           :loading="isLoading"
           :disabled="isSent || !canSubmit"
-          @click="submitRecovery"
         >
           {{ t('auth.sendRecoveryLink') }}
         </el-button>
 
-        <RouterLink to="/auth" class="text-center text-sm font-medium text-blue-600 hover:text-blue-700">
-          {{ t('auth.backToLogin') }}
-        </RouterLink>
+        <div class="auth-form__secondary-action">
+          <RouterLink to="/auth" class="auth-form__link">
+            {{ t('auth.backToLogin') }}
+          </RouterLink>
+        </div>
       </div>
-    </div>
-  </div>
+    </form>
+  </AuthShell>
 </template>
 
 <script setup lang="ts">
@@ -57,6 +59,7 @@ import { ElNotification } from 'element-plus'
 import { ApiError } from '@/models/errorModel.ts'
 import { sendPasswordRecoveryEmail } from '@/services/api/authApi.ts'
 import { useI18n } from '@/i18n'
+import AuthShell from '@/components/auth/AuthShell.vue'
 
 const { t } = useI18n()
 const email = ref('')

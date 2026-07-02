@@ -1,9 +1,6 @@
 <template>
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
-    <div class="border-b border-slate-200 bg-white px-4 py-4">
-      <h1 class="text-2xl font-semibold text-slate-900">{{ t('settings.title') }}</h1>
-      <p class="text-sm text-slate-500">{{ t('settings.description') }}</p>
-    </div>
+    <PageHeader :title="t('settings.title')" :description="t('settings.description')" />
 
     <div class="settings-layout">
       <aside class="settings-sidebar">
@@ -27,7 +24,7 @@
             <p class="mt-1 text-sm text-slate-500">{{ t('settings.securityHint') }}</p>
           </div>
 
-          <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div class="text-base font-semibold text-slate-900">{{ t('settings.passwordTitle') }}</div>
@@ -69,6 +66,7 @@
 import { computed, reactive, ref } from 'vue'
 import { Lock } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import PageHeader from '@/components/common/PageHeader.vue'
 import { changePassword } from '@/services/api/authApi.ts'
 import { useI18n } from '@/i18n'
 
@@ -183,7 +181,7 @@ async function savePassword() {
 .settings-nav-item--active {
   background: #e2e8f0;
   color: #0f172a;
-  box-shadow: inset 3px 0 0 #3b82f6;
+  box-shadow: inset 3px 0 0 #047857;
 }
 
 .settings-content {
@@ -219,7 +217,7 @@ async function savePassword() {
   }
 
   .settings-nav-item--active {
-    box-shadow: inset 0 -3px 0 #3b82f6;
+    box-shadow: inset 0 -3px 0 #047857;
   }
 
   .settings-panel {

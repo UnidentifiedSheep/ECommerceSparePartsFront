@@ -159,6 +159,13 @@
   padding-top: 12px;
 }
 
+.purchase-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .purchase-details-panel {
   overflow: hidden;
 }
@@ -168,11 +175,11 @@
 }
 
 :deep(.purchase-table-row:hover > td) {
-  background: #eff6ff !important;
+  background: #f8fafc !important;
 }
 
 :deep(.el-table__body tr.current-row > td) {
-  background: #dbeafe !important;
+  background: #ecfdf5 !important;
 }
 
 @media (max-width: 1180px) {

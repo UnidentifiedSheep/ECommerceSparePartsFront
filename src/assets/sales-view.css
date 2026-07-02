@@ -3,17 +3,6 @@
   background: #f7f7f8;
 }
 
-.sales-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
-  padding: 18px 20px;
-}
-
-.sales-header h1,
 .sales-toolbar h2,
 .panel-heading h2 {
   margin: 0;
@@ -22,11 +11,6 @@
   line-height: 1.2;
 }
 
-.sales-header h1 {
-  font-size: 26px;
-}
-
-.sales-header p,
 .sales-toolbar p,
 .panel-heading p {
   margin: 5px 0 0;
@@ -37,7 +21,7 @@
 .sales-content {
   display: grid;
   gap: 16px;
-  padding: 16px;
+  padding: 16px 18px 18px;
 }
 
 .sales-toolbar,
@@ -53,7 +37,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
+  padding: 14px 16px;
 }
 
 .toolbar-actions {
@@ -140,27 +124,31 @@
 
 .sales-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.85fr);
+  grid-template-columns: minmax(780px, 1fr) minmax(340px, 0.55fr);
   gap: 16px;
+  min-height: calc(100vh - 238px);
 }
 
 .sales-list-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  height: 760px;
+  min-height: calc(100vh - 238px);
   overflow: hidden;
-  padding: 16px;
+  padding: 14px 16px 0;
 }
 
 .panel-footer {
   display: flex;
   justify-content: flex-start;
   border-top: 1px solid #e2e8f0;
-  padding-top: 12px;
+  margin: 0 -16px;
+  padding: 12px 16px;
+  background: #ffffff;
 }
 
 .sale-details-panel {
   overflow: hidden;
+  min-height: calc(100vh - 238px);
 }
 
 .sale-buyer-cell {
@@ -186,78 +174,83 @@
 
 :deep(.sale-table-row > td) {
   position: relative;
-}
-
-:deep(.sale-table-row--completed > td) {
-  background: #f0fdf4 !important;
   color: #0f172a;
 }
 
 :deep(.sale-table-row--completed > td:first-child) {
-  box-shadow: inset 4px 0 0 #22c55e;
-}
-
-:deep(.sale-table-row--draft > td) {
-  background: #f8fafc !important;
-  color: #0f172a;
+  box-shadow: inset 3px 0 0 #16a34a;
 }
 
 :deep(.sale-table-row--draft > td:first-child) {
-  box-shadow: inset 4px 0 0 #94a3b8;
+  box-shadow: inset 3px 0 0 #94a3b8;
 }
 
 :deep(.sale-table-row--deleted > td) {
-  background: #fff1f2 !important;
-  color: #0f172a;
   opacity: 0.78;
 }
 
 :deep(.sale-table-row--deleted > td:first-child) {
-  box-shadow: inset 4px 0 0 #ef4444;
+  box-shadow: inset 3px 0 0 #ef4444;
 }
 
 :deep(.sale-table-row:hover > td) {
-  background: #ecfdf5 !important;
+  background: #f8fafc !important;
 }
 
 .sale-actions {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 8px;
+  display: inline-flex;
+  gap: 4px;
   align-items: center;
+  justify-content: flex-end;
   white-space: nowrap;
 }
 
 .sale-actions :deep(.el-button) {
+  width: 28px;
   margin-left: 0;
-}
-
-:deep(.sale-table-row--completed:hover > td) {
-  background: #dcfce7 !important;
-}
-
-:deep(.sale-table-row--draft:hover > td) {
-  background: #f1f5f9 !important;
-}
-
-:deep(.sale-table-row--deleted:hover > td) {
-  background: #ffe4e6 !important;
+  padding-right: 0;
+  padding-left: 0;
 }
 
 :deep(.el-table__body tr.current-row > td) {
-  background: #d1fae5 !important;
+  background: #edf5ff !important;
 }
 
-:deep(.el-table__body tr.current-row.sale-table-row--completed > td) {
-  background: #bbf7d0 !important;
+.sale-state {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid #d9e1ec;
+  border-radius: 6px;
+  padding: 2px 8px;
+  color: #334155;
+  background: #f8fafc;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 650;
 }
 
-:deep(.el-table__body tr.current-row.sale-table-row--draft > td) {
-  background: #e2e8f0 !important;
+.sale-state--completed {
+  border-color: #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
 }
 
-:deep(.el-table__body tr.current-row.sale-table-row--deleted > td) {
-  background: #fecdd3 !important;
+.sale-state--draft {
+  border-color: #d7dee9;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.sale-state--deleted {
+  border-color: #fecdd3;
+  color: #991b1b;
+  background: #fff1f2;
+}
+
+.sale-amount {
+  color: #0f172a;
+  font-weight: 750;
 }
 
 :deep(.sale-filters-drawer .el-drawer__header) {
@@ -274,22 +267,18 @@
   .sales-workspace {
     grid-template-columns: 1fr;
   }
+
+  .sales-list-panel,
+  .sale-details-panel {
+    min-height: 560px;
+  }
 }
 
 @media (max-width: 720px) {
-  .sales-header,
   .sales-toolbar,
   .panel-heading {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .sales-header {
-    padding: 16px 14px;
-  }
-
-  .sales-header h1 {
-    font-size: 22px;
   }
 
   .sales-content {
@@ -314,7 +303,7 @@
   }
 
   .sales-list-panel {
-    height: 620px;
+    min-height: 620px;
   }
 
   .drawer-body {

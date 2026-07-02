@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="isOpen"
-    width="1180"
+    width="min(1100px, calc(100vw - 24px))"
     top="3vh"
     class="create-products-dialog"
     :show-close="false"
@@ -14,7 +14,7 @@
     </template>
 
     <div class="dialog-body">
-        <div class="stepper">
+      <div class="stepper">
         <div :class="['stepper-item', activeStep === 0 && 'is-active', activeStep > 0 && 'is-done']">
           <div class="stepper-number">
             <el-icon v-if="activeStep > 0"><Check /></el-icon>
@@ -38,70 +38,71 @@
       <section v-show="activeStep === 0 && canCreateProducts" class="dialog-stage space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div class="flex items-center gap-2">
-              <h3 class="text-lg font-semibold text-slate-950">{{ t('products.crossesWizard.newProducts') }}</h3>
-              <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                {{ filledProductRowsCount }} {{ t('products.crossesWizard.of') }} 100
-              </span>
-            </div>
+            <h3 class="text-lg font-semibold text-slate-950">{{ t('products.crossesWizard.newProducts') }}</h3>
             <p class="mt-1 text-sm text-slate-500">{{ t('products.crossesWizard.limitHint') }}</p>
           </div>
 
           <div class="flex items-center gap-2">
-            <el-button :icon="Download" plain>{{ t('products.crossesWizard.importExcel') }}</el-button>
+            <span class="text-sm font-medium text-slate-500">
+              {{ filledProductRowsCount }} {{ t('products.crossesWizard.of') }} 100
+            </span>
             <el-button :icon="Plus" type="primary" @click="addProductRow">{{ t('products.crossesWizard.addRow') }}</el-button>
           </div>
         </div>
 
-        <div class="overflow-hidden rounded-md border border-slate-200 bg-white">
-          <el-table
-            :data="visibleProductRows"
-            class="product-create-table"
-            row-key="key"
-            :empty-text="t('products.crossesWizard.noRows')"
-          >
-            <el-table-column width="36" align="center">
-              <template #default>
-                <el-icon class="cursor-grab text-slate-300"><Rank /></el-icon>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('products.sku')" min-width="170">
-              <template #default="{ row }">
+        <div class="product-row-list">
+          <div v-if="visibleProductRows.length === 0" class="empty-state">
+            <div class="empty-state__title">{{ t('products.crossesWizard.noRows') }}</div>
+            <el-button :icon="Plus" type="primary" plain @click="addProductRow">{{ t('products.crossesWizard.addRow') }}</el-button>
+          </div>
+
+          <article v-for="row in visibleProductRows" :key="row.key" class="product-edit-row">
+            <div class="product-edit-row__header">
+              <div class="product-edit-row__title">
+                <span>{{ t('products.crossesWizard.product') }}</span>
+                <strong>{{ productRows.indexOf(row) + 1 }}</strong>
+              </div>
+              <el-button
+                :icon="Delete"
+                size="small"
+                text
+                type="danger"
+                @click="removeProductRow(row)"
+              />
+            </div>
+
+            <div class="product-edit-grid">
+              <label class="form-field form-field--sku">
+                <span>{{ t('products.sku') }}</span>
                 <el-input v-model="row.sku" :placeholder="t('products.crossesWizard.enterSku')" />
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.labels.name')" min-width="220">
-              <template #default="{ row }">
+              </label>
+
+              <label class="form-field form-field--name">
+                <span>{{ t('common.labels.name') }}</span>
                 <el-input v-model="row.name" :placeholder="t('products.crossesWizard.enterName')" />
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.labels.producer')" min-width="240">
-              <template #default="{ row }">
+              </label>
+
+              <label class="form-field form-field--producer">
+                <span>{{ t('common.labels.producer') }}</span>
                 <ProducerSelector v-model="row.producerId" :placeholder="t('products.selectProducer')" />
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('products.crossesWizard.color')" width="130">
-              <template #default="{ row }">
+              </label>
+
+              <label class="form-field form-field--color">
+                <span>{{ t('products.crossesWizard.color') }}</span>
                 <el-color-picker v-model="row.indicator" show-alpha />
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.labels.description')" min-width="240">
-              <template #default="{ row }">
-                <el-input v-model="row.description" :placeholder="t('products.crossesWizard.enterDescription')" />
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.labels.actions')" width="96" align="center">
-              <template #default="{ row }">
-                <el-button
-                  size="small"
-                  text
-                  type="danger"
-                  :icon="Delete"
-                  @click="removeProductRow(row)"
+              </label>
+
+              <label class="form-field form-field--description">
+                <span>{{ t('common.labels.description') }}</span>
+                <el-input
+                  v-model="row.description"
+                  type="textarea"
+                  :autosize="{ minRows: 1, maxRows: 3 }"
+                  :placeholder="t('products.crossesWizard.enterDescription')"
                 />
-              </template>
-            </el-table-column>
-          </el-table>
+              </label>
+            </div>
+          </article>
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
@@ -137,75 +138,71 @@
           </div>
         </div>
 
-        <div class="overflow-hidden rounded-md border border-slate-200 bg-white">
-          <el-table :data="crossRows" class="product-cross-create-table" row-key="key">
-          <el-table-column width="36" align="center">
-            <template #default>
-              <el-icon class="cursor-grab text-slate-300"><Rank /></el-icon>
-            </template>
-          </el-table-column>
-          <el-table-column min-width="360">
-            <template #header>
-              <span class="inline-flex items-center gap-1">
-                {{ t('products.crossesWizard.product') }}
-                <el-icon class="text-slate-400"><InfoFilled /></el-icon>
-              </span>
-            </template>
-            <template #default="{ row, $index }">
-              <ProductPickField
-                :id="row.productId"
-                :label="row.productLabel"
-                @pick="openProductSelector($index, 'product')"
-                @clear="clearCrossProduct(row, 'product')"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column min-width="360">
-            <template #header>
-              <span class="inline-flex items-center gap-1">
-                {{ t('products.crossesWizard.cross') }}
-                <el-icon class="text-slate-400"><InfoFilled /></el-icon>
-              </span>
-            </template>
-            <template #default="{ row, $index }">
-              <ProductPickField
-                :id="row.crossProductId"
-                :label="row.crossProductLabel"
-                @pick="openProductSelector($index, 'cross')"
-                @clear="clearCrossProduct(row, 'cross')"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column min-width="300">
-            <template #header>
-              <span class="inline-flex items-center gap-1">
-                {{ t('products.crossesWizard.linkageType') }}
-                <el-icon class="text-slate-400"><InfoFilled /></el-icon>
-              </span>
-            </template>
-            <template #default="{ row }">
-              <el-select v-model="row.linkageType" class="w-full">
-                <el-option
-                  v-for="option in linkageTypeOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
-            </template>
-          </el-table-column>
-          <el-table-column label="" width="84" align="center">
-            <template #default="{ $index }">
+        <div class="cross-row-list">
+          <div v-if="crossRows.length === 0" class="empty-state">
+            <div class="empty-state__title">{{ t('products.crossesWizard.noRows') }}</div>
+            <el-button :icon="Plus" type="primary" plain @click="addCrossRow">{{ t('products.crossesWizard.addRow') }}</el-button>
+          </div>
+
+          <article v-for="(row, index) in crossRows" :key="row.key" class="cross-edit-row">
+            <div class="cross-edit-row__main">
+              <div class="cross-pick">
+                <div class="cross-pick__label">{{ t('products.crossesWizard.product') }}</div>
+                <div class="cross-pick__box">
+                  <div class="cross-pick__value">
+                    <strong>{{ row.productLabel || t('products.crossesWizard.pickProduct') }}</strong>
+                    <span v-if="row.productId">ID {{ row.productId }}</span>
+                  </div>
+                  <div class="cross-pick__actions">
+                    <el-button size="small" @click="openProductSelector(index, 'product')">{{ t('products.pick') }}</el-button>
+                    <el-button v-if="row.productId" size="small" text type="danger" @click="clearCrossProduct(row, 'product')">
+                      {{ t('products.clear') }}
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="cross-arrow" aria-hidden="true">→</div>
+
+              <div class="cross-pick">
+                <div class="cross-pick__label">{{ t('products.crossesWizard.cross') }}</div>
+                <div class="cross-pick__box">
+                  <div class="cross-pick__value">
+                    <strong>{{ row.crossProductLabel || t('products.crossesWizard.pickProduct') }}</strong>
+                    <span v-if="row.crossProductId">ID {{ row.crossProductId }}</span>
+                  </div>
+                  <div class="cross-pick__actions">
+                    <el-button size="small" @click="openProductSelector(index, 'cross')">{{ t('products.pick') }}</el-button>
+                    <el-button v-if="row.crossProductId" size="small" text type="danger" @click="clearCrossProduct(row, 'cross')">
+                      {{ t('products.clear') }}
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="cross-edit-row__side">
+              <label class="form-field">
+                <span>{{ t('products.crossesWizard.linkageType') }}</span>
+                <el-select v-model="row.linkageType" class="w-full">
+                  <el-option
+                    v-for="option in linkageTypeOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+              </label>
+
               <el-button
+                :icon="Delete"
                 size="small"
                 text
                 type="danger"
-                :icon="Delete"
-                @click="removeCrossRow($index)"
+                @click="removeCrossRow(index)"
               />
-            </template>
-          </el-table-column>
-          </el-table>
+            </div>
+          </article>
         </div>
 
         <div class="flex items-center gap-3 text-sm">
@@ -239,9 +236,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref, watch } from 'vue'
-import { Check, Close, Delete, Download, InfoFilled, Link, Plus, Rank, Search } from '@element-plus/icons-vue'
-import { ElButton, ElNotification } from 'element-plus'
+import { computed, ref, watch } from 'vue'
+import { Check, Close, Delete, Link, Plus } from '@element-plus/icons-vue'
+import { ElNotification } from 'element-plus'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
@@ -322,24 +319,6 @@ const productsStepSummary = computed(() => {
     : t('products.crossesWizard.products')
 })
 
-function ProductPickField(props: { id?: number; label: string; onPick: () => void; onClear: () => void }) {
-  return h('div', { class: 'flex items-center gap-2' }, [
-    props.id
-      ? h('div', { class: 'product-pick-card' }, [
-          h('div', { class: 'min-w-0' }, [
-            h('div', { class: 'truncate font-medium text-slate-900' }, props.label || `#${props.id}`),
-            h('div', { class: 'text-xs text-slate-500' }, `ID ${props.id}`),
-          ]),
-        ])
-      : h('div', { class: 'product-pick-empty' }, [
-          h(Search, { class: 'h-4 w-4 text-slate-400' }),
-          h('span', {}, t('products.crossesWizard.pickProduct')),
-        ]),
-    h(ElButton, { onClick: props.onPick }, () => t('products.pick')),
-    props.id ? h(ElButton, { text: true, type: 'danger', onClick: props.onClear }, () => t('products.clear')) : null,
-  ])
-}
-
 function emptyProductRow(): ProductRow {
   productRowCounter += 1
   return {
@@ -366,8 +345,8 @@ function emptyCrossRow(): CrossRow {
 
 function resetForm() {
   activeStep.value = props.initialProductId ? 1 : 0
-  productRows.value = []
-  crossRows.value = []
+  productRows.value = props.initialProductId || !canCreateProducts.value ? [] : [emptyProductRow()]
+  crossRows.value = props.initialProductId && canCreateCrosses.value ? [emptyCrossRow()] : []
   createdProducts.value = []
   showFilledOnly.value = false
 }
@@ -592,50 +571,56 @@ watch(isOpen, (open) => {
 
 <style scoped>
 .dialog-body {
-  margin: 0 -28px;
+  max-height: min(72vh, 720px);
+  overflow: auto;
   border-top: 1px solid rgb(226 232 240);
   border-bottom: 1px solid rgb(226 232 240);
-  padding: 0 36px 32px;
+  padding: 0 28px 24px;
 }
 
 .dialog-stage {
   border-radius: 8px;
-  padding: 4px 0 0;
+  padding: 0;
 }
 
 .stepper {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: grid;
-  grid-template-columns: max-content 1fr max-content;
+  grid-template-columns: max-content 40px max-content;
   align-items: center;
-  gap: 28px;
-  margin: 0 -36px 28px;
+  gap: 14px;
+  margin: 0 -28px 22px;
   border-bottom: 1px solid rgb(226 232 240);
-  padding: 30px 72px;
+  padding: 16px 28px;
+  background: white;
 }
 
 .stepper-item {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   color: rgb(71 85 105);
 }
 
 .stepper-number {
   display: flex;
-  width: 42px;
-  height: 42px;
+  width: 26px;
+  height: 26px;
   align-items: center;
   justify-content: center;
   border: 1px solid rgb(203 213 225);
-  border-radius: 999px;
+  border-radius: 7px;
   background: white;
   color: rgb(71 85 105);
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .stepper-item.is-active .stepper-number {
-  border-color: rgb(37 99 235);
-  background: rgb(37 99 235);
+  border-color: rgb(15 23 42);
+  background: rgb(15 23 42);
   color: white;
 }
 
@@ -653,7 +638,7 @@ watch(isOpen, (open) => {
 
 .stepper-line {
   height: 1px;
-  background: rgb(203 213 225);
+  background: rgb(226 232 240);
 }
 
 .dialog-footer {
@@ -664,27 +649,232 @@ watch(isOpen, (open) => {
 }
 
 :deep(.create-products-dialog .el-dialog__header) {
-  padding: 26px 36px 22px;
+  padding: 22px 28px 18px;
 }
 
 :deep(.create-products-dialog .el-dialog__body) {
-  padding: 0 36px;
+  padding: 0;
 }
 
 :deep(.create-products-dialog .el-dialog__footer) {
-  padding: 24px 36px 28px;
+  padding: 18px 28px 22px;
 }
 
-:deep(.product-create-table .el-table__header th) {
-  background: rgb(248 250 252);
+.product-row-list,
+.cross-row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.product-edit-row,
+.cross-edit-row,
+.empty-state {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 8px;
+  background: white;
+}
+
+.product-edit-row {
+  padding: 14px;
+}
+
+.product-edit-row__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.product-edit-row__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: rgb(71 85 105);
-  font-weight: 700;
+  font-size: 13px;
 }
 
-:deep(.product-create-table .el-table__cell),
-:deep(.product-cross-create-table .el-table__cell) {
-  vertical-align: middle;
-  padding-top: 12px;
-  padding-bottom: 12px;
+.product-edit-row__title strong {
+  color: rgb(15 23 42);
+  font-size: 14px;
+}
+
+.product-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, 1.35fr) minmax(220px, 1.15fr) 92px;
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-field > span,
+.cross-pick__label {
+  color: rgb(51 65 85);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.form-field--description {
+  grid-column: 1 / -1;
+}
+
+.form-field--color :deep(.el-color-picker) {
+  width: 100%;
+}
+
+.cross-edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 14px;
+  padding: 14px;
+}
+
+.cross-edit-row__main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+  align-items: end;
+  gap: 10px;
+}
+
+.cross-edit-row__side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: end;
+  gap: 8px;
+}
+
+.cross-pick {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cross-pick__box {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 7px;
+  padding: 6px 8px 6px 10px;
+  background: rgb(248 250 252);
+}
+
+.cross-pick__value {
+  min-width: 0;
+}
+
+.cross-pick__value strong {
+  display: block;
+  overflow: hidden;
+  color: rgb(15 23 42);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cross-pick__value span {
+  display: block;
+  margin-top: 2px;
+  color: rgb(100 116 139);
+  font-size: 12px;
+}
+
+.cross-pick__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.cross-arrow {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: rgb(100 116 139);
+}
+
+.empty-state {
+  display: flex;
+  min-height: 128px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  background: rgb(248 250 252);
+}
+
+.empty-state__title {
+  color: rgb(100 116 139);
+  font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .dialog-body {
+    padding: 0 16px 20px;
+  }
+
+  .stepper {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 0 -16px 20px;
+    padding: 14px 16px;
+  }
+
+  .stepper-line {
+    display: none;
+  }
+
+  .dialog-footer {
+    flex-direction: column-reverse;
+  }
+
+  .dialog-footer > div {
+    flex-wrap: wrap;
+  }
+
+  .product-edit-grid,
+  .cross-edit-row,
+  .cross-edit-row__main,
+  .cross-edit-row__side {
+    grid-template-columns: 1fr;
+  }
+
+  .cross-arrow {
+    display: none;
+  }
+
+  .cross-pick__box {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cross-pick__actions {
+    justify-content: flex-end;
+  }
+
+  :deep(.create-products-dialog .el-dialog__header) {
+    padding: 18px 16px 14px;
+  }
+
+  :deep(.create-products-dialog .el-dialog__body) {
+    padding: 0;
+  }
+
+  :deep(.create-products-dialog .el-dialog__footer) {
+    padding: 16px;
+  }
 }
 </style>

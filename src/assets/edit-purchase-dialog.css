@@ -6,11 +6,7 @@
 }
 
 .dialog-kicker {
-  margin-bottom: 4px;
-  color: #002fa7;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
+  display: none;
 }
 
 .dialog-heading h2 {
@@ -36,11 +32,7 @@
   min-width: 0;
   border-top: 1px solid rgb(226 232 240);
   border-bottom: 1px solid rgb(226 232 240);
-  background:
-    linear-gradient(90deg, rgba(0, 47, 167, 0.045) 0 1px, transparent 1px 100%),
-    linear-gradient(180deg, rgba(0, 47, 167, 0.035) 0 1px, transparent 1px 100%),
-    #f7f7f8;
-  background-size: 28px 28px;
+  background: #f7f8fa;
   padding: 24px;
 }
 
@@ -159,7 +151,7 @@
 }
 
 .purchase-section--main {
-  border-top: 3px solid #002fa7;
+  border-color: #cbd5e1;
 }
 
 .section-header {
@@ -234,7 +226,8 @@
 }
 
 .purchase-item:hover {
-  border-color: #93c5fd;
+  border-color: #cbd5e1;
+  background: #fbfcfd;
 }
 
 .item-product {

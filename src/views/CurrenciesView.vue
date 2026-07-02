@@ -8,7 +8,7 @@
     </div>
 
     <div class="grid items-start gap-4 p-4 xl:grid-cols-[minmax(420px,48%)_minmax(0,52%)]">
-      <el-card shadow="hover" class="min-w-0">
+      <el-card shadow="never" class="min-w-0">
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <div class="min-w-0">

@@ -1,14 +1,9 @@
 <template>
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
-    <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
-      <div>
-        <h1 class="text-2xl font-semibold text-slate-900">{{ t('storages.title') }}</h1>
-        <p class="text-sm text-slate-500">{{ t('storages.description') }}</p>
-      </div>
-    </div>
+    <PageHeader :title="t('storages.title')" :description="t('storages.description')" />
 
     <div class="p-4">
-      <el-card shadow="hover">
+      <el-card shadow="never">
         <el-row :gutter="20" align="bottom">
           <el-col :span="8">
             <label for="search-field" class="mb-2 block text-sm font-medium text-slate-700">{{ t('common.labels.search') }}</label>
@@ -31,14 +26,14 @@
               v-model:selected-storage="selectedStorage"
               :storage-type="storageType"
               :search-field="searchField"
-              shadow="hover"
+              shadow="never"
               class="h-[760px]"
             />
           </el-col>
           <el-col :span="10">
-            <el-card shadow="hover" class="h-[760px]">
+            <el-card shadow="never" class="h-[760px]">
               <template v-if="selectedStorage">
-                <div class="mb-4 rounded-xl bg-slate-50 p-4">
+                <div class="mb-4 rounded-lg bg-slate-50 p-4">
                   <div class="text-lg font-semibold text-slate-900">{{ selectedStorage.name }}</div>
                   <div class="mt-1 text-sm text-slate-500">
                     {{ selectedStorage.location || t('storages.locationMissing') }}
@@ -82,6 +77,7 @@
 import { User } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 import StorageTypeSelector from '@/components/selectors/StorageTypeSelector.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
 import IconRoute from '@/components/icons/IconRoute.vue'
 import StoragesViewer from '@/components/storages/StoragesViewer.vue'
 import StorageOwnersViewer from '@/components/storages/StorageOwnersViewer.vue'

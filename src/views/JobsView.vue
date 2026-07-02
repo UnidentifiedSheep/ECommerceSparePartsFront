@@ -1,49 +1,49 @@
 <template>
   <div class="jobs-page">
-    <section class="jobs-hero">
-      <div>
-        <h1>{{ t('jobs.title') }}</h1>
-        <p>{{ t('jobs.description') }}</p>
-      </div>
-      <el-button type="primary" :loading="isLoadingJobs" @click="loadJobs">
-        {{ t('common.actions.refresh') }}
-      </el-button>
-    </section>
+    <PageHeader :title="t('jobs.title')" :description="t('jobs.description')">
+      <template #actions>
+        <el-button type="primary" :loading="isLoadingJobs" @click="loadJobs">
+          {{ t('common.actions.refresh') }}
+        </el-button>
+      </template>
+    </PageHeader>
 
-    <section class="service-strip">
-      <div
-        v-for="service in serviceCards"
-        :key="service.key"
-        class="service-card"
-        :class="{ unavailable: !service.available }"
-      >
-        <div class="service-card-title">
-          <span>{{ serviceLabel(service.key) }}</span>
-          <el-tag :type="service.available ? 'success' : 'danger'" effect="light" round>
-            {{ service.available ? t('jobs.available') : t('jobs.unavailable') }}
-          </el-tag>
+    <div class="jobs-content">
+      <section class="service-strip">
+        <div
+          v-for="service in serviceCards"
+          :key="service.key"
+          class="service-card"
+          :class="{ unavailable: !service.available }"
+        >
+          <div class="service-card-title">
+            <span>{{ serviceLabel(service.key) }}</span>
+            <el-tag :type="service.available ? 'success' : 'info'" effect="plain">
+              {{ service.available ? t('jobs.available') : t('jobs.unavailable') }}
+            </el-tag>
+          </div>
+          <div class="service-card-meta">
+            {{ service.available ? t('jobs.count', { count: service.jobsCount }) : serviceErrorText(service) }}
+          </div>
         </div>
-        <div class="service-card-meta">
-          {{ service.available ? t('jobs.count', { count: service.jobsCount }) : serviceErrorText(service) }}
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <el-tabs v-model="activeJobsTab" class="jobs-tabs">
-      <el-tab-pane :label="t('jobs.availableTab')" name="available" />
-      <el-tab-pane :label="t('jobs.currentTab')" name="current" />
-      <el-tab-pane :label="t('jobs.schedulesTab')" name="schedules" />
-    </el-tabs>
+      <el-tabs v-model="activeJobsTab" class="jobs-tabs">
+        <el-tab-pane :label="t('jobs.availableTab')" name="available" />
+        <el-tab-pane :label="t('jobs.currentTab')" name="current" />
+        <el-tab-pane :label="t('jobs.schedulesTab')" name="schedules" />
+      </el-tabs>
 
-    <section v-if="activeJobsTab === 'available'" class="jobs-workspace">
-      <aside class="jobs-filter-panel">
+    <section v-if="activeJobsTab === 'available'" class="available-jobs-panel">
+      <div class="available-jobs-toolbar">
         <el-input
           v-model="searchQuery"
           clearable
           :placeholder="t('jobs.searchPlaceholder')"
+          class="available-jobs-search"
         />
 
-        <el-select v-model="selectedService" clearable :placeholder="t('jobs.allServices')" class="w-full">
+        <el-select v-model="selectedService" clearable :placeholder="t('jobs.allServices')" class="available-jobs-service">
           <el-option
             v-for="service in serviceCards"
             :key="service.key"
@@ -52,12 +52,12 @@
           />
         </el-select>
 
-        <el-checkbox v-model="showUnavailable">
+        <el-checkbox v-model="showUnavailable" class="available-jobs-checkbox">
           {{ t('jobs.showUnavailable') }}
         </el-checkbox>
-      </aside>
+      </div>
 
-      <main class="jobs-list">
+      <div class="available-jobs-list">
         <el-empty v-if="!isLoadingJobs && visibleJobs.length === 0" :description="t('jobs.emptyAvailable')" />
 
         <button
@@ -67,91 +67,55 @@
           class="job-row"
           @click="openJob(item)"
         >
+          <div class="job-row-service">{{ serviceLabel(item.serviceKey) }}</div>
           <div class="job-row-main">
-            <div class="job-row-title">
-              <span>{{ item.job.name }}</span>
-              <el-tag size="small" effect="plain">{{ serviceLabel(item.serviceKey) }}</el-tag>
-            </div>
+            <div class="job-row-title">{{ item.job.name }}</div>
             <p>{{ item.job.description }}</p>
           </div>
           <div class="job-row-action">{{ t('common.actions.open') }}</div>
         </button>
+      </div>
 
-        <div v-if="showUnavailable" class="unavailable-list">
-          <div
-            v-for="service in unavailableServices"
-            :key="service.key"
-            class="unavailable-row"
-          >
-            <div>
-              <strong>{{ serviceLabel(service.key) }}</strong>
-              <span>{{ serviceErrorText(service) }}</span>
-            </div>
-            <el-tag type="danger" effect="light">{{ t('common.labels.error') }}</el-tag>
-          </div>
+      <div v-if="showUnavailable && unavailableServices.length > 0" class="unavailable-list">
+        <div
+          v-for="service in unavailableServices"
+          :key="service.key"
+          class="unavailable-row"
+        >
+          <strong>{{ serviceLabel(service.key) }}</strong>
+          <span>{{ serviceErrorText(service) }}</span>
+          <el-tag type="danger" effect="plain">{{ t('common.labels.error') }}</el-tag>
         </div>
-      </main>
+      </div>
     </section>
 
     <section v-else-if="activeJobsTab === 'current'" class="current-jobs-panel">
-      <div class="current-jobs-toolbar">
-        <el-select
-          v-model="selectedCurrentService"
-          :placeholder="t('common.placeholders.selectService')"
-          class="current-service-select"
-        >
-          <el-option
-            v-for="service in serviceCards"
-            :key="service.key"
-            :disabled="!service.available"
-            :label="serviceLabel(service.key)"
-            :value="service.key"
-          />
-        </el-select>
-
-        <el-select
-          v-model="currentJobStatuses"
-          multiple
-          collapse-tags
-          collapse-tags-tooltip
-          clearable
-          :placeholder="t('common.placeholders.statuses')"
-          class="current-status-select"
-        >
-          <el-option
-            v-for="status in jobStatusOptions"
-            :key="status.value"
-            :label="status.label"
-            :value="status.value"
-          />
-        </el-select>
-
-        <el-select
-          v-model="currentJobSystemNames"
-          multiple
-          collapse-tags
-          collapse-tags-tooltip
-          clearable
-          filterable
-          :placeholder="t('common.placeholders.systemNames')"
-          class="current-system-select"
-        >
-          <el-option
-            v-for="job in currentServiceAvailableJobs"
-            :key="job.systemName"
-            :label="job.name"
-            :value="job.systemName"
+      <div class="current-jobs-toolbar current-jobs-toolbar--split">
+        <div class="current-jobs-toolbar-main">
+          <el-select
+            v-model="selectedCurrentService"
+            :placeholder="t('common.placeholders.selectService')"
+            class="current-service-select"
           >
-            <div class="job-option">
-              <span>{{ job.name }}</span>
-              <small>{{ job.systemName }}</small>
-            </div>
-          </el-option>
-        </el-select>
+            <el-option
+              v-for="service in serviceCards"
+              :key="service.key"
+              :disabled="!service.available"
+              :label="serviceLabel(service.key)"
+              :value="service.key"
+            />
+          </el-select>
+        </div>
 
-        <el-button type="primary" :loading="isLoadingCurrentJobs" :disabled="!selectedCurrentService" @click="loadCurrentJobs(true)">
-          {{ t('common.actions.refresh') }}
-        </el-button>
+        <div class="current-jobs-toolbar-actions">
+          <el-button plain :icon="Filter" :disabled="!selectedCurrentService" @click="currentJobFiltersOpen = true">
+            {{ t('common.actions.filter') }}
+          </el-button>
+
+          <el-button type="primary" :loading="isLoadingCurrentJobs" :disabled="!selectedCurrentService" @click="loadCurrentJobs(true)">
+            {{ t('common.actions.refresh') }}
+          </el-button>
+        </div>
       </div>
 
       <el-alert
@@ -172,7 +136,7 @@
         height="100%"
         @sort-change="handleCurrentJobsSortChange"
       >
-        <el-table-column prop="status" :label="t('common.labels.status')" min-width="130" sortable="custom">
+        <el-table-column prop="status" :label="t('common.labels.status')" min-width="120" sortable="custom">
           <template #default="{ row }: { row: JobModel }">
             <el-tag :type="jobStatusTagType(row.status)" effect="light">
               {{ jobStatusLabel(row.status) }}
@@ -180,7 +144,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('common.labels.job')" min-width="260">
+        <el-table-column :label="t('common.labels.job')" min-width="240">
           <template #default="{ row }: { row: JobModel }">
             <div class="current-job-title">
               <strong>{{ jobDefinitionName(row.systemName) }}</strong>
@@ -189,25 +153,25 @@
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('common.labels.attempts')" width="110">
+        <el-table-column :label="t('common.labels.attempts')" width="100">
           <template #default="{ row }: { row: JobModel }">
             {{ row.attempts }} / {{ row.maxAttempts }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="createdAt" :label="t('common.labels.createdAt')" min-width="170" sortable="custom">
+        <el-table-column prop="createdAt" :label="t('common.labels.createdAt')" min-width="155" sortable="custom">
           <template #default="{ row }: { row: JobModel }">
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="updatedAt" :label="t('common.labels.updatedAt')" min-width="170" sortable="custom">
+        <el-table-column prop="updatedAt" :label="t('common.labels.updatedAt')" min-width="155" sortable="custom">
           <template #default="{ row }: { row: JobModel }">
             {{ formatDateTime(row.updatedAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('common.labels.error')" min-width="220">
+        <el-table-column :label="t('common.labels.error')" min-width="180">
           <template #default="{ row }: { row: JobModel }">
             <span :class="row.errorMessage ? 'text-red-600' : 'text-slate-400'">
               {{ row.errorMessage || '-' }}
@@ -215,11 +179,14 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="" width="120" fixed="right">
+        <el-table-column label="" width="72" align="right">
           <template #default="{ row }: { row: JobModel }">
-            <el-button plain size="small" :loading="loadingStateJobId === row.id" @click="openJobState(row)">
-              {{ t('jobs.state') }}
-            </el-button>
+            <ActionIconButton
+              :label="t('jobs.state')"
+              :icon="View"
+              :loading="loadingStateJobId === row.id"
+              @click="openJobState(row)"
+            />
           </template>
         </el-table-column>
       </el-table>
@@ -284,7 +251,7 @@
         height="100%"
         @sort-change="handleSchedulesSortChange"
       >
-        <el-table-column prop="enabled" :label="t('jobs.enabled')" width="130" sortable="custom">
+        <el-table-column prop="enabled" :label="t('jobs.enabled')" width="100" sortable="custom">
           <template #default="{ row }: { row: JobScheduleModel }">
             <el-switch
               :model-value="row.enabled"
@@ -294,16 +261,16 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="name" :label="t('common.labels.name')" min-width="220" sortable="custom">
+        <el-table-column prop="name" :label="t('common.labels.name')" min-width="170" sortable="custom">
           <template #default="{ row }: { row: JobScheduleModel }">
             <div class="current-job-title">
               <strong>{{ row.name }}</strong>
-              <span>{{ row.description || row.id }}</span>
+              <span>{{ scheduleSubtitle(row) }}</span>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="jobSystemName" :label="t('common.labels.job')" min-width="240" sortable="custom">
+        <el-table-column prop="jobSystemName" :label="t('common.labels.job')" min-width="180" sortable="custom">
           <template #default="{ row }: { row: JobScheduleModel }">
             <div class="current-job-title">
               <strong>{{ scheduleJobDefinitionName(row.jobSystemName) }}</strong>
@@ -312,7 +279,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="cron" :label="t('jobs.cron')" min-width="220">
+        <el-table-column prop="cron" min-width="145">
+          <template #header>
+            <div class="table-header-stack">
+              <span>{{ t('jobs.cron') }}</span>
+              <small>{{ t('jobs.utcTime') }}</small>
+            </div>
+          </template>
           <template #default="{ row }: { row: JobScheduleModel }">
             <div class="current-job-title">
               <strong>{{ row.localizedCron || row.cron }}</strong>
@@ -321,39 +294,33 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="nextRunAt" :label="t('jobs.nextRunAt')" min-width="170" sortable="custom">
+        <el-table-column prop="nextRunAt" :label="t('jobs.nextRunAt')" min-width="145" sortable="custom">
           <template #default="{ row }: { row: JobScheduleModel }">
             {{ formatDateTime(row.nextRunAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="lastQueuedAt" :label="t('jobs.lastQueuedAt')" min-width="170" sortable="custom">
+        <el-table-column prop="lastQueuedAt" :label="t('jobs.lastQueuedAt')" min-width="145" sortable="custom">
           <template #default="{ row }: { row: JobScheduleModel }">
             {{ formatDateTime(row.lastQueuedAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('common.labels.attempts')" width="110">
-          <template #default="{ row }: { row: JobScheduleModel }">
-            {{ row.maxAttempts }}
-          </template>
-        </el-table-column>
-
-        <el-table-column label="" width="210" fixed="right">
+        <el-table-column label="" width="92" align="right">
           <template #default="{ row }: { row: JobScheduleModel }">
             <div class="schedule-row-actions">
-              <el-button plain size="small" @click="openEditScheduleDrawer(row)">
-                {{ t('common.actions.edit') }}
-              </el-button>
-              <el-button
-                plain
-                type="danger"
-                size="small"
+              <ActionIconButton
+                :label="t('common.actions.edit')"
+                :icon="Edit"
+                @click="openEditScheduleDrawer(row)"
+              />
+              <ActionIconButton
+                :label="t('common.actions.delete')"
+                :icon="Delete"
+                tone="danger"
                 :loading="deletingScheduleId === row.id"
                 @click="deleteSchedule(row)"
-              >
-                {{ t('common.actions.delete') }}
-              </el-button>
+              />
             </div>
           </template>
         </el-table-column>
@@ -367,13 +334,83 @@
         />
       </div>
     </section>
+    </div>
+
+    <el-drawer
+      v-model="currentJobFiltersOpen"
+      direction="rtl"
+      size="min(440px, 100vw)"
+      :title="t('common.actions.filter')"
+      class="jobs-filters-drawer"
+    >
+      <div class="drawer-content">
+        <div class="drawer-body">
+          <section class="drawer-section">
+            <div class="drawer-section-title">{{ t('common.placeholders.statuses') }}</div>
+            <label class="filter-field">
+              <span>{{ t('common.labels.status') }}</span>
+              <el-select
+                v-model="currentJobStatuses"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                :placeholder="t('common.placeholders.statuses')"
+                class="w-full"
+              >
+                <el-option
+                  v-for="status in jobStatusOptions"
+                  :key="status.value"
+                  :label="status.label"
+                  :value="status.value"
+                />
+              </el-select>
+            </label>
+          </section>
+
+          <section class="drawer-section">
+            <div class="drawer-section-title">{{ t('common.placeholders.systemNames') }}</div>
+            <label class="filter-field">
+              <span>{{ t('common.labels.job') }}</span>
+              <el-select
+                v-model="currentJobSystemNames"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                filterable
+                :placeholder="t('common.placeholders.systemNames')"
+                class="w-full"
+              >
+                <el-option
+                  v-for="job in currentServiceAvailableJobs"
+                  :key="job.systemName"
+                  :label="job.name"
+                  :value="job.systemName"
+                >
+                  <div class="job-option">
+                    <span>{{ job.name }}</span>
+                    <small>{{ job.systemName }}</small>
+                  </div>
+                </el-option>
+              </el-select>
+            </label>
+          </section>
+        </div>
+
+        <div class="drawer-footer">
+          <el-button @click="resetCurrentJobFilters">{{ t('common.actions.reset') }}</el-button>
+          <el-button type="primary" @click="currentJobFiltersOpen = false">{{ t('common.actions.apply') }}</el-button>
+        </div>
+      </div>
+    </el-drawer>
 
     <el-drawer
       v-model="scheduleFiltersOpen"
       direction="rtl"
       size="min(440px, 100vw)"
       :title="t('common.actions.filter')"
-      class="jobs-schedule-filters-drawer"
+      class="jobs-filters-drawer"
     >
       <div class="drawer-content">
         <div class="drawer-body">
@@ -409,7 +446,7 @@
           <section class="drawer-section">
             <div class="drawer-section-title">{{ t('jobs.nextRun') }}</div>
             <label class="filter-field">
-              <span>{{ t('jobs.nextRun') }}</span>
+              <span>{{ t('jobs.nextRunAt') }}</span>
               <el-date-picker
                 v-model="scheduleNextRunRange"
                 type="datetimerange"
@@ -609,122 +646,28 @@
               <p>{{ t('jobs.initialStateDescription') }}</p>
             </div>
 
-            <template v-if="schemaFields.length > 0">
-              <el-form-item
-                v-for="field in schemaFields"
-                :key="field.name"
-                :label="fieldLabel(field)"
-                :required="field.required"
-              >
-                <template v-if="field.control === 'UploadFile'">
-                  <div class="upload-field">
-                    <el-select
-                      v-model="inputState[field.name]"
-                      filterable
-                      clearable
-                      :placeholder="t('common.placeholders.selectUploadedFile')"
-                      :loading="isLoadingUploads"
-                      class="w-full"
-                      @visible-change="loadUploadsOnOpen"
-                    >
-                      <el-option
-                        v-for="file in filteredUploads(field)"
-                        :key="file.key"
-                        :label="file.key"
-                        :value="file.key"
-                      >
-                        <div class="upload-option">
-                          <span>{{ file.key }}</span>
-                          <small>{{ formatFileSize(file.size) }}</small>
-                        </div>
-                      </el-option>
-                    </el-select>
-                    <div class="upload-actions">
-                      <input
-                        :ref="(el) => setFileInputRef(field.name, el)"
-                        type="file"
-                        class="hidden-file-input"
-                        :accept="field.accepts?.join(',')"
-                        @change="(event) => uploadSelectedFile(field, event)"
-                      />
-                      <el-button plain :loading="uploadingField === field.name" @click="chooseLocalFile(field.name)">
-                        {{ t('common.actions.uploadFile') }}
-                      </el-button>
-                      <el-button plain :loading="isLoadingUploads" @click="loadUploads(true)">
-                        {{ t('common.actions.refreshList') }}
-                      </el-button>
-                      <el-button v-if="uploadsHasMore" plain :loading="isLoadingUploads" @click="loadUploads(false)">
-                        {{ t('common.actions.loadMore') }}
-                      </el-button>
-                    </div>
-                  </div>
-                  <div v-if="field.description" class="field-hint">{{ field.description }}</div>
-                </template>
-
-                <el-input
-                  v-else-if="field.control === 'TextField'"
-                  v-model="inputState[field.name]"
-                  clearable
-                  :placeholder="field.description || field.name"
-                />
-
-                <el-date-picker
-                  v-else-if="field.control === 'DatePicker'"
-                  v-model="inputState[field.name]"
-                  type="date"
-                  format="DD.MM.YYYY"
-                  value-format="YYYY-MM-DD"
-                  class="w-full"
-                  :placeholder="field.description || field.name"
-                />
-
-                <template v-else-if="field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector'">
-                  <el-select
-                    v-if="isSupportedEntitySelector(field)"
-                    v-model="inputState[field.name]"
-                    filterable
-                    clearable
-                    :remote="field.dependsOnEntity === 'Product'"
-                    :remote-method="(query: string) => searchEntityOptions(field, query)"
-                    class="w-full"
-                    :loading="isEntityLoading(field)"
-                    :placeholder="field.description || field.name"
-                    @visible-change="(isOpen: boolean) => loadEntityOptionsOnOpen(field, isOpen)"
-                  >
-                    <el-option
-                      v-for="option in entityOptions(field)"
-                      :key="String(entityOptionValue(field, option))"
-                      :label="entityOptionLabel(field, option)"
-                      :value="entityOptionValue(field, option)"
-                    />
-                  </el-select>
-                  <el-input
-                    v-else
-                    v-model="inputState[field.name]"
-                    :placeholder="field.description || field.name"
-                  />
-                </template>
-
-                <el-switch
-                  v-else-if="field.type === 'boolean'"
-                  v-model="inputState[field.name]"
-                />
-
-                <el-input-number
-                  v-else-if="isNumberField(field)"
-                  v-model="inputState[field.name]"
-                  class="w-full"
-                  controls-position="right"
-                />
-
-                <el-input
-                  v-else
-                  v-model="inputState[field.name]"
-                  :placeholder="field.description || field.name"
-                />
-              </el-form-item>
-            </template>
-            <el-empty v-else :description="t('jobs.noInput')" />
+            <DynamicSchemaForm
+              :fields="schemaFields"
+              :model-value="inputState"
+              :empty-text="t('jobs.noInput')"
+              :upload-files="uploads"
+              :upload-loading="isLoadingUploads"
+              :uploading-field="uploadingField"
+              :uploads-has-more="uploadsHasMore"
+              :is-supported-selector="isSupportedEntitySelector"
+              :is-selector-loading="isEntityLoading"
+              :selector-options="entityOptions"
+              :selector-option-value="entityOptionValue"
+              :selector-option-label="entityOptionLabel"
+              :search-selector-options="searchEntityOptions"
+              :load-selector-options-on-open="loadEntityOptionsOnOpen"
+              @update-field="setInputStateField"
+              @selector-load-more="loadMoreEntityOptions"
+              @upload-file="uploadSelectedFile"
+              @upload-visible-change="loadUploadsOnOpen"
+              @refresh-uploads="loadUploads(true)"
+              @load-more-uploads="loadUploads(false)"
+            />
 
             <el-form-item v-if="drawerMode === 'run'" :label="t('jobs.maxAttempts')">
               <el-input-number v-model="maxAttempts" :min="1" :max="20" controls-position="right" />
@@ -814,8 +757,14 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { HubConnection } from '@microsoft/signalr'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
-import { Filter } from '@element-plus/icons-vue'
+import { Delete, Edit, Filter, View } from '@element-plus/icons-vue'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
+import DynamicSchemaForm, {
+  type DynamicSchemaField,
+  type FieldValue,
+} from '@/components/schema/DynamicSchemaForm.vue'
 import {
   createServiceJobSchedule,
   createServiceJob,
@@ -877,6 +826,7 @@ const uploadsCursor = ref<string | null>(null)
 const uploadsHasMore = ref(false)
 const drawerOpen = ref(false)
 const stateDialogOpen = ref(false)
+const currentJobFiltersOpen = ref(false)
 const scheduleFiltersOpen = ref(false)
 const activeJobsTab = ref<'available' | 'current' | 'schedules'>('available')
 const drawerMode = ref<'run' | 'schedule-create' | 'schedule-edit'>('run')
@@ -937,10 +887,13 @@ const deletingScheduleId = ref<string | null>(null)
 const uploads = ref<UploadFileModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const products = ref<ProductSearchModel[]>([])
+const productsQuery = ref('')
+const productsPage = ref(0)
+const productsLimit = ref(50)
+const productsHasNext = ref(true)
 const namedObjects = ref<Record<string, NamedObjectModel[]>>({})
 const inputState = reactive<Record<string, string | number | boolean | null>>({})
 const loadingNamedObjectGroups = ref<Set<string>>(new Set())
-const fileInputRefs = new Map<string, HTMLInputElement>()
 let jobHubConnection: HubConnection | null = null
 let jobHubServiceKey: string | null = null
 const { locale, t } = useI18n()
@@ -1270,16 +1223,28 @@ async function loadCurrenciesIfNeeded() {
   }
 }
 
-async function loadProducts(query = '') {
+async function loadProducts(query = '', reset = true) {
+  if (isLoadingProducts.value) return
+  if (reset) {
+    productsQuery.value = query
+    productsPage.value = 0
+    productsHasNext.value = true
+    products.value = []
+  }
+  if (!productsHasNext.value) return
+
   isLoadingProducts.value = true
   try {
     const response = await searchProducts({
-      query: query.trim() || undefined,
-      page: 0,
-      size: 20,
+      query: productsQuery.value.trim() || undefined,
+      page: productsPage.value,
+      size: productsLimit.value,
       sortBy: 'id_asc',
     })
-    products.value = response.products
+    const existingIds = new Set(products.value.map((product) => product.id))
+    products.value.push(...response.products.filter((product) => !existingIds.has(product.id)))
+    productsHasNext.value = response.products.length === productsLimit.value
+    productsPage.value += 1
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('jobs.loadError'))
   } finally {
@@ -1342,7 +1307,13 @@ async function loadEntityOptions(field: JobSchemaField) {
 
 function searchEntityOptions(field: JobSchemaField, query: string) {
   if (field.dependsOnEntity === 'Product') {
-    void loadProducts(query)
+    void loadProducts(query, true)
+  }
+}
+
+function loadMoreEntityOptions(field: JobSchemaField) {
+  if (field.dependsOnEntity === 'Product') {
+    void loadProducts(productsQuery.value, false)
   }
 }
 
@@ -1735,29 +1706,7 @@ function entityOptionLabel(field: JobSchemaField, option: EntitySelectorOption) 
   return String(entityOptionValue(field, option))
 }
 
-function filteredUploads(field: JobSchemaField) {
-  const accepts = field.accepts?.map((item) => item.toLowerCase()) ?? []
-  if (accepts.length === 0) return uploads.value
-
-  return uploads.value.filter((file) => accepts.some((accept) => file.key.toLowerCase().endsWith(accept)))
-}
-
-function setFileInputRef(fieldName: string, el: unknown) {
-  if (el instanceof HTMLInputElement) {
-    fileInputRefs.set(fieldName, el)
-  }
-}
-
-function chooseLocalFile(fieldName: string) {
-  fileInputRefs.get(fieldName)?.click()
-}
-
-async function uploadSelectedFile(field: JobSchemaField, event: Event) {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  target.value = ''
-  if (!file) return
-
+async function uploadSelectedFile(field: DynamicSchemaField, file: File) {
   const accepts = field.accepts?.map((item) => item.toLowerCase()) ?? []
   if (accepts.length > 0 && !accepts.some((accept) => file.name.toLowerCase().endsWith(accept))) {
     ElMessage.warning(t('jobs.fileAccepts', { accepts: accepts.join(', ') }))
@@ -1972,6 +1921,11 @@ function resetScheduleFilters() {
   scheduleNextRunRange.value = []
 }
 
+function resetCurrentJobFilters() {
+  currentJobStatuses.value = []
+  currentJobSystemNames.value = []
+}
+
 async function toggleScheduleEnabled(row: JobScheduleModel, enabled: boolean) {
   if (!selectedScheduleService.value) return
 
@@ -2047,6 +2001,11 @@ function scheduleJobDefinitionName(systemName: string) {
   return scheduleServiceAvailableJobs.value.find((job) => job.systemName === systemName)?.name ?? systemName
 }
 
+function scheduleSubtitle(row: JobScheduleModel) {
+  const base = row.description || row.id
+  return `${base} · ${t('common.labels.attempts')}: ${row.maxAttempts}`
+}
+
 function jobStatusLabel(status: JobStatus | string) {
   return jobStatusOptions.value.find((item) => item.value === status)?.label ?? status
 }
@@ -2079,6 +2038,10 @@ function isEmptyValue(value: unknown) {
   return value === null || value === undefined || value === ''
 }
 
+function setInputStateField(name: string, value: FieldValue) {
+  inputState[name] = value
+}
+
 function serviceLabel(key: string) {
   const labels: Record<string, string> = {
     main: 'Main',
@@ -2096,12 +2059,6 @@ function serviceErrorText(service: ServiceCard) {
   return t('common.messages.serviceUnavailable')
 }
 
-function formatFileSize(size: number) {
-  const formatter = new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 })
-  if (size < 1024) return `${formatter.format(size)} ${t('common.messages.byte')}`
-  if (size < 1024 * 1024) return `${formatter.format(size / 1024)} ${t('common.messages.kilobyte')}`
-  return `${formatter.format(size / 1024 / 1024)} ${t('common.messages.megabyte')}`
-}
 </script>
 
 <style scoped>
@@ -2109,29 +2066,11 @@ function formatFileSize(size: number) {
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 56px);
-  background: #f5f7fb;
+  background: #f7f8fa;
+}
+
+.jobs-content {
   padding: 24px;
-}
-
-.jobs-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.jobs-hero h1 {
-  margin: 0;
-  color: #111827;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.jobs-hero p {
-  margin: 6px 0 0;
-  color: #64748b;
-  font-size: 14px;
 }
 
 .service-strip {
@@ -2149,8 +2088,9 @@ function formatFileSize(size: number) {
 }
 
 .service-card.unavailable {
-  background: #fff7f7;
-  border-color: #fecaca;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  opacity: 0.72;
 }
 
 .service-card-title {
@@ -2217,14 +2157,6 @@ function formatFileSize(size: number) {
   width: 190px;
 }
 
-.current-status-select {
-  width: 220px;
-}
-
-.current-system-select {
-  width: 280px;
-}
-
 .schedule-range-picker {
   width: 360px;
 }
@@ -2257,13 +2189,13 @@ function formatFileSize(size: number) {
   font-weight: 650;
 }
 
-:deep(.jobs-schedule-filters-drawer .el-drawer__header) {
+:deep(.jobs-filters-drawer .el-drawer__header) {
   margin-bottom: 0;
   border-bottom: 1px solid #e2e8f0;
   padding: 18px 20px;
 }
 
-:deep(.jobs-schedule-filters-drawer .el-drawer__body) {
+:deep(.jobs-filters-drawer .el-drawer__body) {
   padding: 0;
 }
 
@@ -2310,6 +2242,10 @@ function formatFileSize(size: number) {
   font-weight: 650;
 }
 
+.filter-field :deep(.el-date-editor) {
+  max-width: 100%;
+}
+
 .drawer-footer {
   display: flex;
   justify-content: flex-end;
@@ -2325,6 +2261,19 @@ function formatFileSize(size: number) {
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.table-header-stack {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.2;
+}
+
+.table-header-stack small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .schedule-row-actions {
@@ -2388,48 +2337,69 @@ function formatFileSize(size: number) {
   white-space: pre;
 }
 
-.jobs-workspace {
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 16px;
-}
-
-.jobs-filter-panel {
+.available-jobs-panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  align-self: start;
+  overflow: hidden;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
-  padding: 16px;
 }
 
-.jobs-list {
+.available-jobs-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 220px max-content;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 12px 14px;
+}
+
+.available-jobs-search,
+.available-jobs-service {
+  min-width: 0;
+}
+
+.available-jobs-checkbox {
+  white-space: nowrap;
+}
+
+.available-jobs-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   min-width: 0;
 }
 
 .job-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) max-content;
   width: 100%;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  gap: 14px;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
   background: #fff;
-  padding: 16px;
+  padding: 14px 16px;
   text-align: left;
-  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+  transition: background-color .15s ease;
 }
 
 .job-row:hover {
-  border-color: #93c5fd;
-  box-shadow: 0 10px 24px rgb(15 23 42 / 8%);
-  transform: translateY(-1px);
+  background: #fbfcfd;
+}
+
+.job-row:last-child {
+  border-bottom: 0;
+}
+
+.job-row-service {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .job-row-main {
@@ -2437,24 +2407,27 @@ function formatFileSize(size: number) {
 }
 
 .job-row-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  overflow: hidden;
   color: #111827;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .job-row-main p {
-  margin: 8px 0 0;
+  overflow: hidden;
+  margin: 4px 0 0;
   color: #64748b;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .job-row-action {
   flex: 0 0 auto;
-  color: #2563eb;
+  color: #047857;
   font-size: 14px;
   font-weight: 600;
 }
@@ -2462,34 +2435,51 @@ function formatFileSize(size: number) {
 .unavailable-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
+  border-top: 1px solid #e2e8f0;
 }
 
 .unavailable-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) max-content;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px dashed #fecaca;
-  border-radius: 8px;
-  background: #fff7f7;
-  padding: 14px 16px;
-}
-
-.unavailable-row div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 14px;
+  border-bottom: 1px solid #fee2e2;
+  background: #fffafa;
+  padding: 12px 16px;
 }
 
 .unavailable-row strong {
   color: #991b1b;
+  font-size: 13px;
 }
 
 .unavailable-row span {
+  overflow: hidden;
   color: #b91c1c;
   font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .available-jobs-toolbar,
+  .job-row,
+  .unavailable-row {
+    grid-template-columns: 1fr;
+  }
+
+  .available-jobs-checkbox {
+    justify-self: start;
+  }
+
+  .job-row-action {
+    justify-self: start;
+  }
+
+  .job-row-main p,
+  .unavailable-row span {
+    white-space: normal;
+  }
 }
 
 .job-drawer-content {
@@ -2508,7 +2498,7 @@ function formatFileSize(size: number) {
 }
 
 .job-drawer-header span {
-  color: #2563eb;
+  color: #64748b;
   font-size: 13px;
   font-weight: 650;
 }
@@ -2680,42 +2670,12 @@ function formatFileSize(size: number) {
   line-height: 1.4;
 }
 
-.upload-field {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-}
-
-.upload-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.upload-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.upload-option small {
-  color: #94a3b8;
-}
-
-.field-hint {
-  margin-top: 6px;
-  color: #64748b;
-  font-size: 12px;
-}
-
 .csv-schema-panel {
   display: grid;
   gap: 12px;
-  border: 1px solid #dbeafe;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: #f8fbff;
+  background: #f8fafc;
   margin: 4px 0 16px;
   padding: 12px;
 }
@@ -2798,10 +2758,6 @@ function formatFileSize(size: number) {
   padding: 2px 6px;
 }
 
-.hidden-file-input {
-  display: none;
-}
-
 .job-drawer-footer {
   display: flex;
   justify-content: flex-end;
@@ -2811,7 +2767,7 @@ function formatFileSize(size: number) {
 }
 
 @media (max-width: 900px) {
-  .jobs-page {
+  .jobs-content {
     padding: 16px;
   }
 
@@ -2821,11 +2777,6 @@ function formatFileSize(size: number) {
 
   .jobs-workspace {
     grid-template-columns: 1fr;
-  }
-
-  .jobs-hero {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .current-jobs-toolbar > * {
@@ -2849,8 +2800,6 @@ function formatFileSize(size: number) {
   }
 
   .current-service-select,
-  .current-status-select,
-  .current-system-select,
   .schedule-range-picker {
     width: 100%;
   }
