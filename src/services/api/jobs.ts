@@ -47,6 +47,7 @@ export type JobStatus =
   | 'Processing'
   | 'Failed'
   | 'Succeeded'
+  | 'CancellationRequested'
   | 'Cancelled'
 
 export interface GetServiceJobsRequest {
@@ -222,6 +223,10 @@ export async function getServiceJobState(serviceKey: string, jobId: string): Pro
 export async function createServiceJob(serviceKey: string, req: CreateJobRequest): Promise<CreateJobResponse> {
   const resp = await api.post<CreateJobResponse>(`/${serviceKey}/jobs`, req)
   return resp.data
+}
+
+export async function cancelServiceJob(serviceKey: string, jobId: string): Promise<void> {
+  await api.get(`/${serviceKey}/jobs/${jobId}/cancel`)
 }
 
 export function patchField<T>(value: T): PatchField<T> {

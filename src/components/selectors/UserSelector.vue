@@ -79,7 +79,8 @@ async function loadNext(reset: boolean = false) {
       roles: props.roles.length > 0 ? props.roles : undefined,
     })
 
-    users.value.push(...resp.users)
+    const existingIds = new Set(users.value.map((user) => user.id))
+    users.value.push(...resp.users.filter((user) => !existingIds.has(user.id)))
     ensureSelectedUser()
     hasNextPage.value = resp.users.length === limit.value
     page.value += 1

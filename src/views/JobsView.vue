@@ -138,7 +138,7 @@
       >
         <el-table-column prop="status" :label="t('common.labels.status')" min-width="120" sortable="custom">
           <template #default="{ row }: { row: JobModel }">
-            <el-tag :type="jobStatusTagType(row.status)" effect="light">
+            <el-tag :type="jobStatusTagType(row.status)" :class="jobStatusTagClass(row.status)" effect="light">
               {{ jobStatusLabel(row.status) }}
             </el-tag>
           </template>
@@ -179,14 +179,24 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="" width="72" align="right">
+        <el-table-column label="" width="112" align="right">
           <template #default="{ row }: { row: JobModel }">
-            <ActionIconButton
-              :label="t('jobs.state')"
-              :icon="View"
-              :loading="loadingStateJobId === row.id"
-              @click="openJobState(row)"
-            />
+            <div class="current-job-actions">
+              <ActionIconButton
+                v-if="canCancelJob(row)"
+                :label="t('jobs.cancelJob')"
+                :icon="Close"
+                tone="danger"
+                :loading="cancellingJobId === row.id"
+                @click="cancelJob(row)"
+              />
+              <ActionIconButton
+                :label="t('jobs.state')"
+                :icon="View"
+                :loading="loadingStateJobId === row.id"
+                @click="openJobState(row)"
+              />
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -661,8 +671,8 @@
               :selector-option-label="entityOptionLabel"
               :search-selector-options="searchEntityOptions"
               :load-selector-options-on-open="loadEntityOptionsOnOpen"
+              :load-more-selector-options="loadMoreEntityOptions"
               @update-field="setInputStateField"
-              @selector-load-more="loadMoreEntityOptions"
               @upload-file="uploadSelectedFile"
               @upload-visible-change="loadUploadsOnOpen"
               @refresh-uploads="loadUploads(true)"
@@ -738,7 +748,7 @@
           <strong>{{ jobDefinitionName(selectedStateJob.systemName) }}</strong>
           <small>{{ selectedStateJob.systemName }}</small>
         </div>
-        <el-tag :type="jobStatusTagType(selectedStateJob.status)" effect="light">
+        <el-tag :type="jobStatusTagType(selectedStateJob.status)" :class="jobStatusTagClass(selectedStateJob.status)" effect="light">
           {{ jobStatusLabel(selectedStateJob.status) }}
         </el-tag>
       </div>
@@ -757,7 +767,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { HubConnection } from '@microsoft/signalr'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
-import { Delete, Edit, Filter, View } from '@element-plus/icons-vue'
+import { Close, Delete, Edit, Filter, View } from '@element-plus/icons-vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -766,6 +776,7 @@ import DynamicSchemaForm, {
   type FieldValue,
 } from '@/components/schema/DynamicSchemaForm.vue'
 import {
+  cancelServiceJob,
   createServiceJobSchedule,
   createServiceJob,
   deleteServiceJobSchedule,
@@ -792,6 +803,7 @@ import { getCurrencies } from '@/services/api/currencies.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { searchProducts } from '@/services/api/search.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
+import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
 import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/jobHub.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
@@ -882,6 +894,7 @@ const schedules = ref<JobScheduleModel[]>([])
 const selectedStateJob = ref<JobModel | null>(null)
 const jobState = ref('')
 const loadingStateJobId = ref<string | null>(null)
+const cancellingJobId = ref<string | null>(null)
 const updatingScheduleId = ref<string | null>(null)
 const deletingScheduleId = ref<string | null>(null)
 const uploads = ref<UploadFileModel[]>([])
@@ -897,6 +910,8 @@ const loadingNamedObjectGroups = ref<Set<string>>(new Set())
 let jobHubConnection: HubConnection | null = null
 let jobHubServiceKey: string | null = null
 const { locale, t } = useI18n()
+const { hasPermission } = usePermissions()
+const canCancelJobs = computed(() => hasPermission('JOBS_CREATE'))
 
 const jobStatusOptions = computed<Array<{ label: string; value: JobStatus }>>(() => [
   { label: t('jobs.statuses.Pending'), value: 'Pending' },
@@ -904,6 +919,7 @@ const jobStatusOptions = computed<Array<{ label: string; value: JobStatus }>>(()
   { label: t('jobs.statuses.Processing'), value: 'Processing' },
   { label: t('jobs.statuses.Failed'), value: 'Failed' },
   { label: t('jobs.statuses.Succeeded'), value: 'Succeeded' },
+  { label: t('jobs.statuses.CancellationRequested'), value: 'CancellationRequested' },
   { label: t('jobs.statuses.Cancelled'), value: 'Cancelled' },
 ])
 
@@ -1311,9 +1327,9 @@ function searchEntityOptions(field: JobSchemaField, query: string) {
   }
 }
 
-function loadMoreEntityOptions(field: JobSchemaField) {
+async function loadMoreEntityOptions(field: JobSchemaField) {
   if (field.dependsOnEntity === 'Product') {
-    void loadProducts(productsQuery.value, false)
+    await loadProducts(productsQuery.value, false)
   }
 }
 
@@ -1972,6 +1988,37 @@ async function deleteSchedule(row: JobScheduleModel) {
   }
 }
 
+function canCancelJob(row: JobModel) {
+  return canCancelJobs.value && ['Pending', 'Locked', 'Processing'].includes(row.status)
+}
+
+async function cancelJob(row: JobModel) {
+  if (!selectedCurrentService.value || !canCancelJob(row)) return
+
+  try {
+    await ElMessageBox.confirm(t('jobs.cancelJobConfirm'), t('jobs.cancelJobTitle'), {
+      confirmButtonText: t('jobs.cancelJob'),
+      cancelButtonText: t('common.actions.cancel'),
+      confirmButtonClass: 'el-button--danger',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  cancellingJobId.value = row.id
+  try {
+    await cancelServiceJob(selectedCurrentService.value, row.id)
+    row.status = 'CancellationRequested'
+    row.updatedAt = new Date().toISOString()
+    ElMessage.success(t('jobs.cancelRequested'))
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('jobs.cancelJobError'))
+  } finally {
+    cancellingJobId.value = null
+  }
+}
+
 async function openJobState(row: JobModel) {
   if (!selectedCurrentService.value) return
 
@@ -2017,10 +2064,17 @@ function jobStatusTagType(status: JobStatus | string) {
     Processing: 'warning',
     Failed: 'danger',
     Succeeded: 'success',
+    CancellationRequested: 'warning',
     Cancelled: 'info',
   }
 
   return types[status as JobStatus] ?? ''
+}
+
+function jobStatusTagClass(status: JobStatus | string) {
+  if (status === 'Cancelled') return 'job-status-tag--cancelled'
+  if (status === 'CancellationRequested') return 'job-status-tag--cancellation-requested'
+  return ''
 }
 
 function formatDateTime(value?: string | null) {
@@ -2187,6 +2241,31 @@ function serviceErrorText(service: ServiceCard) {
 .current-job-title strong {
   color: #111827;
   font-weight: 650;
+}
+
+.current-job-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+:deep(.el-tag.job-status-tag--cancelled) {
+  --el-tag-bg-color: #f8fafc;
+  --el-tag-border-color: #cbd5e1;
+  --el-tag-text-color: #475569;
+  border-color: #ddd6fe !important;
+  background-color: #f5f3ff !important;
+  color: #6d28d9 !important;
+}
+
+:deep(.el-tag.job-status-tag--cancellation-requested) {
+  --el-tag-bg-color: #fffbeb;
+  --el-tag-border-color: #fde68a;
+  --el-tag-text-color: #92400e;
+  border-color: #fde68a !important;
+  background-color: #fffbeb !important;
+  color: #92400e !important;
 }
 
 :deep(.jobs-filters-drawer .el-drawer__header) {

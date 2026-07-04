@@ -181,6 +181,7 @@ const props = withDefaults(defineProps<{
   selectorOptionLabel?: (field: DynamicSchemaField, option: SelectorOption) => string
   searchSelectorOptions?: (field: DynamicSchemaField, query: string) => void
   loadSelectorOptionsOnOpen?: (field: DynamicSchemaField, isOpen: boolean) => void | Promise<void>
+  loadMoreSelectorOptions?: (field: DynamicSchemaField) => void | Promise<void>
 }>(), {
   uploadFiles: () => [],
   uploadLoading: false,
@@ -193,6 +194,7 @@ const props = withDefaults(defineProps<{
   selectorOptionLabel: (_field, option) => String(option.label ?? option.name ?? option.value ?? option.id ?? ''),
   searchSelectorOptions: () => undefined,
   loadSelectorOptionsOnOpen: () => undefined,
+  loadMoreSelectorOptions: undefined,
 })
 
 const emit = defineEmits<{
@@ -277,7 +279,12 @@ async function handleSelectorVisibleChange(field: DynamicSchemaField, isOpen: bo
 
   const cleanup = await attachSelectDropdownInfiniteScroll(
     selectorPopperClass(field),
-    () => emit('selector-load-more', field),
+    () => {
+      if (props.loadMoreSelectorOptions) {
+        return props.loadMoreSelectorOptions(field)
+      }
+      emit('selector-load-more', field)
+    },
   )
   selectorScrollCleanups.set(field.name, cleanup)
 }

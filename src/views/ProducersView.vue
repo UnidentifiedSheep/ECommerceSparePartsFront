@@ -60,7 +60,7 @@
                     <div>
                       <div class="text-lg font-semibold text-slate-900">{{ selectedProducer.name }}</div>
                     </div>
-                    <el-button size="small" type="primary" @click="otherNameDialogOpen = true">{{ t('producers.addName') }}</el-button>
+                    <el-button size="small" type="primary" @click="aliasDialogOpen = true">{{ t('producers.addAlias') }}</el-button>
                   </div>
                   <div class="mt-3 text-sm text-slate-700">
                     {{ selectedProducer.description || t('producers.noDescription') }}
@@ -68,16 +68,15 @@
                 </div>
 
                 <div v-loading="detailsLoading" class="h-[calc(100%-150px)] overflow-auto pr-1">
-                  <el-table :data="otherNames" stripe>
-                    <el-table-column prop="otherName" :label="t('producers.otherName')" min-width="180" />
-                    <el-table-column prop="whereUsed" :label="t('producers.whereUsed')" min-width="180" />
+                  <el-table :data="aliases" stripe>
+                    <el-table-column prop="alias" :label="t('producers.alias')" min-width="220" />
                     <el-table-column fixed="right" :label="t('common.labels.actions')" width="72" align="right">
                       <template #default="{ row }">
                         <ActionIconButton
                           :label="t('common.actions.delete')"
                           :icon="Delete"
                           tone="danger"
-                          @click="removeOtherName(row.otherName)"
+                          @click="removeAlias(row.alias)"
                         />
                       </template>
                     </el-table-column>
@@ -124,18 +123,15 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="otherNameDialogOpen" :title="t('producers.addOtherNameTitle')" width="520">
+    <el-dialog v-model="aliasDialogOpen" :title="t('producers.addAliasTitle')" width="520">
       <el-form label-position="top">
-        <el-form-item :label="t('producers.otherNameLabel')">
-          <el-input v-model="otherNameForm.otherName" />
-        </el-form-item>
-        <el-form-item :label="t('producers.whereUsed')">
-          <el-input v-model="otherNameForm.whereUsed" />
+        <el-form-item :label="t('producers.aliasLabel')">
+          <el-input v-model="aliasForm.alias" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="otherNameDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="saveOtherName">{{ t('common.actions.add') }}</el-button>
+        <el-button @click="aliasDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" @click="saveAlias">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -146,18 +142,18 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
 import { Delete, Edit } from '@element-plus/icons-vue'
-import type { ProducerOtherNameModel } from '@/models/producerModel.ts'
+import type { ProducerAliasModel } from '@/models/producerModel.ts'
 import type { ProducerSearchModel } from '@/models/producerSearchModel.ts'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import {
-  addProducerOtherName,
+  addProducerAlias,
   createProducer,
   deleteProducer,
-  deleteProducerOtherName,
+  deleteProducerAlias,
   editProducer,
-  getProducerOtherNames,
+  getProducerAliases,
 } from '@/services/api/producers.ts'
 import { searchProducers } from '@/services/api/search.ts'
 import { useI18n } from '@/i18n'
@@ -165,7 +161,7 @@ import { useI18n } from '@/i18n'
 const { t } = useI18n()
 const producers = ref<ProducerSearchModel[]>([])
 const selectedProducer = ref<ProducerSearchModel>()
-const otherNames = ref<ProducerOtherNameModel[]>([])
+const aliases = ref<ProducerAliasModel[]>([])
 const searchTerm = ref('')
 const page = ref(0)
 const limit = ref(20)
@@ -175,7 +171,7 @@ const detailsLoading = ref(false)
 
 const createDialogOpen = ref(false)
 const editDialogOpen = ref(false)
-const otherNameDialogOpen = ref(false)
+const aliasDialogOpen = ref(false)
 
 const createForm = reactive({
   name: '',
@@ -188,9 +184,8 @@ const editForm = reactive({
   description: '',
 })
 
-const otherNameForm = reactive({
-  otherName: '',
-  whereUsed: '',
+const aliasForm = reactive({
+  alias: '',
 })
 
 const loadProducersDebounced = useDebounceFn(async () => {
@@ -216,7 +211,7 @@ async function loadProducers(resetPage: boolean) {
     if (selectedProducer.value) {
       const nextSelected = resp.producers.find((producer) => producer.id === selectedProducer.value?.id)
       selectedProducer.value = nextSelected
-      if (!nextSelected) otherNames.value = []
+      if (!nextSelected) aliases.value = []
     }
   } finally {
     listLoading.value = false
@@ -226,14 +221,14 @@ async function loadProducers(resetPage: boolean) {
 async function selectProducer(producer?: ProducerSearchModel) {
   selectedProducer.value = producer
   if (!producer) {
-    otherNames.value = []
+    aliases.value = []
     return
   }
 
   detailsLoading.value = true
   try {
-    const resp = await getProducerOtherNames(producer.id)
-    otherNames.value = resp.names
+    const resp = await getProducerAliases(producer.id)
+    aliases.value = resp.aliases
   } finally {
     detailsLoading.value = false
   }
@@ -268,7 +263,7 @@ function addProducerToList(producer: ProducerSearchModel) {
     ...producers.value.filter((item) => item.id !== producer.id),
   ]
   selectedProducer.value = producer
-  otherNames.value = []
+  aliases.value = []
 }
 
 async function saveCreate() {
@@ -317,44 +312,42 @@ async function removeProducer(id: number) {
 
   if (selectedProducer.value?.id === id) {
     selectedProducer.value = undefined
-    otherNames.value = []
+    aliases.value = []
   }
 
   await loadProducers(false)
 }
 
-async function saveOtherName() {
+async function saveAlias() {
   if (!selectedProducer.value) return
 
-  await addProducerOtherName({
+  await addProducerAlias({
     producerId: selectedProducer.value.id,
-    otherName: otherNameForm.otherName,
-    whereUsed: otherNameForm.whereUsed,
+    alias: aliasForm.alias,
   })
 
   ElNotification({
     title: t('common.labels.success'),
-    message: t('producers.otherNameAdded'),
+    message: t('producers.aliasAdded'),
     type: 'success',
   })
 
-  otherNameDialogOpen.value = false
-  otherNameForm.otherName = ''
-  otherNameForm.whereUsed = ''
+  aliasDialogOpen.value = false
+  aliasForm.alias = ''
   await selectProducer(selectedProducer.value)
 }
 
-async function removeOtherName(otherName: string) {
+async function removeAlias(alias: string) {
   if (!selectedProducer.value) return
 
-  await deleteProducerOtherName({
+  await deleteProducerAlias({
     producerId: selectedProducer.value.id,
-    otherName,
+    alias,
   })
 
   ElNotification({
     title: t('common.labels.success'),
-    message: t('producers.otherNameDeleted'),
+    message: t('producers.aliasDeleted'),
     type: 'success',
   })
 

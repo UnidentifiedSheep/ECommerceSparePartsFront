@@ -107,8 +107,8 @@
               :selector-option-label="selectorOptionLabel"
               :search-selector-options="searchSelectorOptions"
               :load-selector-options-on-open="loadSelectorOptionsOnOpen"
+              :load-more-selector-options="loadMoreSelectorOptions"
               @update-field="setInputStateField"
-              @selector-load-more="loadMoreSelectorOptions"
             />
           </el-form>
 
@@ -623,9 +623,9 @@ function searchSelectorOptions(field: SettingSchemaField, query: string) {
   }
 }
 
-function loadMoreSelectorOptions(field: SettingSchemaField) {
+async function loadMoreSelectorOptions(field: SettingSchemaField) {
   if (field.dependsOnEntity === 'Product') {
-    void loadProducts(productsQuery.value, false)
+    await loadProducts(productsQuery.value, false)
   }
 }
 

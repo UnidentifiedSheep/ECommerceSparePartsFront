@@ -1,4 +1,4 @@
-import type { ProducerModel, ProducerOtherNameModel } from '@/models/producerModel.ts'
+import type { ProducerAliasModel, ProducerModel } from '@/models/producerModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
 interface PatchField<T> {
@@ -46,19 +46,34 @@ export interface EditProducerResponse {
   producer: ProducerModel
 }
 
-export interface GetProducerOtherNamesResponse {
-  names: ProducerOtherNameModel[]
+interface ProducerAliasWireModel {
+  producerId: number
+  alias: string
 }
 
-export interface AddProducerOtherNameRequest {
-  producerId: number
-  otherName: string
-  whereUsed: string
+interface GetProducerAliasesWireResponse {
+  aliases: ProducerAliasWireModel[]
 }
 
-export interface DeleteProducerOtherNameRequest {
+export interface GetProducerAliasesResponse {
+  aliases: ProducerAliasModel[]
+}
+
+export interface AddProducerAliasRequest {
   producerId: number
-  otherName: string
+  alias: string
+}
+
+export interface DeleteProducerAliasRequest {
+  producerId: number
+  alias: string
+}
+
+function toProducerAlias(item: ProducerAliasWireModel): ProducerAliasModel {
+  return {
+    producerId: item.producerId,
+    alias: item.alias,
+  }
 }
 
 export async function getProducers(req: GetProducersRequest): Promise<GetProducersResponse> {
@@ -101,20 +116,21 @@ export async function deleteProducer(id: number) {
   await api.delete(`/main/producers/${id}`)
 }
 
-export async function getProducerOtherNames(producerId: number, page = 0, limit = 100): Promise<GetProducerOtherNamesResponse> {
-  const resp = await api.get<GetProducerOtherNamesResponse>(`/main/producers/${producerId}/names`, {
+export async function getProducerAliases(producerId: number, page = 0, limit = 100): Promise<GetProducerAliasesResponse> {
+  const resp = await api.get<GetProducerAliasesWireResponse>(`/main/producers/${producerId}/aliases`, {
     params: { page, limit: clampPageSize(limit) },
   })
-  return resp.data
+  return {
+    aliases: resp.data.aliases.map(toProducerAlias),
+  }
 }
 
-export async function addProducerOtherName(req: AddProducerOtherNameRequest) {
-  await api.post(`/main/producers/${req.producerId}/names`, {
-    otherName: req.otherName,
-    whereUsed: req.whereUsed,
+export async function addProducerAlias(req: AddProducerAliasRequest) {
+  await api.post(`/main/producers/${req.producerId}/aliases`, {
+    alias: req.alias,
   })
 }
 
-export async function deleteProducerOtherName(req: DeleteProducerOtherNameRequest) {
-  await api.delete(`/main/producers/${req.producerId}/names/${encodeURIComponent(req.otherName)}`)
+export async function deleteProducerAlias(req: DeleteProducerAliasRequest) {
+  await api.delete(`/main/producers/${req.producerId}/aliases/${encodeURIComponent(req.alias)}`)
 }

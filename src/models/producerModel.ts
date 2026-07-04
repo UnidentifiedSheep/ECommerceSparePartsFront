@@ -4,8 +4,7 @@ export interface ProducerModel {
   description?: string | null
 }
 
-export interface ProducerOtherNameModel {
+export interface ProducerAliasModel {
   producerId: number
-  otherName: string
-  whereUsed: string
+  alias: string
 }

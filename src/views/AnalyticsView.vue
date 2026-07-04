@@ -245,8 +245,8 @@
                 :selector-option-label="entityOptionLabel"
                 :search-selector-options="searchEntityOptions"
                 :load-selector-options-on-open="loadEntityOptionsOnOpen"
+                :load-more-selector-options="loadMoreEntityOptions"
                 @update-field="setInputStateField"
-                @selector-load-more="loadMoreEntityOptions"
               />
             </el-form>
           </fieldset>
@@ -818,9 +818,9 @@ function searchEntityOptions(field: MetricSchemaField, query: string) {
   }
 }
 
-function loadMoreEntityOptions(field: MetricSchemaField) {
+async function loadMoreEntityOptions(field: MetricSchemaField) {
   if (field.dependsOnEntity === 'Product') {
-    void loadProducts(productsQuery.value, false)
+    await loadProducts(productsQuery.value, false)
   }
 }
 
