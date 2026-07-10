@@ -17,6 +17,14 @@
 
         <div class="flex items-center gap-2">
           <el-button :icon="ArrowLeft" @click="router.push({ name: 'products' })">{{ t('common.actions.back') }}</el-button>
+          <el-button
+            v-if="product && canViewPriceOffers"
+            :icon="Money"
+            plain
+            @click="priceOffersDialogOpen = true"
+          >
+            {{ t('priceOffers.open') }}
+          </el-button>
           <el-dropdown trigger="click" @command="handleProductAction">
             <el-button :icon="MoreFilled" circle plain />
             <template #dropdown>
@@ -182,7 +190,176 @@
                 </dd>
               </dl>
 
-              <el-divider v-if="canViewStorageContent" class="!my-3" />
+              <el-collapse v-model="productMetaCollapse" class="product-meta-collapse">
+                <el-collapse-item name="pair">
+                  <template #title>
+                    <div class="product-collapse-title">
+                      <span>{{ t('products.details.pairProduct') }}</span>
+                      <span class="product-collapse-title__summary">{{ pairSummary }}</span>
+                    </div>
+                  </template>
+
+                  <div class="product-collapse-body">
+                    <div v-if="canEditProduct" class="product-extra-section__actions">
+                      <el-button size="small" plain @click="openProductSelector('pair')">
+                        {{ productPair ? t('products.details.changePair') : t('products.details.setPair') }}
+                      </el-button>
+                      <el-button v-if="productPair" size="small" text type="danger" @click="clearPair">
+                        {{ t('common.actions.delete') }}
+                      </el-button>
+                    </div>
+
+                    <div v-if="productPair" class="product-inline-card">
+                      <ProductSkuCell :sku="productPair.sku" :indicator="productPair.indicator" />
+                      <div class="min-w-0 flex-1">
+                        <div class="truncate text-sm font-semibold text-slate-900">{{ productPair.name }}</div>
+                        <div class="truncate text-xs text-slate-500">{{ productPair.producerName || '-' }}</div>
+                      </div>
+                      <el-button :icon="View" size="small" text @click="openProduct(productPair.id)" />
+                    </div>
+                    <el-empty v-else :description="t('products.details.noPair')" :image-size="48" />
+                  </div>
+                </el-collapse-item>
+
+                <el-collapse-item name="content">
+                  <template #title>
+                    <div class="product-collapse-title">
+                      <span>{{ t('products.details.productContent') }}</span>
+                      <span class="product-collapse-title__summary">{{ contentSummary }}</span>
+                    </div>
+                  </template>
+
+                  <div class="product-collapse-body">
+                    <div class="product-collapse-toolbar">
+                      <el-button
+                        v-if="canCreateProductContent"
+                        :icon="Plus"
+                        size="small"
+                        plain
+                        @click="openAddContentDialog"
+                      >
+                        {{ t('common.actions.add') }}
+                      </el-button>
+                    </div>
+
+                    <el-table
+                      v-loading="isProductContentLoading"
+                      :data="productContent"
+                      size="small"
+                      :empty-text="t('products.details.noContent')"
+                      class="product-inner-table"
+                    >
+                      <el-table-column :label="t('common.labels.product')" min-width="220">
+                        <template #default="{ row }">
+                          <div class="product-table-product">
+                            <ProductSkuCell :sku="row.product.sku" :indicator="row.product.indicator" />
+                            <div class="min-w-0">
+                              <div class="truncate font-semibold text-slate-900">{{ row.product.name }}</div>
+                              <div class="truncate text-xs text-slate-500">{{ row.product.producerName || '-' }}</div>
+                            </div>
+                          </div>
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="quantity" :label="t('common.labels.count')" width="96" align="right" />
+                      <el-table-column
+                        v-if="canEditProductContent || canDeleteProductContent"
+                        label=""
+                        width="96"
+                        align="right"
+                      >
+                        <template #default="{ row }">
+                          <div class="flex justify-end gap-1">
+                            <el-button
+                              v-if="canEditProductContent"
+                              :icon="Edit"
+                              size="small"
+                              text
+                              @click="openEditContentDialog(row)"
+                            />
+                            <el-button
+                              v-if="canDeleteProductContent"
+                              :icon="Delete"
+                              size="small"
+                              text
+                              type="danger"
+                              @click="removeContentItem(row)"
+                            />
+                          </div>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </div>
+                </el-collapse-item>
+
+                <el-collapse-item name="characteristics">
+                  <template #title>
+                    <div class="product-collapse-title">
+                      <span>{{ t('products.details.characteristics') }}</span>
+                      <span class="product-collapse-title__summary">{{ characteristicsSummary }}</span>
+                    </div>
+                  </template>
+
+                  <div class="product-collapse-body">
+                    <div class="product-collapse-toolbar">
+                      <el-button
+                        v-if="canCreateCharacteristics"
+                        :icon="Plus"
+                        size="small"
+                        plain
+                        @click="openCharacteristicDialog()"
+                      >
+                        {{ t('common.actions.add') }}
+                      </el-button>
+                    </div>
+
+                    <el-table
+                      v-loading="isCharacteristicsLoading"
+                      :data="characteristics"
+                      size="small"
+                      :empty-text="t('products.details.noCharacteristics')"
+                      class="product-inner-table"
+                    >
+                      <el-table-column prop="name" :label="t('common.labels.name')" min-width="140" show-overflow-tooltip />
+                      <el-table-column prop="value" :label="t('common.labels.value')" min-width="180" show-overflow-tooltip />
+                      <el-table-column
+                        v-if="canEditCharacteristics || canDeleteCharacteristics"
+                        label=""
+                        width="96"
+                        align="right"
+                      >
+                        <template #default="{ row }">
+                          <div class="flex justify-end gap-1">
+                            <el-button
+                              v-if="canEditCharacteristics"
+                              :icon="Edit"
+                              size="small"
+                              text
+                              @click="openCharacteristicDialog(row)"
+                            />
+                            <el-button
+                              v-if="canDeleteCharacteristics"
+                              :icon="Delete"
+                              size="small"
+                              text
+                              type="danger"
+                              @click="removeCharacteristic(row)"
+                            />
+                          </div>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+
+                    <div class="mt-3 flex justify-end border-t border-slate-200 pt-3">
+                      <ZeroPagination
+                        v-model:page="characteristicsPage"
+                        v-model:size="characteristicsSize"
+                        :has-next="characteristicsHasNext"
+                        :sizes="[10, 20, 50]"
+                      />
+                    </div>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
 
               <el-collapse v-if="canViewStorageContent" v-model="storageContentCollapse" class="storage-content-collapse">
                 <el-collapse-item name="storage-content">
@@ -383,6 +560,16 @@
       :product-id="product.id"
       :title="t('products.details.reservationsTitle', { sku: product.sku })"
     />
+    <ProductPriceOffersDialog
+      v-if="product && canViewPriceOffers"
+      v-model="priceOffersDialogOpen"
+      :product-id="product.id"
+      :product-label="productLabel"
+    />
+    <ProductSelectorDialog
+      v-model="productSelectorOpen"
+      @select="handleProductSelected"
+    />
 
     <el-dialog v-model="addStorageContentDialogOpen" :title="t('products.details.addStockTitle')" width="520">
       <el-form label-position="top">
@@ -503,28 +690,98 @@
         <el-button type="primary" :loading="isEditingStorageContent" @click="saveStorageContentEdit">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="contentDialogOpen" :title="contentDialogTitle" width="520">
+      <el-form label-position="top">
+        <el-form-item :label="t('common.labels.product')">
+          <div class="flex gap-2">
+            <el-input :model-value="selectedContentProductLabel" readonly :placeholder="t('products.details.selectContentProduct')" />
+            <el-button @click="openProductSelector('content')">{{ t('products.pick') }}</el-button>
+          </div>
+        </el-form-item>
+
+        <el-form-item :label="t('common.labels.count')">
+          <el-input-number v-model="contentForm.count" :min="1" :controls="false" class="w-full" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="contentDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="isSavingProductContent" @click="saveContentItem">
+          {{ t('common.actions.save') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="characteristicDialogOpen" :title="characteristicDialogTitle" width="520">
+      <el-form label-position="top">
+        <el-form-item :label="t('common.labels.name')">
+          <el-input
+            v-model="characteristicForm.name"
+            :disabled="Boolean(editingCharacteristic)"
+            :placeholder="t('products.details.characteristicNamePlaceholder')"
+          />
+        </el-form-item>
+
+        <el-form-item :label="t('common.labels.value')">
+          <el-input
+            v-model="characteristicForm.value"
+            type="textarea"
+            :autosize="{ minRows: 3, maxRows: 6 }"
+            :placeholder="t('products.details.characteristicValuePlaceholder')"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="characteristicDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="isSavingCharacteristic" @click="saveCharacteristic">
+          {{ t('common.actions.save') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Delete, Edit, MoreFilled, Plus, Refresh, Upload, View } from '@element-plus/icons-vue'
+import { ArrowLeft, Delete, Edit, Money, MoreFilled, Plus, Refresh, Upload, View } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import type { CarouselInstance } from 'element-plus'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
 import ProductEditDialog from '@/components/products/ProductEditDialog.vue'
+import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
+import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import ProductSizeDialog from '@/components/products/ProductSizeDialog.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import ProductWeightDialog from '@/components/products/ProductWeightDialog.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
-import type { ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
+import type { ProductCharacteristicModel, ProductContentModel, ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
+import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
-import { deleteProductImage, getProductCrosses, getProductSize, getProductWeight, uploadProductImages } from '@/services/api/products.ts'
+import {
+  addProductCharacteristic,
+  addProductContent,
+  deleteProductCharacteristic,
+  deleteProductContent,
+  deleteProductImage,
+  editProduct,
+  editProductCharacteristic,
+  editProductContent,
+  getProductCharacteristics,
+  getProductContent,
+  getProductById,
+  getProductCrosses,
+  getProductPair,
+  getProductSize,
+  getProductWeight,
+  uploadProductImages,
+} from '@/services/api/products.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { addStorageContent, deleteStorageContent, editStorageContent, getStorageContent, getStorages } from '@/services/api/storages.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
@@ -539,6 +796,9 @@ const { locale, t } = useI18n()
 const product = ref<ProductModel>()
 const crosses = ref<ProductModel[]>([])
 const storageContent = ref<StorageContentModel[]>([])
+const productPair = ref<ProductModel | null>(null)
+const productContent = ref<ProductContentModel[]>([])
+const characteristics = ref<ProductCharacteristicModel[]>([])
 const storageOptions = ref<StorageModel[]>([])
 const currencyOptions = ref<CurrencyModel[]>([])
 const productSize = ref<ProductSizeModel | null>(null)
@@ -549,19 +809,29 @@ const hasNext = ref(false)
 const storageContentPage = ref(0)
 const storageContentSize = ref(20)
 const storageContentHasNext = ref(false)
+const characteristicsPage = ref(0)
+const characteristicsSize = ref(10)
+const characteristicsHasNext = ref(false)
+const productMetaCollapse = ref<string[]>([])
 const storageContentCollapse = ref<string[]>([])
 const showZeroStorageContent = ref(false)
 const isLoading = ref(false)
 const isCrossesLoading = ref(false)
 const isStorageContentLoading = ref(false)
+const isProductContentLoading = ref(false)
+const isCharacteristicsLoading = ref(false)
 const isStorageOptionsLoading = ref(false)
 const isCurrencyOptionsLoading = ref(false)
 const isAddingStorageContent = ref(false)
 const isEditingStorageContent = ref(false)
+const isSavingProductContent = ref(false)
+const isSavingCharacteristic = ref(false)
 const deletingStorageContentId = ref<number>()
 const crossSearch = ref('')
 const sortBy = ref<string>()
 const crossDialogOpen = ref(false)
+const productSelectorOpen = ref(false)
+const productSelectorMode = ref<'pair' | 'content'>('content')
 const galleryImageIndex = ref(0)
 const productGallery = ref<CarouselInstance>()
 const imageInput = ref<HTMLInputElement>()
@@ -571,9 +841,15 @@ const sizeDialogOpen = ref(false)
 const weightDialogOpen = ref(false)
 const editDialogOpen = ref(false)
 const reservationsDialogOpen = ref(false)
+const priceOffersDialogOpen = ref(false)
 const addStorageContentDialogOpen = ref(false)
 const editStorageContentDialogOpen = ref(false)
+const contentDialogOpen = ref(false)
+const characteristicDialogOpen = ref(false)
 const editingStorageContent = ref<StorageContentModel>()
+const editingContentItem = ref<ProductContentModel>()
+const selectedContentProduct = ref<ProductSearchModel | null>(null)
+const editingCharacteristic = ref<ProductCharacteristicModel>()
 const { hasPermission } = usePermissions()
 const canEditProduct = computed(() => hasPermission('ARTICLES_EDIT'))
 const canCreateCrosses = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
@@ -581,6 +857,7 @@ const canAddImages = computed(() => hasPermission('ARTICLE_IMAGES_CREATE'))
 const canDeleteImages = computed(() => hasPermission('ARTICLE_IMAGES_DELETE'))
 const canViewStorageContent = computed(() => hasPermission('STORAGES_CONTENT_GET_ALL'))
 const canViewProductReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
+const canViewPriceOffers = computed(() => hasPermission('PRICES_GET_DETAILED'))
 const canCreateStorageContent = computed(() => hasPermission('STORAGES_CONTENT_CREATE'))
 const canEditStorageContent = computed(() => hasPermission('STORAGES_CONTENT_EDIT'))
 const canDeleteStorageContent = computed(() => hasPermission('STORAGES_CONTENT_DELETE'))
@@ -588,6 +865,12 @@ const canSetSize = computed(() => hasPermission('ARTICLE_SIZES_CREATE'))
 const canSetWeight = computed(() => hasPermission('ARTICLE_WEIGHT_CREATE'))
 const canDeleteSize = computed(() => hasPermission('ARTICLE_SIZES_DELETE'))
 const canDeleteWeight = computed(() => hasPermission('ARTICLE_WEIGHT_DELETE'))
+const canCreateProductContent = computed(() => hasPermission('ARTICLE_CONTENT_CREATE'))
+const canEditProductContent = computed(() => hasPermission('ARTICLE_CONTENT_EDIT'))
+const canDeleteProductContent = computed(() => hasPermission('ARTICLE_CONTENT_DELETE'))
+const canCreateCharacteristics = computed(() => hasPermission('ARTICLE_CHARACTERISTICS_CREATE'))
+const canEditCharacteristics = computed(() => hasPermission('ARTICLE_CHARACTERISTICS_UPDATE'))
+const canDeleteCharacteristics = computed(() => hasPermission('ARTICLE_CHARACTERISTICS_DELETE'))
 const canManageSize = computed(() => canSetSize.value || Boolean(productSize.value && canDeleteSize.value))
 const canManageWeight = computed(() => canSetWeight.value || Boolean(productWeight.value && canDeleteWeight.value))
 const sizeActionText = computed(() => canSetSize.value
@@ -610,6 +893,15 @@ const editStorageContentForm = reactive({
   buyPrice: 0,
   currencyId: undefined as number | undefined,
   purchaseDatetime: toLocalDateTimeInputValue(),
+})
+
+const contentForm = reactive({
+  count: 1,
+})
+
+const characteristicForm = reactive({
+  name: '',
+  value: '',
 })
 
 const productId = computed(() => Number(route.params.id))
@@ -650,6 +942,39 @@ const storageContentSummary = computed(() => {
     : t('products.details.noStoragePositions')
 })
 
+const pairSummary = computed(() => {
+  if (productPair.value) return `${productPair.value.sku} · ${productPair.value.name}`
+  return t('products.details.noPairSelected')
+})
+
+const contentSummary = computed(() => {
+  if (isProductContentLoading.value) return t('products.details.loading')
+  return productContent.value.length > 0
+    ? t('products.details.contentPositions', { count: productContent.value.length })
+    : t('products.details.noContent')
+})
+
+const characteristicsSummary = computed(() => {
+  if (isCharacteristicsLoading.value) return t('products.details.loading')
+  return characteristics.value.length > 0
+    ? t('products.details.characteristicsCount', { count: characteristics.value.length })
+    : t('products.details.noCharacteristics')
+})
+
+const selectedContentProductLabel = computed(() => {
+  if (selectedContentProduct.value) return `${selectedContentProduct.value.sku} - ${selectedContentProduct.value.name}`
+  if (editingContentItem.value) return `${editingContentItem.value.product.sku} - ${editingContentItem.value.product.name}`
+  return ''
+})
+
+const contentDialogTitle = computed(() => (
+  editingContentItem.value ? t('products.details.editContentTitle') : t('products.details.addContentTitle')
+))
+
+const characteristicDialogTitle = computed(() => (
+  editingCharacteristic.value ? t('products.details.editCharacteristicTitle') : t('products.details.addCharacteristicTitle')
+))
+
 const sizeText = computed(() => {
   if (!productSize.value) return '-'
 
@@ -684,6 +1009,64 @@ function openProduct(id: number) {
     name: 'product-details',
     params: { id },
   })
+}
+
+function openProductSelector(mode: 'pair' | 'content') {
+  productSelectorMode.value = mode
+  productSelectorOpen.value = true
+}
+
+async function handleProductSelected(selected: ProductSearchModel) {
+  if (!product.value) return
+
+  if (selected.id === product.value.id) {
+    ElNotification({
+      title: t('products.details.fillDataTitle'),
+      message: t('products.details.sameProductForbidden'),
+      type: 'warning',
+    })
+    return
+  }
+
+  if (productSelectorMode.value === 'pair') {
+    await setPair(selected.id)
+    return
+  }
+
+  selectedContentProduct.value = selected
+}
+
+async function setPair(pairId: number | null) {
+  if (!product.value || !canEditProduct.value) return
+
+  await editProduct({
+    id: product.value.id,
+    pairId,
+  })
+
+  ElNotification({
+    title: t('products.details.pairSavedTitle'),
+    message: t('products.details.pairSavedMessage'),
+    type: 'success',
+  })
+
+  await loadPair()
+}
+
+async function clearPair() {
+  if (!productPair.value) return
+
+  try {
+    await ElMessageBox.confirm(t('products.details.clearPairConfirm'), t('products.details.clearPairTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  await setPair(null)
 }
 
 async function handleProductAction(command: string) {
@@ -938,6 +1321,159 @@ async function removeStorageContentItem(item: StorageContentModel) {
   }
 }
 
+function openAddContentDialog() {
+  editingContentItem.value = undefined
+  selectedContentProduct.value = null
+  contentForm.count = 1
+  contentDialogOpen.value = true
+}
+
+function openEditContentDialog(item: ProductContentModel) {
+  editingContentItem.value = item
+  selectedContentProduct.value = null
+  contentForm.count = item.quantity
+  contentDialogOpen.value = true
+}
+
+async function saveContentItem() {
+  if (!product.value) return
+
+  if (!editingContentItem.value && !selectedContentProduct.value) {
+    ElNotification({
+      title: t('products.details.fillDataTitle'),
+      message: t('products.details.selectContentProduct'),
+      type: 'warning',
+    })
+    return
+  }
+
+  isSavingProductContent.value = true
+  try {
+    if (editingContentItem.value) {
+      await editProductContent({
+        productId: product.value.id,
+        childProductId: editingContentItem.value.product.id,
+        count: contentForm.count,
+      })
+    } else if (selectedContentProduct.value) {
+      await addProductContent({
+        productId: product.value.id,
+        childProductId: selectedContentProduct.value.id,
+        count: contentForm.count,
+      })
+    }
+
+    ElNotification({
+      title: t('products.details.contentSavedTitle'),
+      message: t('products.details.contentSavedMessage'),
+      type: 'success',
+    })
+
+    contentDialogOpen.value = false
+    await loadProductContent()
+  } finally {
+    isSavingProductContent.value = false
+  }
+}
+
+async function removeContentItem(item: ProductContentModel) {
+  if (!product.value) return
+
+  try {
+    await ElMessageBox.confirm(t('products.details.deleteContentConfirm'), t('products.details.deleteContentTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  await deleteProductContent(product.value.id, item.product.id)
+
+  ElNotification({
+    title: t('products.details.contentDeletedTitle'),
+    message: t('products.details.contentDeletedMessage'),
+    type: 'success',
+  })
+
+  await loadProductContent()
+}
+
+function openCharacteristicDialog(item?: ProductCharacteristicModel) {
+  editingCharacteristic.value = item
+  characteristicForm.name = item?.name ?? ''
+  characteristicForm.value = item?.value ?? ''
+  characteristicDialogOpen.value = true
+}
+
+async function saveCharacteristic() {
+  if (!product.value) return
+
+  const name = characteristicForm.name.trim()
+  const value = characteristicForm.value.trim()
+  if (!name || !value) {
+    ElNotification({
+      title: t('products.details.fillDataTitle'),
+      message: t('products.details.fillCharacteristic'),
+      type: 'warning',
+    })
+    return
+  }
+
+  isSavingCharacteristic.value = true
+  try {
+    if (editingCharacteristic.value) {
+      await editProductCharacteristic({
+        productId: product.value.id,
+        name: editingCharacteristic.value.name,
+        value,
+      })
+    } else {
+      await addProductCharacteristic({
+        productId: product.value.id,
+        name,
+        value,
+      })
+    }
+
+    ElNotification({
+      title: t('products.details.characteristicSavedTitle'),
+      message: t('products.details.characteristicSavedMessage'),
+      type: 'success',
+    })
+
+    characteristicDialogOpen.value = false
+    await loadCharacteristics()
+  } finally {
+    isSavingCharacteristic.value = false
+  }
+}
+
+async function removeCharacteristic(item: ProductCharacteristicModel) {
+  if (!product.value) return
+
+  try {
+    await ElMessageBox.confirm(t('products.details.deleteCharacteristicConfirm'), t('products.details.deleteCharacteristicTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  await deleteProductCharacteristic(product.value.id, item.name)
+
+  ElNotification({
+    title: t('products.details.characteristicDeletedTitle'),
+    message: t('products.details.characteristicDeletedMessage'),
+    type: 'success',
+  })
+
+  await loadCharacteristics()
+}
+
 async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
   if (!event.prop || !event.order) {
     sortBy.value = undefined
@@ -967,12 +1503,21 @@ async function loadCrosses() {
       sortBy: sortBy.value,
     })
 
-    product.value = resp.requestedArticle
     crosses.value = resp.crosses
     hasNext.value = resp.crosses.length === size.value
   } finally {
     isCrossesLoading.value = false
   }
+}
+
+async function loadProduct() {
+  if (!Number.isFinite(productId.value) || productId.value <= 0) {
+    product.value = undefined
+    return
+  }
+
+  const resp = await getProductById(productId.value)
+  product.value = resp.product
 }
 
 async function loadStorageContent() {
@@ -995,6 +1540,52 @@ async function loadStorageContent() {
     storageContentHasNext.value = resp.contents.length === storageContentSize.value
   } finally {
     isStorageContentLoading.value = false
+  }
+}
+
+async function loadPair() {
+  if (!Number.isFinite(productId.value) || productId.value <= 0) {
+    productPair.value = null
+    return
+  }
+
+  const resp = await getProductPair(productId.value)
+  productPair.value = resp.pair
+}
+
+async function loadProductContent() {
+  if (!Number.isFinite(productId.value) || productId.value <= 0) {
+    productContent.value = []
+    return
+  }
+
+  isProductContentLoading.value = true
+  try {
+    const resp = await getProductContent(productId.value)
+    productContent.value = resp.content
+  } finally {
+    isProductContentLoading.value = false
+  }
+}
+
+async function loadCharacteristics() {
+  if (!Number.isFinite(productId.value) || productId.value <= 0) {
+    characteristics.value = []
+    characteristicsHasNext.value = false
+    return
+  }
+
+  isCharacteristicsLoading.value = true
+  try {
+    const resp = await getProductCharacteristics({
+      productId: productId.value,
+      page: characteristicsPage.value,
+      size: characteristicsSize.value,
+    })
+    characteristics.value = resp.characteristics
+    characteristicsHasNext.value = resp.characteristics.length === characteristicsSize.value
+  } finally {
+    isCharacteristicsLoading.value = false
   }
 }
 
@@ -1021,17 +1612,25 @@ async function loadDetails() {
     product.value = undefined
     crosses.value = []
     storageContent.value = []
+    productPair.value = null
+    productContent.value = []
+    characteristics.value = []
     hasNext.value = false
     storageContentHasNext.value = false
+    characteristicsHasNext.value = false
     return
   }
 
   isLoading.value = true
   try {
     await Promise.all([
+      loadProduct(),
       loadCrosses(),
       loadProductMetrics(),
       loadStorageContent(),
+      loadPair(),
+      loadProductContent(),
+      loadCharacteristics(),
     ])
   } finally {
     isLoading.value = false
@@ -1041,6 +1640,7 @@ async function loadDetails() {
 watch(productId, async () => {
   page.value = 0
   storageContentPage.value = 0
+  characteristicsPage.value = 0
   crossSearch.value = ''
   galleryImageIndex.value = 0
   await loadDetails()
@@ -1055,6 +1655,11 @@ watch(storageContentPage, async () => loadStorageContent())
 watch(storageContentSize, async () => {
   storageContentPage.value = 0
   await loadStorageContent()
+})
+watch(characteristicsPage, async () => loadCharacteristics())
+watch(characteristicsSize, async () => {
+  characteristicsPage.value = 0
+  await loadCharacteristics()
 })
 watch(showZeroStorageContent, async () => {
   storageContentPage.value = 0
@@ -1089,6 +1694,123 @@ onMounted(async () => loadDetails())
 
 :deep(.crosses-table .stock-cell) {
   justify-content: flex-end;
+}
+
+.product-extra-section {
+  border-top: 1px solid rgb(226 232 240);
+  padding-top: 14px;
+}
+
+.product-extra-section + .product-extra-section {
+  margin-top: 14px;
+}
+
+.product-extra-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.product-extra-section__header h2 {
+  margin: 0;
+  color: rgb(15 23 42);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.product-extra-section__header p {
+  margin: 3px 0 0;
+  color: rgb(100 116 139);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.product-extra-section__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.product-meta-collapse {
+  border-top: 1px solid rgb(226 232 240);
+  border-bottom: 1px solid rgb(226 232 240);
+}
+
+:deep(.product-meta-collapse .el-collapse-item__header) {
+  height: auto;
+  min-height: 48px;
+  padding: 8px 0;
+  border-bottom-color: rgb(226 232 240);
+  line-height: 1.35;
+}
+
+:deep(.product-meta-collapse .el-collapse-item__content) {
+  padding-bottom: 14px;
+}
+
+.product-collapse-title {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+  padding-right: 12px;
+}
+
+.product-collapse-title > span:first-child {
+  color: rgb(15 23 42);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.product-collapse-title__summary {
+  overflow: hidden;
+  color: rgb(100 116 139);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-collapse-body {
+  padding-top: 2px;
+}
+
+.product-collapse-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.product-inline-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 8px;
+  background: rgb(248 250 252);
+  padding: 10px;
+}
+
+.product-table-product {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+:deep(.product-inner-table .el-table__header th) {
+  background: rgb(248 250 252);
+  color: rgb(71 85 105);
+  font-weight: 700;
+}
+
+:deep(.product-inner-table .el-table__cell) {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 @media (max-width: 1280px) {

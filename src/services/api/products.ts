@@ -1,4 +1,4 @@
-import type { ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
+import type { ProductCharacteristicModel, ProductContentModel, ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type {
   EditProductReservationModel,
@@ -51,7 +51,10 @@ export interface GetProductCrossesRequest {
 
 export interface GetProductCrossesResponse {
   crosses: ProductModel[]
-  requestedArticle: ProductModel
+}
+
+export interface GetProductByIdResponse {
+  product: ProductModel
 }
 
 export interface GetProductSizeResponse {
@@ -68,6 +71,48 @@ export interface GetProductsByIdsResponse {
 
 export interface GetProductStockResponse {
   stock: number
+}
+
+export interface GetProductPairResponse {
+  pair: ProductModel | null
+}
+
+export interface GetProductContentResponse {
+  content: ProductContentModel[]
+}
+
+export interface AddProductContentRequest {
+  productId: number
+  childProductId: number
+  count: number
+}
+
+export interface EditProductContentRequest {
+  productId: number
+  childProductId: number
+  count: number
+}
+
+export interface GetProductCharacteristicsRequest {
+  productId: number
+  page: number
+  size: number
+}
+
+export interface GetProductCharacteristicsResponse {
+  characteristics: ProductCharacteristicModel[]
+}
+
+export interface AddProductCharacteristicRequest {
+  productId: number
+  name: string
+  value: string
+}
+
+export interface EditProductCharacteristicRequest {
+  productId: number
+  name: string
+  value: string
 }
 
 export interface GetProductReservationsRequest {
@@ -152,6 +197,7 @@ export interface EditProductRequest {
   producerId?: number
   description?: string | null
   indicator?: string | null
+  pairId?: number | null
 }
 
 export async function getProductCrosses(req: GetProductCrossesRequest): Promise<GetProductCrossesResponse> {
@@ -163,6 +209,11 @@ export async function getProductCrosses(req: GetProductCrossesRequest): Promise<
     },
   })
 
+  return resp.data
+}
+
+export async function getProductById(productId: number): Promise<GetProductByIdResponse> {
+  const resp = await api.get<GetProductByIdResponse>(`/main/products/${productId}`)
   return resp.data
 }
 
@@ -202,6 +253,71 @@ export async function getProductStock(productId: number, storageName?: string | 
   })
 
   return resp.data
+}
+
+export async function getProductPair(productId: number): Promise<GetProductPairResponse> {
+  const resp = await api.get<GetProductPairResponse>(`/main/products/${productId}/pairs`)
+  return resp.data
+}
+
+export async function getProductContent(productId: number): Promise<GetProductContentResponse> {
+  const resp = await api.get<GetProductContentResponse>(`/main/products/${productId}/contents`)
+  return resp.data
+}
+
+export async function addProductContent(req: AddProductContentRequest): Promise<void> {
+  await api.post(`/main/products/${req.productId}/contents`, {
+    content: {
+      [req.childProductId]: req.count,
+    },
+  })
+}
+
+export async function editProductContent(req: EditProductContentRequest): Promise<void> {
+  await api.patch(`/main/products/${req.productId}/contents/${req.childProductId}`, {
+    count: req.count,
+  })
+}
+
+export async function deleteProductContent(productId: number, childProductId: number): Promise<void> {
+  await api.delete(`/main/products/${productId}/contents/${childProductId}`)
+}
+
+export async function getProductCharacteristics(
+  req: GetProductCharacteristicsRequest,
+): Promise<GetProductCharacteristicsResponse> {
+  const resp = await api.get<GetProductCharacteristicsResponse>(`/main/products/${req.productId}/characteristics`, {
+    params: {
+      page: req.page,
+      size: clampPageSize(req.size),
+    },
+  })
+
+  return resp.data
+}
+
+export async function addProductCharacteristic(req: AddProductCharacteristicRequest): Promise<void> {
+  await api.post('/main/products/characteristics/', {
+    characteristics: [
+      {
+        productId: req.productId,
+        name: req.name,
+        value: req.value,
+      },
+    ],
+  })
+}
+
+export async function editProductCharacteristic(req: EditProductCharacteristicRequest): Promise<void> {
+  await api.patch(`/main/products/${req.productId}/characteristics/${encodeURIComponent(req.name)}`, {
+    value: {
+      value: patchField(req.value),
+    },
+  })
+}
+
+export async function deleteProductCharacteristic(productId: number, name: string): Promise<void> {
+  await api.delete(`/main/products/${productId}/characteristics/${encodeURIComponent(name)}`)
 }
 
 export async function createProductReservation(req: CreateProductReservationRequest): Promise<CreateProductReservationResponse> {
@@ -248,10 +364,10 @@ export async function editProduct(req: EditProductRequest): Promise<void> {
 
   if (req.sku !== undefined) payload.sku = patchField(req.sku)
   if (req.name !== undefined) payload.name = patchField(req.name)
-  // Backend PatchProductDto currently exposes ProducerId as JSON "productId".
-  if (req.producerId !== undefined) payload.productId = patchField(req.producerId)
+  if (req.producerId !== undefined) payload.producerId = patchField(req.producerId)
   if (req.description !== undefined) payload.description = patchField(req.description)
   if (req.indicator !== undefined) payload.indicator = patchField(req.indicator)
+  if (req.pairId !== undefined) payload.pairId = patchField(req.pairId)
 
   await api.patch(`/main/products/${req.id}`, {
     patchProduct: payload,

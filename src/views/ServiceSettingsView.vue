@@ -150,6 +150,7 @@ import { usePermissions } from '@/composables/usePermissions.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { searchProducts } from '@/services/api/search.ts'
 import { getServiceNamedObjects, type NamedObjectModel } from '@/services/api/jobs.ts'
+import { getMarkupGroups, type MarkupGroupModel } from '@/services/api/markups.ts'
 import { getServiceSettings, updateServiceSetting, type SettingModel } from '@/services/api/serviceSettings.ts'
 
 interface ServiceCard {
@@ -184,7 +185,7 @@ interface ReadonlyOutputField {
   value: string
 }
 
-type SelectorOption = CurrencyModel | ProductSearchModel | EnumSelectorOption | NamedObjectModel
+type SelectorOption = CurrencyModel | ProductSearchModel | EnumSelectorOption | NamedObjectModel | MarkupGroupModel
 
 const { t } = useI18n()
 const { hasPermission } = usePermissions()
@@ -211,9 +212,14 @@ const productsQuery = ref('')
 const productsPage = ref(0)
 const productsLimit = ref(50)
 const productsHasNext = ref(true)
+const markupGroups = ref<MarkupGroupModel[]>([])
+const markupGroupsPage = ref(0)
+const markupGroupsLimit = ref(50)
+const markupGroupsHasNext = ref(true)
 const namedObjects = ref<Record<string, NamedObjectModel[]>>({})
 const isLoadingCurrencies = ref(false)
 const isLoadingProducts = ref(false)
+const isLoadingMarkupGroups = ref(false)
 const loadingNamedObjectGroups = ref<Set<string>>(new Set())
 const inputState = reactive<Record<string, string | number | boolean | null>>({})
 const readonlyOutputFields = ref<ReadonlyOutputField[]>([])
@@ -391,7 +397,7 @@ function normalizeKey(key: string) {
 
 function formatReadonlyValue(value: unknown, field?: SettingSchemaField): string {
   if (value === null || value === undefined || value === '') return '—'
-  if (field?.control === 'EnumSelector') return String(normalizeEnumValue(field, value as string | number | boolean))
+  if (field?.control === 'EnumSelector') return enumValueLabel(field, normalizeEnumValue(field, value as string | number | boolean))
   if (typeof value === 'boolean') return value ? t('serviceSettings.yes') : t('serviceSettings.no')
   if (typeof value === 'string' || typeof value === 'number') return String(value)
   return JSON.stringify(value)
@@ -425,8 +431,13 @@ function normalizeFieldValue(field: SettingSchemaField, value: unknown) {
 }
 
 function normalizeEnumValue(field: SettingSchemaField, value: string | number | boolean) {
-  if (field.dependsOnEntity === 'ExchangeRateProvider' && typeof value === 'number') {
+  const entity = entityName(field)
+  if (entity === 'ExchangeRateProvider' && typeof value === 'number') {
     return value === 1 ? 'MoneyConvert' : 'Cbr'
+  }
+
+  if (entity === 'ProductPricingType' && typeof value === 'number') {
+    return ['Average', 'Median', 'Highest', 'Lowest'][value] ?? 'Average'
   }
 
   return typeof value === 'boolean' ? String(value) : value
@@ -447,7 +458,7 @@ function defaultValue(field: SettingSchemaField) {
 
 function isNumberField(field: SettingSchemaField) {
   if (['TextField', 'DatePicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return false
-  return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
+  return isNumericSchemaField(field)
 }
 
 function fieldLabel(field: SettingSchemaField) {
@@ -465,20 +476,45 @@ function setInputStateField(name: string, value: FieldValue) {
 function normalizedInputState() {
   return Object.fromEntries(schemaFields.value.map((field): [string, string | number | boolean | null] => {
     const value = inputState[field.name]
-    return [field.name, !field.required && isEmptyValue(value) ? null : value ?? null]
+    if (!field.required && isEmptyValue(value)) return [field.name, null]
+    return [field.name, normalizeInputValueForSave(field, value)]
   }))
 }
 
+function normalizeInputValueForSave(field: SettingSchemaField, value: unknown): string | number | boolean | null {
+  if (value === undefined || value === null) return null
+  if (isEmptyValue(value)) return null
+
+  if (isNumericSchemaField(field)) {
+    if (typeof value === 'number') return value
+    if (typeof value === 'string') {
+      const normalized = Number(value.trim().replace(',', '.'))
+      return Number.isFinite(normalized) ? normalized : value
+    }
+  }
+
+  return isPrimitiveSettingValue(value) ? value : JSON.stringify(value)
+}
+
+function isNumericSchemaField(field: SettingSchemaField) {
+  return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
+}
+
 function isSupportedSelector(field: SettingSchemaField) {
-  return field.dependsOnEntity === 'Currency'
-    || field.dependsOnEntity === 'Product'
-    || field.dependsOnEntity === 'ExchangeRateProvider'
+  const entity = entityName(field)
+  return entity === 'Currency'
+    || entity === 'Product'
+    || entity === 'ExchangeRateProvider'
+    || entity === 'ProductPricingType'
+    || entity === 'MarkupGroup'
     || (field.control === 'NamedObjectSelector' && Boolean(field.dependsOnEntity))
 }
 
 function isSelectorLoading(field: SettingSchemaField) {
-  if (field.dependsOnEntity === 'Currency') return isLoadingCurrencies.value
-  if (field.dependsOnEntity === 'Product') return isLoadingProducts.value
+  const entity = entityName(field)
+  if (entity === 'Currency') return isLoadingCurrencies.value
+  if (entity === 'Product') return isLoadingProducts.value
+  if (entity === 'MarkupGroup') return isLoadingMarkupGroups.value
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedService.value) {
     return loadingNamedObjectGroups.value.has(namedObjectsCacheKey(selectedService.value, field.dependsOnEntity))
   }
@@ -486,18 +522,34 @@ function isSelectorLoading(field: SettingSchemaField) {
 }
 
 function selectorOptions(field: SettingSchemaField): SelectorOption[] {
-  if (field.dependsOnEntity === 'Currency') return currencies.value
-  if (field.dependsOnEntity === 'Product') return products.value
-  if (field.dependsOnEntity === 'ExchangeRateProvider') {
+  const entity = entityName(field)
+  if (entity === 'Currency') return currencies.value
+  if (entity === 'Product') return products.value
+  if (entity === 'MarkupGroup') return markupGroups.value
+  if (entity === 'ExchangeRateProvider') {
     return [
       { value: 'Cbr', label: t('common.exchangeRateProviders.Cbr') },
       { value: 'MoneyConvert', label: t('common.exchangeRateProviders.MoneyConvert') },
+    ]
+  }
+  if (entity === 'ProductPricingType') {
+    return [
+      { value: 'Average', label: t('common.productPricingTypes.Average') },
+      { value: 'Median', label: t('common.productPricingTypes.Median') },
+      { value: 'Highest', label: t('common.productPricingTypes.Highest') },
+      { value: 'Lowest', label: t('common.productPricingTypes.Lowest') },
     ]
   }
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedService.value) {
     return namedObjects.value[namedObjectsCacheKey(selectedService.value, field.dependsOnEntity)] ?? []
   }
   return []
+}
+
+function enumValueLabel(field: SettingSchemaField, value: string | number | boolean) {
+  const normalized = String(value)
+  const option = selectorOptions(field).find((item) => 'value' in item && String(item.value) === normalized)
+  return option && 'label' in option ? option.label : normalized
 }
 
 function selectorOptionValue(field: SettingSchemaField, option: SelectorOption): string | number {
@@ -515,17 +567,27 @@ function selectorOptionLabel(field: SettingSchemaField, option: SelectorOption) 
   if ('label' in option) return option.label
   if ('systemName' in option) return option.name || option.systemName
 
-  if (field.dependsOnEntity === 'Currency') {
+  const entity = entityName(field)
+  if (entity === 'Currency') {
     const currency = option as CurrencyModel
     return `${currency.shortName} (${currency.currencySign})`
   }
 
-  if (field.dependsOnEntity === 'Product') {
+  if (entity === 'Product') {
     const product = option as ProductSearchModel
     return `${product.sku} - ${product.name}`
   }
 
+  if (entity === 'MarkupGroup') {
+    const group = option as MarkupGroupModel
+    return group.name || t('serviceSettings.markupGroupFallback', { id: group.id })
+  }
+
   return String(selectorOptionValue(field, option))
+}
+
+function entityName(field: SettingSchemaField) {
+  return field.dependsOnEntity?.split(',')[0]?.split('.').pop() ?? ''
 }
 
 async function loadCurrenciesIfNeeded() {
@@ -572,6 +634,35 @@ async function loadProductsIfNeeded() {
   await loadProducts()
 }
 
+async function loadMarkupGroups(reset = false) {
+  if (isLoadingMarkupGroups.value) return
+  if (reset) {
+    markupGroupsPage.value = 0
+    markupGroupsHasNext.value = true
+    markupGroups.value = []
+  }
+  if (!markupGroupsHasNext.value) return
+
+  isLoadingMarkupGroups.value = true
+  try {
+    const response = await getMarkupGroups({
+      page: markupGroupsPage.value,
+      size: markupGroupsLimit.value,
+    })
+    const existingIds = new Set(markupGroups.value.map((group) => group.id))
+    markupGroups.value.push(...response.groups.filter((group) => !existingIds.has(group.id)))
+    markupGroupsHasNext.value = response.groups.length === markupGroupsLimit.value
+    markupGroupsPage.value += 1
+  } finally {
+    isLoadingMarkupGroups.value = false
+  }
+}
+
+async function loadMarkupGroupsIfNeeded() {
+  if (markupGroups.value.length > 0 || isLoadingMarkupGroups.value) return
+  await loadMarkupGroups(true)
+}
+
 function namedObjectsCacheKey(serviceKey: string, groupName: string) {
   return `${serviceKey}:${groupName}`
 }
@@ -602,13 +693,19 @@ async function loadSelectorOptionsOnOpen(field: SettingSchemaField, isOpen: bool
 }
 
 async function loadSelectorOptions(field: SettingSchemaField) {
-  if (field.dependsOnEntity === 'Currency') {
+  const entity = entityName(field)
+  if (entity === 'Currency') {
     await loadCurrenciesIfNeeded()
     return
   }
 
-  if (field.dependsOnEntity === 'Product') {
+  if (entity === 'Product') {
     await loadProductsIfNeeded()
+    return
+  }
+
+  if (entity === 'MarkupGroup') {
+    await loadMarkupGroupsIfNeeded()
     return
   }
 
@@ -618,14 +715,20 @@ async function loadSelectorOptions(field: SettingSchemaField) {
 }
 
 function searchSelectorOptions(field: SettingSchemaField, query: string) {
-  if (field.dependsOnEntity === 'Product') {
+  if (entityName(field) === 'Product') {
     void loadProducts(query, true)
   }
 }
 
 async function loadMoreSelectorOptions(field: SettingSchemaField) {
-  if (field.dependsOnEntity === 'Product') {
+  const entity = entityName(field)
+  if (entity === 'Product') {
     await loadProducts(productsQuery.value, false)
+    return
+  }
+
+  if (entity === 'MarkupGroup') {
+    await loadMarkupGroups(false)
   }
 }
 

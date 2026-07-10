@@ -24,3 +24,14 @@ export interface ProductWeightModel {
   weight: number
   unit: string
 }
+
+export interface ProductContentModel {
+  quantity: number
+  product: ProductModel
+}
+
+export interface ProductCharacteristicModel {
+  productId: number
+  name: string
+  value: string
+}

@@ -195,9 +195,17 @@
               <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
-          <el-table-column fixed="right" label="" width="64" align="right">
+          <el-table-column fixed="right" label="" width="104" align="right">
             <template #default="{ row }">
-              <ActionIconButton :label="t('products.crosses')" :icon="Link" @click="openCrosses(row.id)" />
+              <div class="flex justify-end gap-1">
+                <ActionIconButton
+                  v-if="canViewPriceOffers"
+                  :label="t('priceOffers.open')"
+                  :icon="Money"
+                  @click="openPriceOffers(row)"
+                />
+                <ActionIconButton :label="t('products.crosses')" :icon="Link" @click="openCrosses(row.id)" />
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -209,17 +217,24 @@
     </div>
 
     <CreateProductsCrossesDialog v-if="canCreateProducts" v-model="createDialogOpen" @saved="loadProducts" />
+    <ProductPriceOffersDialog
+      v-if="selectedPriceProduct && canViewPriceOffers"
+      v-model="priceOffersDialogOpen"
+      :product-id="selectedPriceProduct.id"
+      :product-label="`${selectedPriceProduct.sku} - ${selectedPriceProduct.name}`"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { InfoFilled, Link } from '@element-plus/icons-vue'
+import { InfoFilled, Link, Money } from '@element-plus/icons-vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
+import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
@@ -264,8 +279,11 @@ const producerNames = ref<Record<number, string>>({})
 const filtersDrawerOpen = ref(false)
 const skipNextDrawerCloseApply = ref(false)
 const createDialogOpen = ref(false)
+const priceOffersDialogOpen = ref(false)
+const selectedPriceProduct = ref<ProductSearchModel | null>(null)
 const { hasPermission } = usePermissions()
 const canCreateProducts = computed(() => hasPermission('ARTICLES_CREATE'))
+const canViewPriceOffers = computed(() => hasPermission('PRICES_GET_DETAILED'))
 
 const form = reactive<ProductSearchForm>({
   query: '',
@@ -329,6 +347,11 @@ function openCrosses(productId: number) {
     name: 'product-details',
     params: { id: productId },
   })
+}
+
+function openPriceOffers(product: ProductSearchModel) {
+  selectedPriceProduct.value = product
+  priceOffersDialogOpen.value = true
 }
 
 function queryString(name: string) {
