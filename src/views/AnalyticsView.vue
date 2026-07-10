@@ -362,6 +362,7 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import DynamicSchemaForm, { type FieldValue } from '@/components/schema/DynamicSchemaForm.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
+import type { StorageModel } from '@/models/storageModel.ts'
 import {
   getAnalyticsNamedObjects,
   getMetricCalculationJobs,
@@ -381,6 +382,7 @@ import {
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { searchProducts } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import {
   startMetricCalculationHub,
   type MetricCalculationJobUpdatedEvent,
@@ -451,10 +453,20 @@ interface EnumSelectorOption {
   label: string
 }
 
-type EntitySelectorOption = CurrencyModel | ProductSearchModel | EnumSelectorOption | NamedObjectModel
+type EntitySelectorOption = CurrencyModel | ProductSearchModel | StorageModel | EnumSelectorOption | NamedObjectModel
 
 const createForm = reactive<{ metricSystemName?: string }>({
   metricSystemName: undefined,
+})
+
+const {
+  storages,
+  isStoragesLoading,
+  loadStoragesIfNeeded,
+  searchStorages,
+  loadMoreStorages,
+} = useStorageEntityOptions({
+  onError: (error) => ElMessage.error(error instanceof Error ? error.message : t('analytics.loadError')),
 })
 
 const canSubmitMetric = computed(() => Boolean(
@@ -627,6 +639,7 @@ function setInputStateField(name: string, value: FieldValue) {
 function isSupportedEntitySelector(field: MetricSchemaField) {
   return field.dependsOnEntity === 'Currency'
     || field.dependsOnEntity === 'Product'
+    || field.dependsOnEntity === 'Storage'
     || field.dependsOnEntity === 'ExchangeRateProvider'
     || (field.control === 'NamedObjectSelector' && Boolean(field.dependsOnEntity))
 }
@@ -634,6 +647,7 @@ function isSupportedEntitySelector(field: MetricSchemaField) {
 function isEntityLoading(field: MetricSchemaField) {
   if (field.dependsOnEntity === 'Currency') return isCurrenciesLoading.value
   if (field.dependsOnEntity === 'Product') return isProductsLoading.value
+  if (field.dependsOnEntity === 'Storage') return isStoragesLoading.value
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
     return loadingNamedObjectGroups.value.has(field.dependsOnEntity)
   }
@@ -643,6 +657,7 @@ function isEntityLoading(field: MetricSchemaField) {
 function entityOptions(field: MetricSchemaField): EntitySelectorOption[] {
   if (field.dependsOnEntity === 'Currency') return currencies.value
   if (field.dependsOnEntity === 'Product') return products.value
+  if (field.dependsOnEntity === 'Storage') return storages.value
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
     return namedObjects.value[field.dependsOnEntity] ?? []
   }
@@ -658,12 +673,12 @@ function entityOptions(field: MetricSchemaField): EntitySelectorOption[] {
 function entityOptionValue(field: MetricSchemaField, option: EntitySelectorOption): string | number {
   if ('value' in option) return option.value
   if ('systemName' in option) return option.systemName
+  if (field.dependsOnEntity === 'Storage') return (option as StorageModel).name
 
   const key = field.dependsOnField ?? 'id'
   const value = option[key as keyof EntitySelectorOption]
-  return typeof value === 'number' || typeof value === 'string'
-    ? value
-    : option.id
+  if (typeof value === 'number' || typeof value === 'string') return value
+  return 'id' in option ? option.id : ''
 }
 
 function entityOptionLabel(field: MetricSchemaField, option: EntitySelectorOption) {
@@ -678,6 +693,10 @@ function entityOptionLabel(field: MetricSchemaField, option: EntitySelectorOptio
   if (field.dependsOnEntity === 'Product') {
     const product = option as ProductSearchModel
     return `${product.sku} - ${product.name}`
+  }
+
+  if (field.dependsOnEntity === 'Storage') {
+    return (option as StorageModel).name
   }
 
   return String(entityOptionValue(field, option))
@@ -807,6 +826,11 @@ async function loadEntityOptions(field: MetricSchemaField) {
     return
   }
 
+  if (field.dependsOnEntity === 'Storage') {
+    await loadStoragesIfNeeded()
+    return
+  }
+
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
     await loadNamedObjects(field.dependsOnEntity)
   }
@@ -815,12 +839,16 @@ async function loadEntityOptions(field: MetricSchemaField) {
 function searchEntityOptions(field: MetricSchemaField, query: string) {
   if (field.dependsOnEntity === 'Product') {
     void loadProducts(query, true)
+  } else if (field.dependsOnEntity === 'Storage') {
+    searchStorages(query)
   }
 }
 
 async function loadMoreEntityOptions(field: MetricSchemaField) {
   if (field.dependsOnEntity === 'Product') {
     await loadProducts(productsQuery.value, false)
+  } else if (field.dependsOnEntity === 'Storage') {
+    await loadMoreStorages()
   }
 }
 

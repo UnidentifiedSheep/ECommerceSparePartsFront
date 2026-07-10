@@ -803,7 +803,9 @@ import { getCurrencies } from '@/services/api/currencies.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { searchProducts } from '@/services/api/search.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
+import type { StorageModel } from '@/models/storageModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { useI18n } from '@/i18n'
 import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/jobHub.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
@@ -821,7 +823,7 @@ interface EnumSelectorOption {
   label: string
 }
 
-type EntitySelectorOption = CurrencyModel | ProductSearchModel | EnumSelectorOption | NamedObjectModel
+type EntitySelectorOption = CurrencyModel | ProductSearchModel | StorageModel | EnumSelectorOption | NamedObjectModel
 type CronBuilderMode = 'daily' | 'weekly' | 'monthly' | 'intervalMinutes' | 'intervalHours' | 'advanced'
 
 const isLoadingJobs = ref(false)
@@ -911,6 +913,15 @@ let jobHubConnection: HubConnection | null = null
 let jobHubServiceKey: string | null = null
 const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
+const {
+  storages,
+  isStoragesLoading,
+  loadStoragesIfNeeded,
+  searchStorages,
+  loadMoreStorages,
+} = useStorageEntityOptions({
+  onError: (error) => ElMessage.error(error instanceof Error ? error.message : t('jobs.loadError')),
+})
 const canCancelJobs = computed(() => hasPermission('JOBS_CREATE'))
 
 const jobStatusOptions = computed<Array<{ label: string; value: JobStatus }>>(() => [
@@ -1316,6 +1327,11 @@ async function loadEntityOptions(field: JobSchemaField) {
     return
   }
 
+  if (field.dependsOnEntity === 'Storage') {
+    await loadStoragesIfNeeded()
+    return
+  }
+
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
     await loadNamedObjects(field.dependsOnEntity)
   }
@@ -1324,12 +1340,16 @@ async function loadEntityOptions(field: JobSchemaField) {
 function searchEntityOptions(field: JobSchemaField, query: string) {
   if (field.dependsOnEntity === 'Product') {
     void loadProducts(query, true)
+  } else if (field.dependsOnEntity === 'Storage') {
+    searchStorages(query)
   }
 }
 
 async function loadMoreEntityOptions(field: JobSchemaField) {
   if (field.dependsOnEntity === 'Product') {
     await loadProducts(productsQuery.value, false)
+  } else if (field.dependsOnEntity === 'Storage') {
+    await loadMoreStorages()
   }
 }
 
@@ -1666,6 +1686,7 @@ function fieldLabel(field: JobSchemaField) {
 function isSupportedEntitySelector(field: JobSchemaField) {
   return field.dependsOnEntity === 'Currency'
     || field.dependsOnEntity === 'Product'
+    || field.dependsOnEntity === 'Storage'
     || field.dependsOnEntity === 'ExchangeRateProvider'
     || (field.control === 'NamedObjectSelector' && Boolean(field.dependsOnEntity))
 }
@@ -1673,6 +1694,7 @@ function isSupportedEntitySelector(field: JobSchemaField) {
 function isEntityLoading(field: JobSchemaField) {
   if (field.dependsOnEntity === 'Currency') return isLoadingCurrencies.value
   if (field.dependsOnEntity === 'Product') return isLoadingProducts.value
+  if (field.dependsOnEntity === 'Storage') return isStoragesLoading.value
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedJob.value) {
     return loadingNamedObjectGroups.value.has(namedObjectsCacheKey(selectedJob.value.serviceKey, field.dependsOnEntity))
   }
@@ -1682,6 +1704,7 @@ function isEntityLoading(field: JobSchemaField) {
 function entityOptions(field: JobSchemaField): EntitySelectorOption[] {
   if (field.dependsOnEntity === 'Currency') return currencies.value
   if (field.dependsOnEntity === 'Product') return products.value
+  if (field.dependsOnEntity === 'Storage') return storages.value
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedJob.value) {
     return namedObjects.value[namedObjectsCacheKey(selectedJob.value.serviceKey, field.dependsOnEntity)] ?? []
   }
@@ -1697,12 +1720,12 @@ function entityOptions(field: JobSchemaField): EntitySelectorOption[] {
 function entityOptionValue(field: JobSchemaField, option: EntitySelectorOption): string | number {
   if ('value' in option) return option.value
   if ('systemName' in option) return option.systemName
+  if (field.dependsOnEntity === 'Storage') return (option as StorageModel).name
 
   const key = field.dependsOnField ?? 'id'
   const value = option[key as keyof EntitySelectorOption]
-  return typeof value === 'number' || typeof value === 'string'
-    ? value
-    : option.id
+  if (typeof value === 'number' || typeof value === 'string') return value
+  return 'id' in option ? option.id : ''
 }
 
 function entityOptionLabel(field: JobSchemaField, option: EntitySelectorOption) {
@@ -1717,6 +1740,10 @@ function entityOptionLabel(field: JobSchemaField, option: EntitySelectorOption) 
   if (field.dependsOnEntity === 'Product') {
     const product = option as ProductSearchModel
     return `${product.sku} - ${product.name}`
+  }
+
+  if (field.dependsOnEntity === 'Storage') {
+    return (option as StorageModel).name
   }
 
   return String(entityOptionValue(field, option))

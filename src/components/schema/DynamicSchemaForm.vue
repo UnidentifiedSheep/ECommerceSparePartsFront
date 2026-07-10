@@ -90,7 +90,7 @@
             :model-value="modelValue[field.name]"
             filterable
             clearable
-            :remote="field.dependsOnEntity === 'Product'"
+            :remote="field.dependsOnEntity === 'Product' || field.dependsOnEntity === 'Storage'"
             :remote-method="(query: string) => searchSelectorOptions(field, query)"
             class="w-full"
             :loading="isSelectorLoading(field)"

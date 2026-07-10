@@ -145,12 +145,14 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import DynamicSchemaForm, { type FieldValue } from '@/components/schema/DynamicSchemaForm.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
+import type { StorageModel } from '@/models/storageModel.ts'
 import { useI18n } from '@/i18n'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { searchProducts } from '@/services/api/search.ts'
 import { getServiceNamedObjects, type NamedObjectModel } from '@/services/api/jobs.ts'
 import { getMarkupGroups, type MarkupGroupModel } from '@/services/api/markups.ts'
+import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { getServiceSettings, updateServiceSetting, type SettingModel } from '@/services/api/serviceSettings.ts'
 
 interface ServiceCard {
@@ -185,7 +187,7 @@ interface ReadonlyOutputField {
   value: string
 }
 
-type SelectorOption = CurrencyModel | ProductSearchModel | EnumSelectorOption | NamedObjectModel | MarkupGroupModel
+type SelectorOption = CurrencyModel | ProductSearchModel | StorageModel | EnumSelectorOption | NamedObjectModel | MarkupGroupModel
 
 const { t } = useI18n()
 const { hasPermission } = usePermissions()
@@ -223,6 +225,15 @@ const isLoadingMarkupGroups = ref(false)
 const loadingNamedObjectGroups = ref<Set<string>>(new Set())
 const inputState = reactive<Record<string, string | number | boolean | null>>({})
 const readonlyOutputFields = ref<ReadonlyOutputField[]>([])
+const {
+  storages,
+  isStoragesLoading,
+  loadStoragesIfNeeded,
+  searchStorages,
+  loadMoreStorages,
+} = useStorageEntityOptions({
+  onError: (error) => ElMessage.error(error instanceof Error ? error.message : t('serviceSettings.loadSettingsError')),
+})
 
 const serviceCards = computed(() => Object.entries(services.value).map(([key, service]) => ({
   key,
@@ -504,6 +515,7 @@ function isSupportedSelector(field: SettingSchemaField) {
   const entity = entityName(field)
   return entity === 'Currency'
     || entity === 'Product'
+    || entity === 'Storage'
     || entity === 'ExchangeRateProvider'
     || entity === 'ProductPricingType'
     || entity === 'MarkupGroup'
@@ -514,6 +526,7 @@ function isSelectorLoading(field: SettingSchemaField) {
   const entity = entityName(field)
   if (entity === 'Currency') return isLoadingCurrencies.value
   if (entity === 'Product') return isLoadingProducts.value
+  if (entity === 'Storage') return isStoragesLoading.value
   if (entity === 'MarkupGroup') return isLoadingMarkupGroups.value
   if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedService.value) {
     return loadingNamedObjectGroups.value.has(namedObjectsCacheKey(selectedService.value, field.dependsOnEntity))
@@ -525,6 +538,7 @@ function selectorOptions(field: SettingSchemaField): SelectorOption[] {
   const entity = entityName(field)
   if (entity === 'Currency') return currencies.value
   if (entity === 'Product') return products.value
+  if (entity === 'Storage') return storages.value
   if (entity === 'MarkupGroup') return markupGroups.value
   if (entity === 'ExchangeRateProvider') {
     return [
@@ -555,12 +569,12 @@ function enumValueLabel(field: SettingSchemaField, value: string | number | bool
 function selectorOptionValue(field: SettingSchemaField, option: SelectorOption): string | number {
   if ('value' in option) return option.value
   if ('systemName' in option) return option.systemName
+  if (entityName(field) === 'Storage') return (option as StorageModel).name
 
   const key = field.dependsOnField ?? 'id'
   const value = option[key as keyof SelectorOption]
-  return typeof value === 'number' || typeof value === 'string'
-    ? value
-    : option.id
+  if (typeof value === 'number' || typeof value === 'string') return value
+  return 'id' in option ? option.id : ''
 }
 
 function selectorOptionLabel(field: SettingSchemaField, option: SelectorOption) {
@@ -576,6 +590,10 @@ function selectorOptionLabel(field: SettingSchemaField, option: SelectorOption) 
   if (entity === 'Product') {
     const product = option as ProductSearchModel
     return `${product.sku} - ${product.name}`
+  }
+
+  if (entity === 'Storage') {
+    return (option as StorageModel).name
   }
 
   if (entity === 'MarkupGroup') {
@@ -704,6 +722,11 @@ async function loadSelectorOptions(field: SettingSchemaField) {
     return
   }
 
+  if (entity === 'Storage') {
+    await loadStoragesIfNeeded()
+    return
+  }
+
   if (entity === 'MarkupGroup') {
     await loadMarkupGroupsIfNeeded()
     return
@@ -717,6 +740,8 @@ async function loadSelectorOptions(field: SettingSchemaField) {
 function searchSelectorOptions(field: SettingSchemaField, query: string) {
   if (entityName(field) === 'Product') {
     void loadProducts(query, true)
+  } else if (entityName(field) === 'Storage') {
+    searchStorages(query)
   }
 }
 
@@ -724,6 +749,11 @@ async function loadMoreSelectorOptions(field: SettingSchemaField) {
   const entity = entityName(field)
   if (entity === 'Product') {
     await loadProducts(productsQuery.value, false)
+    return
+  }
+
+  if (entity === 'Storage') {
+    await loadMoreStorages()
     return
   }
 
