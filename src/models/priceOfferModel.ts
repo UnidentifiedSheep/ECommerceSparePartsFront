@@ -9,10 +9,10 @@ export interface PriceOfferModel {
   minimumPurchaseQuantity: number
   quantityCoefficient: number
   daysToRefund: number
-  deliveryDate: string
-  guaranteedDeliveryDate: string
+  deliveryDate: string | null
+  guaranteedDeliveryDate: string | null
   deliveryProbability: number
-  orderTill: string
+  orderTill: string | null
   expiresAt: string
 }
 

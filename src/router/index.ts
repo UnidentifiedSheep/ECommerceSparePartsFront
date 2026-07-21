@@ -4,6 +4,8 @@ import AnalyticsView from '@/views/AnalyticsView.vue'
 import CurrenciesView from '@/views/CurrenciesView.vue'
 import JobsView from '@/views/JobsView.vue'
 import MarkupsView from '@/views/MarkupsView.vue'
+import PriceAppliersView from '@/views/PriceAppliersView.vue'
+import NotFoundView from '@/views/NotFoundView.vue'
 import PasswordRecoveryView from '@/views/PasswordRecoveryView.vue'
 import PasswordResetView from '@/views/PasswordResetView.vue'
 import PermissionsView from '@/views/PermissionsView.vue'
@@ -75,6 +77,12 @@ const routes = [
         meta: { requiresAuth: true },
       },
       {
+        path: '/price-appliers',
+        name: 'price-appliers',
+        component: PriceAppliersView,
+        meta: { requiresAuth: true },
+      },
+      {
         path: '/permissions',
         name: 'permissions',
         component: PermissionsView,
@@ -132,6 +140,12 @@ const routes = [
         path: '/settings',
         name: 'settings',
         component: SettingsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/:pathMatch(.*)*',
+        name: 'not-found',
+        component: NotFoundView,
         meta: { requiresAuth: true },
       },
     ],

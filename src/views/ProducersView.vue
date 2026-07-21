@@ -2,27 +2,29 @@
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
     <PageHeader :title="t('producers.title')" :description="t('producers.description')">
       <template #actions>
-        <el-button type="primary" @click="openCreateDialog">{{ t('producers.addProducer') }}</el-button>
+        <el-button :icon="Plus" type="primary" @click="openCreateDialog">
+          {{ t('producers.addProducer') }}
+        </el-button>
       </template>
     </PageHeader>
 
-    <div class="p-4">
-      <el-card shadow="never">
-        <el-row :gutter="20" align="bottom">
-          <el-col :span="8">
-            <label class="mb-2 block text-sm font-medium text-slate-700">{{ t('producers.search') }}</label>
-            <el-input v-model="searchTerm" clearable :placeholder="t('producers.searchPlaceholder')" />
-          </el-col>
-          <el-col :span="4">
-            <el-button plain @click="searchTerm = ''">{{ t('common.actions.reset') }}</el-button>
-          </el-col>
-        </el-row>
-      </el-card>
+    <div class="producer-page-body">
+      <div class="producer-search-bar">
+        <label for="producer-search">{{ t('producers.search') }}</label>
+        <el-input
+          id="producer-search"
+          v-model="searchTerm"
+          :prefix-icon="Search"
+          clearable
+          :placeholder="t('producers.searchPlaceholder')"
+        />
+        <span class="producer-search-bar__count">
+          {{ t('producers.foundOnPage', { count: producers.length }) }}
+        </span>
+      </div>
 
-      <div class="pt-4">
-        <el-row :gutter="24">
-          <el-col :span="14">
-            <el-card shadow="never" class="h-[760px]">
+      <div class="producer-workspace">
+            <el-card v-loading="listLoading" shadow="never" class="producer-list-card">
               <el-table
                 :data="producers"
                 class="w-full"
@@ -31,7 +33,7 @@
                 @current-change="selectProducer"
               >
                 <el-table-column prop="name" :label="t('common.labels.name')" min-width="220" />
-                <el-table-column :label="t('common.labels.description')" min-width="260">
+                <el-table-column v-if="!isMobile" :label="t('common.labels.description')" min-width="260">
                   <template #default="{ row }">
                     {{ row.description || '—' }}
                   </template>
@@ -50,27 +52,58 @@
                 <ZeroPagination v-model:page="page" v-model:size="limit" :has-next="hasNext" />
               </template>
             </el-card>
-          </el-col>
 
-          <el-col :span="10">
-            <el-card shadow="never" class="h-[760px] overflow-hidden">
+            <el-card shadow="never" class="producer-details-card">
               <template v-if="selectedProducer">
-                <div class="mb-4 rounded-lg bg-slate-50 p-4">
-                  <div class="flex items-start justify-between gap-3">
-                    <div>
-                      <div class="text-lg font-semibold text-slate-900">{{ selectedProducer.name }}</div>
-                    </div>
-                    <el-button size="small" type="primary" @click="aliasDialogOpen = true">{{ t('producers.addAlias') }}</el-button>
-                  </div>
-                  <div class="mt-3 text-sm text-slate-700">
+                <div class="producer-details-header">
+                  <h2>{{ selectedProducer.name }}</h2>
+                  <p>
                     {{ selectedProducer.description || t('producers.noDescription') }}
+                  </p>
+
+                  <div class="producer-details-toolbar">
+                    <div class="producer-details-tabs" role="tablist">
+                      <button
+                        v-for="option in detailsModeOptions"
+                        :key="option.value"
+                        type="button"
+                        role="tab"
+                        :aria-selected="detailsMode === option.value"
+                        :class="{ 'is-active': detailsMode === option.value }"
+                        @click="detailsMode = option.value"
+                      >
+                        {{ option.label }}
+                      </button>
+                    </div>
+
+                    <el-button
+                      v-if="detailsMode === 'aliases'"
+                      :icon="Plus"
+                      size="small"
+                      plain
+                      @click="aliasDialogOpen = true"
+                    >
+                      {{ t('producers.addAlias') }}
+                    </el-button>
+                    <el-button
+                      v-else
+                      :icon="Plus"
+                      size="small"
+                      plain
+                      @click="openSupplierMappingDialog"
+                    >
+                      {{ t('producers.addSupplierReference') }}
+                    </el-button>
                   </div>
                 </div>
 
-                <div v-loading="detailsLoading" class="h-[calc(100%-150px)] overflow-auto pr-1">
-                  <el-table :data="aliases" stripe>
+                <div v-loading="detailsLoading" class="producer-details-table">
+                  <el-table v-if="detailsMode === 'aliases'" :data="aliases" height="100%">
                     <el-table-column prop="alias" :label="t('producers.alias')" min-width="220" />
-                    <el-table-column fixed="right" :label="t('common.labels.actions')" width="72" align="right">
+                    <el-table-column width="56" align="center">
+                      <template #header>
+                        <span class="sr-only">{{ t('common.labels.actions') }}</span>
+                      </template>
                       <template #default="{ row }">
                         <ActionIconButton
                           :label="t('common.actions.delete')"
@@ -81,15 +114,41 @@
                       </template>
                     </el-table-column>
                   </el-table>
+
+                  <el-table v-else :data="supplierMappings" height="100%">
+                    <el-table-column :label="t('producers.supplier')" min-width="105">
+                      <template #default="{ row }">
+                        {{ t(`producers.suppliers.${row.supplier}`) }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column
+                      prop="supplierProducerName"
+                      :label="t('producers.supplierProducerName')"
+                      min-width="145"
+                    />
+                    <el-table-column width="56" align="center">
+                      <template #header>
+                        <span class="sr-only">{{ t('common.labels.actions') }}</span>
+                      </template>
+                      <template #default="{ row }">
+                        <ActionIconButton
+                          :label="t('common.actions.delete')"
+                          :icon="Delete"
+                          tone="danger"
+                          @click="removeSupplierMapping(row.id)"
+                        />
+                      </template>
+                    </el-table-column>
+                  </el-table>
                 </div>
               </template>
 
               <template v-else>
-                <el-empty :description="t('producers.selectToView')" />
+                <div class="producer-details-empty">
+                  <el-empty :description="t('producers.selectToView')" />
+                </div>
               </template>
             </el-card>
-          </el-col>
-        </el-row>
       </div>
     </div>
 
@@ -134,34 +193,83 @@
         <el-button type="primary" @click="saveAlias">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="supplierMappingDialogOpen"
+      :title="t('producers.addSupplierReferenceTitle')"
+      width="520"
+    >
+      <el-form label-position="top">
+        <el-form-item :label="t('producers.supplier')" required>
+          <el-select v-model="supplierMappingForm.supplier" class="w-full">
+            <el-option
+              v-for="supplier in supplierOptions"
+              :key="supplier"
+              :label="t(`producers.suppliers.${supplier}`)"
+              :value="supplier"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="t('producers.supplierProducerName')" required>
+          <el-input
+            v-model="supplierMappingForm.supplierProducerName"
+            :placeholder="t('producers.supplierProducerNamePlaceholder')"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="supplierMappingDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!supplierMappingForm.supplierProducerName.trim()"
+          @click="saveSupplierMapping"
+        >
+          {{ t('common.actions.add') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
-import { useDebounceFn } from '@vueuse/core'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useDebounceFn, useMediaQuery } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
-import { Delete, Edit } from '@element-plus/icons-vue'
-import type { ProducerAliasModel } from '@/models/producerModel.ts'
+import { Delete, Edit, Plus, Search } from '@element-plus/icons-vue'
+import type {
+  ProducerAliasModel,
+  ProducerSupplierMappingModel,
+  Supplier,
+} from '@/models/producerModel.ts'
 import type { ProducerSearchModel } from '@/models/producerSearchModel.ts'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import {
   addProducerAlias,
+  createProducerSupplierMapping,
   createProducer,
   deleteProducer,
   deleteProducerAlias,
+  deleteProducerSupplierMapping,
   editProducer,
   getProducerAliases,
+  getProducerSupplierMappings,
 } from '@/services/api/producers.ts'
 import { searchProducers } from '@/services/api/search.ts'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
+const isMobile = useMediaQuery('(max-width: 640px)')
 const producers = ref<ProducerSearchModel[]>([])
 const selectedProducer = ref<ProducerSearchModel>()
 const aliases = ref<ProducerAliasModel[]>([])
+const supplierMappings = ref<ProducerSupplierMappingModel[]>([])
+type DetailsMode = 'aliases' | 'supplierReferences'
+
+const detailsMode = ref<DetailsMode>('aliases')
+const aliasesLoaded = ref(false)
+const supplierMappingsLoaded = ref(false)
 const searchTerm = ref('')
 const page = ref(0)
 const limit = ref(20)
@@ -172,6 +280,7 @@ const detailsLoading = ref(false)
 const createDialogOpen = ref(false)
 const editDialogOpen = ref(false)
 const aliasDialogOpen = ref(false)
+const supplierMappingDialogOpen = ref(false)
 
 const createForm = reactive({
   name: '',
@@ -187,6 +296,20 @@ const editForm = reactive({
 const aliasForm = reactive({
   alias: '',
 })
+
+const supplierOptions: Supplier[] = ['Armtek', 'FavoritParts']
+const supplierMappingForm = reactive<{
+  supplier: Supplier
+  supplierProducerName: string
+}>({
+  supplier: 'Armtek',
+  supplierProducerName: '',
+})
+
+const detailsModeOptions = computed<Array<{ label: string, value: DetailsMode }>>(() => [
+  { label: t('producers.aliases'), value: 'aliases' },
+  { label: t('producers.supplierReferences'), value: 'supplierReferences' },
+])
 
 const loadProducersDebounced = useDebounceFn(async () => {
   await loadProducers(true)
@@ -211,7 +334,7 @@ async function loadProducers(resetPage: boolean) {
     if (selectedProducer.value) {
       const nextSelected = resp.producers.find((producer) => producer.id === selectedProducer.value?.id)
       selectedProducer.value = nextSelected
-      if (!nextSelected) aliases.value = []
+      if (!nextSelected) resetDetails()
     }
   } finally {
     listLoading.value = false
@@ -219,16 +342,45 @@ async function loadProducers(resetPage: boolean) {
 }
 
 async function selectProducer(producer?: ProducerSearchModel) {
+  if (producer?.id === selectedProducer.value?.id) return
+
   selectedProducer.value = producer
+  resetDetails()
   if (!producer) {
-    aliases.value = []
     return
   }
 
+  await loadCurrentDetails()
+}
+
+function resetDetails() {
+  aliases.value = []
+  supplierMappings.value = []
+  aliasesLoaded.value = false
+  supplierMappingsLoaded.value = false
+}
+
+async function loadCurrentDetails() {
+  const producer = selectedProducer.value
+  if (!producer) return
+
+  if (detailsMode.value === 'aliases' && aliasesLoaded.value) return
+  if (detailsMode.value === 'supplierReferences' && supplierMappingsLoaded.value) return
+
   detailsLoading.value = true
   try {
-    const resp = await getProducerAliases(producer.id)
-    aliases.value = resp.aliases
+    if (detailsMode.value === 'aliases') {
+      const resp = await getProducerAliases(producer.id)
+      if (selectedProducer.value?.id !== producer.id) return
+      aliases.value = resp.aliases
+      aliasesLoaded.value = true
+      return
+    }
+
+    const resp = await getProducerSupplierMappings({ producerId: producer.id })
+    if (selectedProducer.value?.id !== producer.id) return
+    supplierMappings.value = resp.mappings
+    supplierMappingsLoaded.value = true
   } finally {
     detailsLoading.value = false
   }
@@ -263,7 +415,7 @@ function addProducerToList(producer: ProducerSearchModel) {
     ...producers.value.filter((item) => item.id !== producer.id),
   ]
   selectedProducer.value = producer
-  aliases.value = []
+  resetDetails()
 }
 
 async function saveCreate() {
@@ -304,6 +456,8 @@ async function saveEdit() {
 async function removeProducer(id: number) {
   await deleteProducer(id)
 
+  producers.value = producers.value.filter((producer) => producer.id !== id)
+
   ElNotification({
     title: t('common.labels.success'),
     message: t('producers.deleted'),
@@ -312,10 +466,8 @@ async function removeProducer(id: number) {
 
   if (selectedProducer.value?.id === id) {
     selectedProducer.value = undefined
-    aliases.value = []
+    resetDetails()
   }
-
-  await loadProducers(false)
 }
 
 async function saveAlias() {
@@ -333,8 +485,12 @@ async function saveAlias() {
   })
 
   aliasDialogOpen.value = false
+  aliases.value.push({
+    producerId: selectedProducer.value.id,
+    alias: aliasForm.alias,
+  })
+  aliasesLoaded.value = true
   aliasForm.alias = ''
-  await selectProducer(selectedProducer.value)
 }
 
 async function removeAlias(alias: string) {
@@ -351,20 +507,270 @@ async function removeAlias(alias: string) {
     type: 'success',
   })
 
-  await selectProducer(selectedProducer.value)
+  aliases.value = aliases.value.filter((item) => item.alias !== alias)
+}
+
+function openSupplierMappingDialog() {
+  supplierMappingForm.supplier = 'Armtek'
+  supplierMappingForm.supplierProducerName = ''
+  supplierMappingDialogOpen.value = true
+}
+
+async function saveSupplierMapping() {
+  const producer = selectedProducer.value
+  const supplierProducerName = supplierMappingForm.supplierProducerName.trim()
+  if (!producer || !supplierProducerName) return
+
+  const resp = await createProducerSupplierMapping({
+    producerId: producer.id,
+    supplier: supplierMappingForm.supplier,
+    supplierProducerName,
+  })
+
+  supplierMappings.value = [
+    resp.producerSupplierMapping,
+    ...supplierMappings.value.filter((item) => item.id !== resp.producerSupplierMapping.id),
+  ]
+  supplierMappingsLoaded.value = true
+  supplierMappingDialogOpen.value = false
+
+  ElNotification({
+    title: t('common.labels.success'),
+    message: t('producers.supplierReferenceAdded'),
+    type: 'success',
+  })
+}
+
+async function removeSupplierMapping(mappingId: number) {
+  const producer = selectedProducer.value
+  if (!producer) return
+
+  await deleteProducerSupplierMapping(producer.id, mappingId)
+  supplierMappings.value = supplierMappings.value.filter((item) => item.id !== mappingId)
+
+  ElNotification({
+    title: t('common.labels.success'),
+    message: t('producers.supplierReferenceDeleted'),
+    type: 'success',
+  })
 }
 
 watch(limit, async () => loadProducers(true))
 watch(page, async () => loadProducers(false))
 watch(searchTerm, () => loadProducersDebounced())
+watch(detailsMode, async () => loadCurrentDetails())
 onMounted(async () => loadProducers(true))
 </script>
 
 <style scoped>
+.producer-page-body {
+  padding: 16px;
+}
+
+.producer-search-bar {
+  display: grid;
+  grid-template-columns: auto minmax(240px, 420px) 1fr;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px 16px;
+}
+
+.producer-search-bar label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.producer-search-bar__count {
+  justify-self: end;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.producer-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(400px, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.producer-list-card,
+.producer-details-card {
+  height: clamp(580px, calc(100dvh - 230px), 760px);
+  overflow: hidden;
+}
+
+.producer-list-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.producer-list-card :deep(.el-card__body) {
+  min-height: 0;
+  flex: 1;
+}
+
+.producer-details-card :deep(.el-card__body) {
+  display: flex;
+  height: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  padding: 0;
+}
+
 .producer-actions {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+}
+
+.producer-details-header {
+  flex: 0 0 auto;
+  padding: 20px 20px 0;
+}
+
+.producer-details-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.producer-details-header p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.producer-details-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 45px;
+  margin-top: 15px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.producer-details-tabs {
+  display: flex;
+  align-self: stretch;
+  gap: 20px;
+}
+
+.producer-details-tabs button {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.producer-details-tabs button::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: transparent;
+  content: '';
+}
+
+.producer-details-tabs button:hover {
+  color: #1e293b;
+}
+
+.producer-details-tabs button.is-active {
+  color: #047857;
+}
+
+.producer-details-tabs button.is-active::after {
+  background: #059669;
+}
+
+.producer-details-toolbar > .el-button {
+  margin-bottom: 7px;
+}
+
+.producer-details-table {
+  min-height: 0;
+  flex: 1;
+  margin: 12px 20px 20px;
+}
+
+.producer-details-empty {
+  display: grid;
+  height: 100%;
+  place-items: center;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .producer-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .producer-list-card {
+    height: 620px;
+  }
+
+  .producer-details-card {
+    height: 460px;
+  }
+}
+
+@media (max-width: 640px) {
+  .producer-page-body {
+    padding: 12px;
+  }
+
+  .producer-search-bar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .producer-search-bar__count {
+    justify-self: start;
+  }
+
+  .producer-details-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    padding-bottom: 10px;
+  }
+
+  .producer-details-tabs {
+    min-height: 40px;
+  }
+
+  .producer-details-toolbar > .el-button {
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .producer-details-card {
+    height: 420px;
+  }
 }
 </style>

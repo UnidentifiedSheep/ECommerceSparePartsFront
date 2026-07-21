@@ -61,6 +61,13 @@
       </template>
 
       <el-menu-item index="/markups" @click="openRoute('/markups')">{{ t('nav.markup') }}</el-menu-item>
+      <el-menu-item
+        v-if="canManagePriceAppliers"
+        index="/price-appliers"
+        @click="openRoute('/price-appliers')"
+      >
+        {{ t('nav.priceAppliers') }}
+      </el-menu-item>
     </el-sub-menu>
 
     <el-sub-menu index="control">
@@ -80,6 +87,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Close, DataAnalysis, Key, Money, Tickets } from '@element-plus/icons-vue'
 import IconRoute from '@/components/icons/IconRoute.vue'
+import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
 
 withDefaults(defineProps<{
@@ -95,6 +103,8 @@ const emit = defineEmits<{
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { hasPermission } = usePermissions()
+const canManagePriceAppliers = computed(() => hasPermission('PRICE_APPLIERS_MANAGE'))
 
 const routeRoots = [
   '/purchases',
@@ -109,6 +119,7 @@ const routeRoots = [
   '/permissions',
   '/currencies',
   '/markups',
+  '/price-appliers',
   '/service-settings',
   '/analytics',
   '/jobs',

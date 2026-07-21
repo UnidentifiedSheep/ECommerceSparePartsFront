@@ -2,17 +2,34 @@
   <div class="product-page">
     <PageHeader :title="t('products.title')" :description="t('products.description')">
       <template #actions>
-        <el-button v-if="canCreateProducts" type="primary" @click="createDialogOpen = true">{{ t('products.createProducts') }}</el-button>
+        <el-button v-if="canCreateProducts" :icon="Plus" type="primary" @click="createDialogOpen = true">
+          {{ t('products.createProducts') }}
+        </el-button>
       </template>
     </PageHeader>
 
     <div class="product-content">
       <section class="product-panel product-search-panel">
-        <div class="product-panel__body">
+        <button
+          v-if="isMobileViewport && mobileSearchCollapsed"
+          class="product-mobile-search-toggle"
+          type="button"
+          aria-expanded="false"
+          :aria-label="t('products.showSearch')"
+          @click="mobileSearchCollapsed = false"
+        >
+          <span>
+            <strong>{{ t('products.searchAndFilters') }}</strong>
+            <em>{{ mobileSearchSummary }}</em>
+          </span>
+          <el-icon><ArrowDown /></el-icon>
+        </button>
+
+        <div v-show="!isMobileViewport || !mobileSearchCollapsed" class="product-panel__body">
           <div class="product-search-toolbar">
             <div class="product-search-toolbar__mode">
               <label class="product-field-label">{{ t('products.searchMode') }}</label>
-              <el-select v-model="form.searchMode" size="large" class="w-full" @change="applyFilters">
+              <el-select v-model="form.searchMode" size="large" class="w-full" @change="applyFilters(true)">
                 <el-option :label="t('products.searchAll')" value="all" />
                 <el-option :label="t('products.searchSku')" value="sku" />
               </el-select>
@@ -20,13 +37,25 @@
 
             <div class="product-search-toolbar__query">
               <label class="product-field-label">{{ t('common.labels.search') }}</label>
-              <el-input
+              <el-autocomplete
                 v-model="form.query"
+                :fetch-suggestions="querySearchHistory"
+                :prefix-icon="Search"
                 clearable
                 size="large"
+                value-key="value"
+                class="w-full"
                 :placeholder="searchPlaceholder"
-                @keyup.enter="applyFilters"
-              />
+                @select="selectSearchHistory"
+                @keyup.enter="submitSearch"
+              >
+                <template #default="{ item }">
+                  <div class="product-search-history-option">
+                    <el-icon><Clock /></el-icon>
+                    <span>{{ item.value }}</span>
+                  </div>
+                </template>
+              </el-autocomplete>
             </div>
 
             <div class="product-search-toolbar__producer">
@@ -36,15 +65,25 @@
 
             <el-badge
               v-if="form.searchMode === 'all'"
-              class="product-search-toolbar__action"
+              class="product-search-toolbar__action product-search-toolbar__filters"
               :value="dimensionFiltersCount"
               :hidden="dimensionFiltersCount === 0"
             >
-              <el-button size="large" plain @click="filtersDrawerOpen = true">{{ t('products.filters') }}</el-button>
+              <el-button :icon="Filter" size="large" plain @click="filtersDrawerOpen = true">
+                {{ t('products.filters') }}
+              </el-button>
             </el-badge>
 
-            <el-button class="product-search-toolbar__action product-search-toolbar__button" size="large" type="primary" @click="applyFilters">{{ t('products.find') }}</el-button>
-            <el-button class="product-search-toolbar__action product-search-toolbar__button" size="large" plain @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
+            <el-tooltip :content="t('common.actions.reset')" placement="top">
+              <el-button
+                class="product-search-toolbar__action product-search-toolbar__reset"
+                :icon="RefreshLeft"
+                size="large"
+                plain
+                :aria-label="t('common.actions.reset')"
+                @click="resetFilters"
+              />
+            </el-tooltip>
           </div>
 
           <div v-if="activeFilters.length > 0" class="product-active-filters">
@@ -71,14 +110,14 @@
         <div class="product-filter-drawer">
           <div class="product-filter-drawer__body">
             <section class="product-filter-section">
-              <div class="product-filter-section__title">
+              <div class="product-filter-section__header">
                 <span>{{ t('products.dimensions') }}</span>
                 <el-tooltip :content="t('products.dimensionsHint')" placement="top">
                   <el-icon class="cursor-help text-slate-400"><InfoFilled /></el-icon>
                 </el-tooltip>
               </div>
 
-              <el-form label-position="top">
+              <el-form label-position="top" class="product-filter-unit">
                 <el-form-item :label="t('products.measurementUnit')">
                   <el-select v-model="form.dimensionUnit" class="w-full">
                     <el-option
@@ -90,47 +129,49 @@
                   </el-select>
                 </el-form-item>
               </el-form>
-            </section>
 
-            <section class="product-filter-section">
-              <div class="product-filter-section__title">{{ t('products.length') }}</div>
-              <div class="dimension-range-grid">
-                <label class="dimension-range-field">
-                  <span>{{ t('products.from') }}</span>
-                  <el-input-number v-model="form.lengthMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                </label>
-                <label class="dimension-range-field">
-                  <span>{{ t('products.to') }}</span>
-                  <el-input-number v-model="form.lengthMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                </label>
-              </div>
-            </section>
+              <div class="dimension-filter-list">
+                <div class="dimension-filter-row">
+                  <span class="dimension-filter-row__title">{{ t('products.length') }}</span>
+                  <div class="dimension-range-grid">
+                    <label class="dimension-range-field">
+                      <span>{{ t('products.from') }}</span>
+                      <el-input-number v-model="form.lengthMin" :min="0" :precision="2" :controls="false" class="w-full" />
+                    </label>
+                    <label class="dimension-range-field">
+                      <span>{{ t('products.to') }}</span>
+                      <el-input-number v-model="form.lengthMax" :min="0" :precision="2" :controls="false" class="w-full" />
+                    </label>
+                  </div>
+                </div>
 
-            <section class="product-filter-section">
-              <div class="product-filter-section__title">{{ t('products.width') }}</div>
-              <div class="dimension-range-grid">
-                <label class="dimension-range-field">
-                  <span>{{ t('products.from') }}</span>
-                  <el-input-number v-model="form.widthMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                </label>
-                <label class="dimension-range-field">
-                  <span>{{ t('products.to') }}</span>
-                  <el-input-number v-model="form.widthMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                </label>
-              </div>
-            </section>
+                <div class="dimension-filter-row">
+                  <span class="dimension-filter-row__title">{{ t('products.width') }}</span>
+                  <div class="dimension-range-grid">
+                    <label class="dimension-range-field">
+                      <span>{{ t('products.from') }}</span>
+                      <el-input-number v-model="form.widthMin" :min="0" :precision="2" :controls="false" class="w-full" />
+                    </label>
+                    <label class="dimension-range-field">
+                      <span>{{ t('products.to') }}</span>
+                      <el-input-number v-model="form.widthMax" :min="0" :precision="2" :controls="false" class="w-full" />
+                    </label>
+                  </div>
+                </div>
 
-            <section class="product-filter-section">
-              <div class="product-filter-section__title">{{ t('products.height') }}</div>
-              <div class="dimension-range-grid">
-                <label class="dimension-range-field">
-                  <span>{{ t('products.from') }}</span>
-                  <el-input-number v-model="form.heightMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                </label>
-                <label class="dimension-range-field">
-                  <span>{{ t('products.to') }}</span>
-                  <el-input-number v-model="form.heightMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                </label>
+                <div class="dimension-filter-row">
+                  <span class="dimension-filter-row__title">{{ t('products.height') }}</span>
+                  <div class="dimension-range-grid">
+                    <label class="dimension-range-field">
+                      <span>{{ t('products.from') }}</span>
+                      <el-input-number v-model="form.heightMin" :min="0" :precision="2" :controls="false" class="w-full" />
+                    </label>
+                    <label class="dimension-range-field">
+                      <span>{{ t('products.to') }}</span>
+                      <el-input-number v-model="form.heightMax" :min="0" :precision="2" :controls="false" class="w-full" />
+                    </label>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
@@ -138,7 +179,7 @@
           <div class="product-filter-drawer__footer">
             <div class="flex justify-end gap-3">
               <el-button @click="clearDimensionFilters">{{ t('products.clear') }}</el-button>
-              <el-button type="primary" @click="applyFilters">{{ t('purchases.apply') }}</el-button>
+              <el-button type="primary" @click="submitSearch">{{ t('purchases.apply') }}</el-button>
             </div>
           </div>
         </div>
@@ -150,25 +191,27 @@
             <h2>{{ t('products.results') }}</h2>
             <p>{{ resultTitle }}</p>
           </div>
-          <div class="product-results-meta">
-            {{ products.length.toLocaleString(locale) }}
-          </div>
+          <div class="product-results-meta">{{ t('products.shownCount', { count: products.length.toLocaleString(locale) }) }}</div>
         </header>
 
         <el-table
           v-loading="isLoading"
           :data="products"
-          class="products-table"
+          class="products-table products-table--desktop"
+          height="100%"
           @sort-change="handleSortChange"
+          @row-click="(row: ProductSearchModel) => openQuickView(row)"
           @row-dblclick="(row: ProductSearchModel) => openCrosses(row.id)"
         >
-          <el-table-column prop="sku" :label="t('products.sku')" min-width="160" sortable="custom">
+          <el-table-column prop="sku" :label="t('products.productColumn')" min-width="330" sortable="custom">
             <template #default="{ row }">
-              <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
+              <button class="product-identity" type="button" @click.stop="openQuickView(row)">
+                <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
+                <span class="product-identity__name">{{ row.name }}</span>
+              </button>
             </template>
           </el-table-column>
-          <el-table-column prop="name" :label="t('common.labels.name')" min-width="260" />
-          <el-table-column prop="producerId" :label="t('common.labels.producer')" min-width="180" sortable="custom">
+          <el-table-column prop="producerId" :label="t('common.labels.producer')" min-width="170" sortable="custom">
             <template #default="{ row }">
               {{ producerName(row.producerId) }}
             </template>
@@ -178,7 +221,7 @@
               <ProductStockCell :stock="row.stock" />
             </template>
           </el-table-column>
-          <el-table-column prop="volume" :label="t('products.dimensions')" min-width="220" sortable="custom">
+          <el-table-column prop="volume" :label="t('products.dimensions')" min-width="210" sortable="custom">
             <template #default="{ row }">
               <span v-if="row.dimensions">
                 {{ formatDimension(row.dimensions.length) }} ×
@@ -195,20 +238,75 @@
               <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
-          <el-table-column fixed="right" label="" width="104" align="right">
+          <el-table-column fixed="right" :label="t('common.labels.actions')" width="104" align="right">
             <template #default="{ row }">
-              <div class="flex justify-end gap-1">
+              <div class="flex justify-end gap-1" @click.stop>
                 <ActionIconButton
                   v-if="canViewPriceOffers"
                   :label="t('priceOffers.open')"
                   :icon="Money"
                   @click="openPriceOffers(row)"
                 />
-                <ActionIconButton :label="t('products.crosses')" :icon="Link" @click="openCrosses(row.id)" />
+                <ActionIconButton :label="t('products.openProduct')" :icon="View" @click="openCrosses(row.id)" />
               </div>
             </template>
           </el-table-column>
         </el-table>
+
+        <div v-loading="isLoading" class="products-mobile-list">
+          <article
+            v-for="row in products"
+            :key="row.id"
+            class="product-mobile-row"
+            role="button"
+            tabindex="0"
+            @click="openQuickView(row)"
+            @keydown.enter.prevent="openQuickView(row)"
+            @keydown.space.prevent="openQuickView(row)"
+          >
+            <div class="product-mobile-row__header">
+              <button class="product-identity" type="button" @click.stop="openQuickView(row)">
+                <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
+                <span class="product-identity__name">{{ row.name }}</span>
+              </button>
+              <div class="product-mobile-row__actions" @click.stop>
+                <ActionIconButton
+                  v-if="canViewPriceOffers"
+                  :label="t('priceOffers.open')"
+                  :icon="Money"
+                  @click="openPriceOffers(row)"
+                />
+                <ActionIconButton :label="t('products.openProduct')" :icon="View" @click="openCrosses(row.id)" />
+              </div>
+            </div>
+
+            <dl class="product-mobile-row__meta">
+              <div>
+                <dt>{{ t('common.labels.producer') }}</dt>
+                <dd>{{ producerName(row.producerId) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('products.stock') }}</dt>
+                <dd><ProductStockCell :stock="row.stock" /></dd>
+              </div>
+              <div>
+                <dt>{{ t('products.dimensions') }}</dt>
+                <dd v-if="row.dimensions">
+                  {{ formatDimension(row.dimensions.length) }} × {{ formatDimension(row.dimensions.width) }} ×
+                  {{ formatDimension(row.dimensions.height) }} {{ dimensionMeasureUnitLabel(row.dimensions.unit) }}
+                </dd>
+                <dd v-else>—</dd>
+              </div>
+              <div>
+                <dt>{{ t('products.weight') }}</dt>
+                <dd v-if="row.weight">{{ row.weight.value }} {{ weightMeasureUnitLabel(row.weight.unit, row.weight.value) }}</dd>
+                <dd v-else>—</dd>
+              </div>
+            </dl>
+          </article>
+
+          <el-empty v-if="!isLoading && products.length === 0" :description="t('products.notFound')" :image-size="64" />
+        </div>
 
         <footer class="product-results-footer">
           <ZeroPagination v-model:page="page" v-model:size="size" :has-next="hasNext" />
@@ -217,6 +315,14 @@
     </div>
 
     <CreateProductsCrossesDialog v-if="canCreateProducts" v-model="createDialogOpen" @saved="loadProducts" />
+    <ProductQuickViewDrawer
+      v-model="quickViewOpen"
+      :product="selectedQuickProduct"
+      :producer-name="selectedQuickProduct ? producerName(selectedQuickProduct.producerId) : undefined"
+      :can-view-price-offers="canViewPriceOffers"
+      @open-product="openCrosses"
+      @open-prices="openPricesFromQuickView"
+    />
     <ProductPriceOffersDialog
       v-if="selectedPriceProduct && canViewPriceOffers"
       v-model="priceOffersDialogOpen"
@@ -227,13 +333,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { InfoFilled, Link, Money } from '@element-plus/icons-vue'
+import { ArrowDown, Clock, Filter, InfoFilled, Money, Plus, RefreshLeft, Search, View } from '@element-plus/icons-vue'
+import { useDebounceFn, useMediaQuery } from '@vueuse/core'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
+import ProductQuickViewDrawer from '@/components/products/ProductQuickViewDrawer.vue'
 import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
@@ -242,6 +350,7 @@ import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { getProducer } from '@/services/api/producers.ts'
 import { searchProducts, searchProductsBySku } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { useProductSearchHistory } from '@/composables/useProductSearchHistory.ts'
 import {
   dimensionMeasureUnitLabel,
   dimensionSearchUnitOptions,
@@ -251,6 +360,10 @@ import {
 import { useI18n } from '@/i18n'
 
 type ProductSearchMode = 'all' | 'sku'
+
+interface ProductSearchHistoryItem {
+  value: string
+}
 
 interface ProductSearchForm {
   query: string
@@ -281,9 +394,16 @@ const skipNextDrawerCloseApply = ref(false)
 const createDialogOpen = ref(false)
 const priceOffersDialogOpen = ref(false)
 const selectedPriceProduct = ref<ProductSearchModel | null>(null)
+const quickViewOpen = ref(false)
+const selectedQuickProduct = ref<ProductSearchModel | null>(null)
+const mobileSearchCollapsed = ref(false)
+const isMobileViewport = useMediaQuery('(max-width: 760px)')
 const { hasPermission } = usePermissions()
 const canCreateProducts = computed(() => hasPermission('ARTICLES_CREATE'))
 const canViewPriceOffers = computed(() => hasPermission('PRICES_GET_DETAILED'))
+const { searchHistory, rememberSearch: rememberSearchInHistory } = useProductSearchHistory()
+let productsRequestId = 0
+let suspendAutoSearch = false
 
 const form = reactive<ProductSearchForm>({
   query: '',
@@ -300,7 +420,8 @@ const resultTitle = computed(() => {
   if (query) return form.searchMode === 'sku'
     ? t('products.skuSearchResult', { query })
     : t('products.queryResult', { query })
-  return form.searchMode === 'sku' ? t('products.enterSku') : t('products.enterQuery')
+  if (form.searchMode === 'sku') return t('products.enterSku')
+  return activeFilters.value.length > 0 ? t('products.filteredProducts') : t('products.allProducts')
 })
 
 const dimensionFiltersCount = computed(() => {
@@ -334,8 +455,49 @@ const activeFilters = computed(() => {
   return filters
 })
 
+const mobileSearchSummary = computed(() => {
+  const parts = [t(form.searchMode === 'sku' ? 'products.searchSku' : 'products.searchAll')]
+  const query = form.query.trim()
+  if (query) parts.push(query)
+  if (activeFilters.value.length > 0) {
+    parts.push(t('products.filterCount', { count: activeFilters.value.length }))
+  }
+  return parts.join(' · ')
+})
+
+const debouncedProductSearch = useDebounceFn(async () => {
+  if (suspendAutoSearch) return
+
+  const query = form.query.trim()
+  if (query === (queryString('query') ?? '').trim()) return
+
+  rememberSearch(query)
+  await applyFilters(true)
+}, 450)
+
 function formatDimension(value: number) {
   return value.toLocaleString(locale.value)
+}
+
+function rememberSearch(query: string) {
+  rememberSearchInHistory(query, locale.value)
+}
+
+function querySearchHistory(query: string, callback: (items: ProductSearchHistoryItem[]) => void) {
+  const normalizedQuery = query.trim().toLocaleLowerCase(locale.value)
+  const items = searchHistory.value
+    .filter((item) => !normalizedQuery || item.toLocaleLowerCase(locale.value).includes(normalizedQuery))
+    .map((value) => ({ value }))
+  callback(items)
+}
+
+function selectSearchHistory(item: ProductSearchHistoryItem) {
+  suspendAutoSearch = true
+  form.query = item.value
+  void submitSearch()
+  void nextTick(() => {
+    suspendAutoSearch = false
+  })
 }
 
 function producerName(id: number) {
@@ -343,15 +505,26 @@ function producerName(id: number) {
 }
 
 function openCrosses(productId: number) {
+  quickViewOpen.value = false
   router.push({
     name: 'product-details',
     params: { id: productId },
   })
 }
 
+function openQuickView(product: ProductSearchModel) {
+  selectedQuickProduct.value = product
+  quickViewOpen.value = true
+}
+
 function openPriceOffers(product: ProductSearchModel) {
   selectedPriceProduct.value = product
   priceOffersDialogOpen.value = true
+}
+
+function openPricesFromQuickView(product: ProductSearchModel) {
+  quickViewOpen.value = false
+  openPriceOffers(product)
 }
 
 function queryString(name: string) {
@@ -407,19 +580,29 @@ function buildRouteQuery(resetPage: boolean) {
   }
 }
 
-async function applyFilters() {
+async function applyFilters(replaceRoute = false) {
   if (filtersDrawerOpen.value) {
     skipNextDrawerCloseApply.value = true
   }
 
   filtersDrawerOpen.value = false
-  await router.push({
+  const navigate = replaceRoute ? router.replace : router.push
+  await navigate({
     name: 'products',
     query: buildRouteQuery(true),
   })
 }
 
+async function submitSearch() {
+  rememberSearch(form.query)
+  await applyFilters()
+  if (isMobileViewport.value) {
+    mobileSearchCollapsed.value = true
+  }
+}
+
 async function resetFilters() {
+  suspendAutoSearch = true
   form.query = ''
   form.searchMode = 'all'
   form.producerId = undefined
@@ -437,9 +620,11 @@ async function resetFilters() {
     name: 'products',
     query: { page: 0, size: size.value },
   })
+  suspendAutoSearch = false
 }
 
 async function clearFilter(key: keyof ProductSearchForm) {
+  suspendAutoSearch = true
   if (key === 'query') {
     form.query = ''
   } else if (key === 'searchMode') {
@@ -451,6 +636,7 @@ async function clearFilter(key: keyof ProductSearchForm) {
   }
 
   await applyFilters()
+  suspendAutoSearch = false
 }
 
 function clearDimensionFilters() {
@@ -479,8 +665,7 @@ async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'd
 }
 
 async function loadProducts() {
-  if (isLoading.value) return
-
+  const currentRequestId = ++productsRequestId
   isLoading.value = true
   try {
     const query = form.query.trim()
@@ -509,12 +694,16 @@ async function loadProducts() {
           sortBy: sortBy.value,
         })
 
+    if (currentRequestId !== productsRequestId) return
+
     products.value = resp.products
     hasNext.value = resp.products.length === size.value
     await loadProducerNames(resp.products)
     await ensureProducerName(form.producerId)
   } finally {
-    isLoading.value = false
+    if (currentRequestId === productsRequestId) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -542,6 +731,16 @@ watch(
     await loadProducts()
   },
 )
+
+watch(() => form.query, (query) => {
+  if (suspendAutoSearch || query === (queryString('query') ?? '')) return
+  void debouncedProductSearch()
+})
+
+watch(() => form.producerId, (producerId) => {
+  if (suspendAutoSearch || producerId === queryNumber('producerId')) return
+  void applyFilters(true)
+})
 
 watch(filtersDrawerOpen, async (isOpen, wasOpen) => {
   if (isOpen || !wasOpen) return
@@ -572,38 +771,56 @@ watch(size, async () => {
 onMounted(async () => {
   syncFormFromRoute()
   await loadProducts()
+  if (isMobileViewport.value && (
+    form.query.trim()
+    || form.producerId
+    || form.searchMode === 'sku'
+    || dimensionFiltersCount.value > 0
+  )) {
+    mobileSearchCollapsed.value = true
+  }
 })
 </script>
 
 <style scoped>
 .product-page {
-  min-height: calc(100vh - 56px);
+  display: flex;
+  height: calc(100dvh - 56px);
+  min-height: 560px;
+  flex-direction: column;
+  overflow: hidden;
   background: #f7f8fa;
 }
 
 .product-content {
   display: flex;
+  flex: 1;
+  min-height: 0;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   padding: 16px;
 }
 
 .product-panel {
   overflow: hidden;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid #dfe3e8;
+  border-radius: 7px;
   background: #ffffff;
 }
 
 .product-panel__body {
-  padding: 16px;
+  padding: 14px 16px;
+}
+
+.product-mobile-search-toggle {
+  display: none;
 }
 
 .product-field-label {
   display: block;
-  margin-bottom: 8px;
-  color: #334155;
-  font-size: 13px;
+  margin-bottom: 6px;
+  color: #475569;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -612,9 +829,9 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid #eceff2;
+  padding-top: 10px;
 }
 
 .product-active-filters__label {
@@ -625,6 +842,7 @@ onMounted(async () => {
 
 .product-results-panel {
   display: flex;
+  flex: 1;
   min-height: 0;
   flex-direction: column;
 }
@@ -634,8 +852,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 14px 16px;
+  border-bottom: 1px solid #dfe3e8;
+  padding: 12px 16px;
 }
 
 .product-results-header h2 {
@@ -654,42 +872,48 @@ onMounted(async () => {
 
 .product-results-meta {
   flex: 0 0 auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  background: #f8fafc;
-  padding: 4px 9px;
-  color: #334155;
-  font-size: 13px;
+  color: #64748b;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .product-results-footer {
-  border-top: 1px solid #e2e8f0;
-  padding: 12px 16px;
+  flex: 0 0 auto;
+  border-top: 1px solid #dfe3e8;
+  background: #fafafa;
+  padding: 10px 16px;
 }
 
 .products-table {
   flex: 1;
+  min-height: 0;
 }
 
 .products-table :deep(.el-table__header th) {
-  background: #f8fafc;
+  height: 42px;
+  background: #f6f7f8;
   color: #475569;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .products-table :deep(.el-table__row) {
-  cursor: default;
+  cursor: pointer;
+}
+
+.products-table :deep(.el-table__row:hover > td.el-table__cell) {
+  background: #fafbfc;
 }
 
 .products-table :deep(.el-table__cell) {
-  padding-top: 11px;
-  padding-bottom: 11px;
+  padding-top: 9px;
+  padding-bottom: 9px;
+  color: #1e293b;
 }
 
 :deep(.product-filters-drawer .el-drawer__header) {
   margin-bottom: 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #dfe3e8;
   padding: 18px 20px;
 }
 
@@ -706,28 +930,43 @@ onMounted(async () => {
 .product-filter-drawer__body {
   flex: 1;
   overflow: auto;
-  padding: 10px 20px 24px;
+  padding: 20px;
 }
 
 .product-filter-section {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  padding: 14px;
+  min-width: 0;
 }
 
-.product-filter-section + .product-filter-section {
-  margin-top: 14px;
-}
-
-.product-filter-section__title {
+.product-filter-section__header {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 12px;
-  color: #334155;
+  border-bottom: 1px solid #dfe3e8;
+  padding-bottom: 12px;
+  color: #1e293b;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 650;
+}
+
+.product-filter-unit {
+  padding: 16px 0 18px;
+}
+
+.dimension-filter-list {
+  border-top: 1px solid #eceff2;
+}
+
+.dimension-filter-row {
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid #eceff2;
+  padding: 14px 0;
+}
+
+.dimension-filter-row__title {
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .dimension-range-grid {
@@ -738,18 +977,18 @@ onMounted(async () => {
 
 .dimension-range-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .dimension-range-field > span {
-  color: #334155;
-  font-size: 13px;
-  font-weight: 650;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .product-filter-drawer__footer {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #dfe3e8;
   background: #fff;
   padding: 14px 20px;
 }
@@ -760,9 +999,9 @@ onMounted(async () => {
 
 .product-search-toolbar {
   display: grid;
-  grid-template-columns: 220px minmax(280px, 1fr) minmax(220px, 300px) max-content max-content max-content;
+  grid-template-columns: 190px minmax(340px, 1fr) minmax(210px, 280px) max-content 40px;
   align-items: end;
-  gap: 12px;
+  gap: 10px;
 }
 
 .product-search-toolbar__mode,
@@ -775,12 +1014,140 @@ onMounted(async () => {
   align-self: end;
 }
 
-.product-search-toolbar__button {
-  min-width: 104px;
+.product-search-toolbar__reset {
+  width: 40px;
+  padding: 0;
 }
 
-@media (max-width: 640px) {
+.product-search-history-option {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.product-search-history-option .el-icon {
+  flex: 0 0 auto;
+  color: #94a3b8;
+}
+
+.product-search-history-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-identity {
+  display: grid;
+  min-width: 0;
+  max-width: 100%;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.product-identity:hover :deep(.product-sku__text),
+.product-identity:focus-visible :deep(.product-sku__text) {
+  color: #047857;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.product-identity:focus-visible {
+  outline: 2px solid #86bda4;
+  outline-offset: 3px;
+}
+
+.product-identity__name {
+  overflow: hidden;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.products-mobile-list {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.product-mobile-row {
+  border-bottom: 1px solid #eceff2;
+  padding: 14px;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.product-mobile-row:last-child {
+  border-bottom: 0;
+}
+
+.product-mobile-row:hover {
+  background: #fafbfc;
+}
+
+.product-mobile-row:focus-visible {
+  outline: 2px solid #86bda4;
+  outline-offset: -2px;
+}
+
+.product-mobile-row__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.product-mobile-row__header .product-identity {
+  flex: 1;
+}
+
+.product-mobile-row__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.product-mobile-row__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  margin: 14px 0 0;
+  border-top: 1px solid #eceff2;
+  padding-top: 12px;
+}
+
+.product-mobile-row__meta div {
+  min-width: 0;
+}
+
+.product-mobile-row__meta dt {
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.product-mobile-row__meta dd {
+  overflow: hidden;
+  margin: 0;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 760px) {
   .product-content {
+    gap: 10px;
     padding: 12px;
   }
 
@@ -788,10 +1155,52 @@ onMounted(async () => {
     padding: 12px;
   }
 
+  .product-mobile-search-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 0;
+    background: #ffffff;
+    padding: 12px;
+    color: #1e293b;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .product-mobile-search-toggle span {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+  }
+
+  .product-mobile-search-toggle strong {
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .product-mobile-search-toggle em {
+    overflow: hidden;
+    color: #64748b;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .product-mobile-search-toggle > .el-icon {
+    flex: 0 0 auto;
+    color: #64748b;
+  }
+
+  .product-search-panel .product-panel__body {
+    border-top: 1px solid #eceff2;
+  }
+
   .product-results-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
     padding: 12px;
   }
 
@@ -800,13 +1209,48 @@ onMounted(async () => {
   }
 
   .product-search-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
   }
 
-  .product-search-toolbar__action,
-  .product-search-toolbar__button,
+  .product-search-toolbar__mode,
+  .product-search-toolbar__query,
+  .product-search-toolbar__producer {
+    grid-column: 1 / -1;
+  }
+
   .product-search-toolbar__action :deep(.el-button) {
     width: 100%;
+  }
+
+  .product-search-toolbar__filters {
+    grid-column: 1 / 3;
+  }
+
+  .product-search-toolbar__reset {
+    width: 40px;
+  }
+
+  .products-table--desktop {
+    display: none;
+  }
+
+  .products-mobile-list {
+    display: block;
+  }
+
+  .product-results-footer :deep(.flex) {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .product-results-footer :deep(.page-size-select) {
+    width: 60px;
+    flex-basis: 60px;
+  }
+
+  .product-results-footer :deep(.min-w-24) {
+    min-width: 76px;
+    white-space: nowrap;
   }
 
   :deep(.product-filters-drawer .el-drawer__header) {
@@ -821,20 +1265,23 @@ onMounted(async () => {
     padding: 12px 14px;
   }
 
-  .dimension-range-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
-@media (min-width: 641px) and (max-width: 1180px) {
+@media (min-width: 761px) and (max-width: 1180px) {
   .product-search-toolbar {
     grid-template-columns: minmax(180px, 220px) minmax(260px, 1fr) minmax(220px, 280px);
   }
 
-  .product-search-toolbar__action,
-  .product-search-toolbar__button,
   .product-search-toolbar__action :deep(.el-button) {
     width: 100%;
+  }
+
+  .product-search-toolbar__reset {
+    width: 40px;
+  }
+
+  .product-search-toolbar__filters {
+    grid-column: 1 / 3;
   }
 }
 </style>

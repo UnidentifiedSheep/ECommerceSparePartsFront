@@ -1,4 +1,9 @@
-import type { ProducerAliasModel, ProducerModel } from '@/models/producerModel.ts'
+import type {
+  ProducerAliasModel,
+  ProducerModel,
+  ProducerSupplierMappingModel,
+  Supplier,
+} from '@/models/producerModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
 interface PatchField<T> {
@@ -69,6 +74,27 @@ export interface DeleteProducerAliasRequest {
   alias: string
 }
 
+export interface GetProducerSupplierMappingsRequest {
+  producerId: number
+  suppliers?: Supplier[]
+  page?: number
+  limit?: number
+}
+
+export interface GetProducerSupplierMappingsResponse {
+  mappings: ProducerSupplierMappingModel[]
+}
+
+export interface CreateProducerSupplierMappingRequest {
+  producerId: number
+  supplier: Supplier
+  supplierProducerName: string
+}
+
+export interface CreateProducerSupplierMappingResponse {
+  producerSupplierMapping: ProducerSupplierMappingModel
+}
+
 function toProducerAlias(item: ProducerAliasWireModel): ProducerAliasModel {
   return {
     producerId: item.producerId,
@@ -133,4 +159,37 @@ export async function addProducerAlias(req: AddProducerAliasRequest) {
 
 export async function deleteProducerAlias(req: DeleteProducerAliasRequest) {
   await api.delete(`/main/producers/${req.producerId}/aliases/${encodeURIComponent(req.alias)}`)
+}
+
+export async function getProducerSupplierMappings(
+  req: GetProducerSupplierMappingsRequest,
+): Promise<GetProducerSupplierMappingsResponse> {
+  const resp = await api.get<GetProducerSupplierMappingsResponse>(
+    `/main/producers/${req.producerId}/mappings/suppliers`,
+    {
+      params: {
+        supplier: req.suppliers,
+        page: req.page ?? 0,
+        limit: clampPageSize(req.limit ?? 100),
+      },
+    },
+  )
+  return resp.data
+}
+
+export async function createProducerSupplierMapping(
+  req: CreateProducerSupplierMappingRequest,
+): Promise<CreateProducerSupplierMappingResponse> {
+  const resp = await api.post<CreateProducerSupplierMappingResponse>(
+    `/main/producers/${req.producerId}/mappings/suppliers`,
+    {
+      supplier: req.supplier,
+      supplierProducerName: req.supplierProducerName,
+    },
+  )
+  return resp.data
+}
+
+export async function deleteProducerSupplierMapping(producerId: number, mappingId: number): Promise<void> {
+  await api.delete(`/main/producers/${producerId}/mappings/suppliers/${mappingId}`)
 }
