@@ -1,7 +1,10 @@
 import api, { clampPageSize } from '@/services/api/api.ts'
-import type { UserModel } from '@/models/userModel.ts'
+import {
+  mapOrganizationModel,
+  type OrganizationDto,
+  type OrganizationModel,
+} from '@/models/organizationModel.ts'
 
-export type TransactionPartyType = 'User' | 'System' | number
 export type TransactionType = 'Transfer' | 'Refund' | 'Fee' | 'Adjustment' | number
 export type TransactionStatus =
   | 'Pending'
@@ -16,15 +19,10 @@ export type TransactionStatus =
 export type TransactionLogicalOperator = 'And' | 'Or'
 export type TransactionSourceType = 'Manual' | 'Purchase' | 'Sale' | 'Logistic' | number
 
-export interface TransactionPartyModel {
-  partyType: TransactionPartyType
-  user: UserModel | null
-}
-
 export interface BalanceTransactionModel {
   id: string
-  sender: TransactionPartyModel
-  receiver: TransactionPartyModel
+  sender: OrganizationModel
+  receiver: OrganizationModel
   currencyId: number
   amount: number
   transactionDate: string
@@ -50,10 +48,15 @@ export interface GetBalanceTransactionsResponse {
   transactions: BalanceTransactionModel[]
 }
 
+interface BalanceTransactionDto extends Omit<BalanceTransactionModel, 'sender' | 'receiver'> {
+  sender: OrganizationDto
+  receiver: OrganizationDto
+}
+
 export type SystemTransactionDirection = 'UserToSystem' | 'SystemToUser'
 
 export interface CreateSystemBalanceTransactionRequest {
-  userId: string
+  organizationId: string
   direction: SystemTransactionDirection
   amount: number
   currencyId: number
@@ -64,7 +67,7 @@ export interface CreateSystemBalanceTransactionRequest {
 export async function getBalanceTransactions(
   req: GetBalanceTransactionsRequest,
 ): Promise<GetBalanceTransactionsResponse> {
-  const resp = await api.get<GetBalanceTransactionsResponse>('/main/transactions', {
+  const resp = await api.get<{ transactions: BalanceTransactionDto[] }>('/main/transactions', {
     params: {
       rangeStart: req.rangeStart,
       rangeEnd: req.rangeEnd,
@@ -79,7 +82,13 @@ export async function getBalanceTransactions(
     },
   })
 
-  return resp.data
+  return {
+    transactions: resp.data.transactions.map((transaction) => ({
+      ...transaction,
+      sender: mapOrganizationModel(transaction.sender),
+      receiver: mapOrganizationModel(transaction.receiver),
+    })),
+  }
 }
 
 export async function createSystemBalanceTransaction(req: CreateSystemBalanceTransactionRequest): Promise<void> {

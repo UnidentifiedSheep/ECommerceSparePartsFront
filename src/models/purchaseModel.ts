@@ -1,11 +1,13 @@
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationModel } from '@/models/organizationModel.ts'
 import type { LogisticPricingType } from '@/enums/logisticPricingType.ts'
 import type { RouteType } from '@/enums/routeType.ts'
 
 export interface PurchaseModel {
   id: string
   supplier: UserModel
+  supplierOrganization: OrganizationModel
   currency: CurrencyModel
   comment?: string | null
   storage: string

@@ -107,20 +107,20 @@
               <div class="filter-field">
                 <span>{{ t('sales.addBuyer') }}</span>
                 <div class="picker-row">
-                  <UserSelector
-                    v-model:selected-user="buyerToAdd"
-                    :place-holder="t('sales.buyer')"
+                  <OrganizationSelector
+                    v-model="buyerToAdd"
+                    :placeholder="t('sales.buyer')"
                   />
                   <el-button :disabled="!buyerToAdd" @click="addBuyerFilter">{{ t('common.actions.add') }}</el-button>
                 </div>
                 <div v-if="selectedBuyers.length > 0" class="filter-tags">
                   <el-tag
                     v-for="buyer in selectedBuyers"
-                    :key="buyer.id"
+                    :key="`${buyer.organization.id}-${buyer.member?.user.id}`"
                     closable
-                    @close="removeBuyerFilter(buyer.id)"
+                    @close="removeBuyerFilter(buyer.member?.user.id ?? '')"
                   >
-                    {{ buyer.surname }} {{ buyer.name }}
+                    {{ buyer.organization.name }} · {{ buyer.member ? `${buyer.member.user.surname} ${buyer.member.user.name}` : '' }}
                   </el-tag>
                 </div>
               </div>
@@ -175,6 +175,7 @@
             <el-table-column :label="t('sales.buyer')" min-width="140">
               <template #default="{ row }">
                 <div class="sale-buyer-cell">
+                  <strong>{{ row.organization.name }}</strong>
                   <UserHoverCard :user="row.buyer" class="sale-buyer-name" />
                 </div>
               </template>
@@ -267,7 +268,7 @@ import CreateSaleDialog from '@/components/sales/CreateSaleDialog.vue'
 import EditSaleDialog from '@/components/sales/EditSaleDialog.vue'
 import SaleDetails from '@/components/sales/SaleDetails.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
-import UserSelector from '@/components/selectors/UserSelector.vue'
+import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import UserHoverCard from '@/components/users/UserHoverCard.vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
@@ -275,7 +276,7 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleContentModel, SaleModel, SaleState } from '@/models/saleModel.ts'
-import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { deleteSale, getSale, getSaleContent, getSales } from '@/services/api/sales.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
@@ -293,8 +294,8 @@ const salesTableRef = ref<TableInstance>()
 const selectedSale = ref<SaleModel>()
 const saleContent = ref<SaleContentModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
-const selectedBuyers = ref<UserModel[]>([])
-const buyerToAdd = ref<UserModel>()
+const selectedBuyers = ref<OrganizationSelection[]>([])
+const buyerToAdd = ref<OrganizationSelection>()
 const currencyIds = ref<number[]>([])
 const defaultSaleStates: SaleState[] = ['Completed']
 const saleStates = ref<SaleState[]>([...defaultSaleStates])
@@ -405,7 +406,9 @@ async function applyDrawerFilters() {
 function addBuyerFilter() {
   if (!buyerToAdd.value) return
 
-  const exists = selectedBuyers.value.some((buyer) => buyer.id === buyerToAdd.value?.id)
+  const buyerId = buyerToAdd.value.member?.user.id
+  if (!buyerId) return
+  const exists = selectedBuyers.value.some((buyer) => buyer.member?.user.id === buyerId)
   if (!exists) {
     selectedBuyers.value.push(buyerToAdd.value)
   }
@@ -413,7 +416,7 @@ function addBuyerFilter() {
 }
 
 function removeBuyerFilter(id: string) {
-  selectedBuyers.value = selectedBuyers.value.filter((buyer) => buyer.id !== id)
+  selectedBuyers.value = selectedBuyers.value.filter((buyer) => buyer.member?.user.id !== id)
 }
 
 function addProductFilter(product: ProductSearchModel) {
@@ -445,7 +448,7 @@ async function loadSales(resetPage: boolean) {
       rangeEndDate: dateRange.value[1],
       page: page.value,
       limit: limit.value,
-      buyerIds: selectedBuyers.value.map((buyer) => buyer.id),
+      buyerIds: selectedBuyers.value.flatMap((buyer) => buyer.member ? [buyer.member.user.id] : []),
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
       states: saleStates.value,

@@ -3,10 +3,15 @@ import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel
 import { mapUserModel, type UserModel } from '@/models/userModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
+import {
+  mapOrganizationModel,
+  type OrganizationDto,
+} from '@/models/organizationModel.ts'
 
 interface PurchaseDto {
   id: string
   supplier: UserModel
+  supplierOrganization: OrganizationDto
   currency: CurrencyModel
   comment?: string | null
   storage: string
@@ -43,7 +48,7 @@ export interface GetPurchasesRequest {
   rangeEndDate: string
   page: number
   limit: number
-  supplierIds?: string[]
+  supplierOrganizationIds?: string[]
   currencyIds?: number[]
   productIds?: number[]
   sortBy?: string
@@ -75,7 +80,8 @@ export interface EditPurchaseContentRequest extends NewPurchaseContentRequest {
 }
 
 export interface CreatePurchaseRequest {
-  supplierId: string
+  supplierUserId: string
+  supplierOrganizationId: string
   currencyId: number
   storageName: string
   purchaseDate: string
@@ -84,6 +90,7 @@ export interface CreatePurchaseRequest {
   comment?: string | null
   payedSum?: number | null
   storageFrom?: string | null
+  forcePayment: boolean
 }
 
 export interface EditPurchaseRequest {
@@ -103,6 +110,7 @@ function mapPurchaseModel(dto: PurchaseDto): PurchaseModel {
   return {
     ...dto,
     supplier: mapUserModel(dto.supplier),
+    supplierOrganization: mapOrganizationModel(dto.supplierOrganization),
   }
 }
 
@@ -117,7 +125,7 @@ export async function getPurchases(req: GetPurchasesRequest): Promise<GetPurchas
   appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
   appendParam('page', req.page)
   appendParam('limit', clampPageSize(req.limit))
-  req.supplierIds?.forEach((id) => appendParam('supplierIds', id))
+  req.supplierOrganizationIds?.forEach((id) => appendParam('supplierOrganizationIds', id))
   req.currencyIds?.forEach((id) => appendParam('currencyIds', id))
   req.productIds?.forEach((id) => appendParam('productIds', id))
   appendParam('sortBy', req.sortBy)

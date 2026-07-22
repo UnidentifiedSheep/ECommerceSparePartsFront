@@ -1,6 +1,11 @@
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
-import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
+import {
+  mapOrganizationModel,
+  type OrganizationDto,
+  type OrganizationModel,
+  type OrganizationType,
+} from '@/models/organizationModel.ts'
 import { mapUserModel, type UserInfoModel, type UserModel } from '@/models/userModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
@@ -104,23 +109,21 @@ export interface GetUserStoragesResponse {
   storages: StorageModel[]
 }
 
+export interface GetUserOrganizationsRequest {
+  searchTerm?: string
+  ids?: string[]
+  types?: OrganizationType[]
+  page: number
+  limit: number
+  sortBy?: string
+}
+
+export interface GetUserOrganizationsResponse {
+  organizations: OrganizationModel[]
+}
+
 export interface GetUserDiscountResponse {
   discount: number
-}
-
-export interface UserFinancialProfileModel {
-  balance: number
-}
-
-export interface UserBalanceModel {
-  currency: CurrencyModel
-  balance: number
-}
-
-export interface GetUserFinancialInfoResponse {
-  financialProfile: UserFinancialProfileModel | null
-  baseCurrency: CurrencyModel
-  balances: UserBalanceModel[]
 }
 
 export interface AddStorageToUserRequest {
@@ -227,18 +230,27 @@ export async function getUserStorages(userId: string, page = 0, limit = 100): Pr
   return resp.data
 }
 
+export async function getUserOrganizations(
+  userId: string,
+  req: GetUserOrganizationsRequest,
+): Promise<GetUserOrganizationsResponse> {
+  const params = new URLSearchParams()
+  if (req.searchTerm?.trim()) params.append('searchTerm', req.searchTerm.trim())
+  req.ids?.forEach((id) => params.append('ids', id))
+  req.types?.forEach((type) => params.append('types', type))
+  params.append('page', String(req.page))
+  params.append('limit', String(clampPageSize(req.limit)))
+  if (req.sortBy) params.append('sortBy', req.sortBy)
+
+  const response = await api.get<{ organizations: OrganizationDto[] }>(`/main/users/${userId}/organizations`, { params })
+  return {
+    organizations: response.data.organizations.map(mapOrganizationModel),
+  }
+}
+
 export async function getUserDiscount(userId: string): Promise<GetUserDiscountResponse> {
   const resp = await api.get<GetUserDiscountResponse>(`/main/users/${userId}/discount`)
   return resp.data
-}
-
-export async function getUserFinancialInfo(userId: string): Promise<GetUserFinancialInfoResponse> {
-  const resp = await api.get<GetUserFinancialInfoResponse>(`/main/users/${userId}/finances`)
-  return {
-    financialProfile: resp.data.financialProfile,
-    baseCurrency: resp.data.baseCurrency,
-    balances: resp.data.balances ?? [],
-  }
 }
 
 export async function changeUserDiscount(req: ChangeUserDiscountRequest) {

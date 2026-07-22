@@ -170,6 +170,18 @@
   overflow: hidden;
 }
 
+.supplier-cell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.supplier-cell > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 :deep(.purchase-table-row) {
   cursor: pointer;
 }

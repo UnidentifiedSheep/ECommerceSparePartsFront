@@ -87,21 +87,21 @@
               <div class="filter-field">
                 <span>{{ t('purchases.addSupplier') }}</span>
                 <div class="picker-row">
-                  <UserSelector
-                    v-model:selected-user="supplierToAdd"
-                    :roles="['Supplier']"
-                    :place-holder="t('purchases.supplier')"
+                  <OrganizationSelector
+                    v-model="supplierToAdd"
+                    :member-required="false"
+                    :placeholder="t('purchases.supplier')"
                   />
                   <el-button :disabled="!supplierToAdd" @click="addSupplierFilter">{{ t('common.actions.add') }}</el-button>
                 </div>
                 <div v-if="selectedSuppliers.length > 0" class="filter-tags">
                   <el-tag
                     v-for="supplier in selectedSuppliers"
-                    :key="supplier.id"
+                    :key="supplier.organization.id"
                     closable
-                    @close="removeSupplierFilter(supplier.id)"
+                    @close="removeSupplierFilter(supplier.organization.id)"
                   >
-                    {{ supplier.surname }} {{ supplier.name }}
+                    {{ supplier.organization.name }}
                   </el-tag>
                 </div>
               </div>
@@ -155,7 +155,10 @@
               >
                 <el-table-column :label="t('purchases.supplier')" min-width="180">
                   <template #default="{ row }">
-                    <UserHoverCard :user="row.supplier" />
+                    <div class="supplier-cell">
+                      <strong>{{ row.supplierOrganization.name }}</strong>
+                      <UserHoverCard :user="row.supplier" />
+                    </div>
                   </template>
                 </el-table-column>
                 <el-table-column prop="storage" :label="t('common.labels.storage')" min-width="150" />
@@ -243,7 +246,7 @@ import CreatePurchaseDialog from '@/components/purchases/CreatePurchaseDialog.vu
 import EditPurchaseDialog from '@/components/purchases/EditPurchaseDialog.vue'
 import PurchaseDetails from '@/components/purchases/PurchaseDetails.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
-import UserSelector from '@/components/selectors/UserSelector.vue'
+import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import UserHoverCard from '@/components/users/UserHoverCard.vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
@@ -251,7 +254,7 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
-import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { deletePurchase, getPurchase, getPurchaseContent, getPurchases } from '@/services/api/purchases.ts'
@@ -267,8 +270,8 @@ const selectedPurchase = ref<PurchaseModel>()
 const purchaseContent = ref<PurchaseContentModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const storages = ref<StorageModel[]>([])
-const selectedSuppliers = ref<UserModel[]>([])
-const supplierToAdd = ref<UserModel>()
+const selectedSuppliers = ref<OrganizationSelection[]>([])
+const supplierToAdd = ref<OrganizationSelection>()
 const currencyIds = ref<number[]>([])
 const selectedProducts = ref<ProductSearchModel[]>([])
 const searchTerm = ref<string>()
@@ -356,7 +359,7 @@ async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'd
 function addSupplierFilter() {
   if (!supplierToAdd.value) return
 
-  const exists = selectedSuppliers.value.some((supplier) => supplier.id === supplierToAdd.value?.id)
+  const exists = selectedSuppliers.value.some((supplier) => supplier.organization.id === supplierToAdd.value?.organization.id)
   if (!exists) {
     selectedSuppliers.value.push(supplierToAdd.value)
   }
@@ -364,7 +367,7 @@ function addSupplierFilter() {
 }
 
 function removeSupplierFilter(id: string) {
-  selectedSuppliers.value = selectedSuppliers.value.filter((supplier) => supplier.id !== id)
+  selectedSuppliers.value = selectedSuppliers.value.filter((supplier) => supplier.organization.id !== id)
 }
 
 function addProductFilter(product: ProductSearchModel) {
@@ -401,7 +404,7 @@ async function loadPurchases(resetPage: boolean) {
       rangeEndDate: dateRange.value[1],
       page: page.value,
       limit: limit.value,
-      supplierIds: selectedSuppliers.value.map((supplier) => supplier.id),
+      supplierOrganizationIds: selectedSuppliers.value.map((supplier) => supplier.organization.id),
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
       sortBy: sortBy.value,

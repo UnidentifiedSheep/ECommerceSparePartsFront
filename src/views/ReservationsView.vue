@@ -43,10 +43,14 @@
             </section>
 
             <section class="drawer-section">
-              <div class="drawer-section-title">{{ t('common.labels.user') }}</div>
+              <div class="drawer-section-title">{{ t('organizations.organization') }}</div>
               <label class="filter-field">
-                <span>{{ t('common.labels.user') }}</span>
-                <UserSelector v-model:selected-user="selectedUser" :place-holder="t('reservations.anyUser')" />
+                <span>{{ t('organizations.organization') }}</span>
+                <OrganizationSelector
+                  v-model="selectedOrganization"
+                  :member-required="false"
+                  :placeholder="t('reservations.anyOrganization')"
+                />
               </label>
             </section>
 
@@ -78,8 +82,8 @@
       <ProductReservationsPanel
         :key="panelKey"
         :product-id="selectedProduct?.id"
-        :user-id="selectedUser?.id"
-        :show-deleted="reservationState === 'deleted'"
+        :organization-id="selectedOrganization?.organization.id"
+        :show-deleted="reservationState === 'withDeleted'"
         :title="t('reservations.listTitle')"
       />
     </main>
@@ -92,43 +96,43 @@
 import { computed, ref } from 'vue'
 import ProductReservationsPanel from '@/components/products/ProductReservationsPanel.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
-import UserSelector from '@/components/selectors/UserSelector.vue'
+import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
-import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
-const selectedUser = ref<UserModel>()
+const selectedOrganization = ref<OrganizationSelection>()
 const selectedProduct = ref<ProductSearchModel>()
 const productSelectorOpen = ref(false)
 const filtersDrawerOpen = ref(false)
-const reservationState = ref<'active' | 'deleted'>('active')
+const reservationState = ref<'active' | 'withDeleted'>('active')
 const reservationStateOptions = computed(() => [
   { label: t('reservations.active'), value: 'active' },
-  { label: t('reservations.deleted'), value: 'deleted' },
+  { label: t('reservations.withDeleted'), value: 'withDeleted' },
 ])
 
 const selectedProductLabel = computed(() => (
   selectedProduct.value ? `${selectedProduct.value.sku} - ${selectedProduct.value.name}` : ''
 ))
 const activeFiltersCount = computed(() => (
-  (selectedUser.value ? 1 : 0)
+  (selectedOrganization.value ? 1 : 0)
   + (selectedProduct.value ? 1 : 0)
-  + (reservationState.value === 'deleted' ? 1 : 0)
+  + (reservationState.value === 'withDeleted' ? 1 : 0)
 ))
 const activeFiltersText = computed(() => (
   activeFiltersCount.value === 0
     ? t('reservations.allShown')
     : t('reservations.activeFilters', { count: activeFiltersCount.value })
 ))
-const panelKey = computed(() => `${selectedUser.value?.id ?? 'all-users'}:${selectedProduct.value?.id ?? 'all-products'}:${reservationState.value}`)
+const panelKey = computed(() => `${selectedOrganization.value?.organization.id ?? 'all-organizations'}:${selectedProduct.value?.id ?? 'all-products'}:${reservationState.value}`)
 
 function selectProduct(product: ProductSearchModel) {
   selectedProduct.value = product
 }
 
 function resetFilters() {
-  selectedUser.value = undefined
+  selectedOrganization.value = undefined
   selectedProduct.value = undefined
   reservationState.value = 'active'
 }

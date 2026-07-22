@@ -67,10 +67,9 @@
 
           <div class="form-grid">
             <el-form-item :label="t('purchases.supplier')" class="span-4">
-              <UserSelector
-                v-model:selected-user="form.supplier"
-                :roles="['Supplier']"
-                :place-holder="t('purchases.selectSupplier')"
+              <OrganizationSelector
+                v-model="form.supplier"
+                :placeholder="t('purchases.selectSupplier')"
                 :clearable="false"
               />
             </el-form-item>
@@ -110,9 +109,18 @@
               <el-input-number v-model="form.payedSum" :min="0" :precision="2" :controls="false" class="w-full" />
             </el-form-item>
 
-            <el-form-item :label="t('purchases.logistics')" class="span-2">
+            <el-form-item :label="t('purchases.logistics')" class="span-3">
               <div class="flex h-8 items-center">
                 <el-switch v-model="form.withLogistics" :active-text="t('purchases.yes')" :inactive-text="t('purchases.no')" />
+              </div>
+            </el-form-item>
+
+            <el-form-item :label="t('purchases.forcePayment')" class="span-3">
+              <div class="force-payment-control">
+                <el-switch v-model="form.forcePayment" size="small" />
+                <el-tooltip :content="t('purchases.forcePaymentHint')" placement="top">
+                  <el-icon class="force-payment-help"><QuestionFilled /></el-icon>
+                </el-tooltip>
               </div>
             </el-form-item>
 
@@ -225,15 +233,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import { Check, Close, Delete, Plus } from '@element-plus/icons-vue'
+import { Check, Close, Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
-import UserSelector from '@/components/selectors/UserSelector.vue'
+import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { PurchaseModel } from '@/models/purchaseModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
-import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { calculateDeliveryCost } from '@/services/api/logistics.ts'
 import { createPurchase } from '@/services/api/purchases.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
@@ -268,12 +276,13 @@ const logisticsCurrencyId = ref<number>()
 let logisticsRequestId = 0
 
 const form = reactive({
-  supplier: undefined as UserModel | undefined,
+  supplier: undefined as OrganizationSelection | undefined,
   currencyId: undefined as number | undefined,
   storageName: undefined as string | undefined,
   purchaseDate: toLocalDateTimeInputValue(new Date()),
   comment: '',
   payedSum: undefined as number | undefined,
+  forcePayment: false,
   withLogistics: false,
   storageFrom: undefined as string | undefined,
   items: [] as CreatePurchaseItemForm[],
@@ -341,6 +350,7 @@ function resetForm() {
   form.purchaseDate = toLocalDateTimeInputValue(new Date())
   form.comment = ''
   form.payedSum = undefined
+  form.forcePayment = false
   form.withLogistics = false
   form.storageFrom = undefined
   form.items = []
@@ -422,12 +432,13 @@ const recalculateLogistics = useDebounceFn(async () => {
 }, 350)
 
 async function save() {
-  if (!canSave.value || !form.supplier || !form.currencyId || !form.storageName) return
+  if (!canSave.value || !form.supplier?.member || !form.currencyId || !form.storageName) return
 
   isSaving.value = true
   try {
     const resp = await createPurchase({
-      supplierId: form.supplier.id,
+      supplierUserId: form.supplier.member.user.id,
+      supplierOrganizationId: form.supplier.organization.id,
       currencyId: form.currencyId,
       storageName: form.storageName,
       purchaseDate: toUtcDateTimeString(form.purchaseDate),
@@ -442,6 +453,7 @@ async function save() {
       comment: form.comment.trim() || null,
       payedSum: form.payedSum ?? null,
       storageFrom: form.withLogistics ? form.storageFrom ?? null : null,
+      forcePayment: form.forcePayment,
     })
 
     ElNotification({

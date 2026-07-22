@@ -386,7 +386,8 @@ const selectedCurrency = computed(() => (
 
 const buyerName = computed(() => {
   if (!props.sale) return '—'
-  return `${props.sale.buyer.surname} ${props.sale.buyer.name}`.trim()
+  const memberName = `${props.sale.buyer.surname} ${props.sale.buyer.name}`.trim()
+  return `${props.sale.organization.name} · ${memberName}`
 })
 
 const saleTotal = computed(() => (

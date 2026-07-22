@@ -13,14 +13,15 @@
         </el-radio-group>
       </el-form-item>
 
-      <el-form-item :label="systemUserLabel" prop="userId">
-        <UserSelector
-          v-model:selected-user="systemTransactionUser"
-          :place-holder="systemUserPlaceholder"
+      <el-form-item :label="systemOrganizationLabel" prop="organizationId">
+        <OrganizationSelector
+          v-model="systemTransactionOrganization"
+          :member-required="false"
+          :placeholder="systemOrganizationPlaceholder"
         />
       </el-form-item>
 
-      <div v-if="systemTransactionUser" class="transaction-finances" v-loading="isFinancialInfoLoading">
+      <div v-if="systemTransactionOrganization" class="transaction-finances" v-loading="isFinancialInfoLoading">
         <template v-if="financialInfo">
           <div class="finance-main">
             <span>{{ t('transactions.financialBalance') }}</span>
@@ -99,20 +100,23 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import UserSelector from '@/components/selectors/UserSelector.vue'
+import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
-import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import {
   createSystemBalanceTransaction,
   type SystemTransactionDirection,
 } from '@/services/api/balances.ts'
-import { getUserFinancialInfo, type GetUserFinancialInfoResponse } from '@/services/api/users.ts'
+import {
+  getOrganizationFinancialInfo,
+  type GetOrganizationFinancialInfoResponse,
+} from '@/services/api/organizations.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
 interface CreateTransactionForm {
   operationMode: SystemTransactionDirection
-  userId: string
+  organizationId: string
   amount: number
   currencyId: number
   transactionDateTime: string
@@ -136,29 +140,29 @@ const dialogOpen = computed({
 })
 
 const formRef = ref<FormInstance>()
-const systemTransactionUser = ref<UserModel>()
+const systemTransactionOrganization = ref<OrganizationSelection>()
 const isSubmitting = ref(false)
 const isFinancialInfoLoading = ref(false)
-const financialInfo = ref<GetUserFinancialInfoResponse | null>(null)
+const financialInfo = ref<GetOrganizationFinancialInfoResponse | null>(null)
 const financialInfoError = ref('')
 let financialInfoRequestId = 0
 
 const form = reactive<CreateTransactionForm>({
   operationMode: 'SystemToUser',
-  userId: '',
+  organizationId: '',
   amount: 0.01,
   currencyId: 0,
   transactionDateTime: toLocalDateTimeInputValue(new Date()),
   forcePayment: false,
 })
 
-const systemUserLabel = computed(() => (
+const systemOrganizationLabel = computed(() => (
   form.operationMode === 'SystemToUser' ? t('transactions.receiver') : t('transactions.sender')
 ))
-const systemUserPlaceholder = computed(() => (
+const systemOrganizationPlaceholder = computed(() => (
   form.operationMode === 'SystemToUser' ? t('transactions.selectReceiver') : t('transactions.selectSender')
 ))
-const financialBalance = computed(() => financialInfo.value?.financialProfile?.balance ?? 0)
+const financialBalance = computed(() => financialInfo.value?.financialProfile?.netPositionInBaseCurrency ?? 0)
 const financialBalanceHint = computed(() => {
   if (financialBalance.value < 0) return t('transactions.userOwesUs')
   if (financialBalance.value > 0) return t('transactions.weOweUser')
@@ -166,7 +170,7 @@ const financialBalanceHint = computed(() => {
 })
 const rules = computed<FormRules<CreateTransactionForm>>(() => ({
   operationMode: [{ required: true, message: t('transactions.selectOperationType'), trigger: 'change' }],
-  userId: [
+  organizationId: [
     {
       validator: (_rule, value, callback) => {
         if (value) callback()
@@ -196,15 +200,15 @@ const rules = computed<FormRules<CreateTransactionForm>>(() => ({
   transactionDateTime: [{ required: true, message: t('transactions.selectDateTime'), trigger: 'change' }],
 }))
 
-watch(systemTransactionUser, (user) => {
-  form.userId = user?.id ?? ''
-  void loadFinancialInfo(user?.id)
+watch(systemTransactionOrganization, (selection) => {
+  form.organizationId = selection?.organization.id ?? ''
+  void loadFinancialInfo(selection?.organization.id)
 })
 
 watch(() => form.operationMode, () => {
-  systemTransactionUser.value = undefined
-  form.userId = ''
-  formRef.value?.clearValidate(['userId'])
+  systemTransactionOrganization.value = undefined
+  form.organizationId = ''
+  formRef.value?.clearValidate(['organizationId'])
 })
 
 watch(dialogOpen, (open) => {
@@ -220,7 +224,7 @@ async function submit() {
   isSubmitting.value = true
   try {
     await createSystemBalanceTransaction({
-      userId: form.userId,
+      organizationId: form.organizationId,
       direction: form.operationMode,
       amount: form.amount,
       currencyId: form.currencyId,
@@ -239,11 +243,11 @@ async function submit() {
 }
 
 function resetForm() {
-  systemTransactionUser.value = undefined
+  systemTransactionOrganization.value = undefined
   financialInfo.value = null
   financialInfoError.value = ''
   form.operationMode = 'SystemToUser'
-  form.userId = ''
+  form.organizationId = ''
   form.amount = 0.01
   form.currencyId = props.currencies[0]?.id ?? 0
   form.transactionDateTime = toLocalDateTimeInputValue(new Date())
@@ -251,15 +255,15 @@ function resetForm() {
   formRef.value?.clearValidate()
 }
 
-async function loadFinancialInfo(userId?: string) {
+async function loadFinancialInfo(organizationId?: string) {
   const requestId = ++financialInfoRequestId
   financialInfo.value = null
   financialInfoError.value = ''
-  if (!userId) return
+  if (!organizationId) return
 
   isFinancialInfoLoading.value = true
   try {
-    const response = await getUserFinancialInfo(userId)
+    const response = await getOrganizationFinancialInfo(organizationId)
     if (requestId !== financialInfoRequestId) return
     financialInfo.value = response
   } catch (error) {

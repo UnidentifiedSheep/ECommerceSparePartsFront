@@ -67,9 +67,9 @@
 
           <div class="form-grid">
             <el-form-item :label="t('sales.buyer')" class="span-4">
-              <UserSelector
-                v-model:selected-user="form.buyer"
-                :place-holder="t('sales.selectBuyer')"
+              <OrganizationSelector
+                v-model="form.buyer"
+                :placeholder="t('sales.selectBuyer')"
                 :clearable="false"
               />
             </el-form-item>
@@ -321,11 +321,11 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import StorageContentBatchesDialog from '@/components/sales/StorageContentBatchesDialog.vue'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
-import UserSelector from '@/components/selectors/UserSelector.vue'
+import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleModel } from '@/models/saleModel.ts'
-import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import { getProductStock } from '@/services/api/products.ts'
 import { createSale } from '@/services/api/sales.ts'
@@ -373,7 +373,7 @@ let discountRequestId = 0
 let stockRequestId = 0
 
 const form = reactive({
-  buyer: undefined as UserModel | undefined,
+  buyer: undefined as OrganizationSelection | undefined,
   currencyId: undefined as number | undefined,
   storageName: undefined as string | undefined,
   saleDateTime: toLocalDateTimeInputValue(new Date()),
@@ -655,13 +655,14 @@ function formatCurrency(value: number, sign?: string) {
 }
 
 async function save(confirmationCode?: string) {
-  if (!canSave.value || !form.buyer || !form.currencyId || !form.storageName || isSaving.value) return
+  if (!canSave.value || !form.buyer?.member || !form.currencyId || !form.storageName || isSaving.value) return
 
   fillMissingManualDiscountPrices()
   isSaving.value = true
   try {
     const resp = await createSale({
-      buyerId: form.buyer.id,
+      userId: form.buyer.member.user.id,
+      organizationId: form.buyer.organization.id,
       currencyId: form.currencyId,
       storageName: form.storageName,
       saleDateTime: form.saleDateTime,
@@ -758,7 +759,7 @@ watch(isOpen, (open) => {
   if (open) resetForm()
 })
 
-watch(() => form.buyer?.id, async (buyerId) => {
+watch(() => form.buyer?.member?.user.id, async (buyerId) => {
   const requestId = ++discountRequestId
   backendUserDiscount.value = 0
   saleDiscount.value = 0

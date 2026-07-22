@@ -7,7 +7,7 @@
   >
     <ProductReservationsPanel
       :product-id="productId"
-      :user-id="userId"
+      :organization-id="organizationId"
       :title="panelTitle"
       :allow-create="false"
     />
@@ -21,14 +21,14 @@ import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   productId?: number
-  userId?: string
+  organizationId?: string
   title?: string
 }>()
 
 const isOpen = defineModel<boolean>({ required: true })
 const { t } = useI18n()
 const title = computed(() => props.title ?? t('reservations.title'))
-const panelTitle = computed(() => props.productId ? t('reservations.productReservations') : t('reservations.userReservations'))
+const panelTitle = computed(() => props.productId ? t('reservations.productReservations') : t('reservations.organizationReservations'))
 </script>
 
 <style scoped>

@@ -1,4 +1,4 @@
-import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationModel } from '@/models/organizationModel.ts'
 
 export type ProductReservationStatus =
   | 'Active'
@@ -6,14 +6,9 @@ export type ProductReservationStatus =
   | 'Done'
   | 'Canceled'
 
-export interface UserPartyModel {
-  partyType: string | number
-  user?: UserModel | null
-}
-
 export interface ProductReservationModel {
   id: number
-  user: UserPartyModel
+  organization: OrganizationModel
   reservedCount: number
   currentCount: number
   proposedPrice?: number | null
@@ -25,7 +20,7 @@ export interface ProductReservationModel {
 }
 
 export interface NewProductReservationModel {
-  userId: string
+  organizationId: string
   productId: number
   reservedCount: number
   currentCount: number

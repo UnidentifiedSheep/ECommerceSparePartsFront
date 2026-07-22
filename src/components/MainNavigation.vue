@@ -48,6 +48,9 @@
       </template>
 
       <el-menu-item index="/users" @click="openRoute('/users')">{{ t('nav.users') }}</el-menu-item>
+      <el-menu-item v-if="canViewOrganizations" index="/organizations" @click="openRoute('/organizations')">
+        {{ t('nav.organizations') }}
+      </el-menu-item>
       <el-menu-item index="/roles" @click="openRoute('/roles')">{{ t('nav.roles') }}</el-menu-item>
       <el-menu-item index="/permissions" @click="openRoute('/permissions')">{{ t('nav.permissions') }}</el-menu-item>
       <el-menu-item index="/currencies" @click="openRoute('/currencies')">{{ t('nav.currencies') }}</el-menu-item>
@@ -105,6 +108,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { hasPermission } = usePermissions()
 const canManagePriceAppliers = computed(() => hasPermission('PRICE_APPLIERS_MANAGE'))
+const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
 
 const routeRoots = [
   '/purchases',
@@ -115,6 +119,7 @@ const routeRoots = [
   '/producers',
   '/storages',
   '/users',
+  '/organizations',
   '/roles',
   '/permissions',
   '/currencies',

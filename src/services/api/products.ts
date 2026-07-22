@@ -6,7 +6,7 @@ import type {
   NewProductReservationModel,
   ProductReservationModel,
 } from '@/models/productReservationModel.ts'
-import { mapUserModel, type UserDto } from '@/models/userModel.ts'
+import { mapOrganizationModel, type OrganizationDto } from '@/models/organizationModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
 export interface CreateProductRequestItem {
@@ -117,7 +117,7 @@ export interface EditProductCharacteristicRequest {
 
 export interface GetProductReservationsRequest {
   productId?: number
-  userId?: string
+  organizationId?: string
   showDeleted?: boolean
   page: number
   size: number
@@ -146,11 +146,8 @@ export interface GetProductReservationHistoryResponse {
   history: ProductReservationHistoryModel[]
 }
 
-interface ProductReservationDto extends Omit<ProductReservationModel, 'user'> {
-  user: {
-    partyType: string | number
-    user?: UserDto | null
-  }
+interface ProductReservationDto extends Omit<ProductReservationModel, 'organization'> {
+  organization: OrganizationDto
 }
 
 export type DimensionUnit = 0 | 1 | 2
@@ -183,10 +180,7 @@ function patchField<T>(value: T): PatchField<T> {
 function mapProductReservationModel(dto: ProductReservationDto): ProductReservationModel {
   return {
     ...dto,
-    user: {
-      partyType: dto.user.partyType,
-      user: dto.user.user ? mapUserModel(dto.user.user) : null,
-    },
+    organization: mapOrganizationModel(dto.organization),
   }
 }
 
@@ -221,7 +215,7 @@ export async function getProductReservations(req: GetProductReservationsRequest)
   const resp = await api.get<{ reservations: ProductReservationDto[] }>('/main/products/reservations', {
     params: {
       productId: req.productId,
-      userId: req.userId,
+      organizationId: req.organizationId,
       showDeleted: req.showDeleted,
       page: req.page,
       size: clampPageSize(req.size),

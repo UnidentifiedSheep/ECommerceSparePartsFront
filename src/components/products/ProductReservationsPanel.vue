@@ -31,9 +31,12 @@
       class="reservation-table"
       @sort-change="handleSortChange"
     >
-      <el-table-column :label="t('common.labels.client')" min-width="170" show-overflow-tooltip>
+      <el-table-column :label="t('organizations.organization')" min-width="190" show-overflow-tooltip>
         <template #default="{ row }">
-          <span class="font-medium text-slate-900">{{ userName(row) }}</span>
+          <div class="organization-cell">
+            <strong>{{ row.organization.name }}</strong>
+            <span>{{ organizationTypeText(row.organization.type) }}</span>
+          </div>
         </template>
       </el-table-column>
 
@@ -100,8 +103,12 @@
 
     <el-dialog v-model="createDialogOpen" :title="t('reservations.create')" width="560">
       <el-form label-position="top">
-        <el-form-item v-if="!fixedUserId" :label="t('common.labels.user')">
-          <UserSelector v-model:selected-user="createForm.user" :place-holder="t('reservations.selectUser')" />
+        <el-form-item v-if="!fixedOrganizationId" :label="t('organizations.organization')">
+          <OrganizationSelector
+            v-model="createForm.organization"
+            :member-required="false"
+            :placeholder="t('reservations.selectOrganization')"
+          />
         </el-form-item>
 
         <el-form-item v-if="!fixedProductId" :label="t('common.labels.product')">
@@ -281,7 +288,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
-import UserSelector from '@/components/selectors/UserSelector.vue'
+import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type {
@@ -290,6 +297,7 @@ import type {
   ProductReservationStatus,
 } from '@/models/productReservationModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationSelection, OrganizationType } from '@/models/organizationModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { getRoles, type RoleModel } from '@/services/api/roles.ts'
@@ -308,7 +316,7 @@ const { locale, t } = useI18n()
 
 const props = withDefaults(defineProps<{
   productId?: number
-  userId?: string
+  organizationId?: string
   title?: string
   allowCreate?: boolean
   showDeleted?: boolean
@@ -323,7 +331,7 @@ const canCreate = computed(() => hasPermission('ARTICLE_RESERVATIONS_CREATE'))
 const canEdit = computed(() => hasPermission('ARTICLE_RESERVATIONS_EDIT'))
 const canDelete = computed(() => hasPermission('ARTICLE_RESERVATIONS_DELETE'))
 const fixedProductId = computed(() => props.productId)
-const fixedUserId = computed(() => props.userId)
+const fixedOrganizationId = computed(() => props.organizationId)
 
 const reservations = ref<ProductReservationModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
@@ -355,7 +363,7 @@ const userTooltipCache = reactive<Record<string, {
 }>>({})
 
 const createForm = reactive({
-  user: undefined as UserModel | undefined,
+  organization: undefined as OrganizationSelection | undefined,
   product: undefined as ProductSearchModel | undefined,
   reservedCount: 1,
   currentCount: 0,
@@ -370,15 +378,6 @@ const editForm = reactive({
   comment: '',
 })
 
-const totalReserved = computed(() => (
-  reservations.value.reduce((sum, item) => sum + item.reservedCount, 0)
-))
-const totalTaken = computed(() => (
-  reservations.value.reduce((sum, item) => sum + item.currentCount, 0)
-))
-const totalRemaining = computed(() => (
-  reservations.value.reduce((sum, item) => sum + remainingCount(item), 0)
-))
 const panelTitle = computed(() => props.title ?? t('reservations.title'))
 const summaryText = computed(() => {
   if (isLoading.value) return t('reservations.loading')
@@ -387,7 +386,7 @@ const summaryText = computed(() => {
     : t('reservations.notFound')
 })
 const canSaveCreate = computed(() => (
-  Boolean(fixedUserId.value || createForm.user)
+  Boolean(fixedOrganizationId.value || createForm.organization)
   && Boolean(fixedProductId.value || createForm.product)
   && createForm.reservedCount > 0
   && createForm.currentCount >= 0
@@ -420,15 +419,8 @@ function statusTagType(status: ProductReservationStatus) {
   return types[status] ?? ''
 }
 
-function userName(row: ProductReservationModel) {
-  const user = row.user.user
-  if (!user) return partyTypeText(row.user.partyType)
-  return `${user.surname} ${user.name}`.trim() || user.userName
-}
-
-function partyTypeText(value: string | number) {
-  if (value === 'System' || value === 1) return t('reservations.system')
-  return t('reservations.userParty')
+function organizationTypeText(type: OrganizationType) {
+  return t(`organizations.types.${type}`)
 }
 
 function roleDisplayName(role: string) {
@@ -508,7 +500,7 @@ function selectProduct(product: ProductSearchModel) {
 }
 
 function resetCreateForm() {
-  createForm.user = undefined
+  createForm.organization = undefined
   createForm.product = undefined
   createForm.reservedCount = 1
   createForm.currentCount = 0
@@ -557,7 +549,7 @@ async function loadReservations() {
     await loadCurrencies()
     const resp = await getProductReservations({
       productId: props.productId,
-      userId: props.userId,
+      organizationId: props.organizationId,
       showDeleted: props.showDeleted,
       page: page.value,
       size: size.value,
@@ -597,7 +589,7 @@ async function saveCreate() {
   try {
     const resp = await createProductReservation({
       reservation: {
-        userId: fixedUserId.value ?? createForm.user!.id,
+        organizationId: fixedOrganizationId.value ?? createForm.organization!.organization.id,
         productId: fixedProductId.value ?? createForm.product!.id,
         reservedCount: createForm.reservedCount,
         currentCount: createForm.currentCount,
@@ -671,7 +663,7 @@ async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'd
   await loadReservations()
 }
 
-watch(() => [props.productId, props.userId], async () => {
+watch(() => [props.productId, props.organizationId], async () => {
   page.value = 0
   await loadReservations()
 })
@@ -754,6 +746,25 @@ onMounted(async () => loadReservations())
 
 .reservation-table {
   width: 100%;
+}
+
+.organization-cell {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.organization-cell strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.organization-cell span {
+  color: #64748b;
+  font-size: 11px;
 }
 
 .count-cell {

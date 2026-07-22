@@ -280,7 +280,8 @@ const logisticsCurrencySign = computed(() => (
 
 const supplierName = computed(() => {
   if (!props.purchase) return '—'
-  return `${props.purchase.supplier.surname} ${props.purchase.supplier.name}`.trim()
+  const memberName = `${props.purchase.supplier.surname} ${props.purchase.supplier.name}`.trim()
+  return `${props.purchase.supplierOrganization.name} · ${memberName}`
 })
 
 const editPurchaseTotal = computed(() => (

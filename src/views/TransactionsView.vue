@@ -70,9 +70,10 @@
             <template v-if="filters.logicalOperator === 'And'">
               <div class="participant-row">
                 <label>{{ t('transactions.sender') }}</label>
-                <UserSelector
-                  v-model:selected-user="sender"
-                  :place-holder="t('transactions.selectSender')"
+                <OrganizationSelector
+                  v-model="sender"
+                  :member-required="false"
+                  :placeholder="t('transactions.selectSender')"
                 />
               </div>
 
@@ -80,18 +81,20 @@
 
               <div class="participant-row">
                 <label>{{ t('transactions.receiver') }}</label>
-                <UserSelector
-                  v-model:selected-user="receiver"
-                  :place-holder="t('transactions.selectReceiver')"
+                <OrganizationSelector
+                  v-model="receiver"
+                  :member-required="false"
+                  :placeholder="t('transactions.selectReceiver')"
                 />
               </div>
             </template>
 
             <div v-else class="participant-row">
-              <label>{{ t('common.labels.user') }}</label>
-              <UserSelector
-                v-model:selected-user="sender"
-                :place-holder="t('transactions.selectUser')"
+              <label>{{ t('organizations.organization') }}</label>
+              <OrganizationSelector
+                v-model="sender"
+                :member-required="false"
+                :placeholder="t('transactions.selectUser')"
               />
             </div>
           </fieldset>
@@ -173,29 +176,13 @@
 
           <el-table-column :label="t('transactions.sender')" min-width="190">
             <template #default="{ row }">
-              <button
-                v-if="partyUser(row.sender)"
-                type="button"
-                class="user-link"
-                @click.stop="openUser(row.sender)"
-              >
-                {{ partyLabel(row.sender) }}
-              </button>
-              <span v-else>{{ partyLabel(row.sender) }}</span>
+              <span>{{ partyLabel(row.sender) }}</span>
             </template>
           </el-table-column>
 
           <el-table-column :label="t('transactions.receiver')" min-width="190">
             <template #default="{ row }">
-              <button
-                v-if="partyUser(row.receiver)"
-                type="button"
-                class="user-link"
-                @click.stop="openUser(row.receiver)"
-              >
-                {{ partyLabel(row.receiver) }}
-              </button>
-              <span v-else>{{ partyLabel(row.receiver) }}</span>
+              <span>{{ partyLabel(row.receiver) }}</span>
             </template>
           </el-table-column>
 
@@ -319,29 +306,13 @@
           <div>
             <dt>{{ t('transactions.sender') }}</dt>
             <dd>
-              <button
-                v-if="partyUser(selectedTransaction.sender)"
-                type="button"
-                class="user-link"
-                @click="openUser(selectedTransaction.sender)"
-              >
-                {{ partyLabel(selectedTransaction.sender) }}
-              </button>
-              <span v-else>{{ partyLabel(selectedTransaction.sender) }}</span>
+              <span>{{ partyLabel(selectedTransaction.sender) }}</span>
             </dd>
           </div>
           <div>
             <dt>{{ t('transactions.receiver') }}</dt>
             <dd>
-              <button
-                v-if="partyUser(selectedTransaction.receiver)"
-                type="button"
-                class="user-link"
-                @click="openUser(selectedTransaction.receiver)"
-              >
-                {{ partyLabel(selectedTransaction.receiver) }}
-              </button>
-              <span v-else>{{ partyLabel(selectedTransaction.receiver) }}</span>
+              <span>{{ partyLabel(selectedTransaction.receiver) }}</span>
             </dd>
           </div>
           <div>
@@ -365,18 +336,17 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import UserSelector from '@/components/selectors/UserSelector.vue'
+import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import CreateTransactionDialog from '@/components/transactions/CreateTransactionDialog.vue'
-import type { UserModel } from '@/models/userModel.ts'
+import type { OrganizationModel, OrganizationSelection } from '@/models/organizationModel.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
-import { getUserFullInfo } from '@/services/api/users.ts'
+import { getOrganizations } from '@/services/api/organizations.ts'
 import {
   deleteBalanceTransaction,
   getBalanceTransactions,
   type BalanceTransactionModel,
   type TransactionLogicalOperator,
-  type TransactionPartyModel,
   type TransactionSourceType,
   type TransactionStatus,
   type TransactionType,
@@ -403,8 +373,8 @@ const detailsOpen = ref(false)
 const selectedTransaction = ref<BalanceTransactionModel | null>(null)
 const transactions = ref<BalanceTransactionModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
-const sender = ref<UserModel | undefined>()
-const receiver = ref<UserModel | undefined>()
+const sender = ref<OrganizationSelection | undefined>()
+const receiver = ref<OrganizationSelection | undefined>()
 const canLoadMore = ref(false)
 const dateRange = ref<[string, string]>(defaultDateRange())
 const isApplyingRouteQuery = ref(false)
@@ -467,8 +437,8 @@ async function reloadTransactions() {
       rangeStart: dateRange.value[0],
       rangeEnd: dateRange.value[1],
       currencyId: filters.currencyId,
-      senderId: sender.value?.id,
-      receiverId: filters.logicalOperator === 'And' ? receiver.value?.id : undefined,
+      senderId: sender.value?.organization.id,
+      receiverId: filters.logicalOperator === 'And' ? receiver.value?.organization.id : undefined,
       logicalOperator: filters.logicalOperator,
       skipReversed: filters.skipReversed,
       size: pageSize,
@@ -493,8 +463,8 @@ async function loadMoreTransactions() {
       rangeStart: dateRange.value[0],
       rangeEnd: dateRange.value[1],
       currencyId: filters.currencyId,
-      senderId: sender.value?.id,
-      receiverId: filters.logicalOperator === 'And' ? receiver.value?.id : undefined,
+      senderId: sender.value?.organization.id,
+      receiverId: filters.logicalOperator === 'And' ? receiver.value?.organization.id : undefined,
       logicalOperator: filters.logicalOperator,
       skipReversed: filters.skipReversed,
       cursorId: cursor.id,
@@ -548,8 +518,8 @@ async function applyFiltersFromQuery() {
     const receiverId = firstQueryValue(query.receiverId)
 
     const [nextSender, nextReceiver] = await Promise.all([
-      loadUserById(senderId),
-      filters.logicalOperator === 'And' ? loadUserById(receiverId) : Promise.resolve(undefined),
+      loadOrganizationById(senderId),
+      filters.logicalOperator === 'And' ? loadOrganizationById(receiverId) : Promise.resolve(undefined),
     ])
 
     sender.value = nextSender
@@ -559,12 +529,13 @@ async function applyFiltersFromQuery() {
   }
 }
 
-async function loadUserById(userId?: string) {
-  if (!userId) return undefined
+async function loadOrganizationById(organizationId?: string): Promise<OrganizationSelection | undefined> {
+  if (!organizationId) return undefined
 
   try {
-    const response = await getUserFullInfo(userId)
-    return response.user
+    const response = await getOrganizations({ ids: [organizationId], page: 0, limit: 1 })
+    const organization = response.organizations[0]
+    return organization ? { organization } : undefined
   } catch {
     return undefined
   }
@@ -617,8 +588,8 @@ async function syncFiltersToQuery() {
   if (filters.currencyId) nextQuery.currencyId = String(filters.currencyId)
   if (filters.logicalOperator !== 'And') nextQuery.operator = filters.logicalOperator
   if (!filters.skipReversed) nextQuery.showReversed = 'true'
-  if (sender.value?.id) nextQuery.senderId = sender.value.id
-  if (filters.logicalOperator === 'And' && receiver.value?.id) nextQuery.receiverId = receiver.value.id
+  if (sender.value?.organization.id) nextQuery.senderId = sender.value.organization.id
+  if (filters.logicalOperator === 'And' && receiver.value?.organization.id) nextQuery.receiverId = receiver.value.organization.id
 
   if (isSameQuery(route.query, nextQuery)) return
 
@@ -652,32 +623,8 @@ function selectTransaction(transaction: BalanceTransactionModel) {
   detailsOpen.value = true
 }
 
-function partyLabel(party: TransactionPartyModel) {
-  if (party.partyType === 'System' || party.partyType === 1) return t('transactions.system')
-  if (!party.user) return t('transactions.unknownUser')
-
-  const name = [party.user.surname || party.user.userInfo?.surname, party.user.name || party.user.userInfo?.name]
-    .filter(Boolean)
-    .join(' ')
-
-  return name || party.user.userName || t('transactions.unknownUser')
-}
-
-function partyUser(party: TransactionPartyModel) {
-  if (party.partyType === 'System' || party.partyType === 1) return null
-  return party.user
-}
-
-function openUser(party: TransactionPartyModel) {
-  const user = partyUser(party)
-  if (!user) return
-
-  router.push({
-    name: 'users',
-    query: {
-      userId: user.id,
-    },
-  })
+function partyLabel(organization: OrganizationModel) {
+  return organization.name || organization.systemName
 }
 
 function formatMoney(value: number, currencyId: number) {
@@ -975,8 +922,8 @@ watch(
     filters.currencyId,
     filters.logicalOperator,
     filters.skipReversed,
-    sender.value?.id,
-    receiver.value?.id,
+    sender.value?.organization.id,
+    receiver.value?.organization.id,
   ],
   async () => {
     if (isApplyingRouteQuery.value) return

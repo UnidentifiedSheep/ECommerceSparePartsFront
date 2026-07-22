@@ -93,13 +93,6 @@
                       >
                         {{ t('users.editInfo') }}
                       </el-dropdown-item>
-                      <el-dropdown-item
-                        v-if="canViewProductReservations"
-                        command="reservations"
-                        :icon="View"
-                      >
-                        {{ t('users.viewReservations') }}
-                      </el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
@@ -140,6 +133,38 @@
                       </div>
                     </div>
                   </div>
+
+                  <section v-if="canViewOrganizations" class="pb-4">
+                    <el-divider content-position="left">{{ t('users.organizations') }}</el-divider>
+                    <div v-loading="userOrganizationsLoading" class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                      <button
+                        v-for="organization in userOrganizations"
+                        :key="organization.id"
+                        type="button"
+                        class="flex w-full items-center justify-between gap-3 border-0 border-b border-slate-100 bg-white px-3 py-2 text-left last:border-b-0 hover:bg-slate-50"
+                        @click="openOrganization(organization.id)"
+                      >
+                        <span class="min-w-0 truncate text-sm font-medium text-slate-900">{{ organization.name }}</span>
+                        <span class="shrink-0 text-xs text-slate-500">
+                          {{ t(`organizations.types.${organization.type}`) }}
+                        </span>
+                      </button>
+                      <div v-if="!userOrganizationsLoading && userOrganizations.length === 0" class="px-3 py-4 text-center text-sm text-slate-400">
+                        {{ userOrganizationsError || t('users.noOrganizations') }}
+                      </div>
+                    </div>
+                    <el-button
+                      v-if="userOrganizationsHasNext"
+                      class="mt-2"
+                      size="small"
+                      text
+                      type="primary"
+                      :loading="userOrganizationsLoading"
+                      @click="loadMoreUserOrganizations"
+                    >
+                      {{ t('users.loadMoreOrganizations') }}
+                    </el-button>
+                  </section>
 
                   <el-divider content-position="left">{{ t('users.contacts') }}</el-divider>
                     <div class="grid gap-3 pb-4">
@@ -203,43 +228,7 @@
                     <div v-if="userStorages.length === 0" class="text-sm text-slate-400">{{ t('users.noStorages') }}</div>
                   </div>
 
-                  <el-collapse v-model="openDetailsSections" class="user-details-collapse" @change="handleDetailsSectionsChange">
-                    <el-collapse-item name="finances">
-                      <template #title>
-                        <span class="text-sm font-semibold text-slate-900">{{ t('users.financialInfo') }}</span>
-                      </template>
-
-                      <div v-loading="financialInfoLoading" class="grid gap-3 pb-4">
-                        <template v-if="userFinancialInfo">
-                          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                            <div class="text-sm font-medium text-slate-600">{{ t('users.financialBalance') }}</div>
-                            <div class="mt-2 text-2xl font-semibold" :class="financeAmountClass(financialBalance)">
-                              {{ formatFinanceAmount(financialBalance, userFinancialInfo.baseCurrency) }}
-                            </div>
-                            <div class="mt-1 text-sm text-slate-500">{{ financialBalanceHint }}</div>
-                          </div>
-
-                          <div v-if="userFinancialInfo.balances.length > 0" class="grid grid-cols-2 gap-3">
-                            <div
-                              v-for="balance in userFinancialInfo.balances"
-                              :key="balance.currency.id"
-                              class="rounded-lg border border-slate-200 bg-white p-3"
-                            >
-                              <div class="text-xs font-semibold text-slate-500">{{ balance.currency.shortName }}</div>
-                              <div class="mt-1 text-base font-semibold" :class="financeAmountClass(balance.balance)">
-                                {{ formatFinanceAmount(balance.balance, balance.currency) }}
-                              </div>
-                            </div>
-                          </div>
-                          <div v-else class="text-sm text-slate-400">{{ t('users.noBalances') }}</div>
-                        </template>
-
-                        <div v-else-if="financialInfoError" class="rounded-lg bg-red-50 p-3 text-sm text-red-600">
-                          {{ financialInfoError }}
-                        </div>
-                      </div>
-                    </el-collapse-item>
-
+                  <el-collapse v-model="openDetailsSections" class="user-details-collapse">
                     <el-collapse-item name="permissions">
                       <template #title>
                         <div class="flex w-full items-center justify-between pr-3">
@@ -562,12 +551,6 @@
       </template>
     </el-dialog>
 
-    <ProductReservationsDialog
-      v-if="selectedUser && canViewProductReservations"
-      v-model="reservationsDialogOpen"
-      :user-id="selectedUser.id"
-      :title="t('users.reservationsTitle', { name: `${selectedUser.surname} ${selectedUser.name}` })"
-    />
   </div>
 </template>
 
@@ -577,20 +560,19 @@ import type { TableInstance } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElMessageBox, ElNotification } from 'element-plus'
-import { Edit, MoreFilled, View } from '@element-plus/icons-vue'
+import { Edit, MoreFilled } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
-import type { CurrencyModel } from '@/models/currencyModel.ts'
+import type { OrganizationModel } from '@/models/organizationModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { getRoles, type RoleModel } from '@/services/api/roles.ts'
 import { getStorages } from '@/services/api/storages.ts'
 import { getPermissions } from '@/services/api/permissions.ts'
 import type { PermissionModel } from '@/models/permissionModel.ts'
-import type { GetUserFinancialInfoResponse, UserEmailModel } from '@/services/api/users.ts'
+import type { UserEmailModel } from '@/services/api/users.ts'
 import {
   addPermissionToUser,
   addRoleToUser,
@@ -600,8 +582,8 @@ import {
   editUserInfo,
   getEmailOptions,
   getUserDiscount,
-  getUserFinancialInfo,
   getUserFullInfo,
+  getUserOrganizations,
   getUsers,
   getUserStorages,
   removeEmailFromUser,
@@ -636,7 +618,7 @@ const canCreateUsers = computed(() => hasPermission('USERS_CREATE'))
 const canEditUserInfo = canCreateUsers
 const canManageUserEmails = computed(() => hasPermission('USERS_MAILS_CREATE'))
 const canManageUserRoles = computed(() => hasPermission('USERS_ROLES_CREATE'))
-const canViewProductReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
+const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
 const selectedUser = ref<UserModel>()
 const searchTerm = ref<string>()
 const selectedRoleFilters = ref<string[]>([])
@@ -651,13 +633,14 @@ const userPermissions = ref<string[]>([])
 const userEmails = ref<UserEmailModel[]>([])
 const userPhones = ref<UserPhoneModel[]>([])
 const userStorages = ref<StorageModel[]>([])
+const userOrganizations = ref<OrganizationModel[]>([])
+const userOrganizationsPage = ref(0)
+const userOrganizationsHasNext = ref(false)
+const userOrganizationsLoading = ref(false)
+const userOrganizationsError = ref('')
 const userDiscount = ref<number>(0)
 const permissionsCatalog = ref<PermissionModel[]>([])
 const openDetailsSections = ref<string[]>([])
-const userFinancialInfo = ref<GetUserFinancialInfoResponse | null>(null)
-const financialInfoLoading = ref(false)
-const financialInfoError = ref('')
-let financialInfoRequestId = 0
 let permissionsCatalogRequestId = 0
 let rolesRequestId = 0
 
@@ -666,7 +649,6 @@ const storageDialogOpen = ref(false)
 const storageToAttach = ref<string>()
 const discountDialogOpen = ref(false)
 const editInfoDialogOpen = ref(false)
-const reservationsDialogOpen = ref(false)
 const permissionDialogOpen = ref(false)
 const roleDialogOpen = ref(false)
 const permissionAttachLoading = ref(false)
@@ -702,12 +684,6 @@ const editInfoForm = reactive({
 })
 
 const discountText = computed(() => `${(userDiscount.value * 100).toFixed(2)}%`)
-const financialBalance = computed(() => userFinancialInfo.value?.financialProfile?.balance ?? 0)
-const financialBalanceHint = computed(() => {
-  if (financialBalance.value < 0) return t('users.userOwesUs')
-  if (financialBalance.value > 0) return t('users.weOweUser')
-  return t('users.noDebt')
-})
 const filledCreateUserEmails = computed(() => (
   createUserForm.emails.filter((email) => email.email.trim() !== '')
 ))
@@ -829,19 +805,6 @@ function formatDate(value?: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)
-}
-
-function formatFinanceAmount(value: number, currency: CurrencyModel) {
-  return `${value.toLocaleString(locale.value, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })} ${currency.currencySign || currency.shortName}`.trim()
-}
-
-function financeAmountClass(value: number) {
-  if (value < 0) return 'text-red-600'
-  if (value > 0) return 'text-emerald-700'
-  return 'text-slate-900'
 }
 
 function resetFilters() {
@@ -1005,12 +968,12 @@ function clearDetails() {
   userEmails.value = []
   userPhones.value = []
   userStorages.value = []
+  userOrganizations.value = []
+  userOrganizationsPage.value = 0
+  userOrganizationsHasNext.value = false
+  userOrganizationsError.value = ''
   userDiscount.value = 0
   openDetailsSections.value = []
-  userFinancialInfo.value = null
-  financialInfoError.value = ''
-  financialInfoLoading.value = false
-  financialInfoRequestId += 1
 }
 
 async function selectUser(user?: UserModel) {
@@ -1029,6 +992,7 @@ async function selectUser(user?: UserModel) {
       getUserFullInfo(user.id),
       getUserStorages(user.id),
       getUserDiscount(user.id),
+      loadUserOrganizations(user.id, true),
     ])
 
     selectedUser.value = fullInfo.user
@@ -1040,11 +1004,48 @@ async function selectUser(user?: UserModel) {
     userDiscount.value = discount.discount
     discountFormValue.value = discount.discount * 100
     openDetailsSections.value = []
-    userFinancialInfo.value = null
-    financialInfoError.value = ''
   } finally {
     detailsLoading.value = false
   }
+}
+
+async function loadUserOrganizations(userId: string, reset: boolean) {
+  if (!canViewOrganizations.value || userOrganizationsLoading.value) return
+
+  if (reset) {
+    userOrganizations.value = []
+    userOrganizationsPage.value = 0
+    userOrganizationsHasNext.value = true
+    userOrganizationsError.value = ''
+  }
+  if (!userOrganizationsHasNext.value) return
+
+  userOrganizationsLoading.value = true
+  try {
+    const response = await getUserOrganizations(userId, {
+      page: userOrganizationsPage.value,
+      limit: 10,
+      sortBy: 'Name',
+    })
+    const existingIds = new Set(userOrganizations.value.map((organization) => organization.id))
+    userOrganizations.value.push(...response.organizations.filter((organization) => !existingIds.has(organization.id)))
+    userOrganizationsHasNext.value = response.organizations.length === 10
+    userOrganizationsPage.value += 1
+  } catch {
+    userOrganizationsHasNext.value = false
+    userOrganizationsError.value = t('users.organizationsLoadError')
+  } finally {
+    userOrganizationsLoading.value = false
+  }
+}
+
+async function loadMoreUserOrganizations() {
+  if (!selectedUser.value) return
+  await loadUserOrganizations(selectedUser.value.id, false)
+}
+
+function openOrganization(organizationId: string) {
+  router.push({ name: 'organizations', query: { organizationId } })
 }
 
 async function reloadSelectedUserFullInfo() {
@@ -1057,34 +1058,6 @@ async function reloadSelectedUserFullInfo() {
   userPermissions.value = fullInfo.permissions
   userEmails.value = fullInfo.emails
   userPhones.value = fullInfo.phones
-}
-
-function handleDetailsSectionsChange(value: string | string[]) {
-  const sections = Array.isArray(value) ? value : [value]
-  if (sections.includes('finances')) {
-    void loadSelectedUserFinancialInfo()
-  }
-}
-
-async function loadSelectedUserFinancialInfo() {
-  const userId = selectedUser.value?.id
-  if (!userId || userFinancialInfo.value || financialInfoLoading.value) return
-
-  const requestId = ++financialInfoRequestId
-  financialInfoLoading.value = true
-  financialInfoError.value = ''
-  try {
-    const response = await getUserFinancialInfo(userId)
-    if (requestId !== financialInfoRequestId) return
-    userFinancialInfo.value = response
-  } catch (error) {
-    if (requestId !== financialInfoRequestId) return
-    financialInfoError.value = error instanceof Error ? error.message : t('users.loadFinancialInfoError')
-  } finally {
-    if (requestId === financialInfoRequestId) {
-      financialInfoLoading.value = false
-    }
-  }
 }
 
 async function selectUserFromRoute() {
@@ -1197,10 +1170,6 @@ function handleUserAction(command: string) {
   if (command === 'editInfo') {
     openEditInfoDialog()
     return
-  }
-
-  if (command === 'reservations') {
-    reservationsDialogOpen.value = true
   }
 }
 

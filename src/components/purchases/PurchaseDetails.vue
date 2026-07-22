@@ -4,7 +4,7 @@
       <header class="details-header">
         <div>
           <h2>{{ t('purchases.detailsTitle') }}</h2>
-          <p>{{ purchase.supplier.surname }} {{ purchase.supplier.name }} · {{ formatDate(purchase.purchaseDatetime) }}</p>
+          <p>{{ purchase.supplierOrganization.name }} · {{ purchase.supplier.surname }} {{ purchase.supplier.name }} · {{ formatDate(purchase.purchaseDatetime) }}</p>
         </div>
         <strong>{{ formatCurrency(purchase.totalSum, purchase.currency.currencySign) }}</strong>
       </header>

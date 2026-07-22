@@ -3,10 +3,15 @@ import { mapUserModel, type UserModel } from '@/models/userModel.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
+import {
+  mapOrganizationModel,
+  type OrganizationDto,
+} from '@/models/organizationModel.ts'
 
 interface SaleDto {
   id: string
   buyer: UserModel
+  organization: OrganizationDto
   comment?: string | null
   saleDatetime: string
   transactionId: string
@@ -26,7 +31,8 @@ export interface NewSaleContentRequest {
 }
 
 export interface CreateSaleRequest {
-  buyerId: string
+  userId: string
+  organizationId: string
   currencyId: number
   storageName: string
   saleDateTime: string
@@ -83,6 +89,7 @@ function mapSaleModel(dto: SaleDto): SaleModel {
   return {
     ...dto,
     buyer: mapUserModel(dto.buyer),
+    organization: mapOrganizationModel(dto.organization),
   }
 }
 

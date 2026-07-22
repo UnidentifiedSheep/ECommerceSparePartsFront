@@ -21,6 +21,7 @@ import SettingsView from '@/views/SettingsView.vue'
 import StoragesView from '@/views/StoragesView.vue'
 import TransactionsView from '@/views/TransactionsView.vue'
 import UsersView from '@/views/UsersView.vue'
+import OrganizationsView from '@/views/OrganizationsView.vue'
 import { useAuthStore } from '@/stores/authStore.ts'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import ClearLayout from '@/layouts/ClearLayout.vue'
@@ -44,6 +45,12 @@ const routes = [
         path: '/users',
         name: 'users',
         component: UsersView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/organizations',
+        name: 'organizations',
+        component: OrganizationsView,
         meta: { requiresAuth: true },
       },
       {
