@@ -19,13 +19,15 @@ export function clampPageSize(value: number): number {
 
 let authStore: ReturnType<typeof useAuthStore> | null = null
 let refreshPromise: Promise<RefreshResponse> | null = null
+const authRefreshLockName = 'ecom-auth-refresh'
 export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
 export const analyticsApiPrefix = '/analytics'
 
-function initAuthStore() {
+function initAuthStore(): ReturnType<typeof useAuthStore> {
   if (authStore === null) {
     authStore = useAuthStore()
   }
+  return authStore
 }
 
 async function refreshAccessToken(req: RefreshRequest): Promise<RefreshResponse> {
@@ -57,6 +59,51 @@ function setAuthHeader(config: InternalAxiosRequestConfig, token: string) {
   config.headers.set('Authorization', `Bearer ${token}`)
 }
 
+function requestAccessToken(config: InternalAxiosRequestConfig): string | null {
+  const authorization = config.headers?.get?.('Authorization')
+    ?? config.headers?.get?.('authorization')
+    ?? config.headers?.Authorization
+
+  if (typeof authorization !== 'string') return null
+  return authorization.replace(/^Bearer\s+/i, '') || null
+}
+
+async function refreshAccessTokenAcrossTabs(
+  failedAccessToken: string | null,
+): Promise<RefreshResponse> {
+  const refreshOrReuseSession = async (): Promise<RefreshResponse> => {
+    const store = initAuthStore()
+    store.syncFromStorage()
+
+    if (
+      failedAccessToken
+      && store.token
+      && store.token !== failedAccessToken
+      && store.refreshToken
+    ) {
+      return {
+        token: store.token,
+        refreshToken: store.refreshToken,
+      }
+    }
+
+    if (!store.refreshToken || !store.deviceId) {
+      throw new Error('Authentication session is unavailable.')
+    }
+
+    return refreshAccessToken({
+      refreshToken: store.refreshToken,
+      deviceId: store.deviceId,
+    })
+  }
+
+  if (navigator.locks) {
+    return navigator.locks.request(authRefreshLockName, refreshOrReuseSession)
+  }
+
+  return refreshOrReuseSession()
+}
+
 const api: AxiosInstance = axios.create({
   baseURL: apiBaseUrl,
   timeout: 10000,
@@ -67,13 +114,13 @@ const api: AxiosInstance = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    initAuthStore()
+    const store = initAuthStore()
     config.headers.set?.('Accept-Language', getCurrentLocale())
     if (!config.headers.set) {
       config.headers['Accept-Language'] = getCurrentLocale()
     }
-    if (authStore?.isAuthenticated) {
-      config.headers.Authorization = `Bearer ${authStore.token}`
+    if (store.isAuthenticated) {
+      config.headers.Authorization = `Bearer ${store.token}`
     }
     return config
   },
@@ -91,29 +138,31 @@ api.interceptors.response.use(
       && !originalRequest._retry
       && !isRefreshRequest(originalRequest)
     ) {
-      initAuthStore()
-
-      if (!authStore?.refreshToken || !authStore.deviceId) {
-        return Promise.reject(error)
-      }
+      const store = initAuthStore()
 
       markRetried(originalRequest)
-
-      const req: RefreshRequest = {
-        refreshToken: authStore.refreshToken,
-        deviceId: authStore.deviceId,
-      }
+      const failedAccessToken = requestAccessToken(originalRequest)
 
       try {
-        const response = await refreshAccessToken(req)
+        const response = await refreshAccessTokenAcrossTabs(failedAccessToken)
 
-        authStore.refresh(response.token, response.refreshToken)
+        store.refresh(response.token, response.refreshToken)
         api.defaults.headers.common.Authorization = `Bearer ${response.token}`
         setAuthHeader(originalRequest, response.token)
 
         return api(originalRequest)
       } catch (refreshError) {
-        authStore.logout()
+        store.syncFromStorage()
+        if (
+          failedAccessToken
+          && store.token
+          && store.token !== failedAccessToken
+        ) {
+          setAuthHeader(originalRequest, store.token)
+          return api(originalRequest)
+        }
+
+        store.logout()
         return Promise.reject(refreshError)
       }
     }

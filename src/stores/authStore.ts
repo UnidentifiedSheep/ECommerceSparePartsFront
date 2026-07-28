@@ -14,6 +14,7 @@ interface User {
 
 interface JwtPayload {
   sub?: string
+  nameid?: string
   unique_name?: string
   email?: string
   given_name?: string
@@ -30,6 +31,13 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
 
   const isAuthenticated = computed(() => !!token.value)
+
+  function syncFromStorage() {
+    token.value = localStorage.getItem('token')
+    refreshToken.value = localStorage.getItem('refreshToken')
+    deviceId.value = localStorage.getItem('deviceId')
+    user.value = token.value ? decodeUser(token.value) : null
+  }
 
   const login = (nToken: string, nRefreshToken: string, nDeviceId: string) => {
     if (loading.value) return
@@ -75,7 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
         : payload.permission ? [payload.permission] : []
 
       return {
-        id: payload.sub ?? '',
+        id: payload.sub ?? payload.nameid ?? '',
         userName: payload.unique_name,
         email: payload.email,
         name: payload.given_name,
@@ -98,6 +106,11 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('deviceId')
   }
 
+  window.addEventListener('storage', (event) => {
+    if (!['token', 'refreshToken', 'deviceId'].includes(event.key ?? '')) return
+    syncFromStorage()
+  })
+
   return {
     token,
     refreshToken,
@@ -107,6 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     login,
     logout,
-    refresh
+    refresh,
+    syncFromStorage,
   }
 })
