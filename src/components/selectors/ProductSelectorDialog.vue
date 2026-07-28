@@ -69,7 +69,7 @@ import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
-import { getProducer } from '@/services/api/producers.ts'
+import { getProducersByIds } from '@/services/api/producers.ts'
 import { searchProducts } from '@/services/api/search.ts'
 import { useI18n } from '@/i18n'
 
@@ -149,10 +149,10 @@ async function loadProducerNames(items: ProductSearchModel[]) {
   const ids = [...new Set(items.map((product) => product.producerId))]
     .filter((id) => !producerNames.value[id])
 
-  await Promise.all(ids.map(async (id) => {
-    const resp = await getProducer(id)
-    producerNames.value[id] = resp.producer.name
-  }))
+  const producers = await getProducersByIds(ids)
+  producers.forEach((producer) => {
+    producerNames.value[producer.id] = producer.name
+  })
 }
 
 watch(isOpen, async (open) => {

@@ -297,7 +297,7 @@ const aliasForm = reactive({
   alias: '',
 })
 
-const supplierOptions: Supplier[] = ['Armtek', 'FavoritParts']
+const supplierOptions: Supplier[] = ['Armtek', 'FavoritParts', 'Tmtr']
 const supplierMappingForm = reactive<{
   supplier: Supplier
   supplierProducerName: string

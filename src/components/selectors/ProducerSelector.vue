@@ -26,7 +26,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import type { ProducerSearchModel } from '@/models/producerSearchModel.ts'
 import { useSelectInfiniteScroll } from '@/composables/useSelectInfiniteScroll.ts'
-import { getProducer } from '@/services/api/producers.ts'
+import { getProducersByIds } from '@/services/api/producers.ts'
 import { searchProducers } from '@/services/api/search.ts'
 import { useI18n } from '@/i18n'
 
@@ -102,8 +102,10 @@ function onVisibleChange(open: boolean) {
 async function ensureSelectedProducerLoaded(id?: number) {
   if (!id || producers.value.some((producer) => producer.id === id)) return
 
-  const resp = await getProducer(id)
-  producers.value = [resp.producer, ...producers.value]
+  const [producer] = await getProducersByIds([id])
+  if (producer) {
+    producers.value = [producer, ...producers.value]
+  }
 }
 
 watch(producerId, async (id) => ensureSelectedProducerLoaded(id), { immediate: true })

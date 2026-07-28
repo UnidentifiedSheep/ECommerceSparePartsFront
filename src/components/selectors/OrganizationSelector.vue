@@ -15,9 +15,9 @@
         :class="{ 'is-disabled': disabled }"
         :disabled="disabled"
       >
-        <span v-if="modelValue" class="selection-value">
-          <strong>{{ modelValue.organization.name }}</strong>
-          <span v-if="modelValue.member">{{ userName(modelValue.member.user) }}</span>
+        <span v-if="modelValue" class="selection-value" :title="selectionTitle(modelValue)">
+          <strong>{{ selectionPrimary(modelValue) }}</strong>
+          <span>{{ selectionSecondary(modelValue) }}</span>
         </span>
         <span v-else class="selection-placeholder">{{ resolvedPlaceholder }}</span>
         <el-icon
@@ -48,7 +48,10 @@
         <div v-for="organization in organizations" :key="organization.id" class="organization-branch">
           <div
             class="organization-row"
-            :class="{ 'is-selected': modelValue?.organization.id === organization.id && !modelValue.member }"
+            :class="{
+              'is-selected': modelValue?.organization.id === organization.id
+                && (organization.type === 'Individual' || !modelValue.member),
+            }"
             @click="handleOrganizationClick(organization)"
           >
             <el-icon
@@ -61,7 +64,14 @@
             <span v-else class="branch-leaf" aria-hidden="true" />
             <div class="organization-copy">
               <strong>{{ organization.name }}</strong>
-              <span>{{ organizationMeta(organization) }}</span>
+              <UserHoverCard
+                v-if="organization.type === 'Individual'"
+                :user="organization.owner.user"
+                placement="right-start"
+              >
+                <span class="organization-owner-summary">{{ organizationDetails(organization) }}</span>
+              </UserHoverCard>
+              <span v-else :title="organizationDetails(organization)">{{ organizationDetails(organization) }}</span>
             </div>
             <el-button
               v-if="!memberRequired && organization.type !== 'Individual'"
@@ -72,6 +82,12 @@
             >
               {{ t('organizations.selectOrganization') }}
             </el-button>
+            <el-icon
+              v-if="organization.type === 'Individual' && modelValue?.organization.id === organization.id"
+              class="organization-check"
+            >
+              <Check />
+            </el-icon>
           </div>
 
           <div v-if="branch(organization.id).expanded" class="member-branch">
@@ -129,6 +145,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { ArrowDown, CaretRight, Check, Close, Search } from '@element-plus/icons-vue'
+import UserHoverCard from '@/components/users/UserHoverCard.vue'
 import type {
   OrganizationMemberModel,
   OrganizationModel,
@@ -293,6 +310,31 @@ function userName(user: UserModel) {
   return [user.surname, user.name].filter(Boolean).join(' ') || user.userName
 }
 
+function userIdentity(user: UserModel) {
+  const displayName = userName(user)
+  return displayName === user.userName
+    ? user.userName
+    : `${displayName} · ${user.userName}`
+}
+
+function selectionPrimary(selection: OrganizationSelection) {
+  return selection.organization.type === 'Individual' && selection.member
+    ? userName(selection.member.user)
+    : selection.organization.name
+}
+
+function selectionSecondary(selection: OrganizationSelection) {
+  if (selection.organization.type === 'Individual' && selection.member) {
+    return `${selection.member.user.userName} · ${selection.organization.name}`
+  }
+  if (selection.member) return userIdentity(selection.member.user)
+  return organizationMeta(selection.organization)
+}
+
+function selectionTitle(selection: OrganizationSelection) {
+  return `${selectionPrimary(selection)} — ${selectionSecondary(selection)}`
+}
+
 function initials(user: UserModel) {
   const parts = [user.name, user.surname].filter(Boolean)
   return (parts.map((part) => part[0]).join('').slice(0, 2) || user.userName.slice(0, 2)).toUpperCase()
@@ -304,6 +346,13 @@ function organizationMeta(organization: OrganizationModel) {
   return generatedSystemName || organization.systemName === organization.name
     ? type
     : `${organization.systemName} · ${type}`
+}
+
+function organizationDetails(organization: OrganizationModel) {
+  const meta = organizationMeta(organization)
+  return organization.type === 'Individual'
+    ? `${meta} · ${userIdentity(organization.owner.user)}`
+    : meta
 }
 
 watch(() => props.modelValue, ensureSelectedOrganization)
@@ -348,9 +397,13 @@ watch(() => props.types, () => void loadOrganizations(true), { deep: true })
 .branch-arrow.is-expanded { transform: rotate(90deg); }
 .branch-leaf { width: 14px; height: 14px; flex: none; position: relative; }
 .branch-leaf::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--el-color-primary); }
+.organization-check { flex: none; color: var(--el-color-primary); }
 .organization-copy, .member-copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
 .organization-copy strong, .member-copy strong { overflow: hidden; color: var(--el-text-color-primary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .organization-copy span, .member-copy span { overflow: hidden; color: var(--el-text-color-secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.organization-copy :deep(.user-hover-card-reference) { display: block; width: 100%; color: var(--el-text-color-secondary); font-size: 11px; font-weight: 400; }
+.organization-copy :deep(.user-hover-card-reference:hover) { color: var(--el-color-primary); }
+.organization-owner-summary { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member-branch { margin: 0 6px 8px 17px; padding-left: 13px; border-left: 1px solid var(--el-border-color); }
 .member-row { width: 100%; min-height: 40px; display: flex; align-items: center; gap: 9px; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; text-align: left; cursor: pointer; }
 .member-row:hover, .member-row.is-selected { background: var(--el-fill-color-light); }

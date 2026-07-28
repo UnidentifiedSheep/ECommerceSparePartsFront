@@ -157,6 +157,10 @@ function analyticsUrl(path: string): string {
   return `${analyticsApiPrefix}${path}`
 }
 
+function businessMetricsUrl(path = ''): string {
+  return analyticsUrl(`/business-metrics${path}`)
+}
+
 function mapCalculationJob(dto: CalculationJobDto): CalculationJobModel {
   return {
     ...dto,
@@ -176,12 +180,12 @@ function mapMetric(dto: MetricDto): MetricModel {
 }
 
 export async function getMetricInfos(): Promise<GetMetricInfosResponse> {
-  const resp = await api.get<GetMetricInfosResponse>(analyticsUrl('/metrics/info'))
+  const resp = await api.get<GetMetricInfosResponse>(businessMetricsUrl('/info'))
   return resp.data
 }
 
 export async function getMetrics(req: GetMetricsRequest): Promise<GetMetricsResponse> {
-  const resp = await api.get<{ metrics: MetricDto[] }>(analyticsUrl('/metrics'), {
+  const resp = await api.get<{ metrics: MetricDto[] }>(businessMetricsUrl(), {
     params: {
       page: req.page,
       limit: clampPageSize(req.limit),
@@ -197,7 +201,7 @@ export async function getMetrics(req: GetMetricsRequest): Promise<GetMetricsResp
 export async function getMetricCalculationJobs(
   req: GetMetricCalculationJobsRequest,
 ): Promise<GetMetricCalculationJobsResponse> {
-  const resp = await api.get<{ jobs: CalculationJobDto[] }>(analyticsUrl(`/metrics/${req.metricId}/jobs`), {
+  const resp = await api.get<{ jobs: CalculationJobDto[] }>(businessMetricsUrl(`/${req.metricId}/jobs`), {
     params: {
       page: req.page,
       limit: clampPageSize(req.limit),
@@ -210,7 +214,7 @@ export async function getMetricCalculationJobs(
 }
 
 export async function upsertMetric(req: UpsertMetricRequest): Promise<UpsertMetricResponse> {
-  const resp = await api.post<{ metric: MetricDto }>(analyticsUrl('/metrics'), {
+  const resp = await api.post<{ metric: MetricDto }>(businessMetricsUrl(), {
     metricSystemName: req.metricSystemName,
     inputPayload: JSON.stringify(req.inputPayload),
   })

@@ -1,10 +1,10 @@
-import type { PriceOptionModel } from '@/models/priceOfferModel.ts'
+import type { PriceOfferSource, PriceOptionModel } from '@/models/priceOfferModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
 export interface GetPriceOffersForProductRequest {
   productId: number
   currencyId: number
-  sources?: string[]
+  sources?: PriceOfferSource[]
   storageName: string
   page: number
   size: number

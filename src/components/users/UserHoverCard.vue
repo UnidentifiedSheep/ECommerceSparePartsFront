@@ -1,6 +1,6 @@
 <template>
   <el-popover
-    placement="top-start"
+    :placement="placement"
     trigger="hover"
     width="300"
     popper-class="user-hover-card-popper"
@@ -21,6 +21,9 @@
           <div class="user-hover-card__identity">
             <div class="user-hover-card__name">{{ displayName }}</div>
             <div class="user-hover-card__login">{{ resolvedUser.userName }}</div>
+            <div v-if="resolvedUser.description" class="user-hover-card__description">
+              {{ resolvedUser.description }}
+            </div>
           </div>
         </div>
 
@@ -61,34 +64,36 @@ import { getUserFullInfo } from '@/services/api/users.ts'
 import { getRoles, type RoleModel } from '@/services/api/roles.ts'
 import { useI18n } from '@/i18n'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   user?: UserModel
   userId?: string
-}>()
+  placement?: 'top-start' | 'right-start' | 'bottom-start' | 'left-start'
+}>(), {
+  user: undefined,
+  userId: undefined,
+  placement: 'top-start',
+})
 
 const router = useRouter()
 const { t } = useI18n()
 
-const userCache = reactive<Record<string, {
+interface UserHoverState {
   loading: boolean
   user?: UserModel
   roles: string[]
   error?: string
-}>>({})
+}
+
+const userCache = reactive<Record<string, UserHoverState>>({})
 
 let rolesPromise: Promise<RoleModel[]> | undefined
 const rolesBySystemName = new Map<string, RoleModel>()
 
 const targetUserId = computed(() => props.user?.id ?? props.userId)
+const emptyState: UserHoverState = { loading: false, roles: [] }
 const state = computed(() => {
   const id = targetUserId.value ?? ''
-  if (!userCache[id]) {
-    userCache[id] = {
-      loading: false,
-      roles: [],
-    }
-  }
-  return userCache[id]
+  return userCache[id] ?? emptyState
 })
 const resolvedUser = computed(() => state.value.user ?? props.user)
 const displayName = computed(() => {
@@ -131,20 +136,29 @@ async function loadRolesOnce() {
 
 async function loadUser() {
   const id = targetUserId.value
-  if (!id || state.value.loading || state.value.user || state.value.error) return
+  if (!id) return
 
-  state.value.loading = true
+  if (!userCache[id]) {
+    userCache[id] = {
+      loading: false,
+      roles: [],
+    }
+  }
+  const currentState = userCache[id]
+  if (currentState.loading || currentState.user || currentState.error) return
+
+  currentState.loading = true
   try {
     const [response] = await Promise.all([
       getUserFullInfo(id),
       loadRolesOnce(),
     ])
-    state.value.user = response.user
-    state.value.roles = response.roles
+    currentState.user = response.user
+    currentState.roles = response.roles
   } catch (error) {
-    state.value.error = error instanceof Error ? error.message : t('common.messages.unexpectedError')
+    currentState.error = error instanceof Error ? error.message : t('common.messages.unexpectedError')
   } finally {
-    state.value.loading = false
+    currentState.loading = false
   }
 }
 
@@ -220,10 +234,15 @@ async function openUser() {
 }
 
 .user-hover-card__login,
+.user-hover-card__description,
 .user-hover-card__muted {
   margin-top: 3px;
   color: #64748b;
   font-size: 12px;
+}
+
+.user-hover-card__description {
+  white-space: normal;
 }
 
 .user-hover-card__roles {

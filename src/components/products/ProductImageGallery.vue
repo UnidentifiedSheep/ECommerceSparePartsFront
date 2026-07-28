@@ -30,7 +30,7 @@
     <el-carousel
       v-if="images.length"
       ref="gallery"
-      arrow="always"
+      :arrow="images.length > 1 ? 'always' : 'never'"
       trigger="click"
       height="300px"
       :autoplay="false"
@@ -84,7 +84,7 @@
       </button>
     </div>
 
-    <el-empty v-else :description="t('products.details.noImages')" class="h-[250px]" />
+    <el-empty v-if="images.length === 0" :description="t('products.details.noImages')" class="h-[250px]" />
   </section>
 </template>
 

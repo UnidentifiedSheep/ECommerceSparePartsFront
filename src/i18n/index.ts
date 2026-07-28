@@ -260,6 +260,7 @@ const messages: Record<AppLocale, MessageTree> = {
       suppliers: {
         Armtek: 'Armtek',
         FavoritParts: 'Favorit Parts',
+        Tmtr: 'TMTR',
       },
       noDescription: 'Описание отсутствует.',
       alias: 'Алиас',
@@ -1231,6 +1232,7 @@ const messages: Record<AppLocale, MessageTree> = {
         OurWarehouse: 'Наш склад',
         Armtek: 'Armtek',
         FavoriteParts: 'FavoriteParts',
+        Tmtr: 'TMTR',
       },
     },
     analytics: {
@@ -1857,6 +1859,7 @@ const messages: Record<AppLocale, MessageTree> = {
       suppliers: {
         Armtek: 'Armtek',
         FavoritParts: 'Favorit Parts',
+        Tmtr: 'TMTR',
       },
       noDescription: 'No description.',
       alias: 'Alias',
@@ -2828,6 +2831,7 @@ const messages: Record<AppLocale, MessageTree> = {
         OurWarehouse: 'Our warehouse',
         Armtek: 'Armtek',
         FavoriteParts: 'FavoriteParts',
+        Tmtr: 'TMTR',
       },
     },
     analytics: {
@@ -3454,6 +3458,7 @@ const messages: Record<AppLocale, MessageTree> = {
       suppliers: {
         Armtek: 'Armtek',
         FavoritParts: 'Favorit Parts',
+        Tmtr: 'TMTR',
       },
       noDescription: 'Açıklama yok.',
       alias: 'Alias',
@@ -4425,6 +4430,7 @@ const messages: Record<AppLocale, MessageTree> = {
         OurWarehouse: 'Kendi depomuz',
         Armtek: 'Armtek',
         FavoriteParts: 'FavoriteParts',
+        Tmtr: 'TMTR',
       },
     },
     analytics: {

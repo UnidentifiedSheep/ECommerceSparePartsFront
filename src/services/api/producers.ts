@@ -20,16 +20,13 @@ function patchField<T>(value: T): PatchField<T> {
 
 export interface GetProducersRequest {
   searchTerm?: string
+  ids?: number[]
   page: number
   limit: number
 }
 
 export interface GetProducersResponse {
   producers: ProducerModel[]
-}
-
-export interface GetProducerResponse {
-  producer: ProducerModel
 }
 
 export interface CreateProducerRequest {
@@ -103,18 +100,34 @@ function toProducerAlias(item: ProducerAliasWireModel): ProducerAliasModel {
 }
 
 export async function getProducers(req: GetProducersRequest): Promise<GetProducersResponse> {
+  const params = new URLSearchParams()
+  if (req.searchTerm) params.set('searchTerm', req.searchTerm)
+  req.ids?.forEach((id) => params.append('ids', String(id)))
+  params.set('page', String(req.page))
+  params.set('limit', String(clampPageSize(req.limit)))
+
   const resp = await api.get<GetProducersResponse>('/main/producers', {
-    params: {
-      ...req,
-      limit: clampPageSize(req.limit),
-    },
+    params,
   })
   return resp.data
 }
 
-export async function getProducer(id: number): Promise<GetProducerResponse> {
-  const resp = await api.get<GetProducerResponse>(`/main/producers/${id}`)
-  return resp.data
+export async function getProducersByIds(ids: number[]): Promise<ProducerModel[]> {
+  const uniqueIds = [...new Set(ids)]
+  if (uniqueIds.length === 0) return []
+
+  const batches: number[][] = []
+  for (let index = 0; index < uniqueIds.length; index += 100) {
+    batches.push(uniqueIds.slice(index, index + 100))
+  }
+
+  const responses = await Promise.all(batches.map((batch) => getProducers({
+    ids: batch,
+    page: 0,
+    limit: batch.length,
+  })))
+
+  return responses.flatMap((response) => response.producers)
 }
 
 export async function createProducer(req: CreateProducerRequest): Promise<CreateProducerResponse> {

@@ -9,7 +9,7 @@ export interface ProducerAliasModel {
   alias: string
 }
 
-export type Supplier = 'Armtek' | 'FavoritParts'
+export type Supplier = 'Armtek' | 'FavoritParts' | 'Tmtr'
 
 export interface ProducerSupplierMappingModel {
   id: number

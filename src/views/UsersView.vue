@@ -81,6 +81,9 @@
                     {{ selectedUser.surname }} {{ selectedUser.name }}
                   </div>
                   <div class="user-details-subtitle">{{ selectedUser.userName }}</div>
+                  <div v-if="selectedUser.description" class="user-details-description">
+                    {{ selectedUser.description }}
+                  </div>
                 </div>
                 <el-dropdown trigger="click" @command="handleUserAction">
                   <el-button :icon="MoreFilled" circle plain />
@@ -1545,6 +1548,14 @@ onMounted(async () => {
   margin-top: 3px;
   color: #64748b;
   font-size: 13px;
+}
+
+.user-details-description {
+  margin-top: 8px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .users-details-scroll {

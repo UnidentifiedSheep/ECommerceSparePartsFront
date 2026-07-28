@@ -116,7 +116,7 @@ import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { useProductSearchHistory } from '@/composables/useProductSearchHistory.ts'
 import { searchProducts } from '@/services/api/search.ts'
-import { getProducer } from '@/services/api/producers.ts'
+import { getProducersByIds } from '@/services/api/producers.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 
 const emit = defineEmits<{
@@ -136,25 +136,14 @@ const { searchHistory, rememberSearch } = useProductSearchHistory()
 const normalizedSearch = computed(() => search.value.trim())
 let searchRequestId = 0
 let suppressNextSearchWatch = false
-const producerRequests = new Map<number, Promise<void>>()
-
 async function loadProducerNames(products: ProductSearchModel[]) {
   const ids = [...new Set(products.map((product) => product.producerId))]
     .filter((id) => !producerNames.value[id])
 
-  await Promise.all(ids.map((id) => {
-    const existingRequest = producerRequests.get(id)
-    if (existingRequest) return existingRequest
-
-    const request = getProducer(id)
-      .then((resp) => {
-        producerNames.value[id] = resp.producer.name
-      })
-      .catch(() => undefined)
-      .finally(() => producerRequests.delete(id))
-    producerRequests.set(id, request)
-    return request
-  }))
+  const producers = await getProducersByIds(ids).catch(() => [])
+  producers.forEach((producer) => {
+    producerNames.value[producer.id] = producer.name
+  })
 }
 
 const loadSearchResults = useDebounceFn(async () => {

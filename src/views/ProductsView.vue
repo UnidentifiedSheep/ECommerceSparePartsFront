@@ -347,7 +347,7 @@ import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
-import { getProducer } from '@/services/api/producers.ts'
+import { getProducersByIds } from '@/services/api/producers.ts'
 import { searchProducts, searchProductsBySku } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useProductSearchHistory } from '@/composables/useProductSearchHistory.ts'
@@ -698,8 +698,7 @@ async function loadProducts() {
 
     products.value = resp.products
     hasNext.value = resp.products.length === size.value
-    await loadProducerNames(resp.products)
-    await ensureProducerName(form.producerId)
+    await loadProducerNames(resp.products, form.producerId)
   } finally {
     if (currentRequestId === productsRequestId) {
       isLoading.value = false
@@ -707,21 +706,17 @@ async function loadProducts() {
   }
 }
 
-async function ensureProducerName(id?: number) {
-  if (!id || producerNames.value[id]) return
-
-  const resp = await getProducer(id)
-  producerNames.value[id] = resp.producer.name
-}
-
-async function loadProducerNames(items: ProductSearchModel[]) {
-  const ids = [...new Set(items.map((product) => product.producerId))]
+async function loadProducerNames(items: ProductSearchModel[], selectedProducerId?: number) {
+  const ids = [...new Set([
+    ...items.map((product) => product.producerId),
+    ...(selectedProducerId ? [selectedProducerId] : []),
+  ])]
     .filter((id) => !producerNames.value[id])
 
-  await Promise.all(ids.map(async (id) => {
-    const resp = await getProducer(id)
-    producerNames.value[id] = resp.producer.name
-  }))
+  const producers = await getProducersByIds(ids)
+  producers.forEach((producer) => {
+    producerNames.value[producer.id] = producer.name
+  })
 }
 
 watch(

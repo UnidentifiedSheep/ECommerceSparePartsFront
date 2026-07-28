@@ -204,7 +204,11 @@ import { Refresh } from '@element-plus/icons-vue'
 import { ElTooltip } from 'element-plus'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
-import type { PriceOptionModel } from '@/models/priceOfferModel.ts'
+import {
+  PriceOfferSource,
+  type PriceOptionModel,
+  type PriceOfferSource as PriceOfferSourceValue,
+} from '@/models/priceOfferModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { getPriceOffersForProduct } from '@/services/api/priceOffers.ts'
@@ -259,7 +263,7 @@ const HeaderTooltip = defineComponent({
 const offers = ref<PriceOptionModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const storages = ref<StorageModel[]>([])
-const selectedSources = ref<string[]>([])
+const selectedSources = ref<PriceOfferSourceValue[]>([])
 const selectedCurrencyId = ref<number>()
 const selectedStorageName = ref('')
 const page = ref(0)
@@ -273,7 +277,12 @@ let requestId = 0
 
 const selectedCurrency = computed(() => currencies.value.find((currency) => currency.id === selectedCurrencyId.value))
 const canLoadOffers = computed(() => Boolean(props.productId && selectedCurrencyId.value && selectedStorageName.value))
-const sourceOptions = ['OurWarehouse', 'Armtek', 'FavoriteParts']
+const sourceOptions: PriceOfferSourceValue[] = [
+  PriceOfferSource.OurWarehouse,
+  PriceOfferSource.Armtek,
+  PriceOfferSource.FavoriteParts,
+  PriceOfferSource.Tmtr,
+]
 
 function currencyLabel(currency: CurrencyModel) {
   return `${currency.name} (${currency.currencySign})`
@@ -283,7 +292,7 @@ function offerCurrency(option: PriceOptionModel) {
   return currencies.value.find((currency) => currency.id === option.offer.currencyId)
 }
 
-function sourceLabel(source: string) {
+function sourceLabel(source: PriceOfferSourceValue) {
   return t(`priceOffers.sources.${source}`)
 }
 

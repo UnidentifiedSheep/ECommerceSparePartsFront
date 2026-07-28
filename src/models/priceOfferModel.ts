@@ -1,10 +1,19 @@
+export const PriceOfferSource = {
+  OurWarehouse: 'OurWarehouse',
+  Armtek: 'Armtek',
+  FavoriteParts: 'FavoriteParts',
+  Tmtr: 'Tmtr',
+} as const
+
+export type PriceOfferSource = (typeof PriceOfferSource)[keyof typeof PriceOfferSource]
+
 export interface PriceOfferModel {
   id: string
   productId: number
   currencyId: number
   offerForStorage: string
   purchasePrice: number
-  source: string
+  source: PriceOfferSource
   availableQuantity: number
   minimumPurchaseQuantity: number
   quantityCoefficient: number
