@@ -845,7 +845,9 @@ const emailValidationMessage = computed(() => {
   const count = filledCreateUserEmails.value.length
   if (count < emailOptions.minEmailCount) return t('users.minEmails', { count: emailOptions.minEmailCount })
   if (count > emailOptions.maxEmailCount) return t('users.maxEmails', { count: emailOptions.maxEmailCount })
-  if (!filledCreateUserEmails.value.some((email) => email.isPrimary)) return t('users.choosePrimaryEmail')
+  if (count > 0 && !filledCreateUserEmails.value.some((email) => email.isPrimary)) {
+    return t('users.choosePrimaryEmail')
+  }
   return ''
 })
 const addEmailErrorMessage = computed(() => {
@@ -1127,7 +1129,7 @@ function resetCreateUserForm() {
   createUserForm.description = ''
   createUserForm.roles = []
   createUserForm.emails = []
-  for (let index = 0; index < Math.max(emailOptions.minEmailCount, 1); index += 1) {
+  for (let index = 0; index < emailOptions.minEmailCount; index += 1) {
     createUserForm.emails.push(createDefaultEmail(index === 0))
   }
   createUserForm.phones = []
