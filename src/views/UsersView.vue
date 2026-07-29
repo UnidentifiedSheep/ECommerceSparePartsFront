@@ -170,6 +170,17 @@
                   </section>
 
                   <el-divider content-position="left">{{ t('users.contacts') }}</el-divider>
+                    <div class="mb-2 flex items-center justify-between gap-3">
+                      <span class="text-sm font-semibold text-slate-900">Email</span>
+                      <el-button
+                        v-if="canManageUserEmails"
+                        size="small"
+                        plain
+                        @click="openAddEmailDialog"
+                      >
+                        {{ t('users.addEmail') }}
+                      </el-button>
+                    </div>
                     <div class="grid gap-3 pb-4">
                       <div v-for="email in userEmails" :key="email.email" class="rounded-lg bg-slate-50 p-3 text-sm">
                         <div class="flex items-start justify-between gap-3">
@@ -183,21 +194,32 @@
                             </div>
                             <div class="mt-1 text-xs text-slate-500">{{ emailTypeLabel(email.emailType) }}</div>
                           </div>
-                          <el-button
-                            v-if="canManageUserEmails"
-                            size="small"
-                            type="danger"
-                            plain
-                            :loading="removingEmail === email.email"
-                            @click="confirmRemoveEmail(email.email)"
-                          >
-                            {{ t('common.actions.delete') }}
-                          </el-button>
+                          <div v-if="canManageUserEmails" class="flex shrink-0 flex-wrap justify-end gap-2">
+                            <el-button
+                              v-if="!email.confirmed"
+                              size="small"
+                              plain
+                              :loading="requestingVerificationEmail === email.email"
+                              @click="sendUserEmailVerification(email.email)"
+                            >
+                              {{ t('users.sendVerification') }}
+                            </el-button>
+                            <el-button
+                              size="small"
+                              type="danger"
+                              plain
+                              :loading="removingEmail === email.email"
+                              @click="confirmRemoveEmail(email.email)"
+                            >
+                              {{ t('common.actions.delete') }}
+                            </el-button>
+                          </div>
                         </div>
                       </div>
                       <div v-if="userEmails.length === 0" class="text-sm text-slate-400">{{ t('users.noEmails') }}</div>
                     </div>
 
+                    <div class="mb-2 text-sm font-semibold text-slate-900">{{ t('users.phones') }}</div>
                     <div class="grid gap-3 pb-4">
                       <div v-for="phone in userPhones" :key="phone.number" class="rounded-lg bg-slate-50 p-3 text-sm">
                         <div class="flex items-start justify-between gap-3">
@@ -290,17 +312,52 @@
     <el-dialog v-model="createUserDialogOpen" :title="t('users.createUser')" width="860" class="create-user-dialog">
       <el-form label-position="top">
         <div class="grid grid-cols-2 gap-4">
-          <el-form-item :label="t('common.labels.login')">
-            <el-input v-model="createUserForm.userName" autocomplete="off" />
-          </el-form-item>
-          <el-form-item :label="t('common.labels.password')">
-            <el-input v-model="createUserForm.password" type="password" show-password autocomplete="new-password" />
-          </el-form-item>
           <el-form-item :label="t('common.labels.firstName')">
             <el-input v-model="createUserForm.name" />
           </el-form-item>
           <el-form-item :label="t('common.labels.surname')">
             <el-input v-model="createUserForm.surname" />
+          </el-form-item>
+          <el-form-item
+            :label="t('common.labels.login')"
+            :error="createUserNameErrorMessage"
+            :validate-status="createUserNameValidateStatus"
+          >
+            <el-input
+              v-model="createUserForm.userName"
+              autocomplete="off"
+              @input="handleCreateUserNameInput"
+            >
+              <template #suffix>
+                <el-icon v-if="createUserNameStatus === 'checking'" class="is-loading">
+                  <Loading />
+                </el-icon>
+                <el-icon v-else-if="createUserNameStatus === 'available'" class="text-emerald-600">
+                  <CircleCheck />
+                </el-icon>
+              </template>
+            </el-input>
+            <div
+              v-if="createUserNameStatus === 'checking'"
+              class="mt-1 w-full text-xs text-slate-500"
+            >
+              {{ t('users.userNameChecking') }}
+            </div>
+            <div
+              v-else-if="createUserNameStatus === 'available'"
+              class="mt-1 w-full text-xs text-emerald-700"
+            >
+              {{ t('users.userNameAvailable') }}
+            </div>
+            <div
+              v-else-if="!createUserForm.userName"
+              class="mt-1 w-full text-xs text-slate-500"
+            >
+              {{ t('users.userNameAutoHint') }}
+            </div>
+          </el-form-item>
+          <el-form-item :label="t('common.labels.password')">
+            <el-input v-model="createUserForm.password" type="password" show-password autocomplete="new-password" />
           </el-form-item>
         </div>
 
@@ -425,7 +482,47 @@
 
       <template #footer>
         <el-button @click="createUserDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" :disabled="!canSaveCreateUser" @click="saveCreateUser">{{ t('common.actions.create') }}</el-button>
+        <el-button
+          type="primary"
+          :loading="createUserSaving"
+          :disabled="!canSaveCreateUser"
+          @click="saveCreateUser"
+        >
+          {{ t('common.actions.create') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="addEmailDialogOpen" :title="t('users.addEmailToUser')" width="480">
+      <el-form label-position="top" @submit.prevent>
+        <el-form-item :label="t('users.emailAddress')" :error="addEmailErrorMessage">
+          <el-input
+            v-model="addEmailForm.email"
+            type="email"
+            placeholder="email@example.com"
+            autocomplete="off"
+            @keyup.enter="saveUserEmail"
+          />
+        </el-form-item>
+        <el-form-item :label="t('common.labels.type')">
+          <el-select v-model="addEmailForm.emailType" class="w-full">
+            <el-option :label="t('users.personalEmail')" value="Personal" />
+            <el-option :label="t('users.workEmail')" value="Work" />
+            <el-option :label="t('users.unknownEmail')" value="Unknown" />
+          </el-select>
+        </el-form-item>
+        <div class="text-xs text-slate-500">{{ t('users.addEmailHint') }}</div>
+      </el-form>
+      <template #footer>
+        <el-button @click="addEmailDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!canSaveUserEmail"
+          :loading="addingEmail"
+          @click="saveUserEmail"
+        >
+          {{ t('common.actions.add') }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -563,10 +660,11 @@ import type { TableInstance } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElMessageBox, ElNotification } from 'element-plus'
-import { Edit, MoreFilled } from '@element-plus/icons-vue'
+import { CircleCheck, Edit, Loading, MoreFilled } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
+import { ApiError } from '@/models/errorModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import type { OrganizationModel } from '@/models/organizationModel.ts'
@@ -577,6 +675,7 @@ import { getPermissions } from '@/services/api/permissions.ts'
 import type { PermissionModel } from '@/models/permissionModel.ts'
 import type { UserEmailModel } from '@/services/api/users.ts'
 import {
+  addEmailToUser,
   addPermissionToUser,
   addRoleToUser,
   addStorageToUser,
@@ -590,11 +689,14 @@ import {
   getUsers,
   getUserStorages,
   removeEmailFromUser,
+  requestUserEmailVerification,
   removePermissionFromUser,
   removeRoleFromUser,
   removeStorageFromUser,
   type UserPhoneModel,
+  type EmailType,
 } from '@/services/api/users.ts'
+import { isUserNameAvailable } from '@/services/api/authApi.ts'
 import { useI18n } from '@/i18n'
 
 interface CreateUserEmailForm {
@@ -609,6 +711,43 @@ interface CreateUserPhoneForm {
   type: string
   isPrimary: boolean
   isConfirmed: boolean
+}
+
+const userNameTransliteration: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'i',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+  ı: 'i',
 }
 
 const users = ref<UserModel[]>([])
@@ -654,6 +793,9 @@ const discountDialogOpen = ref(false)
 const editInfoDialogOpen = ref(false)
 const permissionDialogOpen = ref(false)
 const roleDialogOpen = ref(false)
+const addEmailDialogOpen = ref(false)
+const addingEmail = ref(false)
+const requestingVerificationEmail = ref('')
 const permissionAttachLoading = ref(false)
 const roleAttachLoading = ref(false)
 const editInfoSaving = ref(false)
@@ -662,11 +804,20 @@ const discountFormValue = ref<number>(0)
 const permissionToAttach = ref('')
 const roleToAttach = ref('')
 const createUserDialogOpen = ref(false)
+const createUserSaving = ref(false)
+const createUserNameStatus = ref<'idle' | 'checking' | 'available' | 'unavailable' | 'error'>('idle')
+const createUserNameManuallyEdited = ref(false)
+let createUserNameRequestId = 0
 const rolesLoading = ref(false)
 const roleOptions = ref<RoleModel[]>([])
 const emailOptions = reactive({
   minEmailCount: 1,
   maxEmailCount: 5,
+})
+
+const addEmailForm = reactive({
+  email: '',
+  emailType: 'Personal' as EmailType,
 })
 
 const createUserForm = reactive({
@@ -697,12 +848,49 @@ const emailValidationMessage = computed(() => {
   if (!filledCreateUserEmails.value.some((email) => email.isPrimary)) return t('users.choosePrimaryEmail')
   return ''
 })
+const addEmailErrorMessage = computed(() => {
+  const email = addEmailForm.email.trim()
+  if (!email) return ''
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t('users.invalidEmail')
+  if (userEmails.value.some((item) => item.email.toLocaleLowerCase() === email.toLocaleLowerCase())) {
+    return t('users.emailAlreadyAdded')
+  }
+  return ''
+})
+const canSaveUserEmail = computed(() => (
+  addEmailForm.email.trim() !== ''
+  && addEmailErrorMessage.value === ''
+  && !addingEmail.value
+))
+const createUserNameFormatError = computed(() => {
+  const userName = createUserForm.userName.trim()
+  if (!userName) return ''
+  if (userName.length < 5) return t('users.userNameMinLength')
+  if (userName.length > 36) return t('users.userNameMaxLength')
+  if (/\s/.test(userName)) return t('users.userNameNoSpaces')
+  return ''
+})
+const createUserNameErrorMessage = computed(() => {
+  if (createUserNameFormatError.value) return createUserNameFormatError.value
+  if (createUserNameStatus.value === 'unavailable') return t('users.userNameUnavailable')
+  if (createUserNameStatus.value === 'error') return t('users.userNameCheckError')
+  return ''
+})
+const createUserNameValidateStatus = computed(() => {
+  if (createUserNameStatus.value === 'checking') return 'validating'
+  if (createUserNameStatus.value === 'available') return 'success'
+  if (createUserNameErrorMessage.value) return 'error'
+  return ''
+})
 const canSaveCreateUser = computed(() => (
   createUserForm.userName.trim() !== ''
+  && createUserNameFormatError.value === ''
+  && createUserNameStatus.value === 'available'
   && createUserForm.password.trim() !== ''
   && createUserForm.name.trim() !== ''
   && createUserForm.surname.trim() !== ''
   && emailValidationMessage.value === ''
+  && !createUserSaving.value
 ))
 const canSaveEditInfo = computed(() => (
   editInfoForm.name.trim() !== ''
@@ -728,6 +916,12 @@ const attachableRoles = computed(() => {
 const loadUsersDebounced = useDebounceFn(async () => {
   await loadUsers(true)
 }, 300)
+const checkCreateUserNameDebounced = useDebounceFn(async () => {
+  await checkCreateUserName()
+}, 350)
+const generateCreateUserNameDebounced = useDebounceFn(async () => {
+  await generateCreateUserName()
+}, 250)
 
 function roleDisplayName(systemName: string) {
   const role = roleOptions.value.find((item) => item.systemName === systemName)
@@ -810,12 +1004,122 @@ function formatDate(value?: string | null) {
   }).format(date)
 }
 
+function normalizeUserNamePart(value: string) {
+  return [...value.trim().toLowerCase()]
+    .map((character) => userNameTransliteration[character] ?? character)
+    .join('')
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .replace(/\.{2,}/g, '.')
+}
+
+function generatedUserNameCandidate(base: string, attempt: number) {
+  const suffix = attempt === 0 ? '' : `.${attempt + 1}`
+  const availableBaseLength = 36 - suffix.length
+  const trimmedBase = base
+    .slice(0, availableBaseLength)
+    .replace(/\.+$/g, '')
+  return `${trimmedBase}${suffix}`
+}
+
+async function generateCreateUserName() {
+  if (
+    !createUserDialogOpen.value
+    || createUserNameManuallyEdited.value
+  ) return
+
+  const name = normalizeUserNamePart(createUserForm.name)
+  const surname = normalizeUserNamePart(createUserForm.surname)
+  if (!name || !surname) {
+    createUserNameRequestId += 1
+    createUserForm.userName = ''
+    createUserNameStatus.value = 'idle'
+    return
+  }
+
+  const base = generatedUserNameCandidate(`${name}.${surname}`, 0)
+  createUserForm.userName = base
+  if (base.length < 5) {
+    createUserNameStatus.value = 'idle'
+    return
+  }
+
+  const requestId = ++createUserNameRequestId
+  createUserNameStatus.value = 'checking'
+
+  try {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const candidate = generatedUserNameCandidate(base, attempt)
+      const response = await isUserNameAvailable(candidate)
+      if (
+        requestId !== createUserNameRequestId
+        || createUserNameManuallyEdited.value
+      ) return
+
+      if (response.isAvailable) {
+        createUserForm.userName = candidate
+        createUserNameStatus.value = 'available'
+        return
+      }
+    }
+
+    createUserNameStatus.value = 'unavailable'
+  } catch {
+    if (requestId === createUserNameRequestId) {
+      createUserNameStatus.value = 'error'
+    }
+  }
+}
+
+async function checkCreateUserName() {
+  const userName = createUserForm.userName.trim()
+  if (!userName || createUserNameFormatError.value) {
+    createUserNameRequestId += 1
+    createUserNameStatus.value = 'idle'
+    return
+  }
+
+  const requestId = ++createUserNameRequestId
+  createUserNameStatus.value = 'checking'
+  try {
+    const response = await isUserNameAvailable(userName)
+    if (
+      requestId !== createUserNameRequestId
+      || userName !== createUserForm.userName.trim()
+    ) return
+
+    createUserNameStatus.value = response.isAvailable ? 'available' : 'unavailable'
+  } catch {
+    if (requestId === createUserNameRequestId) {
+      createUserNameStatus.value = 'error'
+    }
+  }
+}
+
+function handleCreateUserNameInput(value: string) {
+  createUserNameManuallyEdited.value = value.trim() !== ''
+  createUserNameRequestId += 1
+  createUserNameStatus.value = 'idle'
+
+  if (createUserNameManuallyEdited.value) {
+    void checkCreateUserNameDebounced()
+  } else {
+    void generateCreateUserNameDebounced()
+  }
+}
+
 function resetFilters() {
   searchTerm.value = undefined
   selectedRoleFilters.value = []
 }
 
 function resetCreateUserForm() {
+  createUserNameRequestId += 1
+  createUserNameStatus.value = 'idle'
+  createUserNameManuallyEdited.value = false
+  createUserSaving.value = false
   createUserForm.userName = ''
   createUserForm.password = ''
   createUserForm.name = ''
@@ -852,6 +1156,13 @@ async function openCreateUserDialog() {
   resetCreateUserForm()
   createUserDialogOpen.value = true
   await loadRoles()
+}
+
+function openAddEmailDialog() {
+  addEmailForm.email = ''
+  addEmailForm.emailType = 'Personal'
+  addingEmail.value = false
+  addEmailDialogOpen.value = true
 }
 
 function addCreateUserEmail() {
@@ -1084,45 +1395,60 @@ async function selectUserFromRoute() {
 async function saveCreateUser() {
   if (!canSaveCreateUser.value) return
 
-  const resp = await createUser({
-    userName: createUserForm.userName.trim(),
-    password: createUserForm.password,
-    userInfo: {
-      name: createUserForm.name.trim(),
-      surname: createUserForm.surname.trim(),
-      description: createUserForm.description.trim() || null,
-    },
-    emails: filledCreateUserEmails.value
-      .map((email) => ({
-        email: email.email.trim(),
-        type: email.type,
-        isPrimary: email.isPrimary,
-        isConfirmed: email.isConfirmed,
-      })),
-    phones: createUserForm.phones
-      .filter((phone) => phone.number.trim() !== '')
-      .map((phone) => ({
-        number: phone.number.trim(),
-        type: phone.type,
-        isPrimary: phone.isPrimary,
-        isConfirmed: phone.isConfirmed,
-      })),
-    roles: createUserForm.roles,
-  })
+  createUserSaving.value = true
+  const userName = createUserForm.userName.trim()
+  try {
+    createUserNameRequestId += 1
+    createUserNameStatus.value = 'checking'
+    const availability = await isUserNameAvailable(userName)
+    if (!availability.isAvailable) {
+      createUserNameStatus.value = 'unavailable'
+      return
+    }
+    createUserNameStatus.value = 'available'
 
-  users.value = [
-    resp.user,
-    ...users.value.filter((user) => user.id !== resp.user.id),
-  ]
+    const resp = await createUser({
+      userName,
+      password: createUserForm.password,
+      userInfo: {
+        name: createUserForm.name.trim(),
+        surname: createUserForm.surname.trim(),
+        description: createUserForm.description.trim() || null,
+      },
+      emails: filledCreateUserEmails.value
+        .map((email) => ({
+          email: email.email.trim(),
+          type: email.type,
+          isPrimary: email.isPrimary,
+          isConfirmed: email.isConfirmed,
+        })),
+      phones: createUserForm.phones
+        .filter((phone) => phone.number.trim() !== '')
+        .map((phone) => ({
+          number: phone.number.trim(),
+          type: phone.type,
+          isPrimary: phone.isPrimary,
+          isConfirmed: phone.isConfirmed,
+        })),
+      roles: createUserForm.roles,
+    })
 
-  createUserDialogOpen.value = false
-  await selectUser(resp.user)
+    users.value = [
+      resp.user,
+      ...users.value.filter((user) => user.id !== resp.user.id),
+    ]
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('users.created'),
-    type: 'success',
-  })
+    createUserDialogOpen.value = false
+    await selectUser(resp.user)
+
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.created'),
+      type: 'success',
+    })
+  } finally {
+    createUserSaving.value = false
+  }
 }
 
 async function loadAllStorages() {
@@ -1359,6 +1685,64 @@ async function confirmRemoveEmail(email: string) {
   }
 }
 
+async function saveUserEmail() {
+  if (!selectedUser.value || !canSaveUserEmail.value) return
+
+  const email = addEmailForm.email.trim()
+  const emailType = addEmailForm.emailType
+  addingEmail.value = true
+  try {
+    const response = await addEmailToUser({
+      userId: selectedUser.value.id,
+      email,
+      emailType,
+    })
+    userEmails.value = [
+      ...userEmails.value,
+      response.email,
+    ]
+    addEmailDialogOpen.value = false
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.emailAdded'),
+      type: 'success',
+    })
+  } catch (error) {
+    ElNotification({
+      title: t('common.labels.error'),
+      message: error instanceof ApiError ? error.message : t('users.emailAddError'),
+      type: 'error',
+    })
+  } finally {
+    addingEmail.value = false
+  }
+}
+
+async function sendUserEmailVerification(email: string) {
+  if (!selectedUser.value || requestingVerificationEmail.value) return
+
+  requestingVerificationEmail.value = email
+  try {
+    await requestUserEmailVerification({
+      userId: selectedUser.value.id,
+      email,
+    })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.verificationSent'),
+      type: 'success',
+    })
+  } catch (error) {
+    ElNotification({
+      title: t('common.labels.error'),
+      message: error instanceof ApiError ? error.message : t('users.verificationSendError'),
+      type: 'error',
+    })
+  } finally {
+    requestingVerificationEmail.value = ''
+  }
+}
+
 async function attachStorage() {
   if (!selectedUser.value || !storageToAttach.value) return
 
@@ -1416,6 +1800,18 @@ watch(limit, async () => loadUsers(true))
 watch(page, async () => loadUsers(false))
 watch(searchTerm, () => loadUsersDebounced())
 watch(selectedRoleFilters, async () => loadUsers(true))
+watch(
+  [() => createUserForm.name, () => createUserForm.surname],
+  () => {
+    if (!createUserNameManuallyEdited.value) {
+      void generateCreateUserNameDebounced()
+    }
+  },
+)
+watch(createUserDialogOpen, (isOpen) => {
+  if (isOpen) return
+  createUserNameRequestId += 1
+})
 watch(locale, async () => {
   await Promise.all([
     loadPermissionsCatalog(),

@@ -35,6 +35,33 @@
               </el-button>
             </div>
           </div>
+
+          <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div>
+              <div class="min-w-0">
+                <div class="text-base font-semibold text-slate-900">{{ t('settings.emailVerificationTitle') }}</div>
+                <div class="mt-1 text-sm text-slate-500">{{ t('settings.emailVerificationHint') }}</div>
+              </div>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center gap-3">
+              <el-input
+                v-model="verificationEmail"
+                class="max-w-[360px]"
+                type="email"
+                :placeholder="t('settings.emailVerificationPlaceholder')"
+                autocomplete="email"
+                @keyup.enter="requestEmailVerification"
+              />
+              <el-button
+                plain
+                :loading="isRequestingEmailVerification"
+                :disabled="!canRequestEmailVerification"
+                @click="requestEmailVerification"
+              >
+                {{ t('settings.sendVerification') }}
+              </el-button>
+            </div>
+          </div>
         </section>
       </main>
     </div>
@@ -68,6 +95,9 @@ import { Lock } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { changePassword } from '@/services/api/authApi.ts'
+import { requestMyEmailVerification } from '@/services/api/users.ts'
+import { ApiError } from '@/models/errorModel.ts'
+import { useAuthStore } from '@/stores/authStore.ts'
 import { useI18n } from '@/i18n'
 
 interface PasswordForm {
@@ -77,6 +107,12 @@ interface PasswordForm {
 }
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+const verificationEmail = ref(authStore.user?.email?.trim() ?? '')
+const canRequestEmailVerification = computed(() => (
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(verificationEmail.value.trim())
+  && !isRequestingEmailVerification.value
+))
 const activeTab = ref('security')
 const settingsSections = computed(() => [
   {
@@ -87,6 +123,7 @@ const settingsSections = computed(() => [
 ])
 const passwordDialogOpen = ref(false)
 const isChangingPassword = ref(false)
+const isRequestingEmailVerification = ref(false)
 const passwordFormRef = ref<FormInstance>()
 const passwordForm = reactive<PasswordForm>({
   previousPassword: '',
@@ -135,6 +172,24 @@ async function savePassword() {
     ElMessage.error(error instanceof Error ? error.message : t('settings.passwordChangeError'))
   } finally {
     isChangingPassword.value = false
+  }
+}
+
+async function requestEmailVerification() {
+  if (!canRequestEmailVerification.value) return
+
+  isRequestingEmailVerification.value = true
+  try {
+    await requestMyEmailVerification(verificationEmail.value.trim())
+    ElMessage.success(t('settings.emailVerificationRequested'))
+  } catch (error) {
+    ElMessage.error(
+      error instanceof ApiError
+        ? error.message
+        : t('settings.emailVerificationRequestError'),
+    )
+  } finally {
+    isRequestingEmailVerification.value = false
   }
 }
 </script>

@@ -7,15 +7,15 @@
 
     <form class="auth-form" @submit.prevent="handleLogin">
       <div class="auth-field">
-        <label for="email" class="auth-field__label">Email</label>
+        <label for="login" class="auth-field__label">{{ t('auth.loginLabel') }}</label>
         <el-input
-          id="email"
-          v-model="email"
-          type="email"
-          :placeholder="t('auth.emailPlaceholder')"
+          id="login"
+          v-model="loginValue"
+          type="text"
+          :placeholder="t('auth.loginPlaceholder')"
           required
           size="large"
-          autocomplete="email"
+          autocomplete="username"
         />
       </div>
 
@@ -66,7 +66,7 @@ import AuthShell from '@/components/auth/AuthShell.vue'
 
 const authStore = useAuthStore()
 const { t } = useI18n()
-const email = ref('')
+const loginValue = ref('')
 const password = ref('')
 const loading = ref(false)
 const router = useRouter()
@@ -77,7 +77,7 @@ async function handleLogin() {
   try {
     loading.value = true
     const resp = await login({
-      email: email.value,
+      login: loginValue.value.trim(),
       password: password.value,
     })
     authStore.login(resp.token, resp.refreshToken, resp.deviceId)

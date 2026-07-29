@@ -8,6 +8,7 @@ import PriceAppliersView from '@/views/PriceAppliersView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import PasswordRecoveryView from '@/views/PasswordRecoveryView.vue'
 import PasswordResetView from '@/views/PasswordResetView.vue'
+import VerifyEmailView from '@/views/VerifyEmailView.vue'
 import PermissionsView from '@/views/PermissionsView.vue'
 import ProductDetailsView from '@/views/ProductDetailsView.vue'
 import ProductsView from '@/views/ProductsView.vue'
@@ -175,6 +176,11 @@ const routes = [
         path: '/reset',
         name: 'password-reset',
         component: PasswordResetView,
+      },
+      {
+        path: '/verify-email',
+        name: 'verify-email',
+        component: VerifyEmailView,
       },
     ],
   },

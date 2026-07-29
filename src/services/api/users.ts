@@ -156,6 +156,23 @@ export interface RemoveEmailFromUserRequest {
   email: string
 }
 
+export type EmailType = 'Personal' | 'Work' | 'Unknown'
+
+export interface AddEmailToUserRequest {
+  userId: string
+  email: string
+  emailType: EmailType
+}
+
+export interface AddEmailToUserResponse {
+  email: UserEmailModel
+}
+
+export interface RequestUserEmailVerificationRequest {
+  userId: string
+  email: string
+}
+
 export async function getUsers(req: GetUsersRequest): Promise<GetUsersResponse> {
   const params = new URLSearchParams()
   const appendParam = (key: string, value: unknown) => {
@@ -281,6 +298,26 @@ export async function removePermissionFromUser(req: AddPermissionToUserRequest) 
 
 export async function removeEmailFromUser(req: RemoveEmailFromUserRequest) {
   await api.delete(`/main/users/${req.userId}/emails/${encodeURIComponent(req.email)}`)
+}
+
+export async function addEmailToUser(req: AddEmailToUserRequest): Promise<AddEmailToUserResponse> {
+  const response = await api.post<AddEmailToUserResponse>(`/main/users/${req.userId}/emails`, {
+    email: req.email,
+    emailType: req.emailType,
+  })
+  return response.data
+}
+
+export async function requestUserEmailVerification(
+  req: RequestUserEmailVerificationRequest,
+): Promise<void> {
+  await api.post(
+    `/main/users/${req.userId}/emails/${encodeURIComponent(req.email)}/verification/request`,
+  )
+}
+
+export async function requestMyEmailVerification(email: string): Promise<void> {
+  await api.post(`/main/users/me/emails/${encodeURIComponent(email)}/verification/request`)
 }
 
 export async function addStorageToUser(req: AddStorageToUserRequest) {
