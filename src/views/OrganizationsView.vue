@@ -201,13 +201,49 @@
         <el-form-item :label="t('common.labels.name')" prop="name">
           <el-input v-model="createForm.name" :placeholder="t('organizationPage.namePlaceholder')" />
         </el-form-item>
-        <el-form-item :label="t('organizationPage.systemName')" prop="systemName">
-          <el-input v-model="createForm.systemName" :placeholder="t('organizationPage.systemNamePlaceholder')" />
+        <el-form-item
+          :label="t('organizationPage.systemName')"
+          prop="systemName"
+          :error="createSystemNameErrorMessage"
+          :validate-status="createSystemNameValidateStatus"
+        >
+          <el-input
+            v-model="createForm.systemName"
+            autocomplete="off"
+            :placeholder="t('organizationPage.systemNamePlaceholder')"
+            @input="handleCreateSystemNameInput"
+          >
+            <template #suffix>
+              <el-icon v-if="createSystemNameStatus === 'checking'" class="is-loading">
+                <Loading />
+              </el-icon>
+              <el-icon v-else-if="createSystemNameStatus === 'available'" class="system-name-available-icon">
+                <CircleCheck />
+              </el-icon>
+            </template>
+          </el-input>
+          <div v-if="createSystemNameStatus === 'checking'" class="system-name-hint">
+            {{ t('organizationPage.systemNameChecking') }}
+          </div>
+          <div
+            v-else-if="createSystemNameStatus === 'available'"
+            class="system-name-hint system-name-hint--available"
+          >
+            {{ t('organizationPage.systemNameAvailable') }}
+          </div>
+          <div v-else-if="!createForm.systemName" class="system-name-hint">
+            {{ t('organizationPage.systemNameAutoHint') }}
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="creating" @click="submitCreateOrganization">
+        <el-button
+          type="primary"
+          :loading="creating"
+          :disabled="createSystemNameStatus !== 'available'"
+          @click="submitCreateOrganization"
+        >
           {{ t('common.actions.create') }}
         </el-button>
       </template>
@@ -255,6 +291,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElNotification, type FormInstance, type FormRules, type TableInstance } from 'element-plus'
+import { CircleCheck, Loading } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
@@ -274,12 +311,14 @@ import {
   getOrganizationFinancialInfo,
   getOrganizationMembers,
   getOrganizations,
+  isOrganizationSystemNameAvailable,
   removeOrganizationMember,
   updateOrganizationFinancialInfo,
   type GetOrganizationFinancialInfoResponse,
 } from '@/services/api/organizations.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
+import { normalizeTransliteratedIdentifier } from '@/utils/transliteration.ts'
 
 interface CreateOrganizationForm {
   owner?: UserModel
@@ -325,11 +364,14 @@ const minimalAllowedBalance = ref(0)
 const createDialogOpen = ref(false)
 const createFormRef = ref<FormInstance>()
 const creating = ref(false)
+const createSystemNameStatus = ref<'idle' | 'checking' | 'available' | 'unavailable' | 'error'>('idle')
+const createSystemNameManuallyEdited = ref(false)
 const addMemberDialogOpen = ref(false)
 const reservationsDialogOpen = ref(false)
 const addingMember = ref(false)
 let organizationsRequestId = 0
 let detailsRequestId = 0
+let createSystemNameRequestId = 0
 
 const createForm = reactive<CreateOrganizationForm>({ owner: undefined, name: '', systemName: '' })
 const memberForm = reactive<{ user?: UserModel, role: OrganizationRole }>({ user: undefined, role: 'Member' })
@@ -346,6 +388,22 @@ const createRules = computed<FormRules<CreateOrganizationForm>>(() => ({
 }))
 
 const loadOrganizationsDebounced = useDebounceFn(() => loadOrganizations(true), 300)
+const checkCreateSystemNameDebounced = useDebounceFn(() => checkCreateSystemName(), 350)
+const generateCreateSystemNameDebounced = useDebounceFn(() => generateCreateSystemName(), 250)
+
+const createSystemNameErrorMessage = computed(() => {
+  if (createForm.systemName.length > 128) return t('organizationPage.systemNameLength')
+  if (createSystemNameStatus.value === 'unavailable') return t('organizationPage.systemNameUnavailable')
+  if (createSystemNameStatus.value === 'error') return t('organizationPage.systemNameCheckError')
+  return ''
+})
+
+const createSystemNameValidateStatus = computed(() => {
+  if (createSystemNameStatus.value === 'checking') return 'validating'
+  if (createSystemNameStatus.value === 'available') return 'success'
+  if (createSystemNameErrorMessage.value) return 'error'
+  return ''
+})
 
 function organizationTypeLabel(type: OrganizationType) {
   return t(`organizations.types.${type}`)
@@ -357,6 +415,91 @@ function organizationRoleLabel(role: OrganizationRole) {
 
 function userName(user: UserModel) {
   return [user.surname, user.name].filter(Boolean).join(' ') || user.userName
+}
+
+function generatedSystemNameCandidate(base: string, attempt: number) {
+  const suffix = attempt === 0 ? '' : `-${attempt + 1}`
+  const availableBaseLength = 128 - suffix.length
+  const trimmedBase = base
+    .slice(0, availableBaseLength)
+    .replace(/-+$/g, '')
+  return `${trimmedBase}${suffix}`
+}
+
+async function generateCreateSystemName() {
+  if (!createDialogOpen.value || createSystemNameManuallyEdited.value) return
+
+  const base = normalizeTransliteratedIdentifier(createForm.name, '-')
+  if (!base) {
+    createSystemNameRequestId += 1
+    createForm.systemName = ''
+    createSystemNameStatus.value = 'idle'
+    return
+  }
+
+  createForm.systemName = generatedSystemNameCandidate(base, 0)
+  const requestId = ++createSystemNameRequestId
+  createSystemNameStatus.value = 'checking'
+
+  try {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const candidate = generatedSystemNameCandidate(base, attempt)
+      const response = await isOrganizationSystemNameAvailable(candidate)
+      if (
+        requestId !== createSystemNameRequestId
+        || createSystemNameManuallyEdited.value
+      ) return
+
+      if (response.isAvailable) {
+        createForm.systemName = candidate
+        createSystemNameStatus.value = 'available'
+        return
+      }
+    }
+
+    createSystemNameStatus.value = 'unavailable'
+  } catch {
+    if (requestId === createSystemNameRequestId) {
+      createSystemNameStatus.value = 'error'
+    }
+  }
+}
+
+async function checkCreateSystemName() {
+  const systemName = createForm.systemName.trim()
+  if (!systemName || systemName.length > 128) {
+    createSystemNameRequestId += 1
+    createSystemNameStatus.value = 'idle'
+    return
+  }
+
+  const requestId = ++createSystemNameRequestId
+  createSystemNameStatus.value = 'checking'
+  try {
+    const response = await isOrganizationSystemNameAvailable(systemName)
+    if (
+      requestId !== createSystemNameRequestId
+      || systemName !== createForm.systemName.trim()
+    ) return
+
+    createSystemNameStatus.value = response.isAvailable ? 'available' : 'unavailable'
+  } catch {
+    if (requestId === createSystemNameRequestId) {
+      createSystemNameStatus.value = 'error'
+    }
+  }
+}
+
+function handleCreateSystemNameInput(value: string) {
+  createSystemNameManuallyEdited.value = value.trim() !== ''
+  createSystemNameRequestId += 1
+  createSystemNameStatus.value = 'idle'
+
+  if (createSystemNameManuallyEdited.value) {
+    void checkCreateSystemNameDebounced()
+  } else {
+    void generateCreateSystemNameDebounced()
+  }
 }
 
 async function loadOrganizations(reset = false) {
@@ -453,6 +596,9 @@ async function loadFinances() {
 }
 
 function openCreateDialog() {
+  createSystemNameRequestId += 1
+  createSystemNameStatus.value = 'idle'
+  createSystemNameManuallyEdited.value = false
   createForm.owner = undefined
   createForm.name = ''
   createForm.systemName = ''
@@ -463,14 +609,24 @@ function openCreateDialog() {
 async function submitCreateOrganization() {
   if (!createFormRef.value || creating.value) return
   const valid = await createFormRef.value.validate().catch(() => false)
-  if (!valid || !createForm.owner) return
+  if (!valid || !createForm.owner || createSystemNameStatus.value !== 'available') return
 
   creating.value = true
+  const systemName = createForm.systemName.trim()
   try {
+    createSystemNameRequestId += 1
+    createSystemNameStatus.value = 'checking'
+    const availability = await isOrganizationSystemNameAvailable(systemName)
+    if (!availability.isAvailable) {
+      createSystemNameStatus.value = 'unavailable'
+      return
+    }
+    createSystemNameStatus.value = 'available'
+
     const response = await createOrganization({
       ownerUserId: createForm.owner.id,
       name: createForm.name.trim(),
-      systemName: createForm.systemName.trim(),
+      systemName,
     })
     createDialogOpen.value = false
     organizations.value = [response.organization, ...organizations.value.filter((item) => item.id !== response.organization.id)]
@@ -579,6 +735,24 @@ watch(searchTerm, loadOrganizationsDebounced)
 watch(typeFilters, () => loadOrganizations(true), { deep: true })
 watch([page, limit], () => loadOrganizations(false))
 watch(() => route.query.organizationId, () => selectOrganizationFromRoute())
+watch(
+  () => createForm.name,
+  () => {
+    if (!createSystemNameManuallyEdited.value) {
+      createSystemNameRequestId += 1
+      createSystemNameStatus.value = 'idle'
+      createForm.systemName = generatedSystemNameCandidate(
+        normalizeTransliteratedIdentifier(createForm.name, '-'),
+        0,
+      )
+      void generateCreateSystemNameDebounced()
+    }
+  },
+)
+watch(createDialogOpen, (isOpen) => {
+  if (isOpen) return
+  createSystemNameRequestId += 1
+})
 
 onMounted(async () => {
   await loadOrganizations(true)
@@ -596,6 +770,9 @@ onMounted(async () => {
 .organization-name-cell { min-width: 0; display: grid; gap: 2px; }
 .organization-name-cell strong { overflow: hidden; color: #0f172a; text-overflow: ellipsis; white-space: nowrap; }
 .organization-name-cell span { overflow: hidden; color: #64748b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.system-name-hint { width: 100%; margin-top: 4px; color: #64748b; font-size: 12px; line-height: 18px; }
+.system-name-hint--available,
+.system-name-available-icon { color: #047857; }
 .organizations-pagination { border-top: 1px solid #e2e8f0; padding-top: 12px; }
 .organization-details-panel { min-height: 620px; overflow: hidden; }
 .organization-details-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #e2e8f0; padding: 16px 18px; }

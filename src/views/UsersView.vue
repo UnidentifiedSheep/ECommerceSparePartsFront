@@ -464,9 +464,12 @@
               </el-form-item>
               <el-form-item class="mb-0" :label="t('common.labels.type')">
                 <el-select v-model="phone.type" class="w-full">
-                  <el-option :label="t('users.personalPhone')" value="Personal" />
-                  <el-option :label="t('users.workPhone')" value="Work" />
-                  <el-option :label="t('users.unknownPhone')" value="Unknown" />
+                  <el-option
+                    v-for="type in phoneTypes"
+                    :key="type"
+                    :label="phoneTypeLabel(type)"
+                    :value="type"
+                  />
                 </el-select>
               </el-form-item>
               <el-button
@@ -673,6 +676,7 @@ import { CircleCheck, Edit, Loading, MoreFilled } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
+import { PhoneType } from '@/enums/phoneType.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
@@ -708,6 +712,7 @@ import {
 } from '@/services/api/users.ts'
 import { isUserNameAvailable } from '@/services/api/authApi.ts'
 import { useI18n } from '@/i18n'
+import { normalizeTransliteratedIdentifier } from '@/utils/transliteration.ts'
 
 interface CreateUserEmailForm {
   email: string
@@ -718,49 +723,13 @@ interface CreateUserEmailForm {
 
 interface CreateUserPhoneForm {
   number: string
-  type: string
+  type: PhoneType
   isPrimary: boolean
   isConfirmed: boolean
 }
 
-const userNameTransliteration: Record<string, string> = {
-  а: 'a',
-  б: 'b',
-  в: 'v',
-  г: 'g',
-  д: 'd',
-  е: 'e',
-  ё: 'e',
-  ж: 'zh',
-  з: 'z',
-  и: 'i',
-  й: 'i',
-  к: 'k',
-  л: 'l',
-  м: 'm',
-  н: 'n',
-  о: 'o',
-  п: 'p',
-  р: 'r',
-  с: 's',
-  т: 't',
-  у: 'u',
-  ф: 'f',
-  х: 'h',
-  ц: 'ts',
-  ч: 'ch',
-  ш: 'sh',
-  щ: 'sch',
-  ъ: '',
-  ы: 'y',
-  ь: '',
-  э: 'e',
-  ю: 'yu',
-  я: 'ya',
-  ı: 'i',
-}
-
 const users = ref<UserModel[]>([])
+const phoneTypes = Object.values(PhoneType)
 const usersTableRef = ref<TableInstance>()
 const route = useRoute()
 const router = useRouter()
@@ -980,13 +949,15 @@ function emailTypeLabel(type?: string | null) {
   }
 }
 
-function phoneTypeLabel(type?: string | null) {
+function phoneTypeLabel(type?: PhoneType | null) {
   switch (type) {
-    case 'Personal':
-      return t('users.personalPhone')
-    case 'Work':
+    case PhoneType.Mobile:
+      return t('users.mobilePhone')
+    case PhoneType.Work:
       return t('users.workPhone')
-    case 'Unknown':
+    case PhoneType.Home:
+      return t('users.homePhone')
+    case PhoneType.Unknown:
       return t('users.unknownPhone')
     default:
       return type || t('users.notSpecified')
@@ -1018,14 +989,7 @@ function formatDate(value?: string | null) {
 }
 
 function normalizeUserNamePart(value: string) {
-  return [...value.trim().toLowerCase()]
-    .map((character) => userNameTransliteration[character] ?? character)
-    .join('')
-    .normalize('NFKD')
-    .replace(/\p{Diacritic}/gu, '')
-    .replace(/[^a-z0-9]+/g, '.')
-    .replace(/^\.+|\.+$/g, '')
-    .replace(/\.{2,}/g, '.')
+  return normalizeTransliteratedIdentifier(value, '.')
 }
 
 function generatedUserNameCandidate(base: string, attempt: number) {
@@ -1158,7 +1122,7 @@ function createDefaultEmail(isPrimary = false): CreateUserEmailForm {
 function createDefaultPhone(isPrimary = false): CreateUserPhoneForm {
   return {
     number: '',
-    type: 'Personal',
+    type: PhoneType.Mobile,
     isPrimary,
     isConfirmed: false,
   }

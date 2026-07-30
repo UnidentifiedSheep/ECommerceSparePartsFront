@@ -1,4 +1,5 @@
 import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
+import { PhoneType } from '@/enums/phoneType.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import {
   mapOrganizationModel,
@@ -44,7 +45,7 @@ export interface CreateUserEmailRequest {
 
 export interface CreateUserPhoneRequest {
   number: string
-  type: string
+  type: PhoneType
   isConfirmed: boolean
   isPrimary: boolean
 }
@@ -92,7 +93,7 @@ export interface UserEmailModel {
 
 export interface UserPhoneModel {
   number: string
-  type: string
+  type: PhoneType
   isConfirmed: boolean
   isPrimary: boolean
 }

@@ -46,6 +46,10 @@ export interface CreateOrganizationResponse {
   organization: OrganizationModel
 }
 
+export interface IsOrganizationSystemNameAvailableResponse {
+  isAvailable: boolean
+}
+
 export interface AddOrganizationMemberRequest {
   organizationId: string
   userId: string
@@ -111,6 +115,15 @@ export async function createOrganization(req: CreateOrganizationRequest): Promis
   return {
     organization: mapOrganizationModel(response.data.organization),
   }
+}
+
+export async function isOrganizationSystemNameAvailable(
+  systemName: string,
+): Promise<IsOrganizationSystemNameAvailableResponse> {
+  const response = await api.get<IsOrganizationSystemNameAvailableResponse>(
+    `/main/organizations/system-names/${encodeURIComponent(systemName)}/availability`,
+  )
+  return response.data
 }
 
 export async function addOrganizationMember(req: AddOrganizationMemberRequest): Promise<void> {
