@@ -55,7 +55,7 @@ export interface GetServiceJobsRequest {
   size: number
   systemNames?: string[]
   statuses?: JobStatus[]
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface GetServiceJobsResponse {
@@ -96,7 +96,7 @@ export interface GetJobSchedulesRequest {
   systemNames?: string[]
   nextRunFrom?: string | null
   nextRunTo?: string | null
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface GetJobSchedulesResponse {
@@ -205,7 +205,7 @@ export async function getServiceJobs(serviceKey: string, req: GetServiceJobsRequ
   const params = new URLSearchParams()
   params.append('page', String(req.page))
   params.append('size', String(req.size))
-  if (req.sortBy) params.append('sortBy', req.sortBy)
+  req.sortBy?.forEach((sort) => params.append('sortBy', sort))
   req.systemNames?.forEach((systemName) => params.append('systemName', systemName))
   req.statuses?.forEach((status) => params.append('status', status))
 
@@ -243,7 +243,7 @@ export async function getServiceJobSchedules(
   const params = new URLSearchParams()
   params.append('page', String(req.page))
   params.append('size', String(req.size))
-  if (req.sortBy) params.append('sortBy', req.sortBy)
+  req.sortBy?.forEach((sort) => params.append('sortBy', sort))
   if (req.nextRunFrom) params.append('nextRunFrom', req.nextRunFrom)
   if (req.nextRunTo) params.append('nextRunTo', req.nextRunTo)
   req.systemNames?.forEach((systemName) => params.append('systemName', systemName))

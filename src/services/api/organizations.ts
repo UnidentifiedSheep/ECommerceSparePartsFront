@@ -19,7 +19,7 @@ export interface GetOrganizationsRequest {
   types?: OrganizationType[]
   page: number
   limit: number
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface GetOrganizationsResponse {
@@ -79,7 +79,7 @@ export async function getOrganizations(req: GetOrganizationsRequest): Promise<Ge
   req.types?.forEach((type) => params.append('types', type))
   params.append('page', String(req.page))
   params.append('limit', String(clampPageSize(req.limit)))
-  if (req.sortBy) params.append('sortBy', req.sortBy)
+  req.sortBy?.forEach((sort) => params.append('sortBy', sort))
 
   const response = await api.get<{ organizations: OrganizationDto[] }>('/main/organizations', { params })
   return {

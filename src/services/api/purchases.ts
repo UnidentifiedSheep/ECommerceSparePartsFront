@@ -51,7 +51,7 @@ export interface GetPurchasesRequest {
   supplierOrganizationIds?: string[]
   currencyIds?: number[]
   productIds?: number[]
-  sortBy?: string
+  sortBy?: string[]
   searchTerm?: string
 }
 
@@ -128,7 +128,7 @@ export async function getPurchases(req: GetPurchasesRequest): Promise<GetPurchas
   req.supplierOrganizationIds?.forEach((id) => appendParam('supplierOrganizationIds', id))
   req.currencyIds?.forEach((id) => appendParam('currencyIds', id))
   req.productIds?.forEach((id) => appendParam('productIds', id))
-  appendParam('sortBy', req.sortBy)
+  req.sortBy?.forEach((sort) => appendParam('sortBy', sort))
   appendParam('searchTerm', req.searchTerm)
 
   const resp = await api.get<{ purchases: PurchaseDto[] }>('/main/purchases', {

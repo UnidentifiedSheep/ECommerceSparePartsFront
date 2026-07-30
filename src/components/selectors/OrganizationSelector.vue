@@ -234,7 +234,7 @@ async function loadOrganizations(reset: boolean) {
       types: props.types.length > 0 ? props.types : undefined,
       page: organizationsPage.value,
       limit: organizationLimit,
-      sortBy: 'Name',
+      sortBy: ['Name'],
     })
     if (requestId !== organizationsRequestId) return
 

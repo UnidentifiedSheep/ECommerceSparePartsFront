@@ -15,7 +15,7 @@ export interface GetRolesRequest {
   searchTerm?: string
   page: number
   size: number
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface GetRolesResponse {

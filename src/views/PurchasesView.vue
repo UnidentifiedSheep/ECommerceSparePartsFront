@@ -407,7 +407,7 @@ async function loadPurchases(resetPage: boolean) {
       supplierOrganizationIds: selectedSuppliers.value.map((supplier) => supplier.organization.id),
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
-      sortBy: sortBy.value,
+      sortBy: sortBy.value ? [sortBy.value] : undefined,
       searchTerm: searchTerm.value,
     })
 

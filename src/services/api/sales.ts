@@ -69,7 +69,7 @@ export interface GetSalesRequest {
   currencyIds?: number[]
   productIds?: number[]
   states?: SaleState[]
-  sortBy?: string
+  sortBy?: string[]
   searchTerm?: string
 }
 
@@ -83,6 +83,34 @@ export interface GetSaleResponse {
 
 export interface GetSaleContentResponse {
   contents: SaleContentModel[]
+}
+
+export interface ProductSaleHistoryModel {
+  saleContentId: number
+  productId: number
+  storageName: string
+  currencyId: number
+  quantity: number
+  discount: number
+  price: number
+  averageBuyPrice: number
+  saleDate: string
+  whoCreated?: string | null
+}
+
+export interface GetProductSaleHistoryRequest {
+  productId: number
+  storageName?: string
+  organizationId?: string
+  preferredOrganizationId?: string
+  currencyId?: number
+  page: number
+  size: number
+  sortBy?: string[]
+}
+
+export interface GetProductSaleHistoryResponse {
+  history: ProductSaleHistoryModel[]
 }
 
 function mapSaleModel(dto: SaleDto): SaleModel {
@@ -119,7 +147,7 @@ export async function getSales(req: GetSalesRequest): Promise<GetSalesResponse> 
   req.currencyIds?.forEach((id) => appendParam('currencyIds', id))
   req.productIds?.forEach((id) => appendParam('productIds', id))
   req.states?.forEach((state) => appendParam('state', state))
-  appendParam('sortBy', req.sortBy)
+  req.sortBy?.forEach((sort) => appendParam('sortBy', sort))
   appendParam('searchTerm', req.searchTerm)
 
   const resp = await api.get<{ sales: SaleDto[] }>('/main/sales', {
@@ -150,6 +178,26 @@ export async function getSaleContent(id: string): Promise<GetSaleContentResponse
   return {
     contents: resp.data.contents ?? resp.data.content ?? [],
   }
+}
+
+export async function getProductSaleHistory(
+  req: GetProductSaleHistoryRequest,
+): Promise<GetProductSaleHistoryResponse> {
+  const response = await api.get<GetProductSaleHistoryResponse>(
+    `/main/sales/products/${req.productId}/history`,
+    {
+      params: {
+        storageName: req.storageName,
+        organizationId: req.organizationId,
+        preferredOrganizationId: req.preferredOrganizationId,
+        currencyId: req.currencyId,
+        page: req.page,
+        size: clampPageSize(req.size),
+        sortBy: req.sortBy,
+      },
+    },
+  )
+  return response.data
 }
 
 export async function deleteSale(id: string, rowVersion: number): Promise<void> {

@@ -139,6 +139,10 @@
   max-width: 100%;
 }
 
+.sale-workspace {
+  min-width: 0;
+}
+
 .sale-section {
   min-width: 0;
   max-width: 100%;
@@ -201,12 +205,28 @@
   min-width: 0;
 }
 
-.force-payment-control span {
+.force-payment-control span,
+.force-payment-control strong {
   color: #64748b;
   font-size: 12px;
   font-weight: 650;
   line-height: 1.25;
   white-space: nowrap;
+}
+
+.force-payment-box {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 8px 10px;
+}
+
+.force-payment-box p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .force-payment-help {
@@ -293,6 +313,10 @@
   grid-column: span 4;
 }
 
+.span-5 {
+  grid-column: span 5;
+}
+
 .span-6 {
   grid-column: span 6;
 }
@@ -326,6 +350,49 @@
 .sale-item:hover {
   border-color: #cbd5e1;
   background: #fbfcfd;
+}
+
+.sale-item--selected {
+  border-color: #86a89b;
+  box-shadow: inset 3px 0 0 #047857;
+}
+
+.sale-item--draft {
+  border-style: dashed;
+  border-color: #d6a558;
+  background: #fffdf7;
+}
+
+.sale-item--draft.sale-item--selected {
+  border-color: #b7791f;
+  box-shadow: inset 3px 0 0 #b7791f;
+}
+
+.item-product-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.draft-label {
+  flex: 0 0 auto;
+  border-radius: 4px;
+  background: #fef3c7;
+  padding: 2px 6px;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.separate-position-label {
+  flex: 0 0 auto;
+  border-radius: 4px;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .sale-item-main {
@@ -385,6 +452,18 @@
   min-width: 0;
 }
 
+.item-field--error :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 1px #dc2626 inset;
+}
+
+.item-controls .item-field-error {
+  margin: 4px 0 0;
+  color: #b91c1c;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
 .item-controls :deep(.el-input-number) {
   width: 100%;
   min-width: 0;
@@ -407,12 +486,10 @@
   min-height: 32px;
   align-items: center;
   min-width: 0;
-  border-radius: 6px;
-  background: rgb(248 250 252);
-  padding: 0 10px;
+  padding: 0 2px;
   color: rgb(15 23 42);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 750;
   overflow-wrap: anywhere;
 }
 

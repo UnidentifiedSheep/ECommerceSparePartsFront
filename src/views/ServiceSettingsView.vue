@@ -636,7 +636,7 @@ async function loadProducts(query = '', reset = true) {
       query: productsQuery.value.trim() || undefined,
       page: productsPage.value,
       size: productsLimit.value,
-      sortBy: 'id_asc',
+      sortBy: ['id_asc'],
     })
     const existingIds = new Set(products.value.map((product) => product.id))
     products.value.push(...response.products.filter((product) => !existingIds.has(product.id)))

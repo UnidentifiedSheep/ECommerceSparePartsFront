@@ -369,7 +369,7 @@ async function loadOrganizations(reset = false) {
       types: typeFilters.value.length ? typeFilters.value : undefined,
       page: page.value,
       limit: limit.value,
-      sortBy: 'Name',
+      sortBy: ['Name'],
     })
     if (requestId !== organizationsRequestId) return
     organizations.value = response.organizations

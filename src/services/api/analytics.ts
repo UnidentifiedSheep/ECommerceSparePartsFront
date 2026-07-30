@@ -80,7 +80,7 @@ export interface CalculationJobModel {
 export interface GetMetricsRequest {
   page: number
   limit: number
-  sortBy?: MetricSortBy
+  sortBy?: MetricSortBy[]
   metricSystemName?: string
 }
 
@@ -88,7 +88,7 @@ export interface GetMetricCalculationJobsRequest {
   metricId: string
   page: number
   limit: number
-  sortBy?: MetricCalculationJobSortBy
+  sortBy?: MetricCalculationJobSortBy[]
 }
 
 export interface GetMetricInfosResponse {

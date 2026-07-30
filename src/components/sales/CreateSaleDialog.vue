@@ -1,9 +1,14 @@
 <template>
   <el-dialog
     v-model="isOpen"
-    width="min(1320px, calc(100vw - 32px))"
+    :width="historyPanelOpen
+      ? 'min(1320px, calc(100vw - 392px))'
+      : 'min(1320px, calc(100vw - 32px))'"
     top="5vh"
-    class="create-sale-dialog"
+    :class="[
+      'create-sale-dialog',
+      { 'create-sale-dialog--history-open': historyPanelOpen },
+    ]"
     :show-close="false"
   >
     <template #header>
@@ -56,6 +61,10 @@
         </div>
       </aside>
 
+      <div
+        class="sale-workspace"
+        :class="{ 'sale-workspace--history-open': historyPanelOpen }"
+      >
       <el-form label-position="top" class="sale-form">
         <section class="sale-section sale-section--main">
           <div class="section-header">
@@ -187,6 +196,8 @@
               v-for="(item, index) in form.items"
               :key="`sale-item-${index}`"
               class="sale-item"
+              :class="{ 'sale-item--selected': selectedHistoryItemIndex === index }"
+              @click="selectHistoryItem(index)"
             >
               <div class="sale-item-main">
                 <div class="item-product">
@@ -280,12 +291,22 @@
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
-                <el-button class="remove-item-button" :icon="Delete" text type="danger" @click="removeItem(index)" />
+                <el-button class="remove-item-button" :icon="Delete" text type="danger" @click.stop="removeItem(index)" />
               </div>
             </article>
           </div>
         </section>
       </el-form>
+      <ProductSaleHistoryPanel
+        v-if="isOpen"
+        v-model="historyPanelOpen"
+        :product="selectedHistoryItem?.product"
+        :storage-name="form.storageName"
+        :preferred-organization-id="form.buyer?.organization.id"
+        :currency-id="form.currencyId"
+        :currency-sign="selectedCurrency?.currencySign"
+      />
+      </div>
     </div>
 
     <template #footer>
@@ -319,6 +340,7 @@ import { computed, h, reactive, ref, watch } from 'vue'
 import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
+import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
 import StorageContentBatchesDialog from '@/components/sales/StorageContentBatchesDialog.vue'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
@@ -362,6 +384,8 @@ const emit = defineEmits<{
 const productSelectorOpen = ref(false)
 const storageBatchesOpen = ref(false)
 const storageBatchesProduct = ref<ProductSearchModel>()
+const historyPanelOpen = ref(false)
+const selectedHistoryItemIndex = ref<number | null>(null)
 const isSaving = ref(false)
 const isStockLoading = ref(false)
 const isDiscountLoading = ref(false)
@@ -386,6 +410,11 @@ const form = reactive({
 
 const selectedCurrency = computed(() => (
   props.currencies.find((currency) => currency.id === form.currencyId)
+))
+const selectedHistoryItem = computed(() => (
+  selectedHistoryItemIndex.value === null
+    ? undefined
+    : form.items[selectedHistoryItemIndex.value]
 ))
 
 const saleTotal = computed(() => (
@@ -454,6 +483,8 @@ function resetForm() {
   form.forcePayment = false
   form.applyUserDiscountToAll = false
   form.items = []
+  historyPanelOpen.value = true
+  selectedHistoryItemIndex.value = null
   backendUserDiscount.value = 0
   saleDiscount.value = 0
   isDiscountEditing.value = false
@@ -489,6 +520,8 @@ async function addProduct(product: ProductSearchModel) {
     discountMode: form.applyUserDiscountToAll ? 'User' : 'Manual',
     comment: '',
   })
+  selectedHistoryItemIndex.value = form.items.length - 1
+  historyPanelOpen.value = true
   applyDiscountModesToItems()
 }
 
@@ -544,6 +577,24 @@ async function loadCurrentProductStocks() {
 
 function removeItem(index: number) {
   form.items.splice(index, 1)
+  if (form.items.length === 0) {
+    selectedHistoryItemIndex.value = null
+    historyPanelOpen.value = false
+    return
+  }
+
+  if (selectedHistoryItemIndex.value === index) {
+    selectedHistoryItemIndex.value = Math.min(index, form.items.length - 1)
+  } else if (
+    selectedHistoryItemIndex.value !== null
+    && selectedHistoryItemIndex.value > index
+  ) {
+    selectedHistoryItemIndex.value -= 1
+  }
+}
+
+function selectHistoryItem(index: number) {
+  selectedHistoryItemIndex.value = index
 }
 
 function openStorageBatches(item: SaleItemForm) {
@@ -756,7 +807,13 @@ async function confirmReservedSale(data: SaleConfirmationData) {
 }
 
 watch(isOpen, (open) => {
-  if (open) resetForm()
+  if (open) {
+    resetForm()
+    return
+  }
+
+  historyPanelOpen.value = false
+  selectedHistoryItemIndex.value = null
 })
 
 watch(() => form.buyer?.member?.user.id, async (buyerId) => {
@@ -823,3 +880,18 @@ watch(
 </script>
 
 <style scoped src="@/assets/sale-dialog.css"></style>
+
+<style>
+.create-sale-dialog.create-sale-dialog--history-open {
+  margin-right: 0;
+  margin-left: max(16px, calc((100vw - 1680px) / 2));
+}
+
+@media (max-width: 1180px) {
+  .create-sale-dialog.create-sale-dialog--history-open {
+    width: calc(100vw - 32px) !important;
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+</style>

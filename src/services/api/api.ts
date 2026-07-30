@@ -107,6 +107,9 @@ async function refreshAccessTokenAcrossTabs(
 const api: AxiosInstance = axios.create({
   baseURL: apiBaseUrl,
   timeout: 10000,
+  paramsSerializer: {
+    indexes: null,
+  },
   headers: {
     'Content-Type': 'application/json',
   },

@@ -603,7 +603,12 @@ async function loadProductMetrics() {
 async function loadCrosses() {
   isCrossesLoading.value = true
   try {
-    const resp = await getProductCrosses({ productId: productId.value, page: page.value, size: size.value, sortBy: sortBy.value })
+    const resp = await getProductCrosses({
+      productId: productId.value,
+      page: page.value,
+      size: size.value,
+      sortBy: sortBy.value ? [sortBy.value] : undefined,
+    })
     crosses.value = resp.crosses
     hasNext.value = resp.crosses.length === size.value
   } finally {

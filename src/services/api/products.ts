@@ -46,7 +46,7 @@ export interface GetProductCrossesRequest {
   productId: number
   page: number
   size: number
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface GetProductCrossesResponse {
@@ -121,7 +121,7 @@ export interface GetProductReservationsRequest {
   showDeleted?: boolean
   page: number
   size: number
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface GetProductReservationsResponse {

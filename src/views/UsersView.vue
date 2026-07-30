@@ -196,6 +196,15 @@
                           </div>
                           <div v-if="canManageUserEmails" class="flex shrink-0 flex-wrap justify-end gap-2">
                             <el-button
+                              v-if="email.confirmed && !email.isPrimary"
+                              size="small"
+                              plain
+                              :loading="makingPrimaryEmail === email.email"
+                              @click="setUserPrimaryEmail(email.email)"
+                            >
+                              {{ t('users.makePrimary') }}
+                            </el-button>
+                            <el-button
                               v-if="!email.confirmed"
                               size="small"
                               plain
@@ -688,6 +697,7 @@ import {
   getUserOrganizations,
   getUsers,
   getUserStorages,
+  makeUserEmailPrimary,
   removeEmailFromUser,
   requestUserEmailVerification,
   removePermissionFromUser,
@@ -796,6 +806,7 @@ const roleDialogOpen = ref(false)
 const addEmailDialogOpen = ref(false)
 const addingEmail = ref(false)
 const requestingVerificationEmail = ref('')
+const makingPrimaryEmail = ref('')
 const permissionAttachLoading = ref(false)
 const roleAttachLoading = ref(false)
 const editInfoSaving = ref(false)
@@ -1341,7 +1352,7 @@ async function loadUserOrganizations(userId: string, reset: boolean) {
     const response = await getUserOrganizations(userId, {
       page: userOrganizationsPage.value,
       limit: 10,
-      sortBy: 'Name',
+      sortBy: ['Name'],
     })
     const existingIds = new Set(userOrganizations.value.map((organization) => organization.id))
     userOrganizations.value.push(...response.organizations.filter((organization) => !existingIds.has(organization.id)))
@@ -1742,6 +1753,35 @@ async function sendUserEmailVerification(email: string) {
     })
   } finally {
     requestingVerificationEmail.value = ''
+  }
+}
+
+async function setUserPrimaryEmail(email: string) {
+  if (!selectedUser.value || makingPrimaryEmail.value) return
+
+  makingPrimaryEmail.value = email
+  try {
+    await makeUserEmailPrimary({
+      userId: selectedUser.value.id,
+      email,
+    })
+    userEmails.value = userEmails.value.map((item) => ({
+      ...item,
+      isPrimary: item.email === email,
+    }))
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.primaryEmailChanged'),
+      type: 'success',
+    })
+  } catch (error) {
+    ElNotification({
+      title: t('common.labels.error'),
+      message: error instanceof ApiError ? error.message : t('users.primaryEmailChangeError'),
+      type: 'error',
+    })
+  } finally {
+    makingPrimaryEmail.value = ''
   }
 }
 

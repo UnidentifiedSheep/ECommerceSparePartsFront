@@ -89,17 +89,21 @@ async function save() {
   }
 }
 
-watch(isOpen, async (open) => {
-  if (!open) return
-  form.count = props.item.count
-  form.buyPrice = props.item.buyPrice
-  form.currencyId = props.item.currency?.id
-  form.purchaseDatetime = toLocalDateTimeInputValue(new Date(props.item.purchaseDatetime))
-  loadingCurrencies.value = true
-  try {
-    currencies.value = (await getCurrencies()).currencies
-  } finally {
-    loadingCurrencies.value = false
-  }
-})
+watch(
+  isOpen,
+  async (open) => {
+    if (!open) return
+    form.count = props.item.count
+    form.buyPrice = props.item.buyPrice
+    form.currencyId = props.item.currency?.id
+    form.purchaseDatetime = toLocalDateTimeInputValue(new Date(props.item.purchaseDatetime))
+    loadingCurrencies.value = true
+    try {
+      currencies.value = (await getCurrencies()).currencies
+    } finally {
+      loadingCurrencies.value = false
+    }
+  },
+  { immediate: true },
+)
 </script>

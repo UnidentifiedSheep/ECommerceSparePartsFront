@@ -773,7 +773,7 @@ async function loadProducts(query = '', reset = true) {
       query: productsQuery.value.trim() || undefined,
       page: productsPage.value,
       size: productsLimit.value,
-      sortBy: 'id_asc',
+      sortBy: ['id_asc'],
     })
     const existingIds = new Set(products.value.map((product) => product.id))
     products.value.push(...resp.products.filter((product) => !existingIds.has(product.id)))
@@ -870,7 +870,7 @@ async function loadMetrics(resetPage: boolean) {
     const resp = await getMetrics({
       page: page.value,
       limit: limit.value,
-      sortBy: sortBy.value,
+      sortBy: [sortBy.value],
       metricSystemName: selectedMetricSystemName.value ?? undefined,
     })
     metrics.value = resp.metrics
@@ -889,7 +889,7 @@ async function loadMetricHistory() {
       metricId: historyMetric.value.id,
       page: historyPage.value,
       limit: historyLimit.value,
-      sortBy: historySortBy.value,
+      sortBy: [historySortBy.value],
     })
     historyJobs.value = resp.jobs
     historyHasNext.value = resp.jobs.length === historyLimit.value
@@ -902,7 +902,7 @@ async function loadMetricSnapshot(metric: MetricModel): Promise<MetricModel | nu
   const resp = await getMetrics({
     page: 0,
     limit: 100,
-    sortBy: sortBy.value,
+    sortBy: [sortBy.value],
     metricSystemName: metric.systemName,
   })
   return resp.metrics.find((item) => item.id === metric.id) ?? null

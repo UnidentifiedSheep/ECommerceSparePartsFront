@@ -14,12 +14,19 @@ export interface SearchProductsRequest {
   dimensionUnit?: string
   page: number
   size: number
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface SearchProductsResponse {
   products: ProductSearchModel[]
 }
+
+export type SkuSearchMode =
+  | 'Full'
+  | 'Exact'
+  | 'StartsWith'
+  | 'Contains'
+  | 'Fuzzy'
 
 export interface SearchProducersRequest {
   query?: string
@@ -34,9 +41,10 @@ export interface SearchProducersResponse {
 export interface SearchProductsBySkuRequest {
   sku: string
   producerId?: number
+  searchMode?: SkuSearchMode
   page: number
   size: number
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export async function searchProducts(req: SearchProductsRequest): Promise<SearchProductsResponse> {

@@ -1,9 +1,15 @@
 <template>
   <el-dialog
     v-model="isOpen"
-    width="min(1320px, calc(100vw - 32px))"
+    :width="historyPanelOpen
+      ? 'min(1320px, calc(100vw - 392px))'
+      : 'min(1320px, calc(100vw - 32px))'"
     top="5vh"
-    class="edit-sale-dialog"
+    :class="[
+      'edit-sale-dialog',
+      { 'edit-sale-dialog--history-open': historyPanelOpen },
+    ]"
+    :before-close="handleBeforeClose"
     :show-close="false"
   >
     <template #header>
@@ -13,7 +19,7 @@
           <h2>{{ t('sales.editTitle', { date: sale ? formatDate(sale.saleDatetime) : '' }) }}</h2>
           <p>{{ t('sales.editDescription') }}</p>
         </div>
-        <el-button :icon="Close" circle text @click="isOpen = false" />
+        <el-button :icon="Close" circle text @click="requestClose" />
       </div>
     </template>
 
@@ -34,7 +40,7 @@
             <strong>{{ totalItemCount }}</strong>
           </div>
           <div>
-            <span>{{ t('sales.discount') }}</span>
+            <span>{{ t('sales.documentDiscount') }}</span>
             <strong>{{ formatCurrency(totalDiscount, selectedCurrency?.currencySign) }}</strong>
           </div>
           <div>
@@ -43,17 +49,6 @@
           </div>
         </div>
 
-        <div class="summary-steps">
-          <div
-            v-for="step in completionSteps"
-            :key="step.label"
-            class="summary-step"
-            :class="{ 'summary-step--done': step.done }"
-          >
-            <el-icon><Check /></el-icon>
-            <span>{{ step.label }}</span>
-          </div>
-        </div>
       </aside>
 
       <el-form label-position="top" class="sale-form">
@@ -94,16 +89,22 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item :label="t('sales.forcePayment')" class="span-3">
-              <div class="force-payment-control">
-                <el-switch v-model="form.forcePayment" size="small" />
-                <el-tooltip :content="t('sales.forcePaymentHint')" placement="top">
-                  <el-icon class="force-payment-help"><QuestionFilled /></el-icon>
-                </el-tooltip>
+            <el-form-item
+              :label="t('sales.forcePayment')"
+              class="span-4 force-payment-field"
+            >
+              <div class="force-payment-box">
+                <div class="force-payment-control">
+                  <el-switch v-model="form.forcePayment" size="small" />
+                  <strong>
+                    {{ form.forcePayment ? t('sales.forcePaymentEnabled') : t('sales.forcePaymentDisabled') }}
+                  </strong>
+                </div>
+                <p>{{ t('sales.forcePaymentHint') }}</p>
               </div>
             </el-form-item>
 
-            <el-form-item :label="t('sales.userDiscount')" class="span-3 sale-discount-field">
+            <el-form-item :label="t('sales.userDiscount')" class="span-5 sale-discount-field">
               <div class="discount-control">
                 <div v-if="!isDiscountLoading" class="discount-editor">
                   <el-input-number
@@ -179,12 +180,26 @@
               v-for="(item, index) in form.items"
               :key="item.id ?? `new-${index}`"
               class="sale-item"
+              :class="{
+                'sale-item--selected': selectedHistoryItemIndex === index,
+                'sale-item--draft': item.id == null,
+              }"
+              @click="selectHistoryItem(index)"
             >
               <div class="sale-item-main">
                 <div class="item-product">
                   <div class="item-index">{{ index + 1 }}</div>
                   <div class="min-w-0">
-                    <div class="truncate text-sm font-semibold text-slate-950">{{ item.product.name }}</div>
+                    <div class="item-product-title">
+                      <div class="truncate text-sm font-semibold text-slate-950">{{ item.product.name }}</div>
+                      <span v-if="item.id == null" class="draft-label">{{ t('sales.draftPosition') }}</span>
+                      <span
+                        v-else-if="hasDuplicateProduct(item.product.id)"
+                        class="separate-position-label"
+                      >
+                        {{ t('sales.separatePosition') }} #{{ item.id }}
+                      </span>
+                    </div>
                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                       <span class="sku-pill">{{ item.product.sku || '—' }}</span>
                       <button
@@ -199,29 +214,31 @@
                       </button>
                       <span>{{ t('sales.selected') }}: {{ selectedProductCount(item).toLocaleString(locale) }}</span>
                     </div>
-                    <div v-if="hasStockError(item)" class="stock-error">
-                      {{ t('sales.stockExceeded') }}
-                    </div>
                   </div>
                 </div>
 
                 <div class="item-controls">
-                  <label>
+                  <label :class="{ 'item-field--error': hasStockError(item) }">
                     <span>{{ t('common.labels.count') }}</span>
                     <el-input-number
                       v-model="item.count"
                       :min="1"
-                      :max="availableStockForItem(item)"
                       :precision="0"
                       :controls="false"
                       class="w-full"
                     />
+                    <small v-if="hasStockError(item)" class="item-field-error">
+                      {{ t('sales.stockExceededShort') }}
+                    </small>
                   </label>
-                  <label>
+                  <label :class="{ 'item-field--error': item.price <= 0 }">
                     <span>{{ t('common.labels.price') }}</span>
                     <el-input-number v-model="item.price" :min="0" :precision="2" :controls="false" class="w-full" />
+                    <small v-if="item.price <= 0" class="item-field-error">
+                      {{ t('sales.priceRequired') }}
+                    </small>
                   </label>
-                  <label>
+                  <label :class="{ 'item-field--error': item.price > 0 && effectivePriceWithDiscount(item) <= 0 }">
                     <span>{{ t('sales.priceWithDiscount') }}</span>
                     <el-input-number
                       v-model="item.priceWithDiscount"
@@ -233,6 +250,12 @@
                       :placeholder="item.discountMode === 'Manual' ? t('sales.defaultPrice') : t('sales.auto')"
                       class="w-full"
                     />
+                    <small
+                      v-if="item.price > 0 && effectivePriceWithDiscount(item) <= 0"
+                      class="item-field-error"
+                    >
+                      {{ t('sales.priceRequired') }}
+                    </small>
                   </label>
                   <label>
                     <span>{{ t('sales.amount') }}</span>
@@ -251,11 +274,13 @@
                   class="discount-mode"
                   @change="onItemDiscountModeChange(item)"
                 >
-                  <el-radio-button label="Manual">{{ t('sales.manual') }}</el-radio-button>
-                  <el-radio-button label="User" :disabled="isDiscountLoading">{{ t('sales.useDiscount') }}</el-radio-button>
+                  <el-radio-button label="Manual">{{ t('sales.manualPrice') }}</el-radio-button>
+                  <el-radio-button label="User" :disabled="isDiscountLoading">{{ t('sales.buyerDiscount') }}</el-radio-button>
                 </el-radio-group>
                 <span v-if="itemDiscount(item) > 0" class="discount-note">
-                  {{ t('sales.discount') }}: {{ formatCurrency(itemDiscount(item), selectedCurrency?.currencySign) }}
+                  {{ t('sales.itemSavings') }}:
+                  {{ formatCurrency(itemDiscount(item), selectedCurrency?.currencySign) }}
+                  · {{ formatPercent(itemDiscountRate(item)) }}
                 </span>
                 <el-dropdown trigger="click" placement="bottom-end">
                   <el-button class="item-actions-button" :icon="MoreFilled" text />
@@ -270,13 +295,23 @@
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
-                <el-button class="remove-item-button" :icon="Delete" text type="danger" @click="removeItem(index)" />
+                <el-button class="remove-item-button" :icon="Delete" text type="danger" @click.stop="removeItem(index)" />
               </div>
             </article>
           </div>
         </section>
       </el-form>
     </div>
+
+    <ProductSaleHistoryPanel
+      v-if="isOpen"
+      v-model="historyPanelOpen"
+      :product="selectedHistoryItem?.product"
+      :storage-name="props.sale?.storage"
+      :preferred-organization-id="props.sale?.organization.id"
+      :currency-id="form.currencyId"
+      :currency-sign="selectedCurrency?.currencySign"
+    />
 
     <template #footer>
       <div class="dialog-footer">
@@ -285,7 +320,7 @@
           <strong>{{ formatCurrency(saleTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
         <div class="footer-actions">
-          <el-button size="large" @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button size="large" @click="requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save()">
             {{ t('common.actions.save') }}
           </el-button>
@@ -306,9 +341,10 @@
 
 <script setup lang="ts">
 import { computed, h, reactive, ref, watch } from 'vue'
-import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
+import { Close, Delete, MoreFilled, Plus, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
+import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
 import StorageContentBatchesDialog from '@/components/sales/StorageContentBatchesDialog.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { ApiError } from '@/models/errorModel.ts'
@@ -360,6 +396,9 @@ const emit = defineEmits<{
 const productSelectorOpen = ref(false)
 const storageBatchesOpen = ref(false)
 const storageBatchesProduct = ref<EditSaleProductForm>()
+const historyPanelOpen = ref(false)
+const selectedHistoryItemIndex = ref<number | null>(null)
+const initialFormSnapshot = ref('')
 const isSaving = ref(false)
 const isStockLoading = ref(false)
 const isDiscountLoading = ref(false)
@@ -382,6 +421,11 @@ const form = reactive({
 
 const selectedCurrency = computed(() => (
   props.currencies.find((currency) => currency.id === form.currencyId)
+))
+const selectedHistoryItem = computed(() => (
+  selectedHistoryItemIndex.value === null
+    ? undefined
+    : form.items[selectedHistoryItemIndex.value]
 ))
 
 const buyerName = computed(() => {
@@ -413,13 +457,6 @@ const saleDiscountText = computed(() => `${(saleDiscount.value * 100).toLocaleSt
 
 const hasCustomSaleDiscount = computed(() => Math.abs(saleDiscount.value - backendUserDiscount.value) > 0.000001)
 
-const completionSteps = computed(() => [
-  { label: t('sales.buyer'), done: !!props.sale?.buyer },
-  { label: t('common.labels.storage'), done: !!props.sale?.storage },
-  { label: t('common.labels.currency'), done: !!form.currencyId },
-  { label: t('sales.positions'), done: form.items.length > 0 },
-])
-
 const itemsSummary = computed(() => {
   return form.items.length === 0
     ? t('sales.addItemsHint')
@@ -440,6 +477,11 @@ const canSave = computed(() => (
     && effectivePriceWithDiscount(item) > 0
     && effectivePriceWithDiscount(item) <= item.price
   ))
+))
+const hasUnsavedChanges = computed(() => (
+  isOpen.value
+  && initialFormSnapshot.value !== ''
+  && formSnapshot() !== initialFormSnapshot.value
 ))
 
 function resetForm() {
@@ -475,10 +517,13 @@ function resetForm() {
         comment: item.comment ?? '',
       }
     })
+  historyPanelOpen.value = true
+  selectedHistoryItemIndex.value = form.items.length > 0 ? 0 : null
   backendUserDiscount.value = 0
   saleDiscount.value = 0
   isDiscountEditing.value = false
   discountDraftPercent.value = undefined
+  initialFormSnapshot.value = formSnapshot()
   void loadBuyerDiscount()
   void loadCurrentProductStocks()
 }
@@ -540,6 +585,8 @@ async function addProduct(product: ProductSearchModel) {
     discountMode: form.applyUserDiscountToAll ? 'User' : 'Manual',
     comment: '',
   })
+  selectedHistoryItemIndex.value = form.items.length - 1
+  historyPanelOpen.value = true
   applyDiscountModesToItems()
 }
 
@@ -557,6 +604,23 @@ async function loadProductStorageStock(productId: number) {
 
 function removeItem(index: number) {
   form.items.splice(index, 1)
+  if (form.items.length === 0) {
+    selectedHistoryItemIndex.value = null
+    return
+  }
+
+  if (selectedHistoryItemIndex.value === index) {
+    selectedHistoryItemIndex.value = Math.min(index, form.items.length - 1)
+  } else if (
+    selectedHistoryItemIndex.value !== null
+    && selectedHistoryItemIndex.value > index
+  ) {
+    selectedHistoryItemIndex.value -= 1
+  }
+}
+
+function selectHistoryItem(index: number) {
+  selectedHistoryItemIndex.value = index
 }
 
 function openStorageBatches(item: EditSaleItemForm) {
@@ -567,6 +631,11 @@ function openStorageBatches(item: EditSaleItemForm) {
 
 function itemDiscount(item: EditSaleItemForm) {
   return Math.max((item.price - effectivePriceWithDiscount(item)) * item.count, 0)
+}
+
+function itemDiscountRate(item: EditSaleItemForm) {
+  if (item.price <= 0) return 0
+  return Math.max((item.price - effectivePriceWithDiscount(item)) / item.price, 0)
 }
 
 function effectivePriceWithDiscount(item: EditSaleItemForm) {
@@ -638,6 +707,10 @@ function selectedProductCountById(productId: number) {
   ), 0)
 }
 
+function hasDuplicateProduct(productId: number) {
+  return form.items.filter((item) => item.product.id === productId).length > 1
+}
+
 function initialProductCountById(productId: number) {
   return initialCountsByProductId.value[productId] ?? 0
 }
@@ -672,6 +745,62 @@ function formatDate(value?: string | null) {
 
 function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
+}
+
+function formatPercent(value: number) {
+  return `${(value * 100).toLocaleString(locale.value, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}%`
+}
+
+function formSnapshot() {
+  return JSON.stringify({
+    currencyId: form.currencyId,
+    saleDateTime: form.saleDateTime,
+    comment: form.comment,
+    forcePayment: form.forcePayment,
+    applyUserDiscountToAll: form.applyUserDiscountToAll,
+    items: form.items.map((item) => ({
+      id: item.id,
+      productId: item.product.id,
+      count: item.count,
+      price: item.price,
+      priceWithDiscount: item.priceWithDiscount,
+      discountMode: item.discountMode,
+      comment: item.comment,
+    })),
+  })
+}
+
+async function confirmDiscardChanges() {
+  if (!hasUnsavedChanges.value || isSaving.value) return true
+  try {
+    await ElMessageBox.confirm(
+      t('sales.unsavedChangesMessage'),
+      t('sales.unsavedChangesTitle'),
+      {
+        confirmButtonText: t('sales.discardChanges'),
+        cancelButtonText: t('common.actions.cancel'),
+        type: 'warning',
+      },
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function requestClose() {
+  if (await confirmDiscardChanges()) {
+    isOpen.value = false
+  }
+}
+
+function handleBeforeClose(done: () => void) {
+  void confirmDiscardChanges().then((confirmed) => {
+    if (confirmed) done()
+  })
 }
 
 async function loadBuyerDiscount() {
@@ -800,7 +929,13 @@ async function confirmReservedSale(data: SaleConfirmationData) {
 }
 
 watch(isOpen, (open) => {
-  if (open) resetForm()
+  if (open) {
+    resetForm()
+    return
+  }
+
+  historyPanelOpen.value = false
+  selectedHistoryItemIndex.value = null
 })
 
 watch(() => form.applyUserDiscountToAll, (enabled) => {
@@ -828,3 +963,30 @@ watch(
 </script>
 
 <style scoped src="@/assets/sale-dialog.css"></style>
+
+<style>
+.edit-sale-dialog.edit-sale-dialog--history-open {
+  margin-right: 0;
+  margin-left: max(16px, calc((100vw - 1680px) / 2));
+}
+
+.edit-sale-dialog .sale-summary .summary-grid {
+  border-bottom: 0;
+}
+
+.edit-sale-dialog .sale-section {
+  border-color: #edf0f3;
+}
+
+.edit-sale-dialog .sale-section--main {
+  border-color: #d8dee6;
+}
+
+@media (max-width: 1180px) {
+  .edit-sale-dialog.edit-sale-dialog--history-open {
+    width: calc(100vw - 32px) !important;
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+</style>

@@ -1168,7 +1168,7 @@ async function loadCurrentJobs(resetPage = false) {
       size: currentJobsLimit.value,
       statuses: currentJobStatuses.value,
       systemNames: currentJobSystemNames.value,
-      sortBy: currentJobsSortBy.value,
+      sortBy: [currentJobsSortBy.value],
     })
     currentJobs.value = response.jobs
     currentJobsHasNext.value = response.jobs.length === currentJobsLimit.value
@@ -1200,7 +1200,7 @@ async function loadSchedules(resetPage = false) {
       nextRunTo: scheduleNextRunRange.value?.[1]
         ? toUtcDateTimeString(scheduleNextRunRange.value[1])
         : null,
-      sortBy: schedulesSortBy.value,
+      sortBy: [schedulesSortBy.value],
     })
     schedules.value = response.schedules
     schedulesHasNext.value = response.schedules.length === schedulesLimit.value
@@ -1266,7 +1266,7 @@ async function loadProducts(query = '', reset = true) {
       query: productsQuery.value.trim() || undefined,
       page: productsPage.value,
       size: productsLimit.value,
-      sortBy: 'id_asc',
+      sortBy: ['id_asc'],
     })
     const existingIds = new Set(products.value.map((product) => product.id))
     products.value.push(...response.products.filter((product) => !existingIds.has(product.id)))

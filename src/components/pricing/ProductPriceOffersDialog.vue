@@ -417,7 +417,7 @@ async function loadOffers() {
       storageName: selectedStorageName.value,
       page: page.value,
       size: size.value,
-      sortBy: 'score_desc',
+      sortBy: ['score_desc'],
     })
 
     if (currentRequestId !== requestId) return

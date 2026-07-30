@@ -266,7 +266,7 @@ async function loadPreview() {
     const [productResponse, crossesResponse] = await Promise.all([
       getProductById(props.product.id),
       canViewCrosses.value
-        ? getProductCrosses({ productId: props.product.id, page: 0, size: 5, sortBy: 'sku' })
+        ? getProductCrosses({ productId: props.product.id, page: 0, size: 5, sortBy: ['sku'] })
         : Promise.resolve({ crosses: [] }),
     ])
     if (currentRequestId !== requestId) return

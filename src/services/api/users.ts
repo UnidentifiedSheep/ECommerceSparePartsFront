@@ -115,7 +115,7 @@ export interface GetUserOrganizationsRequest {
   types?: OrganizationType[]
   page: number
   limit: number
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface GetUserOrganizationsResponse {
@@ -257,7 +257,7 @@ export async function getUserOrganizations(
   req.types?.forEach((type) => params.append('types', type))
   params.append('page', String(req.page))
   params.append('limit', String(clampPageSize(req.limit)))
-  if (req.sortBy) params.append('sortBy', req.sortBy)
+  req.sortBy?.forEach((sort) => params.append('sortBy', sort))
 
   const response = await api.get<{ organizations: OrganizationDto[] }>(`/main/users/${userId}/organizations`, { params })
   return {
@@ -318,6 +318,16 @@ export async function requestUserEmailVerification(
 
 export async function requestMyEmailVerification(email: string): Promise<void> {
   await api.post(`/main/users/me/emails/${encodeURIComponent(email)}/verification/request`)
+}
+
+export async function makeUserEmailPrimary(
+  req: RequestUserEmailVerificationRequest,
+): Promise<void> {
+  await api.put(`/main/users/${req.userId}/emails/${encodeURIComponent(req.email)}/primary`)
+}
+
+export async function makeMyEmailPrimary(email: string): Promise<void> {
+  await api.put(`/main/users/me/emails/${encodeURIComponent(email)}/primary`)
 }
 
 export async function addStorageToUser(req: AddStorageToUserRequest) {

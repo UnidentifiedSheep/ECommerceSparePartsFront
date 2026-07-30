@@ -452,7 +452,7 @@ async function loadSales(resetPage: boolean) {
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
       states: saleStates.value,
-      sortBy: sortBy.value,
+      sortBy: sortBy.value ? [sortBy.value] : undefined,
       searchTerm: searchTerm.value,
     })
 

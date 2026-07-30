@@ -60,6 +60,14 @@
               >
                 {{ t('settings.sendVerification') }}
               </el-button>
+              <el-button
+                type="primary"
+                :loading="isMakingEmailPrimary"
+                :disabled="!canMakeEmailPrimary"
+                @click="makeEmailPrimary"
+              >
+                {{ t('settings.makePrimary') }}
+              </el-button>
             </div>
           </div>
         </section>
@@ -95,7 +103,7 @@ import { Lock } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { changePassword } from '@/services/api/authApi.ts'
-import { requestMyEmailVerification } from '@/services/api/users.ts'
+import { makeMyEmailPrimary, requestMyEmailVerification } from '@/services/api/users.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { useI18n } from '@/i18n'
@@ -112,6 +120,12 @@ const verificationEmail = ref(authStore.user?.email?.trim() ?? '')
 const canRequestEmailVerification = computed(() => (
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(verificationEmail.value.trim())
   && !isRequestingEmailVerification.value
+  && !isMakingEmailPrimary.value
+))
+const canMakeEmailPrimary = computed(() => (
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(verificationEmail.value.trim())
+  && !isMakingEmailPrimary.value
+  && !isRequestingEmailVerification.value
 ))
 const activeTab = ref('security')
 const settingsSections = computed(() => [
@@ -124,6 +138,7 @@ const settingsSections = computed(() => [
 const passwordDialogOpen = ref(false)
 const isChangingPassword = ref(false)
 const isRequestingEmailVerification = ref(false)
+const isMakingEmailPrimary = ref(false)
 const passwordFormRef = ref<FormInstance>()
 const passwordForm = reactive<PasswordForm>({
   previousPassword: '',
@@ -190,6 +205,24 @@ async function requestEmailVerification() {
     )
   } finally {
     isRequestingEmailVerification.value = false
+  }
+}
+
+async function makeEmailPrimary() {
+  if (!canMakeEmailPrimary.value) return
+
+  isMakingEmailPrimary.value = true
+  try {
+    await makeMyEmailPrimary(verificationEmail.value.trim())
+    ElMessage.success(t('settings.primaryEmailChanged'))
+  } catch (error) {
+    ElMessage.error(
+      error instanceof ApiError
+        ? error.message
+        : t('settings.primaryEmailChangeError'),
+    )
+  } finally {
+    isMakingEmailPrimary.value = false
   }
 }
 </script>

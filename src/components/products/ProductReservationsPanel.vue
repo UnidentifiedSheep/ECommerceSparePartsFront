@@ -553,7 +553,7 @@ async function loadReservations() {
       showDeleted: props.showDeleted,
       page: page.value,
       size: size.value,
-      sortBy: sortBy.value,
+      sortBy: [sortBy.value],
     })
 
     reservations.value = resp.reservations

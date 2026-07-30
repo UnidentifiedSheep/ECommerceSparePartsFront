@@ -8,7 +8,7 @@ export interface GetPriceOffersForProductRequest {
   storageName: string
   page: number
   size: number
-  sortBy?: string
+  sortBy?: string[]
 }
 
 export interface GetPriceOffersForProductResponse {
@@ -24,7 +24,7 @@ export async function getPriceOffersForProduct(
   params.set('storageName', req.storageName)
   params.set('page', String(req.page))
   params.set('size', String(clampPageSize(req.size)))
-  if (req.sortBy) params.set('sortBy', req.sortBy)
+  req.sortBy?.forEach((sort) => params.append('sortBy', sort))
   req.sources?.forEach((source) => params.append('source', source))
 
   const resp = await api.get<GetPriceOffersForProductResponse>('/pricing/offers', {

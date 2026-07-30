@@ -27,52 +27,71 @@
 
         <div v-show="!isMobileViewport || !mobileSearchCollapsed" class="product-panel__body">
           <div class="product-search-toolbar">
-            <div class="product-search-toolbar__mode">
-              <label class="product-field-label">{{ t('products.searchMode') }}</label>
-              <el-select v-model="form.searchMode" size="large" class="w-full" @change="applyFilters(true)">
-                <el-option :label="t('products.searchAll')" value="all" />
-                <el-option :label="t('products.searchSku')" value="sku" />
-              </el-select>
-            </div>
-
-            <div class="product-search-toolbar__query">
-              <label class="product-field-label">{{ t('common.labels.search') }}</label>
-              <el-autocomplete
-                v-model="form.query"
-                :fetch-suggestions="querySearchHistory"
-                :prefix-icon="Search"
-                clearable
-                size="large"
-                value-key="value"
-                class="w-full"
-                :placeholder="searchPlaceholder"
-                @select="selectSearchHistory"
-                @keyup.enter="submitSearch"
-              >
-                <template #default="{ item }">
-                  <div class="product-search-history-option">
-                    <el-icon><Clock /></el-icon>
-                    <span>{{ item.value }}</span>
-                  </div>
-                </template>
-              </el-autocomplete>
-            </div>
-
-            <div class="product-search-toolbar__producer">
-              <label class="product-field-label">{{ t('common.labels.producer') }}</label>
-              <ProducerSelector v-model="form.producerId" :placeholder="t('products.allProducers')" />
-            </div>
-
-            <el-badge
-              v-if="form.searchMode === 'all'"
-              class="product-search-toolbar__action product-search-toolbar__filters"
-              :value="dimensionFiltersCount"
-              :hidden="dimensionFiltersCount === 0"
+            <div
+              class="product-search-toolbar__search-group"
+              :class="{ 'product-search-toolbar__search-group--sku': form.searchMode === 'sku' }"
             >
-              <el-button :icon="Filter" size="large" plain @click="filtersDrawerOpen = true">
-                {{ t('products.filters') }}
-              </el-button>
-            </el-badge>
+              <div class="product-search-toolbar__mode">
+                <label class="product-field-label">{{ t('products.searchMode') }}</label>
+                <el-select v-model="form.searchMode" size="large" class="w-full" @change="applyFilters(true)">
+                  <el-option :label="t('products.searchAll')" value="all" />
+                  <el-option :label="t('products.searchSku')" value="sku" />
+                </el-select>
+              </div>
+
+              <div class="product-search-toolbar__query">
+                <label class="product-field-label">{{ t('common.labels.search') }}</label>
+                <el-autocomplete
+                  v-model="form.query"
+                  :fetch-suggestions="querySearchHistory"
+                  :prefix-icon="Search"
+                  clearable
+                  size="large"
+                  value-key="value"
+                  class="w-full"
+                  :placeholder="searchPlaceholder"
+                  @select="selectSearchHistory"
+                  @keyup.enter="submitSearch"
+                >
+                  <template #default="{ item }">
+                    <div class="product-search-history-option">
+                      <el-icon><Clock /></el-icon>
+                      <span>{{ item.value }}</span>
+                    </div>
+                  </template>
+                </el-autocomplete>
+              </div>
+
+              <div v-if="form.searchMode === 'sku'" class="product-search-toolbar__sku-mode">
+                <label class="product-field-label">{{ t('products.matchMode') }}</label>
+                <el-select v-model="form.skuSearchMode" size="large" class="w-full" @change="applyFilters(true)">
+                  <el-option
+                    v-for="option in skuSearchModeOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+              </div>
+            </div>
+
+            <div class="product-search-toolbar__filter-group">
+              <div class="product-search-toolbar__producer">
+                <label class="product-field-label">{{ t('common.labels.producer') }}</label>
+                <ProducerSelector v-model="form.producerId" :placeholder="t('products.allProducers')" />
+              </div>
+
+              <el-badge
+                v-if="form.searchMode === 'all'"
+                class="product-search-toolbar__action product-search-toolbar__filters"
+                :value="dimensionFiltersCount"
+                :hidden="dimensionFiltersCount === 0"
+              >
+                <el-button :icon="Filter" size="large" plain @click="filtersDrawerOpen = true">
+                  {{ t('products.filters') }}
+                </el-button>
+              </el-badge>
+            </div>
 
             <el-tooltip :content="t('common.actions.reset')" placement="top">
               <el-button
@@ -348,7 +367,11 @@ import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { getProducersByIds } from '@/services/api/producers.ts'
-import { searchProducts, searchProductsBySku } from '@/services/api/search.ts'
+import {
+  searchProducts,
+  searchProductsBySku,
+  type SkuSearchMode,
+} from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useProductSearchHistory } from '@/composables/useProductSearchHistory.ts'
 import {
@@ -368,6 +391,7 @@ interface ProductSearchHistoryItem {
 interface ProductSearchForm {
   query: string
   searchMode: ProductSearchMode
+  skuSearchMode: SkuSearchMode
   producerId?: number
   lengthMin?: number
   lengthMax?: number
@@ -408,8 +432,15 @@ let suspendAutoSearch = false
 const form = reactive<ProductSearchForm>({
   query: '',
   searchMode: 'all',
+  skuSearchMode: 'Full',
   dimensionUnit: 'Meter',
 })
+
+const skuSearchModes: SkuSearchMode[] = ['Full', 'Exact', 'StartsWith', 'Contains', 'Fuzzy']
+const skuSearchModeOptions = computed(() => skuSearchModes.map((value) => ({
+  value,
+  label: t(`products.skuSearchModes.${value}`),
+})))
 
 const searchPlaceholder = computed(() => (
   form.searchMode === 'sku' ? t('products.skuPlaceholder') : t('products.searchPlaceholder')
@@ -457,6 +488,9 @@ const activeFilters = computed(() => {
 
 const mobileSearchSummary = computed(() => {
   const parts = [t(form.searchMode === 'sku' ? 'products.searchSku' : 'products.searchAll')]
+  if (form.searchMode === 'sku') {
+    parts.push(t(`products.skuSearchModes.${form.skuSearchMode}`))
+  }
   const query = form.query.trim()
   if (query) parts.push(query)
   if (activeFilters.value.length > 0) {
@@ -540,9 +574,17 @@ function queryNumber(name: string) {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function querySkuSearchMode(): SkuSearchMode {
+  const value = queryString('skuSearchMode')
+  return skuSearchModes.includes(value as SkuSearchMode)
+    ? value as SkuSearchMode
+    : 'Full'
+}
+
 function syncFormFromRoute() {
   form.query = queryString('query') ?? ''
   form.searchMode = queryString('searchMode') === 'sku' ? 'sku' : 'all'
+  form.skuSearchMode = querySkuSearchMode()
   form.producerId = queryNumber('producerId')
   if (form.searchMode === 'sku') {
     clearDimensionFilters()
@@ -566,6 +608,9 @@ function buildRouteQuery(resetPage: boolean) {
   return {
     query: form.query.trim() || undefined,
     searchMode: form.searchMode === 'sku' ? form.searchMode : undefined,
+    skuSearchMode: form.searchMode === 'sku' && form.skuSearchMode !== 'Full'
+      ? form.skuSearchMode
+      : undefined,
     producerId: form.producerId,
     lengthMin: useDimensionFilters ? form.lengthMin : undefined,
     lengthMax: useDimensionFilters ? form.lengthMax : undefined,
@@ -605,6 +650,7 @@ async function resetFilters() {
   suspendAutoSearch = true
   form.query = ''
   form.searchMode = 'all'
+  form.skuSearchMode = 'Full'
   form.producerId = undefined
   form.lengthMin = undefined
   form.lengthMax = undefined
@@ -629,6 +675,8 @@ async function clearFilter(key: keyof ProductSearchForm) {
     form.query = ''
   } else if (key === 'searchMode') {
     form.searchMode = 'all'
+  } else if (key === 'skuSearchMode') {
+    form.skuSearchMode = 'Full'
   } else if (key === 'dimensionUnit') {
     form.dimensionUnit = 'Meter'
   } else {
@@ -674,9 +722,10 @@ async function loadProducts() {
         ? await searchProductsBySku({
             sku: query,
             producerId: form.producerId,
+            searchMode: form.skuSearchMode,
             page: page.value,
             size: size.value,
-            sortBy: sortBy.value,
+            sortBy: sortBy.value ? [sortBy.value] : undefined,
           })
         : { products: [] }
       : await searchProducts({
@@ -691,7 +740,7 @@ async function loadProducts() {
           dimensionUnit: form.dimensionUnit,
           page: page.value,
           size: size.value,
-          sortBy: sortBy.value,
+          sortBy: sortBy.value ? [sortBy.value] : undefined,
         })
 
     if (currentRequestId !== productsRequestId) return
@@ -994,14 +1043,37 @@ onMounted(async () => {
 
 .product-search-toolbar {
   display: grid;
-  grid-template-columns: 190px minmax(340px, 1fr) minmax(210px, 280px) max-content 40px;
+  grid-template-columns: minmax(520px, 1fr) auto 40px;
+  align-items: end;
+  gap: 12px;
+}
+
+.product-search-toolbar__search-group {
+  display: grid;
+  grid-template-columns: 190px minmax(280px, 1fr);
   align-items: end;
   gap: 10px;
+  min-width: 0;
+}
+
+.product-search-toolbar__search-group--sku {
+  grid-template-columns: 190px minmax(280px, 1fr) minmax(170px, 210px);
+}
+
+.product-search-toolbar__filter-group {
+  display: grid;
+  grid-template-columns: minmax(190px, 240px) max-content;
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+  border-left: 1px solid #e2e8f0;
+  padding-left: 12px;
 }
 
 .product-search-toolbar__mode,
 .product-search-toolbar__query,
-.product-search-toolbar__producer {
+.product-search-toolbar__producer,
+.product-search-toolbar__sku-mode {
   min-width: 0;
 }
 
@@ -1207,18 +1279,22 @@ onMounted(async () => {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
   }
 
-  .product-search-toolbar__mode,
-  .product-search-toolbar__query,
-  .product-search-toolbar__producer {
+  .product-search-toolbar__search-group {
     grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .product-search-toolbar__filter-group {
+    grid-column: 1 / 3;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    border-top: 1px solid #e2e8f0;
+    border-left: 0;
+    padding-top: 10px;
+    padding-left: 0;
   }
 
   .product-search-toolbar__action :deep(.el-button) {
     width: 100%;
-  }
-
-  .product-search-toolbar__filters {
-    grid-column: 1 / 3;
   }
 
   .product-search-toolbar__reset {
@@ -1264,7 +1340,19 @@ onMounted(async () => {
 
 @media (min-width: 761px) and (max-width: 1180px) {
   .product-search-toolbar {
-    grid-template-columns: minmax(180px, 220px) minmax(260px, 1fr) minmax(220px, 280px);
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+
+  .product-search-toolbar__search-group {
+    grid-column: 1 / -1;
+  }
+
+  .product-search-toolbar__filter-group {
+    grid-column: 1;
+    border-top: 1px solid #e2e8f0;
+    border-left: 0;
+    padding-top: 10px;
+    padding-left: 0;
   }
 
   .product-search-toolbar__action :deep(.el-button) {
@@ -1275,8 +1363,5 @@ onMounted(async () => {
     width: 40px;
   }
 
-  .product-search-toolbar__filters {
-    grid-column: 1 / 3;
-  }
 }
 </style>
