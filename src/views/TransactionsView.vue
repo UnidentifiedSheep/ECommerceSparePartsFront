@@ -28,7 +28,6 @@
               :end-placeholder="t('transactions.end')"
               value-format="YYYY-MM-DD"
               class="w-full"
-              :clearable="false"
             />
           </el-form-item>
 
@@ -118,7 +117,7 @@
           </div>
           <div>
             <span>{{ t('transactions.period') }}</span>
-            <strong>{{ dateRange[0] }} - {{ dateRange[1] }}</strong>
+            <strong>{{ transactionPeriodText }}</strong>
           </div>
         </div>
 
@@ -376,7 +375,7 @@ const currencies = ref<CurrencyModel[]>([])
 const sender = ref<OrganizationSelection | undefined>()
 const receiver = ref<OrganizationSelection | undefined>()
 const canLoadMore = ref(false)
-const dateRange = ref<[string, string]>(defaultDateRange())
+const dateRange = ref<[string, string] | null>(null)
 const isApplyingRouteQuery = ref(false)
 const isSyncingRouteQuery = ref(false)
 
@@ -404,6 +403,11 @@ const logicalOperatorTooltip = computed(() => (
     ? t('transactions.andTooltip')
     : t('transactions.orTooltip')
 ))
+const transactionPeriodText = computed(() => (
+  dateRange.value
+    ? `${dateRange.value[0]} — ${dateRange.value[1]}`
+    : t('transactions.allTime')
+))
 const hasSelectedUserFilter = computed(() => Boolean(sender.value || receiver.value))
 
 const reloadTransactionsDebounced = useDebounceFn(async () => {
@@ -429,13 +433,11 @@ async function loadCurrencies() {
 }
 
 async function reloadTransactions() {
-  if (!validateFilters()) return
-
   isLoading.value = true
   try {
     const response = await getBalanceTransactions({
-      rangeStart: dateRange.value[0],
-      rangeEnd: dateRange.value[1],
+      rangeStart: dateRange.value?.[0],
+      rangeEnd: dateRange.value?.[1],
       currencyId: filters.currencyId,
       senderId: sender.value?.organization.id,
       receiverId: filters.logicalOperator === 'And' ? receiver.value?.organization.id : undefined,
@@ -455,13 +457,13 @@ async function reloadTransactions() {
 
 async function loadMoreTransactions() {
   const cursor = transactions.value[transactions.value.length - 1]
-  if (!cursor || !validateFilters()) return
+  if (!cursor) return
 
   isLoadingMore.value = true
   try {
     const response = await getBalanceTransactions({
-      rangeStart: dateRange.value[0],
-      rangeEnd: dateRange.value[1],
+      rangeStart: dateRange.value?.[0],
+      rangeEnd: dateRange.value?.[1],
       currencyId: filters.currencyId,
       senderId: sender.value?.organization.id,
       receiverId: filters.logicalOperator === 'And' ? receiver.value?.organization.id : undefined,
@@ -483,17 +485,8 @@ async function loadMoreTransactions() {
   }
 }
 
-function validateFilters() {
-  if (!dateRange.value?.[0] || !dateRange.value?.[1]) {
-    ElMessage.warning(t('transactions.selectPeriod'))
-    return false
-  }
-
-  return true
-}
-
 function resetFilters() {
-  dateRange.value = defaultDateRange()
+  dateRange.value = null
   filters.currencyId = null
   filters.logicalOperator = 'And'
   filters.skipReversed = true
@@ -508,7 +501,7 @@ async function applyFiltersFromQuery() {
   try {
     const query = route.query
     const nextRange = parseDateRangeQuery(query.from, query.to)
-    dateRange.value = nextRange ?? defaultDateRange()
+    dateRange.value = nextRange
 
     filters.currencyId = parsePositiveIntegerQuery(query.currencyId)
     filters.logicalOperator = parseLogicalOperatorQuery(query.operator)
@@ -577,11 +570,9 @@ function isDateInputValue(value: string) {
 }
 
 async function syncFiltersToQuery() {
-  const defaultRange = defaultDateRange()
   const nextQuery: Record<string, string> = {}
-  const hasCustomDateRange = dateRange.value[0] !== defaultRange[0] || dateRange.value[1] !== defaultRange[1]
 
-  if (hasCustomDateRange && dateRange.value[0] && dateRange.value[1]) {
+  if (dateRange.value) {
     nextQuery.from = dateRange.value[0]
     nextQuery.to = dateRange.value[1]
   }
@@ -892,21 +883,6 @@ function isNegativeTransaction(transaction: BalanceTransactionModel) {
   return transaction.type === 'Fee' || transaction.type === 2
 }
 
-function defaultDateRange(): [string, string] {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(start.getDate() - 30)
-
-  return [formatDateInput(start), formatDateInput(end)]
-}
-
-function formatDateInput(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 watch(() => filters.logicalOperator, (operator) => {
   if (operator !== 'Or') return
 
@@ -917,8 +893,8 @@ watch(() => filters.logicalOperator, (operator) => {
 })
 watch(
   () => [
-    dateRange.value[0],
-    dateRange.value[1],
+    dateRange.value?.[0],
+    dateRange.value?.[1],
     filters.currencyId,
     filters.logicalOperator,
     filters.skipReversed,

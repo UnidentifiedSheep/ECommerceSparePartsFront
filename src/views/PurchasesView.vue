@@ -259,7 +259,7 @@ import { getCurrencies } from '@/services/api/currencies.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { deletePurchase, getPurchase, getPurchaseContent, getPurchases } from '@/services/api/purchases.ts'
 import { getStorages } from '@/services/api/storages.ts'
-import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
 const { locale, t } = useI18n()
@@ -291,25 +291,19 @@ const canCreatePurchases = computed(() => hasPermission('PURCHASE_CREATE'))
 const canEditPurchases = computed(() => hasPermission('PURCHASE_EDIT'))
 const canDeletePurchases = computed(() => hasPermission('PURCHASE_DELETE'))
 const activeFiltersCount = computed(() => (
-  selectedSuppliers.value.length
+  (dateRange.value ? 1 : 0)
+  + selectedSuppliers.value.length
   + currencyIds.value.length
   + selectedProducts.value.length
   + (searchTerm.value?.trim() ? 1 : 0)
 ))
 const activeFiltersText = computed(() => (
   activeFiltersCount.value === 0
-    ? t('purchases.shownByPeriod')
+    ? t('purchases.shownAll')
     : t('purchases.activeFilters', { count: activeFiltersCount.value })
 ))
 
-const rangeEnd = new Date()
-const rangeStart = new Date()
-rangeStart.setDate(rangeStart.getDate() - 30)
-
-const dateRange = ref<[string, string]>([
-  toLocalDateTimeInputValue(rangeStart),
-  toLocalDateTimeInputValue(rangeEnd),
-])
+const dateRange = ref<[string, string] | null>(null)
 
 const loadPurchasesDebounced = useDebounceFn(async () => {
   await loadPurchases(true)
@@ -324,14 +318,7 @@ function formatCurrency(value: number, sign?: string) {
 }
 
 function resetFilters() {
-  const nextRangeEnd = new Date()
-  const nextRangeStart = new Date()
-  nextRangeStart.setDate(nextRangeStart.getDate() - 30)
-
-  dateRange.value = [
-    toLocalDateTimeInputValue(nextRangeStart),
-    toLocalDateTimeInputValue(nextRangeEnd),
-  ]
+  dateRange.value = null
   selectedSuppliers.value = []
   supplierToAdd.value = undefined
   currencyIds.value = []
@@ -393,15 +380,15 @@ async function loadStorages() {
 }
 
 async function loadPurchases(resetPage: boolean) {
-  if (purchasesLoading.value || dateRange.value.length !== 2) return
+  if (purchasesLoading.value) return
 
   purchasesLoading.value = true
   try {
     if (resetPage) page.value = 0
 
     const resp = await getPurchases({
-      rangeStartDate: dateRange.value[0],
-      rangeEndDate: dateRange.value[1],
+      rangeStartDate: dateRange.value?.[0],
+      rangeEndDate: dateRange.value?.[1],
       page: page.value,
       limit: limit.value,
       supplierOrganizationIds: selectedSuppliers.value.map((supplier) => supplier.organization.id),

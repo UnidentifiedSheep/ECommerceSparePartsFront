@@ -44,8 +44,8 @@ interface PurchaseContentDto {
 }
 
 export interface GetPurchasesRequest {
-  rangeStartDate: string
-  rangeEndDate: string
+  rangeStartDate?: string
+  rangeEndDate?: string
   page: number
   limit: number
   supplierOrganizationIds?: string[]
@@ -121,8 +121,8 @@ export async function getPurchases(req: GetPurchasesRequest): Promise<GetPurchas
     params.append(key, String(value))
   }
 
-  appendParam('rangeStartDate', toUtcDateTimeString(req.rangeStartDate))
-  appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
+  if (req.rangeStartDate) appendParam('rangeStartDate', toUtcDateTimeString(req.rangeStartDate))
+  if (req.rangeEndDate) appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
   appendParam('page', req.page)
   appendParam('limit', clampPageSize(req.limit))
   req.supplierOrganizationIds?.forEach((id) => appendParam('supplierOrganizationIds', id))

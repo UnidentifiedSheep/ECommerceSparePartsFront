@@ -61,8 +61,8 @@ export interface CreateSaleResponse {
 }
 
 export interface GetSalesRequest {
-  rangeStartDate: string
-  rangeEndDate: string
+  rangeStartDate?: string
+  rangeEndDate?: string
   page: number
   limit: number
   buyerIds?: string[]
@@ -139,8 +139,8 @@ export async function getSales(req: GetSalesRequest): Promise<GetSalesResponse> 
     params.append(key, String(value))
   }
 
-  appendParam('rangeStartDate', toUtcDateTimeString(req.rangeStartDate))
-  appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
+  if (req.rangeStartDate) appendParam('rangeStartDate', toUtcDateTimeString(req.rangeStartDate))
+  if (req.rangeEndDate) appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
   appendParam('page', req.page)
   appendParam('limit', clampPageSize(req.limit))
   req.buyerIds?.forEach((id) => appendParam('buyerIds', id))

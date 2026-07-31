@@ -280,7 +280,7 @@ import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { deleteSale, getSale, getSaleContent, getSales } from '@/services/api/sales.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
 const { locale, t } = useI18n()
@@ -324,7 +324,8 @@ const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(()
 ])
 
 const activeFiltersCount = computed(() => (
-  selectedBuyers.value.length
+  (dateRange.value ? 1 : 0)
+  + selectedBuyers.value.length
   + currencyIds.value.length
   + (isDefaultSaleStateFilter() ? 0 : 1)
   + selectedProducts.value.length
@@ -332,18 +333,11 @@ const activeFiltersCount = computed(() => (
 ))
 const activeFiltersText = computed(() => (
   activeFiltersCount.value === 0
-    ? t('sales.shownByPeriod')
+    ? t('sales.shownAll')
     : t('sales.activeFilters', { count: activeFiltersCount.value })
 ))
 
-const rangeEnd = new Date()
-const rangeStart = new Date()
-rangeStart.setDate(rangeStart.getDate() - 30)
-
-const dateRange = ref<[string, string]>([
-  toLocalDateTimeInputValue(rangeStart),
-  toLocalDateTimeInputValue(rangeEnd),
-])
+const dateRange = ref<[string, string] | null>(null)
 
 const loadSalesDebounced = useDebounceFn(async () => {
   await loadSales(true)
@@ -365,14 +359,7 @@ function saleRowClassName({ row }: { row: SaleModel }) {
 }
 
 function resetFilters() {
-  const nextRangeEnd = new Date()
-  const nextRangeStart = new Date()
-  nextRangeStart.setDate(nextRangeStart.getDate() - 30)
-
-  dateRange.value = [
-    toLocalDateTimeInputValue(nextRangeStart),
-    toLocalDateTimeInputValue(nextRangeEnd),
-  ]
+  dateRange.value = null
   selectedBuyers.value = []
   buyerToAdd.value = undefined
   currencyIds.value = []
@@ -437,15 +424,15 @@ async function loadCurrencies() {
 }
 
 async function loadSales(resetPage: boolean) {
-  if (salesLoading.value || dateRange.value.length !== 2) return
+  if (salesLoading.value) return
 
   salesLoading.value = true
   try {
     if (resetPage) page.value = 0
 
     const resp = await getSales({
-      rangeStartDate: dateRange.value[0],
-      rangeEndDate: dateRange.value[1],
+      rangeStartDate: dateRange.value?.[0],
+      rangeEndDate: dateRange.value?.[1],
       page: page.value,
       limit: limit.value,
       buyerIds: selectedBuyers.value.flatMap((buyer) => buyer.member ? [buyer.member.user.id] : []),

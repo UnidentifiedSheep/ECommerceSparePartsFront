@@ -32,8 +32,8 @@ export interface BalanceTransactionModel {
 }
 
 export interface GetBalanceTransactionsRequest {
-  rangeStart: string
-  rangeEnd: string
+  rangeStart?: string
+  rangeEnd?: string
   currencyId?: number | null
   senderId?: string | null
   receiverId?: string | null
@@ -69,8 +69,8 @@ export async function getBalanceTransactions(
 ): Promise<GetBalanceTransactionsResponse> {
   const resp = await api.get<{ transactions: BalanceTransactionDto[] }>('/main/transactions', {
     params: {
-      rangeStart: req.rangeStart,
-      rangeEnd: req.rangeEnd,
+      rangeStart: req.rangeStart || undefined,
+      rangeEnd: req.rangeEnd || undefined,
       currencyId: req.currencyId || undefined,
       senderId: req.senderId || undefined,
       receiverId: req.receiverId || undefined,
