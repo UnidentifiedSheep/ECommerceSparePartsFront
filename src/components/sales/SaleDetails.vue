@@ -4,7 +4,21 @@
       <header class="details-header">
         <div>
           <h2>{{ t('sales.detailsTitle') }}</h2>
-          <p>{{ sale.organization.name }} · {{ sale.buyer.surname }} {{ sale.buyer.name }} · {{ formatDate(sale.saleDatetime) }}</p>
+          <div class="details-party-line">
+            <OrganizationPartyHoverCard
+              :organization="sale.organization"
+              :user="sale.buyer"
+              placement="bottom-start"
+            />
+            <span>·</span>
+            <OrganizationPartyHoverCard
+              :organization="sale.organization"
+              :user="sale.buyer"
+              placement="bottom-start"
+              trigger-entity="user"
+            />
+            <span>· {{ formatDate(sale.saleDatetime) }}</span>
+          </div>
         </div>
         <strong>{{ formatCurrency(sale.totalSum, sale.currency.currencySign) }}</strong>
       </header>
@@ -94,6 +108,7 @@
 import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
+import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 
 const { locale, t } = useI18n()
 
@@ -140,11 +155,16 @@ function formatPercent(value: number) {
   font-weight: 750;
 }
 
-.details-header p {
+.details-party-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 5px 0 0;
   color: #64748b;
   font-size: 13px;
 }
+
+.details-party-line :deep(.organization-party-reference:hover) { color: #047857; }
 
 .details-header strong {
   color: #047857;

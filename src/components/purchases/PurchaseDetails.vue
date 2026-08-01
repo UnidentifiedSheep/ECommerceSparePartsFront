@@ -4,7 +4,21 @@
       <header class="details-header">
         <div>
           <h2>{{ t('purchases.detailsTitle') }}</h2>
-          <p>{{ purchase.supplierOrganization.name }} · {{ purchase.supplier.surname }} {{ purchase.supplier.name }} · {{ formatDate(purchase.purchaseDatetime) }}</p>
+          <div class="details-party-line">
+            <OrganizationPartyHoverCard
+              :organization="purchase.supplierOrganization"
+              :user="purchase.supplier"
+              placement="bottom-start"
+            />
+            <span>·</span>
+            <OrganizationPartyHoverCard
+              :organization="purchase.supplierOrganization"
+              :user="purchase.supplier"
+              placement="bottom-start"
+              trigger-entity="user"
+            />
+            <span>· {{ formatDate(purchase.purchaseDatetime) }}</span>
+          </div>
         </div>
         <strong>{{ formatCurrency(purchase.totalSum, purchase.currency.currencySign) }}</strong>
       </header>
@@ -120,6 +134,7 @@ import type { LogisticPricingType } from '@/enums/logisticPricingType.ts'
 import type { RouteType } from '@/enums/routeType.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
+import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 
 const { locale, t } = useI18n()
 
@@ -169,11 +184,16 @@ function routeTypeLabel(type: RouteType) {
   font-weight: 750;
 }
 
-.details-header p {
+.details-party-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 5px 0 0;
   color: #64748b;
   font-size: 13px;
 }
+
+.details-party-line :deep(.organization-party-reference:hover) { color: #047857; }
 
 .details-header strong {
   color: #002fa7;

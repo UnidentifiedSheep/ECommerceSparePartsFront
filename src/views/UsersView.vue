@@ -148,8 +148,9 @@
                         @click="openOrganization(organization.id)"
                       >
                         <span class="min-w-0 truncate text-sm font-medium text-slate-900">{{ organization.name }}</span>
-                        <span class="shrink-0 text-xs text-slate-500">
-                          {{ t(`organizations.types.${organization.type}`) }}
+                        <span class="flex shrink-0 items-center gap-3 text-xs text-slate-500">
+                          <span>{{ t(`organizations.types.${organization.type}`) }}</span>
+                          <OrganizationApproximateBalance :organization="organization" />
                         </span>
                       </button>
                       <div v-if="!userOrganizationsLoading && userOrganizations.length === 0" class="px-3 py-4 text-center text-sm text-slate-400">
@@ -713,6 +714,7 @@ import {
 import { isUserNameAvailable } from '@/services/api/authApi.ts'
 import { useI18n } from '@/i18n'
 import { normalizeTransliteratedIdentifier } from '@/utils/transliteration.ts'
+import OrganizationApproximateBalance from '@/components/organizations/OrganizationApproximateBalance.vue'
 
 interface CreateUserEmailForm {
   email: string

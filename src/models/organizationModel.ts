@@ -9,6 +9,7 @@ export interface OrganizationModel {
   name: string
   systemName: string
   owner: OrganizationMemberModel
+  approximateBalanceInBaseCurrency?: number | null
 }
 
 export interface OrganizationMemberModel {
@@ -22,10 +23,14 @@ export interface OrganizationSelection {
   member?: OrganizationMemberModel
 }
 
-export interface OrganizationDto extends Omit<OrganizationModel, 'owner'> {
+export interface OrganizationDto extends Omit<OrganizationModel, 'owner' | 'approximateBalanceInBaseCurrency'> {
   owner: Omit<OrganizationMemberModel, 'user'> & {
     user: UserDto
   }
+}
+
+export interface OrganizationListItemDto extends OrganizationDto {
+  approximateBalanceInBaseCurrency: number | null
 }
 
 export function mapOrganizationModel(dto: OrganizationDto): OrganizationModel {
@@ -35,5 +40,12 @@ export function mapOrganizationModel(dto: OrganizationDto): OrganizationModel {
       ...dto.owner,
       user: mapUserModel(dto.owner.user),
     },
+  }
+}
+
+export function mapOrganizationListItemModel(dto: OrganizationListItemDto): OrganizationModel {
+  return {
+    ...mapOrganizationModel(dto),
+    approximateBalanceInBaseCurrency: dto.approximateBalanceInBaseCurrency,
   }
 }

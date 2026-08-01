@@ -5,6 +5,10 @@ export interface GetCurrenciesResponse {
   currencies: CurrencyModel[]
 }
 
+export interface GetBaseCurrencyResponse {
+  currency: CurrencyModel
+}
+
 export interface CurrencyRateHistoryModel {
   id: number
   fromCurrencyId: number
@@ -37,6 +41,11 @@ export interface CreateCurrencyResponse {
 
 export async function getCurrencies(): Promise<GetCurrenciesResponse> {
   const resp = await api.get<GetCurrenciesResponse>('/main/currencies')
+  return resp.data
+}
+
+export async function getBaseCurrency(): Promise<GetBaseCurrencyResponse> {
+  const resp = await api.get<GetBaseCurrencyResponse>('/main/currencies/base')
   return resp.data
 }
 

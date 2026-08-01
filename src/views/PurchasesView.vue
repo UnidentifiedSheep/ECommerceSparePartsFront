@@ -111,7 +111,7 @@
               <div class="drawer-section-title">{{ t('purchases.exactProducts') }}</div>
               <div class="filter-field">
                 <span>{{ t('purchases.purchaseProducts') }}</span>
-                <el-button plain @click="productSelectorOpen = true">{{ t('purchases.addProduct') }}</el-button>
+                <el-button plain @click="openProductFilterSelector">{{ t('purchases.addProduct') }}</el-button>
                 <div v-if="selectedProducts.length > 0" class="filter-tags">
                   <el-tag
                     v-for="product in selectedProducts"
@@ -155,9 +155,16 @@
               >
                 <el-table-column :label="t('purchases.supplier')" min-width="180">
                   <template #default="{ row }">
-                    <div class="supplier-cell">
-                      <strong>{{ row.supplierOrganization.name }}</strong>
-                      <UserHoverCard :user="row.supplier" />
+                    <div class="document-party-cell">
+                      <OrganizationPartyHoverCard
+                        :organization="row.supplierOrganization"
+                        :user="row.supplier"
+                      />
+                      <OrganizationPartyHoverCard
+                        :organization="row.supplierOrganization"
+                        :user="row.supplier"
+                        trigger-entity="user"
+                      />
                     </div>
                   </template>
                 </el-table-column>
@@ -247,7 +254,7 @@ import EditPurchaseDialog from '@/components/purchases/EditPurchaseDialog.vue'
 import PurchaseDetails from '@/components/purchases/PurchaseDetails.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
-import UserHoverCard from '@/components/users/UserHoverCard.vue'
+import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
@@ -363,6 +370,11 @@ function addProductFilter(product: ProductSearchModel) {
     selectedProducts.value.push(product)
   }
   searchTerm.value = undefined
+}
+
+function openProductFilterSelector() {
+  filtersDrawerOpen.value = false
+  productSelectorOpen.value = true
 }
 
 function removeProductFilter(id: number) {

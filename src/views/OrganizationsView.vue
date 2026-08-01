@@ -43,9 +43,17 @@
           height="100%"
           highlight-current-row
           class="organizations-table"
+          :default-sort="{ prop: 'name', order: 'ascending' }"
           @current-change="selectOrganization"
+          @sort-change="handleOrganizationsSortChange"
         >
-          <el-table-column :label="t('common.labels.name')" min-width="190">
+          <el-table-column
+            prop="name"
+            :label="t('common.labels.name')"
+            min-width="165"
+            sortable="custom"
+            :sort-orders="['ascending', 'descending']"
+          >
             <template #default="{ row }">
               <div class="organization-name-cell">
                 <strong>{{ row.name }}</strong>
@@ -53,8 +61,38 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column :label="t('common.labels.type')" min-width="110">
-            <template #default="{ row }">{{ organizationTypeLabel(row.type) }}</template>
+          <el-table-column
+            prop="type"
+            :label="t('common.labels.type')"
+            min-width="90"
+            sortable="custom"
+            :sort-orders="['ascending', 'descending']"
+          >
+            <template #default="{ row }">
+              {{ organizationTypeLabel(row.type) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="approximateBalance"
+            min-width="120"
+            align="right"
+            header-align="right"
+            sortable="custom"
+            :sort-orders="['ascending', 'descending']"
+          >
+            <template #header>
+              <el-tooltip :content="t('organizations.approximateBalance')" placement="top">
+                <span class="balance-column-header" data-testid="organization-balance-header">
+                  {{ t('organizationPage.balance') }}
+                </span>
+              </el-tooltip>
+            </template>
+            <template #default="{ row }">
+              <div class="organization-balance-cell">
+                <OrganizationApproximateBalance :organization="row" />
+                <span v-if="row.approximateBalanceInBaseCurrency == null" class="organization-balance-empty">—</span>
+              </div>
+            </template>
           </el-table-column>
         </el-table>
 
@@ -71,6 +109,15 @@
               <p>{{ selectedOrganization.systemName }} · {{ organizationTypeLabel(selectedOrganization.type) }}</p>
             </div>
             <div class="organization-details-actions">
+              <el-button
+                v-if="detailsTab === 'finances' && canCreateTransactions"
+                type="primary"
+                :icon="Plus"
+                :loading="transactionCurrenciesLoading"
+                @click="openCreateTransaction"
+              >
+                {{ t('transactions.createTitle') }}
+              </el-button>
               <el-button v-if="canViewReservations" @click="reservationsDialogOpen = true">
                 {{ t('reservations.title') }}
               </el-button>
@@ -148,7 +195,7 @@
                   <div>
                     <span>{{ t('organizationPage.netPosition') }}</span>
                     <strong :class="amountClass(financialInfo.financialProfile?.netPositionInBaseCurrency ?? 0)">
-                      {{ formatAmount(financialInfo.financialProfile?.netPositionInBaseCurrency ?? 0, financialInfo.baseCurrency) }}
+                      {{ formatAmount(financialInfo.financialProfile?.netPositionInBaseCurrency ?? 0, baseCurrency) }}
                     </strong>
                   </div>
                   <div>
@@ -283,6 +330,14 @@
       :organization-id="selectedOrganization.id"
       :title="t('reservations.organizationTitle', { name: selectedOrganization.name })"
     />
+
+    <CreateTransactionDialog
+      v-if="selectedOrganization"
+      v-model="createTransactionDialogOpen"
+      :currencies="transactionCurrencies"
+      :initial-organization="selectedOrganization"
+      @created="handleTransactionCreated"
+    />
   </div>
 </template>
 
@@ -291,11 +346,13 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElNotification, type FormInstance, type FormRules, type TableInstance } from 'element-plus'
-import { CircleCheck, Loading } from '@element-plus/icons-vue'
+import { CircleCheck, Loading, Plus } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
+import OrganizationApproximateBalance from '@/components/organizations/OrganizationApproximateBalance.vue'
+import CreateTransactionDialog from '@/components/transactions/CreateTransactionDialog.vue'
 import type {
   OrganizationMemberModel,
   OrganizationModel,
@@ -319,6 +376,9 @@ import {
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
 import { normalizeTransliteratedIdentifier } from '@/utils/transliteration.ts'
+import { storeToRefs } from 'pinia'
+import { useCurrencyStore } from '@/stores/currencyStore.ts'
+import { getCurrencies } from '@/services/api/currencies.ts'
 
 interface CreateOrganizationForm {
   owner?: UserModel
@@ -334,10 +394,12 @@ const route = useRoute()
 const router = useRouter()
 const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
+const { baseCurrency } = storeToRefs(useCurrencyStore())
 const canCreateOrganizations = computed(() => hasPermission('ORGANIZATIONS_CREATE'))
 const canEditOrganizations = computed(() => hasPermission('ORGANIZATIONS_EDIT'))
 const canViewFinances = computed(() => hasPermission('BALANCES_FINANCES_GET'))
 const canEditFinances = computed(() => hasPermission('BALANCES_FINANCES_UPDATE'))
+const canCreateTransactions = computed(() => hasPermission('BALANCES_TRANSACTION_CREATE'))
 const canViewReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
 
 const organizationsTableRef = ref<TableInstance>()
@@ -349,6 +411,7 @@ const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
 const organizationsLoading = ref(false)
+const organizationsSortBy = ref('name')
 const detailsLoading = ref(false)
 const detailsTab = ref('members')
 const members = ref<OrganizationMemberModel[]>([])
@@ -368,6 +431,9 @@ const createSystemNameStatus = ref<'idle' | 'checking' | 'available' | 'unavaila
 const createSystemNameManuallyEdited = ref(false)
 const addMemberDialogOpen = ref(false)
 const reservationsDialogOpen = ref(false)
+const createTransactionDialogOpen = ref(false)
+const transactionCurrencies = ref<CurrencyModel[]>([])
+const transactionCurrenciesLoading = ref(false)
 const addingMember = ref(false)
 let organizationsRequestId = 0
 let detailsRequestId = 0
@@ -512,7 +578,7 @@ async function loadOrganizations(reset = false) {
       types: typeFilters.value.length ? typeFilters.value : undefined,
       page: page.value,
       limit: limit.value,
-      sortBy: ['Name'],
+      sortBy: [organizationsSortBy.value],
     })
     if (requestId !== organizationsRequestId) return
     organizations.value = response.organizations
@@ -525,6 +591,18 @@ async function loadOrganizations(reset = false) {
   } finally {
     if (requestId === organizationsRequestId) organizationsLoading.value = false
   }
+}
+
+async function handleOrganizationsSortChange(event: {
+  prop?: string
+  order?: 'ascending' | 'descending' | null
+}) {
+  if (!event.prop || !event.order) return
+
+  organizationsSortBy.value = event.order === 'descending'
+    ? `${event.prop}_desc`
+    : event.prop
+  await loadOrganizations(true)
 }
 
 async function selectOrganization(organization?: OrganizationModel) {
@@ -593,6 +671,35 @@ async function loadFinances() {
   } finally {
     financesLoading.value = false
   }
+}
+
+async function openCreateTransaction() {
+  if (!selectedOrganization.value || transactionCurrenciesLoading.value) return
+
+  if (transactionCurrencies.value.length === 0) {
+    transactionCurrenciesLoading.value = true
+    try {
+      const response = await getCurrencies()
+      transactionCurrencies.value = response.currencies
+    } catch (error) {
+      ElNotification.error({
+        title: t('common.labels.error'),
+        message: error instanceof Error ? error.message : t('transactions.loadCurrenciesError'),
+      })
+      return
+    } finally {
+      transactionCurrenciesLoading.value = false
+    }
+  }
+
+  createTransactionDialogOpen.value = true
+}
+
+async function handleTransactionCreated() {
+  await Promise.all([
+    loadFinances(),
+    loadOrganizations(false),
+  ])
 }
 
 function openCreateDialog() {
@@ -723,8 +830,8 @@ async function selectOrganizationFromRoute() {
   if (organization) await selectOrganization(organization)
 }
 
-function formatAmount(value: number, currency: CurrencyModel) {
-  return `${value.toLocaleString(locale.value, { maximumFractionDigits: 2 })} ${currency.currencySign || currency.shortName}`.trim()
+function formatAmount(value: number, currency?: CurrencyModel) {
+  return `${value.toLocaleString(locale.value, { maximumFractionDigits: 2 })} ${currency?.currencySign || currency?.shortName || ''}`.trim()
 }
 
 function amountClass(value: number) {
@@ -765,11 +872,17 @@ onMounted(async () => {
 .organizations-layout { display: grid; grid-template-columns: minmax(360px, 0.75fr) minmax(520px, 1.25fr); gap: 16px; padding: 16px; }
 .organizations-panel { min-width: 0; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
 .organizations-list-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: calc(100vh - 120px); min-height: 620px; padding: 16px; }
-.organizations-toolbar { display: grid; grid-template-columns: minmax(160px, 1fr) 180px auto; gap: 8px; padding-bottom: 12px; }
+.organizations-toolbar { display: grid; grid-template-columns: minmax(130px, 1fr) 150px auto; gap: 8px; padding-bottom: 12px; }
 .organizations-table :deep(.el-table__row) { cursor: pointer; }
 .organization-name-cell { min-width: 0; display: grid; gap: 2px; }
 .organization-name-cell strong { overflow: hidden; color: #0f172a; text-overflow: ellipsis; white-space: nowrap; }
 .organization-name-cell span { overflow: hidden; color: #64748b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.balance-column-header {
+  border-bottom: 1px dotted #94a3b8;
+  cursor: help;
+}
+.organization-balance-cell { display: flex; justify-content: flex-end; }
+.organization-balance-empty { color: #94a3b8; }
 .system-name-hint { width: 100%; margin-top: 4px; color: #64748b; font-size: 12px; line-height: 18px; }
 .system-name-hint--available,
 .system-name-available-icon { color: #047857; }

@@ -266,3 +266,4 @@
 :deep(.purchase-filters-drawer .el-drawer__body) {
   padding: 0;
 }
+.document-party-cell { display: grid; justify-items: start; gap: 1px; min-width: 0; }

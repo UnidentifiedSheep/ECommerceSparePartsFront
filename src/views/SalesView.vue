@@ -131,7 +131,7 @@
               <div class="drawer-section-title">{{ t('sales.exactProducts') }}</div>
               <div class="filter-field">
                 <span>{{ t('sales.saleProducts') }}</span>
-                <el-button plain @click="productSelectorOpen = true">{{ t('sales.addProduct') }}</el-button>
+                <el-button plain @click="openProductFilterSelector">{{ t('sales.addProduct') }}</el-button>
                 <div v-if="selectedProducts.length > 0" class="filter-tags">
                   <el-tag
                     v-for="product in selectedProducts"
@@ -175,9 +175,13 @@
           >
             <el-table-column :label="t('sales.buyer')" min-width="140">
               <template #default="{ row }">
-                <div class="sale-buyer-cell">
-                  <strong>{{ row.organization.name }}</strong>
-                  <UserHoverCard :user="row.buyer" class="sale-buyer-name" />
+                <div class="document-party-cell">
+                  <OrganizationPartyHoverCard :organization="row.organization" :user="row.buyer" />
+                  <OrganizationPartyHoverCard
+                    :organization="row.organization"
+                    :user="row.buyer"
+                    trigger-entity="user"
+                  />
                 </div>
               </template>
             </el-table-column>
@@ -271,7 +275,7 @@ import SaleDetails from '@/components/sales/SaleDetails.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import UserHoverCard from '@/components/users/UserHoverCard.vue'
+import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
@@ -412,6 +416,11 @@ function addProductFilter(product: ProductSearchModel) {
     selectedProducts.value.push(product)
   }
   searchTerm.value = undefined
+}
+
+function openProductFilterSelector() {
+  filtersDrawerOpen.value = false
+  productSelectorOpen.value = true
 }
 
 function removeProductFilter(id: number) {

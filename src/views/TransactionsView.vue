@@ -175,13 +175,13 @@
 
           <el-table-column :label="t('transactions.sender')" min-width="190">
             <template #default="{ row }">
-              <span>{{ partyLabel(row.sender) }}</span>
+              <OrganizationPartyHoverCard :organization="row.sender" />
             </template>
           </el-table-column>
 
           <el-table-column :label="t('transactions.receiver')" min-width="190">
             <template #default="{ row }">
-              <span>{{ partyLabel(row.receiver) }}</span>
+              <OrganizationPartyHoverCard :organization="row.receiver" />
             </template>
           </el-table-column>
 
@@ -305,13 +305,13 @@
           <div>
             <dt>{{ t('transactions.sender') }}</dt>
             <dd>
-              <span>{{ partyLabel(selectedTransaction.sender) }}</span>
+              <OrganizationPartyHoverCard :organization="selectedTransaction.sender" placement="bottom-start" />
             </dd>
           </div>
           <div>
             <dt>{{ t('transactions.receiver') }}</dt>
             <dd>
-              <span>{{ partyLabel(selectedTransaction.receiver) }}</span>
+              <OrganizationPartyHoverCard :organization="selectedTransaction.receiver" placement="bottom-start" />
             </dd>
           </div>
           <div>
@@ -336,8 +336,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
+import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import CreateTransactionDialog from '@/components/transactions/CreateTransactionDialog.vue'
-import type { OrganizationModel, OrganizationSelection } from '@/models/organizationModel.ts'
+import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { getOrganizations } from '@/services/api/organizations.ts'
@@ -612,10 +613,6 @@ function isSameQuery(currentQuery: Record<string, unknown>, nextQuery: Record<st
 function selectTransaction(transaction: BalanceTransactionModel) {
   selectedTransaction.value = transaction
   detailsOpen.value = true
-}
-
-function partyLabel(organization: OrganizationModel) {
-  return organization.name || organization.systemName
 }
 
 function formatMoney(value: number, currencyId: number) {

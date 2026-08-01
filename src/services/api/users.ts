@@ -2,8 +2,8 @@ import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
 import { PhoneType } from '@/enums/phoneType.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import {
-  mapOrganizationModel,
-  type OrganizationDto,
+  mapOrganizationListItemModel,
+  type OrganizationListItemDto,
   type OrganizationModel,
   type OrganizationType,
 } from '@/models/organizationModel.ts'
@@ -260,9 +260,9 @@ export async function getUserOrganizations(
   params.append('limit', String(clampPageSize(req.limit)))
   req.sortBy?.forEach((sort) => params.append('sortBy', sort))
 
-  const response = await api.get<{ organizations: OrganizationDto[] }>(`/main/users/${userId}/organizations`, { params })
+  const response = await api.get<{ organizations: OrganizationListItemDto[] }>(`/main/users/${userId}/organizations`, { params })
   return {
-    organizations: response.data.organizations.map(mapOrganizationModel),
+    organizations: response.data.organizations.map(mapOrganizationListItemModel),
   }
 }
 

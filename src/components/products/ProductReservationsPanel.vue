@@ -33,10 +33,7 @@
     >
       <el-table-column :label="t('organizations.organization')" min-width="190" show-overflow-tooltip>
         <template #default="{ row }">
-          <div class="organization-cell">
-            <strong>{{ row.organization.name }}</strong>
-            <span>{{ organizationTypeText(row.organization.type) }}</span>
-          </div>
+          <OrganizationPartyHoverCard :organization="row.organization" />
         </template>
       </el-table-column>
 
@@ -286,6 +283,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Clock, Delete, Edit, Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
+import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
@@ -297,7 +295,7 @@ import type {
   ProductReservationStatus,
 } from '@/models/productReservationModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
-import type { OrganizationSelection, OrganizationType } from '@/models/organizationModel.ts'
+import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { getRoles, type RoleModel } from '@/services/api/roles.ts'
@@ -417,10 +415,6 @@ function statusTagType(status: ProductReservationStatus) {
     Canceled: 'danger',
   }
   return types[status] ?? ''
-}
-
-function organizationTypeText(type: OrganizationType) {
-  return t(`organizations.types.${type}`)
 }
 
 function roleDisplayName(role: string) {

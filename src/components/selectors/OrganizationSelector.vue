@@ -18,6 +18,7 @@
         <span v-if="modelValue" class="selection-value" :title="selectionTitle(modelValue)">
           <strong>{{ selectionPrimary(modelValue) }}</strong>
           <span>{{ selectionSecondary(modelValue) }}</span>
+          <OrganizationApproximateBalance :organization="modelValue.organization" />
         </span>
         <span v-else class="selection-placeholder">{{ resolvedPlaceholder }}</span>
         <el-icon
@@ -73,6 +74,7 @@
               </UserHoverCard>
               <span v-else :title="organizationDetails(organization)">{{ organizationDetails(organization) }}</span>
             </div>
+            <OrganizationApproximateBalance :organization="organization" />
             <el-button
               v-if="!organizationOnly && !memberRequired && organization.type !== 'Individual'"
               size="small"
@@ -146,6 +148,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { ArrowDown, CaretRight, Check, Close, Search } from '@element-plus/icons-vue'
 import UserHoverCard from '@/components/users/UserHoverCard.vue'
+import OrganizationApproximateBalance from '@/components/organizations/OrganizationApproximateBalance.vue'
 import type {
   OrganizationMemberModel,
   OrganizationModel,
@@ -390,8 +393,9 @@ watch(() => props.types, () => void loadOrganizations(true), { deep: true })
 .organization-selector-trigger:hover:not(.is-disabled) { border-color: var(--el-border-color-hover); }
 .organization-selector-trigger.is-disabled { cursor: not-allowed; background: var(--el-disabled-bg-color); }
 .selection-value { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: 6px; overflow: hidden; }
-.selection-value strong, .selection-value span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.selection-value span { color: var(--el-text-color-secondary); font-size: 12px; }
+.selection-value strong,
+.selection-value > span:not(.organization-approximate-balance) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selection-value > span:not(.organization-approximate-balance) { color: var(--el-text-color-secondary); font-size: 12px; }
 .selection-placeholder { flex: 1; color: var(--el-text-color-placeholder); }
 .trigger-arrow, .clear-selection { flex: none; color: var(--el-text-color-placeholder); transition: transform 150ms ease; }
 .trigger-arrow.is-open { transform: rotate(180deg); }

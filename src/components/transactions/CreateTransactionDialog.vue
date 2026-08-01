@@ -26,7 +26,7 @@
           <div class="finance-main">
             <span>{{ t('transactions.financialBalance') }}</span>
             <strong :class="financeAmountClass(financialBalance)">
-              {{ formatFinanceAmount(financialBalance, financialInfo.baseCurrency) }}
+              {{ formatFinanceAmount(financialBalance, baseCurrency) }}
             </strong>
             <small>{{ financialBalanceHint }}</small>
           </div>
@@ -102,7 +102,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
-import type { OrganizationSelection } from '@/models/organizationModel.ts'
+import type { OrganizationModel, OrganizationSelection } from '@/models/organizationModel.ts'
 import {
   createSystemBalanceTransaction,
   type SystemTransactionDirection,
@@ -113,6 +113,8 @@ import {
 } from '@/services/api/organizations.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
+import { storeToRefs } from 'pinia'
+import { useCurrencyStore } from '@/stores/currencyStore.ts'
 
 interface CreateTransactionForm {
   operationMode: SystemTransactionDirection
@@ -126,6 +128,7 @@ interface CreateTransactionForm {
 const props = defineProps<{
   modelValue: boolean
   currencies: CurrencyModel[]
+  initialOrganization?: OrganizationModel
 }>()
 
 const emit = defineEmits<{
@@ -134,6 +137,7 @@ const emit = defineEmits<{
 }>()
 
 const { locale, t } = useI18n()
+const { baseCurrency } = storeToRefs(useCurrencyStore())
 const dialogOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
@@ -206,8 +210,6 @@ watch(systemTransactionOrganization, (selection) => {
 })
 
 watch(() => form.operationMode, () => {
-  systemTransactionOrganization.value = undefined
-  form.organizationId = ''
   formRef.value?.clearValidate(['organizationId'])
 })
 
@@ -243,16 +245,22 @@ async function submit() {
 }
 
 function resetForm() {
-  systemTransactionOrganization.value = undefined
   financialInfo.value = null
   financialInfoError.value = ''
   form.operationMode = 'SystemToUser'
-  form.organizationId = ''
+  applyInitialOrganization()
   form.amount = 0.01
   form.currencyId = props.currencies[0]?.id ?? 0
   form.transactionDateTime = toLocalDateTimeInputValue(new Date())
   form.forcePayment = false
   formRef.value?.clearValidate()
+}
+
+function applyInitialOrganization() {
+  systemTransactionOrganization.value = props.initialOrganization
+    ? { organization: props.initialOrganization }
+    : undefined
+  form.organizationId = props.initialOrganization?.id ?? ''
 }
 
 async function loadFinancialInfo(organizationId?: string) {
@@ -276,11 +284,11 @@ async function loadFinancialInfo(organizationId?: string) {
   }
 }
 
-function formatFinanceAmount(value: number, currency: CurrencyModel) {
+function formatFinanceAmount(value: number, currency?: CurrencyModel) {
   return `${value.toLocaleString(locale.value, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  })} ${currency.currencySign || currency.shortName}`.trim()
+  })} ${currency?.currencySign || currency?.shortName || ''}`.trim()
 }
 
 function financeAmountClass(value: number) {

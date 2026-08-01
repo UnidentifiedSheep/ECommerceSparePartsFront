@@ -33,7 +33,7 @@
             >
               <div class="product-search-toolbar__mode">
                 <label class="product-field-label">{{ t('products.searchMode') }}</label>
-                <el-select v-model="form.searchMode" size="large" class="w-full" @change="applyFilters(true)">
+                <el-select v-model="form.searchMode" size="large" class="w-full" @change="applySearchPreferences">
                   <el-option :label="t('products.searchAll')" value="all" />
                   <el-option :label="t('products.searchSku')" value="sku" />
                 </el-select>
@@ -64,7 +64,7 @@
 
               <div v-if="form.searchMode === 'sku'" class="product-search-toolbar__sku-mode">
                 <label class="product-field-label">{{ t('products.matchMode') }}</label>
-                <el-select v-model="form.skuSearchMode" size="large" class="w-full" @change="applyFilters(true)">
+                <el-select v-model="form.skuSearchMode" size="large" class="w-full" @change="applySearchPreferences">
                   <el-option
                     v-for="option in skuSearchModeOptions"
                     :key="option.value"
@@ -381,8 +381,12 @@ import {
   weightMeasureUnitLabel,
 } from '@/utils/measurementUnits.ts'
 import { useI18n } from '@/i18n'
-
-type ProductSearchMode = 'all' | 'sku'
+import {
+  loadProductSearchPreferences,
+  productPageSearchPreferencesKey,
+  saveProductSearchPreferences,
+  type ProductSearchMode,
+} from '@/utils/productSearchPreferences.ts'
 
 interface ProductSearchHistoryItem {
   value: string
@@ -428,11 +432,12 @@ const canViewPriceOffers = computed(() => hasPermission('PRICES_GET_DETAILED'))
 const { searchHistory, rememberSearch: rememberSearchInHistory } = useProductSearchHistory()
 let productsRequestId = 0
 let suspendAutoSearch = false
+let searchPreferences = loadProductSearchPreferences(productPageSearchPreferencesKey)
 
 const form = reactive<ProductSearchForm>({
   query: '',
-  searchMode: 'all',
-  skuSearchMode: 'Full',
+  searchMode: searchPreferences.searchMode,
+  skuSearchMode: searchPreferences.skuSearchMode,
   dimensionUnit: 'Meter',
 })
 
@@ -574,17 +579,20 @@ function queryNumber(name: string) {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-function querySkuSearchMode(): SkuSearchMode {
+function querySkuSearchMode(fallback: SkuSearchMode): SkuSearchMode {
   const value = queryString('skuSearchMode')
   return skuSearchModes.includes(value as SkuSearchMode)
     ? value as SkuSearchMode
-    : 'Full'
+    : fallback
 }
 
 function syncFormFromRoute() {
   form.query = queryString('query') ?? ''
-  form.searchMode = queryString('searchMode') === 'sku' ? 'sku' : 'all'
-  form.skuSearchMode = querySkuSearchMode()
+  form.searchMode = queryString('searchMode') === 'sku'
+    ? 'sku'
+    : searchPreferences.searchMode
+  form.skuSearchMode = querySkuSearchMode(searchPreferences.skuSearchMode)
+  rememberSearchPreferences()
   form.producerId = queryNumber('producerId')
   if (form.searchMode === 'sku') {
     clearDimensionFilters()
@@ -638,6 +646,19 @@ async function applyFilters(replaceRoute = false) {
   })
 }
 
+async function applySearchPreferences() {
+  rememberSearchPreferences()
+  await applyFilters(true)
+}
+
+function rememberSearchPreferences() {
+  searchPreferences = {
+    searchMode: form.searchMode,
+    skuSearchMode: form.skuSearchMode,
+  }
+  saveProductSearchPreferences(productPageSearchPreferencesKey, searchPreferences)
+}
+
 async function submitSearch() {
   rememberSearch(form.query)
   await applyFilters()
@@ -649,8 +670,6 @@ async function submitSearch() {
 async function resetFilters() {
   suspendAutoSearch = true
   form.query = ''
-  form.searchMode = 'all'
-  form.skuSearchMode = 'Full'
   form.producerId = undefined
   form.lengthMin = undefined
   form.lengthMax = undefined
@@ -718,16 +737,14 @@ async function loadProducts() {
   try {
     const query = form.query.trim()
     const resp = form.searchMode === 'sku'
-      ? query
-        ? await searchProductsBySku({
-            sku: query,
-            producerId: form.producerId,
-            searchMode: form.skuSearchMode,
-            page: page.value,
-            size: size.value,
-            sortBy: sortBy.value ? [sortBy.value] : undefined,
-          })
-        : { products: [] }
+      ? await searchProductsBySku({
+          sku: query,
+          producerId: form.producerId,
+          searchMode: form.skuSearchMode,
+          page: page.value,
+          size: size.value,
+          sortBy: sortBy.value ? [sortBy.value] : undefined,
+        })
       : await searchProducts({
           query: query || undefined,
           producerId: form.producerId,

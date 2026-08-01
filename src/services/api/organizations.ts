@@ -1,7 +1,9 @@
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import {
+  mapOrganizationListItemModel,
   mapOrganizationModel,
   type OrganizationDto,
+  type OrganizationListItemDto,
   type OrganizationMemberModel,
   type OrganizationModel,
   type OrganizationType,
@@ -68,7 +70,6 @@ export interface OrganizationBalanceModel {
 
 export interface GetOrganizationFinancialInfoResponse {
   financialProfile: OrganizationFinancialProfileModel | null
-  baseCurrency: CurrencyModel
   balances: OrganizationBalanceModel[]
 }
 
@@ -85,9 +86,9 @@ export async function getOrganizations(req: GetOrganizationsRequest): Promise<Ge
   params.append('limit', String(clampPageSize(req.limit)))
   req.sortBy?.forEach((sort) => params.append('sortBy', sort))
 
-  const response = await api.get<{ organizations: OrganizationDto[] }>('/main/organizations', { params })
+  const response = await api.get<{ organizations: OrganizationListItemDto[] }>('/main/organizations', { params })
   return {
-    organizations: response.data.organizations.map(mapOrganizationModel),
+    organizations: response.data.organizations.map(mapOrganizationListItemModel),
   }
 }
 
