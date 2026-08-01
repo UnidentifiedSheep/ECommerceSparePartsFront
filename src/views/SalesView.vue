@@ -108,19 +108,20 @@
                 <span>{{ t('sales.addBuyer') }}</span>
                 <div class="picker-row">
                   <OrganizationSelector
-                    v-model="buyerToAdd"
+                    v-model="buyerOrganizationToAdd"
+                    organization-only
                     :placeholder="t('sales.buyer')"
                   />
-                  <el-button :disabled="!buyerToAdd" @click="addBuyerFilter">{{ t('common.actions.add') }}</el-button>
+                  <el-button :disabled="!buyerOrganizationToAdd" @click="addBuyerFilter">{{ t('common.actions.add') }}</el-button>
                 </div>
-                <div v-if="selectedBuyers.length > 0" class="filter-tags">
+                <div v-if="selectedBuyerOrganizations.length > 0" class="filter-tags">
                   <el-tag
-                    v-for="buyer in selectedBuyers"
-                    :key="`${buyer.organization.id}-${buyer.member?.user.id}`"
+                    v-for="buyer in selectedBuyerOrganizations"
+                    :key="buyer.id"
                     closable
-                    @close="removeBuyerFilter(buyer.member?.user.id ?? '')"
+                    @close="removeBuyerFilter(buyer.id)"
                   >
-                    {{ buyer.organization.name }} · {{ buyer.member ? `${buyer.member.user.surname} ${buyer.member.user.name}` : '' }}
+                    {{ buyer.name }}
                   </el-tag>
                 </div>
               </div>
@@ -276,7 +277,7 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleContentModel, SaleModel, SaleState } from '@/models/saleModel.ts'
-import type { OrganizationSelection } from '@/models/organizationModel.ts'
+import type { OrganizationModel, OrganizationSelection } from '@/models/organizationModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { deleteSale, getSale, getSaleContent, getSales } from '@/services/api/sales.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
@@ -294,8 +295,8 @@ const salesTableRef = ref<TableInstance>()
 const selectedSale = ref<SaleModel>()
 const saleContent = ref<SaleContentModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
-const selectedBuyers = ref<OrganizationSelection[]>([])
-const buyerToAdd = ref<OrganizationSelection>()
+const selectedBuyerOrganizations = ref<OrganizationModel[]>([])
+const buyerOrganizationToAdd = ref<OrganizationSelection>()
 const currencyIds = ref<number[]>([])
 const defaultSaleStates: SaleState[] = ['Completed']
 const saleStates = ref<SaleState[]>([...defaultSaleStates])
@@ -325,7 +326,7 @@ const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(()
 
 const activeFiltersCount = computed(() => (
   (dateRange.value ? 1 : 0)
-  + selectedBuyers.value.length
+  + selectedBuyerOrganizations.value.length
   + currencyIds.value.length
   + (isDefaultSaleStateFilter() ? 0 : 1)
   + selectedProducts.value.length
@@ -360,8 +361,8 @@ function saleRowClassName({ row }: { row: SaleModel }) {
 
 function resetFilters() {
   dateRange.value = null
-  selectedBuyers.value = []
-  buyerToAdd.value = undefined
+  selectedBuyerOrganizations.value = []
+  buyerOrganizationToAdd.value = undefined
   currencyIds.value = []
   saleStates.value = [...defaultSaleStates]
   selectedProducts.value = []
@@ -391,19 +392,18 @@ async function applyDrawerFilters() {
 }
 
 function addBuyerFilter() {
-  if (!buyerToAdd.value) return
+  if (!buyerOrganizationToAdd.value) return
 
-  const buyerId = buyerToAdd.value.member?.user.id
-  if (!buyerId) return
-  const exists = selectedBuyers.value.some((buyer) => buyer.member?.user.id === buyerId)
+  const organizationId = buyerOrganizationToAdd.value.organization.id
+  const exists = selectedBuyerOrganizations.value.some((buyer) => buyer.id === organizationId)
   if (!exists) {
-    selectedBuyers.value.push(buyerToAdd.value)
+    selectedBuyerOrganizations.value.push(buyerOrganizationToAdd.value.organization)
   }
-  buyerToAdd.value = undefined
+  buyerOrganizationToAdd.value = undefined
 }
 
 function removeBuyerFilter(id: string) {
-  selectedBuyers.value = selectedBuyers.value.filter((buyer) => buyer.member?.user.id !== id)
+  selectedBuyerOrganizations.value = selectedBuyerOrganizations.value.filter((buyer) => buyer.id !== id)
 }
 
 function addProductFilter(product: ProductSearchModel) {
@@ -435,7 +435,7 @@ async function loadSales(resetPage: boolean) {
       rangeEndDate: dateRange.value?.[1],
       page: page.value,
       limit: limit.value,
-      buyerIds: selectedBuyers.value.flatMap((buyer) => buyer.member ? [buyer.member.user.id] : []),
+      organizationIds: selectedBuyerOrganizations.value.map((buyer) => buyer.id),
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
       states: saleStates.value,
@@ -589,7 +589,7 @@ async function onSaleUpdated(saleId: string) {
 watch(limit, async () => loadSales(true))
 watch(page, async () => loadSales(false))
 watch(dateRange, async () => loadSales(true), { deep: true })
-watch(selectedBuyers, async () => loadSales(true), { deep: true })
+watch(selectedBuyerOrganizations, async () => loadSales(true), { deep: true })
 watch(currencyIds, async () => loadSales(true), { deep: true })
 watch(saleStates, async () => loadSales(true), { deep: true })
 watch(selectedProducts, async () => loadSales(true), { deep: true })

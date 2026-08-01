@@ -65,7 +65,7 @@ export interface GetSalesRequest {
   rangeEndDate?: string
   page: number
   limit: number
-  buyerIds?: string[]
+  organizationIds?: string[]
   currencyIds?: number[]
   productIds?: number[]
   states?: SaleState[]
@@ -143,7 +143,7 @@ export async function getSales(req: GetSalesRequest): Promise<GetSalesResponse> 
   if (req.rangeEndDate) appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
   appendParam('page', req.page)
   appendParam('limit', clampPageSize(req.limit))
-  req.buyerIds?.forEach((id) => appendParam('buyerIds', id))
+  req.organizationIds?.forEach((id) => appendParam('organizationIds', id))
   req.currencyIds?.forEach((id) => appendParam('currencyIds', id))
   req.productIds?.forEach((id) => appendParam('productIds', id))
   req.states?.forEach((state) => appendParam('state', state))

@@ -55,7 +55,7 @@
             @click="handleOrganizationClick(organization)"
           >
             <el-icon
-              v-if="organization.type !== 'Individual'"
+              v-if="!organizationOnly && organization.type !== 'Individual'"
               class="branch-arrow"
               :class="{ 'is-expanded': branch(organization.id).expanded }"
             >
@@ -74,7 +74,7 @@
               <span v-else :title="organizationDetails(organization)">{{ organizationDetails(organization) }}</span>
             </div>
             <el-button
-              v-if="!memberRequired && organization.type !== 'Individual'"
+              v-if="!organizationOnly && !memberRequired && organization.type !== 'Individual'"
               size="small"
               text
               type="primary"
@@ -90,7 +90,7 @@
             </el-icon>
           </div>
 
-          <div v-if="branch(organization.id).expanded" class="member-branch">
+          <div v-if="!organizationOnly && branch(organization.id).expanded" class="member-branch">
             <div v-if="branch(organization.id).loading && branch(organization.id).members.length === 0" class="branch-status">
               {{ t('organizations.loadingMembers') }}
             </div>
@@ -171,6 +171,7 @@ const props = withDefaults(defineProps<{
   clearable?: boolean
   disabled?: boolean
   memberRequired?: boolean
+  organizationOnly?: boolean
   types?: OrganizationType[]
 }>(), {
   modelValue: undefined,
@@ -178,6 +179,7 @@ const props = withDefaults(defineProps<{
   clearable: true,
   disabled: false,
   memberRequired: true,
+  organizationOnly: false,
   types: () => [],
 })
 
@@ -198,7 +200,9 @@ const branches = reactive<Record<string, MemberBranch>>({})
 let organizationsRequestId = 0
 
 const resolvedPlaceholder = computed(() => props.placeholder ?? (
-  props.memberRequired ? t('organizations.selectMember') : t('organizations.selectOrganization')
+  props.organizationOnly || !props.memberRequired
+    ? t('organizations.selectOrganization')
+    : t('organizations.selectMember')
 ))
 
 const searchOrganizations = useDebounceFn(() => loadOrganizations(true), 250)
@@ -250,6 +254,11 @@ async function loadOrganizations(reset: boolean) {
 }
 
 function handleOrganizationClick(organization: OrganizationModel) {
+  if (props.organizationOnly) {
+    selectOrganization(organization)
+    return
+  }
+
   if (organization.type === 'Individual') {
     selectMember(organization, organization.owner)
     return
