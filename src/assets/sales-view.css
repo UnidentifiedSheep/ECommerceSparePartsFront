@@ -1,5 +1,9 @@
 .sales-page {
-  min-height: calc(100vh - 56px);
+  display: flex;
+  height: calc(100dvh - 56px);
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
   background: #f7f7f8;
 }
 
@@ -20,6 +24,9 @@
 
 .sales-content {
   display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
   padding: 16px 18px 18px;
 }
@@ -124,15 +131,16 @@
 
 .sales-workspace {
   display: grid;
+  min-height: 0;
   grid-template-columns: minmax(780px, 1fr) minmax(340px, 0.55fr);
   gap: 16px;
-  min-height: calc(100vh - 238px);
+  overflow: hidden;
 }
 
 .sales-list-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: calc(100vh - 238px);
+  min-height: 0;
   overflow: hidden;
   padding: 14px 16px 0;
 }
@@ -147,8 +155,8 @@
 }
 
 .sale-details-panel {
+  min-height: 0;
   overflow: hidden;
-  min-height: calc(100vh - 238px);
 }
 
 .sale-buyer-cell {
@@ -268,8 +276,15 @@
 }
 
 @media (max-width: 1180px) {
+  .sales-page {
+    height: auto;
+    min-height: calc(100dvh - 56px);
+    overflow: visible;
+  }
+
   .sales-workspace {
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .sales-list-panel,

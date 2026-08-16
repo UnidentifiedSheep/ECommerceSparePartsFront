@@ -163,8 +163,11 @@ function routeTypeLabel(type: RouteType) {
 
 <style scoped>
 .purchase-details {
-  height: 760px;
+  height: 100%;
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 16px;
 }
 

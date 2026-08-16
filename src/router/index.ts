@@ -12,6 +12,7 @@ import VerifyEmailView from '@/views/VerifyEmailView.vue'
 import PermissionsView from '@/views/PermissionsView.vue'
 import ProductDetailsView from '@/views/ProductDetailsView.vue'
 import ProductsView from '@/views/ProductsView.vue'
+import CatalogueEnrichmentView from '@/views/CatalogueEnrichmentView.vue'
 import ProducersView from '@/views/ProducersView.vue'
 import PurchasesView from '@/views/PurchasesView.vue'
 import ReservationsView from '@/views/ReservationsView.vue'
@@ -112,6 +113,12 @@ const routes = [
         path: '/products',
         name: 'products',
         component: ProductsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/products/enrichment',
+        name: 'catalogue-enrichment',
+        component: CatalogueEnrichmentView,
         meta: { requiresAuth: true },
       },
       {

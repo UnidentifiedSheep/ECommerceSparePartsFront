@@ -1,5 +1,9 @@
 .purchases-page {
-  min-height: calc(100vh - 56px);
+  display: flex;
+  height: calc(100dvh - 56px);
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
   background: #f7f7f8;
 }
 
@@ -36,6 +40,9 @@
 
 .purchases-content {
   display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
   padding: 16px;
 }
@@ -140,14 +147,16 @@
 
 .purchases-workspace {
   display: grid;
+  min-height: 0;
   grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.85fr);
   gap: 16px;
+  overflow: hidden;
 }
 
 .purchases-list-panel {
   display: grid;
+  min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  height: 760px;
   overflow: hidden;
   padding: 16px;
 }
@@ -167,6 +176,7 @@
 }
 
 .purchase-details-panel {
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -195,8 +205,27 @@
 }
 
 @media (max-width: 1180px) {
+  .purchases-page {
+    height: auto;
+    min-height: calc(100dvh - 56px);
+    overflow: visible;
+  }
+
+  .purchases-content {
+    display: grid;
+  }
+
   .purchases-workspace {
     grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .purchases-list-panel {
+    height: 620px;
+  }
+
+  .purchase-details-panel {
+    min-height: 560px;
   }
 }
 

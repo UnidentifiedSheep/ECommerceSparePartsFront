@@ -112,6 +112,7 @@ import {
   type GetOrganizationFinancialInfoResponse,
 } from '@/services/api/organizations.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 import { storeToRefs } from 'pinia'
 import { useCurrencyStore } from '@/stores/currencyStore.ts'
@@ -250,7 +251,7 @@ function resetForm() {
   form.operationMode = 'SystemToUser'
   applyInitialOrganization()
   form.amount = 0.01
-  form.currencyId = props.currencies[0]?.id ?? 0
+  form.currencyId = resolveDefaultCurrencyId(props.currencies) ?? 0
   form.transactionDateTime = toLocalDateTimeInputValue(new Date())
   form.forcePayment = false
   formRef.value?.clearValidate()

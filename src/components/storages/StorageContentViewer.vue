@@ -124,6 +124,7 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { addStorageContent, deleteStorageContent, editStorageContent, getStorageContent } from '@/services/api/storages.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
@@ -175,12 +176,12 @@ async function loadCurrencies() {
   const resp = await getCurrencies()
   currencies.value = resp.currencies
 
-  const firstCurrency = resp.currencies[0]
-  if (!createForm.currencyId && firstCurrency) {
-    createForm.currencyId = firstCurrency.id
+  const defaultCurrencyId = resolveDefaultCurrencyId(resp.currencies)
+  if (!createForm.currencyId && defaultCurrencyId) {
+    createForm.currencyId = defaultCurrencyId
   }
-  if (!editForm.currencyId && firstCurrency) {
-    editForm.currencyId = firstCurrency.id
+  if (!editForm.currencyId && defaultCurrencyId) {
+    editForm.currencyId = defaultCurrencyId
   }
 }
 

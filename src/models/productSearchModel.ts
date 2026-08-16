@@ -21,4 +21,5 @@ export interface ProductSearchModel {
   stock: number
   dimensions?: ProductDimensionsModel | null
   weight?: ProductWeightModel | null
+  highlights?: Record<string, string[]> | null
 }

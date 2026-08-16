@@ -70,6 +70,7 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { addStorageContent, getStorages } from '@/services/api/storages.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 
 const props = defineProps<{
@@ -96,7 +97,7 @@ function reset() {
   form.storageName = storages.value[0]?.name ?? ''
   form.count = 1
   form.buyPrice = 0
-  form.currencyId = currencies.value[0]?.id
+  form.currencyId = resolveDefaultCurrencyId(currencies.value)
   form.purchaseDate = toLocalDateTimeInputValue()
 }
 
@@ -111,7 +112,7 @@ async function loadOptions() {
     storages.value = storageResp.storages
     currencies.value = currencyResp.currencies
     form.storageName ||= storages.value[0]?.name ?? ''
-    form.currencyId ||= currencies.value[0]?.id
+    form.currencyId ||= resolveDefaultCurrencyId(currencies.value)
   } finally {
     loadingStorages.value = false
     loadingCurrencies.value = false

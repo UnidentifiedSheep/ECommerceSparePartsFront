@@ -26,183 +26,141 @@
         </button>
 
         <div v-show="!isMobileViewport || !mobileSearchCollapsed" class="product-panel__body">
-          <div class="product-search-toolbar">
-            <div
-              class="product-search-toolbar__search-group"
-              :class="{ 'product-search-toolbar__search-group--sku': form.searchMode === 'sku' }"
-            >
-              <div class="product-search-toolbar__mode">
-                <label class="product-field-label">{{ t('products.searchMode') }}</label>
-                <el-select v-model="form.searchMode" size="large" class="w-full" @change="applySearchPreferences">
-                  <el-option :label="t('products.searchAll')" value="all" />
-                  <el-option :label="t('products.searchSku')" value="sku" />
-                </el-select>
-              </div>
-
-              <div class="product-search-toolbar__query">
-                <label class="product-field-label">{{ t('common.labels.search') }}</label>
-                <el-autocomplete
-                  v-model="form.query"
-                  :fetch-suggestions="querySearchHistory"
-                  :prefix-icon="Search"
-                  clearable
-                  size="large"
-                  value-key="value"
-                  class="w-full"
-                  :placeholder="searchPlaceholder"
-                  @select="selectSearchHistory"
-                  @keyup.enter="submitSearch"
-                >
-                  <template #default="{ item }">
-                    <div class="product-search-history-option">
-                      <el-icon><Clock /></el-icon>
-                      <span>{{ item.value }}</span>
-                    </div>
-                  </template>
-                </el-autocomplete>
-              </div>
-
-              <div v-if="form.searchMode === 'sku'" class="product-search-toolbar__sku-mode">
-                <label class="product-field-label">{{ t('products.matchMode') }}</label>
-                <el-select v-model="form.skuSearchMode" size="large" class="w-full" @change="applySearchPreferences">
-                  <el-option
-                    v-for="option in skuSearchModeOptions"
-                    :key="option.value"
-                    :label="option.label"
-                    :value="option.value"
-                  />
-                </el-select>
-              </div>
-            </div>
-
-            <div class="product-search-toolbar__filter-group">
-              <div class="product-search-toolbar__producer">
-                <label class="product-field-label">{{ t('common.labels.producer') }}</label>
-                <ProducerSelector v-model="form.producerId" :placeholder="t('products.allProducers')" />
-              </div>
-
-              <el-badge
-                v-if="form.searchMode === 'all'"
-                class="product-search-toolbar__action product-search-toolbar__filters"
-                :value="dimensionFiltersCount"
-                :hidden="dimensionFiltersCount === 0"
-              >
-                <el-button :icon="Filter" size="large" plain @click="filtersDrawerOpen = true">
-                  {{ t('products.filters') }}
-                </el-button>
-              </el-badge>
-            </div>
-
-            <el-tooltip :content="t('common.actions.reset')" placement="top">
-              <el-button
-                class="product-search-toolbar__action product-search-toolbar__reset"
-                :icon="RefreshLeft"
+          <div class="catalogue-search-primary">
+            <div class="catalogue-search-query">
+              <label class="product-field-label">{{ t('common.labels.search') }}</label>
+              <el-autocomplete
+                v-model="form.query"
+                :fetch-suggestions="querySearchHistory"
+                :prefix-icon="Search"
+                clearable
                 size="large"
-                plain
-                :aria-label="t('common.actions.reset')"
-                @click="resetFilters"
+                value-key="value"
+                class="w-full"
+                :placeholder="t('products.catalogueSearchPlaceholder')"
+                @select="selectSearchHistory"
+                @keyup.enter="submitSearch"
+              >
+                <template #default="{ item }">
+                  <div class="product-search-history-option">
+                    <el-icon><Clock /></el-icon>
+                    <span>{{ item.value }}</span>
+                  </div>
+                </template>
+              </el-autocomplete>
+            </div>
+
+            <div class="catalogue-search-producers">
+              <label class="product-field-label">{{ t('common.labels.producer') }}</label>
+              <ProducerMultiSelector
+                v-if="canReviewCandidates"
+                v-model="form.producerIds"
+                :placeholder="t('products.allProducers')"
               />
-            </el-tooltip>
+              <ProducerSelector
+                v-else
+                :model-value="form.producerIds[0]"
+                :placeholder="t('products.allProducers')"
+                @update:model-value="setSingleProducer"
+              />
+            </div>
+
+            <div class="catalogue-search-actions">
+              <el-button type="primary" size="large" :disabled="Boolean(searchValidationMessage)" @click="submitSearch">
+                {{ t('products.find') }}
+              </el-button>
+              <el-tooltip :content="t('common.actions.reset')" placement="top">
+                <el-button
+                  :icon="RefreshLeft"
+                  size="large"
+                  plain
+                  :aria-label="t('common.actions.reset')"
+                  @click="resetFilters"
+                />
+              </el-tooltip>
+            </div>
           </div>
 
-          <div v-if="activeFilters.length > 0" class="product-active-filters">
-            <span class="product-active-filters__label">{{ t('products.active') }}</span>
-            <el-tag
-              v-for="filter in activeFilters"
-              :key="filter.key"
-              closable
-              effect="plain"
-              @close="clearFilter(filter.key)"
+          <div v-if="canReviewCandidates" class="catalogue-search-toolbar">
+            <fieldset class="catalogue-search-targets">
+              <legend>{{ t('products.searchTargets') }}</legend>
+              <el-checkbox-group v-model="form.targets" @change="applySearchConfiguration">
+                <el-checkbox
+                  v-for="target in targetOptions"
+                  :key="target.value"
+                  :label="target.value"
+                  :disabled="form.targets.length === 1 && form.targets.includes(target.value)"
+                >
+                  {{ target.label }}
+                  <span v-if="form.targets.includes(target.value)" class="catalogue-search-target-count">
+                    {{ targetCount(target.value).toLocaleString(locale) }}
+                  </span>
+                </el-checkbox>
+              </el-checkbox-group>
+            </fieldset>
+
+            <button
+              class="catalogue-search-settings-toggle"
+              type="button"
+              :aria-expanded="searchSettingsOpen"
+              @click="searchSettingsOpen = !searchSettingsOpen"
             >
-              {{ filter.label }}
-            </el-tag>
+              <span>
+                <strong>{{ t('products.searchSettings') }}</strong>
+                <em>{{ searchSettingsSummary }}</em>
+              </span>
+              <el-icon :class="{ 'is-open': searchSettingsOpen }"><ArrowDown /></el-icon>
+            </button>
           </div>
+
+          <div v-if="canReviewCandidates" v-show="searchSettingsOpen" class="catalogue-search-options">
+            <div class="catalogue-search-presets">
+              <span>{{ t('products.searchPreset') }}</span>
+              <div role="group" :aria-label="t('products.searchPreset')">
+                <button
+                  v-for="preset in searchPresetOptions"
+                  :key="preset.value"
+                  type="button"
+                  :class="{ 'is-active': currentSearchPreset === preset.value }"
+                  @click="applySearchPreset(preset.value)"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
+            </div>
+
+            <fieldset class="catalogue-search-option-group">
+              <legend>{{ t('products.skuMatching') }}</legend>
+              <el-checkbox-group v-model="form.skuModes" @change="applySearchConfiguration">
+                <el-checkbox
+                  v-for="mode in matchTypeOptions"
+                  :key="mode.value"
+                  :label="mode.value"
+                  :disabled="isLastSearchMode('sku', mode.value)"
+                >
+                  {{ mode.label }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </fieldset>
+
+            <fieldset class="catalogue-search-option-group">
+              <legend>{{ t('products.nameMatching') }}</legend>
+              <el-checkbox-group v-model="form.nameModes" @change="applySearchConfiguration">
+                <el-checkbox
+                  v-for="mode in matchTypeOptions"
+                  :key="mode.value"
+                  :label="mode.value"
+                  :disabled="isLastSearchMode('name', mode.value)"
+                >
+                  {{ mode.label }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </fieldset>
+          </div>
+
+          <p v-if="searchValidationMessage" class="catalogue-search-validation">{{ searchValidationMessage }}</p>
         </div>
       </section>
-
-      <el-drawer
-        v-model="filtersDrawerOpen"
-        :title="t('products.filtersTitle')"
-        size="min(440px, 100vw)"
-        class="product-filters-drawer"
-      >
-        <div class="product-filter-drawer">
-          <div class="product-filter-drawer__body">
-            <section class="product-filter-section">
-              <div class="product-filter-section__header">
-                <span>{{ t('products.dimensions') }}</span>
-                <el-tooltip :content="t('products.dimensionsHint')" placement="top">
-                  <el-icon class="cursor-help text-slate-400"><InfoFilled /></el-icon>
-                </el-tooltip>
-              </div>
-
-              <el-form label-position="top" class="product-filter-unit">
-                <el-form-item :label="t('products.measurementUnit')">
-                  <el-select v-model="form.dimensionUnit" class="w-full">
-                    <el-option
-                      v-for="unit in dimensionSearchUnitOptions"
-                      :key="unit.value"
-                      :label="unit.label"
-                      :value="unit.value"
-                    />
-                  </el-select>
-                </el-form-item>
-              </el-form>
-
-              <div class="dimension-filter-list">
-                <div class="dimension-filter-row">
-                  <span class="dimension-filter-row__title">{{ t('products.length') }}</span>
-                  <div class="dimension-range-grid">
-                    <label class="dimension-range-field">
-                      <span>{{ t('products.from') }}</span>
-                      <el-input-number v-model="form.lengthMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                    </label>
-                    <label class="dimension-range-field">
-                      <span>{{ t('products.to') }}</span>
-                      <el-input-number v-model="form.lengthMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                    </label>
-                  </div>
-                </div>
-
-                <div class="dimension-filter-row">
-                  <span class="dimension-filter-row__title">{{ t('products.width') }}</span>
-                  <div class="dimension-range-grid">
-                    <label class="dimension-range-field">
-                      <span>{{ t('products.from') }}</span>
-                      <el-input-number v-model="form.widthMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                    </label>
-                    <label class="dimension-range-field">
-                      <span>{{ t('products.to') }}</span>
-                      <el-input-number v-model="form.widthMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                    </label>
-                  </div>
-                </div>
-
-                <div class="dimension-filter-row">
-                  <span class="dimension-filter-row__title">{{ t('products.height') }}</span>
-                  <div class="dimension-range-grid">
-                    <label class="dimension-range-field">
-                      <span>{{ t('products.from') }}</span>
-                      <el-input-number v-model="form.heightMin" :min="0" :precision="2" :controls="false" class="w-full" />
-                    </label>
-                    <label class="dimension-range-field">
-                      <span>{{ t('products.to') }}</span>
-                      <el-input-number v-model="form.heightMax" :min="0" :precision="2" :controls="false" class="w-full" />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <div class="product-filter-drawer__footer">
-            <div class="flex justify-end gap-3">
-              <el-button @click="clearDimensionFilters">{{ t('products.clear') }}</el-button>
-              <el-button type="primary" @click="submitSearch">{{ t('purchases.apply') }}</el-button>
-            </div>
-          </div>
-        </div>
-      </el-drawer>
 
       <section class="product-panel product-results-panel">
         <header class="product-results-header">
@@ -210,50 +168,121 @@
             <h2>{{ t('products.results') }}</h2>
             <p>{{ resultTitle }}</p>
           </div>
-          <div class="product-results-meta">{{ t('products.shownCount', { count: products.length.toLocaleString(locale) }) }}</div>
+          <div class="product-results-aside">
+            <div class="product-results-meta">
+              {{ t(hasExactTotal ? 'products.foundCount' : 'products.shownCount', { count: totalResults.toLocaleString(locale) }) }}
+            </div>
+            <div class="product-results-tools">
+              <div class="product-highlight-toggle">
+                <span class="product-highlight-toggle__sample" aria-hidden="true">Aa</span>
+                <span>{{ t('products.displayHighlights') }}</span>
+                <el-switch
+                  v-model="form.includeHighlights"
+                  size="small"
+                  :aria-label="t('products.includeHighlights')"
+                  @change="applySearchConfiguration"
+                />
+              </div>
+              <div class="product-sort-hint"><kbd>Shift</kbd> + {{ t('products.multiSortShort') }}</div>
+            </div>
+          </div>
         </header>
 
-        <el-table
+        <div
+          ref="resultsScroll"
           v-loading="isLoading"
-          :data="products"
-          class="products-table products-table--desktop"
-          height="100%"
-          @sort-change="handleSortChange"
-          @row-click="(row: ProductSearchModel) => openQuickView(row)"
-          @row-dblclick="(row: ProductSearchModel) => openCrosses(row.id)"
+          class="catalogue-results-scroll"
+          tabindex="0"
+          :aria-label="t('products.results')"
+          @focus="ensureSelectedResult"
+          @keydown="handleResultsKeydown"
         >
-          <el-table-column prop="sku" :label="t('products.productColumn')" min-width="330" sortable="custom">
+        <el-table
+          :data="catalogueResults"
+          :row-class-name="catalogueResultRowClass"
+          height="100%"
+          class="products-table products-table--desktop"
+          @row-click="openCatalogueResult"
+          @row-dblclick="openCatalogueResultDetails"
+        >
+          <el-table-column prop="sku" :label="t('products.productColumn')" min-width="330">
+            <template #header>
+              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" @click="toggleSort('sku', $event)">
+                {{ t('products.productColumn') }}
+                <span v-if="sortDirection('sku')">{{ sortDirection('sku') === 'asc' ? '↑' : '↓' }}{{ sortPriority('sku') }}</span>
+              </button>
+            </template>
             <template #default="{ row }">
-              <button class="product-identity" type="button" @click.stop="openQuickView(row)">
-                <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
-                <span class="product-identity__name">{{ row.name }}</span>
+              <button class="product-identity" type="button" @click.stop="openCatalogueResult(row)">
+                <span class="product-identity__primary">
+                  <ProductSkuCell
+                    v-if="row.kind === 'product'"
+                    :sku="row.sku"
+                    :indicator="row.product.indicator"
+                    :highlight="resultSkuHighlight(row)"
+                  />
+                  <strong v-else class="candidate-sku"><SearchHighlightedText :text="resultSkuHighlight(row)" /></strong>
+                  <span v-if="row.kind === 'candidate'" class="catalogue-source-label catalogue-source-label--candidate">
+                    {{ t('products.catalogueSourceCandidate') }}
+                  </span>
+                </span>
+                <span class="product-identity__name">
+                  <template v-for="(fragment, index) in resultNameFragments(row)" :key="`${fragment}-${index}`">
+                    <span v-if="index > 0"> · </span><SearchHighlightedText :text="fragment" />
+                  </template>
+                </span>
               </button>
             </template>
           </el-table-column>
-          <el-table-column prop="producerId" :label="t('common.labels.producer')" min-width="170" sortable="custom">
+          <el-table-column prop="producerId" :label="t('common.labels.producer')" min-width="170">
+            <template #header>
+              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" @click="toggleSort('producerId', $event)">
+                {{ t('common.labels.producer') }}
+                <span v-if="sortDirection('producerId')">{{ sortDirection('producerId') === 'asc' ? '↑' : '↓' }}{{ sortPriority('producerId') }}</span>
+              </button>
+            </template>
             <template #default="{ row }">
               {{ producerName(row.producerId) }}
             </template>
           </el-table-column>
-          <el-table-column prop="stock" :label="t('products.stock')" min-width="150" sortable="custom">
+          <el-table-column prop="stock" :label="t('products.stock')" min-width="150">
+            <template #header>
+              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @click="toggleSort('stock', $event)">
+                {{ t('products.stock') }}
+                <span v-if="sortDirection('stock')">{{ sortDirection('stock') === 'asc' ? '↑' : '↓' }}{{ sortPriority('stock') }}</span>
+              </button>
+            </template>
             <template #default="{ row }">
-              <ProductStockCell :stock="row.stock" />
+              <ProductStockCell v-if="row.kind === 'product'" :stock="row.product.stock" />
+              <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
-          <el-table-column prop="volume" :label="t('products.dimensions')" min-width="210" sortable="custom">
+          <el-table-column prop="volume" :label="t('products.dimensions')" min-width="210">
+            <template #header>
+              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @click="toggleSort('volume', $event)">
+                {{ t('products.dimensions') }}
+                <span v-if="sortDirection('volume')">{{ sortDirection('volume') === 'asc' ? '↑' : '↓' }}{{ sortPriority('volume') }}</span>
+              </button>
+            </template>
             <template #default="{ row }">
-              <span v-if="row.dimensions">
-                {{ formatDimension(row.dimensions.length) }} ×
-                {{ formatDimension(row.dimensions.width) }} ×
-                {{ formatDimension(row.dimensions.height) }}
-                {{ dimensionMeasureUnitLabel(row.dimensions.unit) }}
+              <span v-if="row.kind === 'product' && row.product.dimensions">
+                {{ formatDimension(row.product.dimensions.length) }} ×
+                {{ formatDimension(row.product.dimensions.width) }} ×
+                {{ formatDimension(row.product.dimensions.height) }}
+                {{ dimensionMeasureUnitLabel(row.product.dimensions.unit) }}
               </span>
               <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
-          <el-table-column prop="weight" :label="t('products.weight')" min-width="140" sortable="custom">
+          <el-table-column prop="weight" :label="t('products.weight')" min-width="140">
+            <template #header>
+              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @click="toggleSort('weight', $event)">
+                {{ t('products.weight') }}
+                <span v-if="sortDirection('weight')">{{ sortDirection('weight') === 'asc' ? '↑' : '↓' }}{{ sortPriority('weight') }}</span>
+              </button>
+            </template>
             <template #default="{ row }">
-              <span v-if="row.weight">{{ row.weight.value }} {{ weightMeasureUnitLabel(row.weight.unit, row.weight.value) }}</span>
+              <span v-if="row.kind === 'product' && row.product.weight">{{ row.product.weight.value }} {{ weightMeasureUnitLabel(row.product.weight.unit, row.product.weight.value) }}</span>
               <span v-else class="text-slate-400">—</span>
             </template>
           </el-table-column>
@@ -261,41 +290,62 @@
             <template #default="{ row }">
               <div class="flex justify-end gap-1" @click.stop>
                 <ActionIconButton
-                  v-if="canViewPriceOffers"
+                  v-if="row.kind === 'product' && canViewPriceOffers"
                   :label="t('priceOffers.open')"
                   :icon="Money"
-                  @click="openPriceOffers(row)"
+                  @click="openPriceOffers(row.product)"
                 />
-                <ActionIconButton :label="t('products.openProduct')" :icon="View" @click="openCrosses(row.id)" />
+                <ActionIconButton :label="row.kind === 'product' ? t('products.openProduct') : t('products.openCandidate')" :icon="View" @click="openCatalogueResultDetails(row)" />
               </div>
             </template>
           </el-table-column>
         </el-table>
 
-        <div v-loading="isLoading" class="products-mobile-list">
+        <div class="products-mobile-list">
           <article
-            v-for="row in products"
-            :key="row.id"
-            class="product-mobile-row"
+            v-for="row in catalogueResults"
+            :key="row.key"
+            :class="[
+              'product-mobile-row',
+              {
+                'product-mobile-row--candidate': row.kind === 'candidate',
+                'product-mobile-row--selected': selectedResultKey === row.key,
+              },
+            ]"
             role="button"
             tabindex="0"
-            @click="openQuickView(row)"
-            @keydown.enter.prevent="openQuickView(row)"
-            @keydown.space.prevent="openQuickView(row)"
+            @click="openCatalogueResult(row)"
+            @keydown.enter.prevent="openCatalogueResult(row)"
+            @keydown.space.prevent="openCatalogueResult(row)"
           >
             <div class="product-mobile-row__header">
-              <button class="product-identity" type="button" @click.stop="openQuickView(row)">
-                <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
-                <span class="product-identity__name">{{ row.name }}</span>
+              <button class="product-identity" type="button" @click.stop="openCatalogueResult(row)">
+                <span class="product-identity__primary">
+                <ProductSkuCell
+                  v-if="row.kind === 'product'"
+                  :sku="row.sku"
+                  :indicator="row.product.indicator"
+                  :highlight="resultSkuHighlight(row)"
+                />
+                <strong v-else class="candidate-sku"><SearchHighlightedText :text="resultSkuHighlight(row)" /></strong>
+                  <span v-if="row.kind === 'candidate'" class="catalogue-source-label catalogue-source-label--candidate">
+                    {{ t('products.catalogueSourceCandidate') }}
+                  </span>
+                </span>
+                <span class="product-identity__name">
+                  <template v-for="(fragment, index) in resultNameFragments(row)" :key="`${fragment}-${index}`">
+                    <span v-if="index > 0"> · </span><SearchHighlightedText :text="fragment" />
+                  </template>
+                </span>
               </button>
               <div class="product-mobile-row__actions" @click.stop>
                 <ActionIconButton
-                  v-if="canViewPriceOffers"
+                  v-if="row.kind === 'product' && canViewPriceOffers"
                   :label="t('priceOffers.open')"
                   :icon="Money"
-                  @click="openPriceOffers(row)"
+                  @click="openPriceOffers(row.product)"
                 />
-                <ActionIconButton :label="t('products.openProduct')" :icon="View" @click="openCrosses(row.id)" />
+                <ActionIconButton :label="row.kind === 'product' ? t('products.openProduct') : t('products.openCandidate')" :icon="View" @click="openCatalogueResultDetails(row)" />
               </div>
             </div>
 
@@ -306,25 +356,31 @@
               </div>
               <div>
                 <dt>{{ t('products.stock') }}</dt>
-                <dd><ProductStockCell :stock="row.stock" /></dd>
+                <dd><ProductStockCell v-if="row.kind === 'product'" :stock="row.product.stock" /><span v-else>—</span></dd>
               </div>
               <div>
                 <dt>{{ t('products.dimensions') }}</dt>
-                <dd v-if="row.dimensions">
-                  {{ formatDimension(row.dimensions.length) }} × {{ formatDimension(row.dimensions.width) }} ×
-                  {{ formatDimension(row.dimensions.height) }} {{ dimensionMeasureUnitLabel(row.dimensions.unit) }}
+                <dd v-if="row.kind === 'product' && row.product.dimensions">
+                  {{ formatDimension(row.product.dimensions.length) }} × {{ formatDimension(row.product.dimensions.width) }} ×
+                  {{ formatDimension(row.product.dimensions.height) }} {{ dimensionMeasureUnitLabel(row.product.dimensions.unit) }}
                 </dd>
                 <dd v-else>—</dd>
               </div>
               <div>
                 <dt>{{ t('products.weight') }}</dt>
-                <dd v-if="row.weight">{{ row.weight.value }} {{ weightMeasureUnitLabel(row.weight.unit, row.weight.value) }}</dd>
+                <dd v-if="row.kind === 'product' && row.product.weight">{{ row.product.weight.value }} {{ weightMeasureUnitLabel(row.product.weight.unit, row.product.weight.value) }}</dd>
                 <dd v-else>—</dd>
               </div>
             </dl>
           </article>
 
-          <el-empty v-if="!isLoading && products.length === 0" :description="t('products.notFound')" :image-size="64" />
+          <el-empty
+            v-if="!isLoading && catalogueResults.length === 0"
+            :description="t('products.notFound')"
+            :image-size="64"
+          />
+        </div>
+
         </div>
 
         <footer class="product-results-footer">
@@ -354,9 +410,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Clock, Filter, InfoFilled, Money, Plus, RefreshLeft, Search, View } from '@element-plus/icons-vue'
+import { ArrowDown, Clock, Money, Plus, RefreshLeft, Search, View } from '@element-plus/icons-vue'
 import { useDebounceFn, useMediaQuery } from '@vueuse/core'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
+import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
@@ -364,29 +421,27 @@ import ProductQuickViewDrawer from '@/components/products/ProductQuickViewDrawer
 import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
+import ProducerMultiSelector from '@/components/selectors/ProducerMultiSelector.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { getProducersByIds } from '@/services/api/producers.ts'
 import {
+  type CatalogueCandidateSearchModel,
+  type SearchMatchType,
+  type SearchTarget,
+  searchCatalogue,
   searchProducts,
   searchProductsBySku,
-  type SkuSearchMode,
 } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useProductSearchHistory } from '@/composables/useProductSearchHistory.ts'
 import {
   dimensionMeasureUnitLabel,
-  dimensionSearchUnitOptions,
-  dimensionUnitLabel,
   weightMeasureUnitLabel,
 } from '@/utils/measurementUnits.ts'
 import { useI18n } from '@/i18n'
-import {
-  loadProductSearchPreferences,
-  productPageSearchPreferencesKey,
-  saveProductSearchPreferences,
-  type ProductSearchMode,
-} from '@/utils/productSearchPreferences.ts'
+import { loadCatalogueSearchPreferences, saveCatalogueSearchPreferences } from '@/utils/catalogueSearchPreferences.ts'
+import { resolveSkuHighlight } from '@/utils/searchHighlights.ts'
 
 interface ProductSearchHistoryItem {
   value: string
@@ -394,118 +449,159 @@ interface ProductSearchHistoryItem {
 
 interface ProductSearchForm {
   query: string
-  searchMode: ProductSearchMode
-  skuSearchMode: SkuSearchMode
-  producerId?: number
-  lengthMin?: number
-  lengthMax?: number
-  widthMin?: number
-  widthMax?: number
-  heightMin?: number
-  heightMax?: number
-  dimensionUnit: string
+  targets: SearchTarget[]
+  skuModes: SearchMatchType[]
+  nameModes: SearchMatchType[]
+  includeHighlights: boolean
+  producerIds: number[]
 }
+
+type SearchPreset = 'Exact' | 'Normal' | 'Broad'
+
+type CatalogueResultRow =
+  | {
+      key: string
+      kind: 'product'
+      sku: string
+      producerId: number
+      product: ProductSearchModel
+    }
+  | {
+      key: string
+      kind: 'candidate'
+      sku: string
+      producerId: number
+      candidate: CatalogueCandidateSearchModel
+    }
 
 const route = useRoute()
 const router = useRouter()
 const { locale, t } = useI18n()
 
 const products = ref<ProductSearchModel[]>([])
+const catalogueCandidates = ref<CatalogueCandidateSearchModel[]>([])
+const productsTotal = ref(0)
+const candidatesTotal = ref(0)
 const page = ref(0)
 const size = ref(20)
-const sortBy = ref<string>()
+const productSortBy = ref<string[]>([])
+const candidateSortBy = ref<string[]>([])
 const hasNext = ref(false)
 const isLoading = ref(false)
 const producerNames = ref<Record<number, string>>({})
-const filtersDrawerOpen = ref(false)
-const skipNextDrawerCloseApply = ref(false)
 const createDialogOpen = ref(false)
 const priceOffersDialogOpen = ref(false)
 const selectedPriceProduct = ref<ProductSearchModel | null>(null)
 const quickViewOpen = ref(false)
 const selectedQuickProduct = ref<ProductSearchModel | null>(null)
 const mobileSearchCollapsed = ref(false)
+const searchSettingsOpen = ref(false)
+const selectedResultKey = ref<string | null>(null)
+const resultsScroll = ref<HTMLElement | null>(null)
 const isMobileViewport = useMediaQuery('(max-width: 760px)')
 const { hasPermission } = usePermissions()
 const canCreateProducts = computed(() => hasPermission('ARTICLES_CREATE'))
 const canViewPriceOffers = computed(() => hasPermission('PRICES_GET_DETAILED'))
+const canReviewCandidates = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))
 const { searchHistory, rememberSearch: rememberSearchInHistory } = useProductSearchHistory()
 let productsRequestId = 0
 let suspendAutoSearch = false
-let searchPreferences = loadProductSearchPreferences(productPageSearchPreferencesKey)
+let searchPreferences = loadCatalogueSearchPreferences()
 
 const form = reactive<ProductSearchForm>({
   query: '',
-  searchMode: searchPreferences.searchMode,
-  skuSearchMode: searchPreferences.skuSearchMode,
-  dimensionUnit: 'Meter',
+  targets: [...searchPreferences.targets],
+  skuModes: [...searchPreferences.skuModes],
+  nameModes: [...searchPreferences.nameModes],
+  includeHighlights: searchPreferences.includeHighlights,
+  producerIds: [],
 })
 
-const skuSearchModes: SkuSearchMode[] = ['Full', 'Exact', 'StartsWith', 'Contains', 'Fuzzy']
-const skuSearchModeOptions = computed(() => skuSearchModes.map((value) => ({
+const searchMatchTypes: SearchMatchType[] = ['Exact', 'StartsWith', 'Contains', 'Fuzzy']
+const searchPresets: Record<SearchPreset, { sku: SearchMatchType[]; name: SearchMatchType[] }> = {
+  Exact: { sku: ['Exact'], name: ['Exact'] },
+  Normal: { sku: ['Exact', 'StartsWith', 'Contains'], name: ['Exact', 'StartsWith', 'Fuzzy'] },
+  Broad: { sku: [...searchMatchTypes], name: [...searchMatchTypes] },
+}
+const matchTypeOptions = computed(() => searchMatchTypes.map((value) => ({
   value,
   label: t(`products.skuSearchModes.${value}`),
 })))
-
-const searchPlaceholder = computed(() => (
-  form.searchMode === 'sku' ? t('products.skuPlaceholder') : t('products.searchPlaceholder')
+const targetOptions = computed<{ value: SearchTarget; label: string }[]>(() => [
+  { value: 'Products', label: t('products.catalogueProducts') },
+  { value: 'CatalogueCandidates', label: t('products.catalogueCandidates') },
+])
+const searchPresetOptions = computed<{ value: SearchPreset; label: string }[]>(() => [
+  { value: 'Exact', label: t('products.searchPresets.Exact') },
+  { value: 'Normal', label: t('products.searchPresets.Normal') },
+  { value: 'Broad', label: t('products.searchPresets.Broad') },
+])
+const currentSearchPreset = computed<SearchPreset | 'Custom'>(() => {
+  const preset = (Object.entries(searchPresets) as [SearchPreset, (typeof searchPresets)[SearchPreset]][])
+    .find(([, modes]) => sameModes(form.skuModes, modes.sku) && sameModes(form.nameModes, modes.name))
+  return preset?.[0] ?? 'Custom'
+})
+const searchSettingsSummary = computed(() => {
+  const preset = t(`products.searchPresets.${currentSearchPreset.value}`)
+  return t('products.searchSettingsSummary', {
+    preset,
+    sku: form.skuModes.length,
+    name: form.nameModes.length,
+  })
+})
+const catalogueResults = computed<CatalogueResultRow[]>(() => [
+  ...(form.targets.includes('Products')
+    ? products.value.map((product) => ({
+        key: `product-${product.id}`,
+        kind: 'product' as const,
+        sku: product.sku,
+        producerId: product.producerId,
+        product,
+      }))
+    : []),
+  ...(form.targets.includes('CatalogueCandidates')
+    ? catalogueCandidates.value.map((candidate) => ({
+        key: `candidate-${candidate.id}`,
+        kind: 'candidate' as const,
+        sku: candidate.sku,
+        producerId: candidate.producerId,
+        candidate,
+      }))
+    : []),
+])
+const totalResults = computed(() => (
+  (form.targets.includes('Products') ? productsTotal.value : 0)
+  + (form.targets.includes('CatalogueCandidates') ? candidatesTotal.value : 0)
 ))
+const hasExactTotal = computed(() => canReviewCandidates.value)
 
 const resultTitle = computed(() => {
   const query = form.query.trim()
-  if (query) return form.searchMode === 'sku'
-    ? t('products.skuSearchResult', { query })
-    : t('products.queryResult', { query })
-  if (form.searchMode === 'sku') return t('products.enterSku')
-  return activeFilters.value.length > 0 ? t('products.filteredProducts') : t('products.allProducts')
+  if (query) return t('products.queryResult', { query })
+  return form.producerIds.length > 0 ? t('products.filteredProducts') : t('products.allProducts')
 })
 
-const dimensionFiltersCount = computed(() => {
-  if (form.searchMode === 'sku') return 0
-
-  return [
-    form.lengthMin,
-    form.lengthMax,
-    form.widthMin,
-    form.widthMax,
-    form.heightMin,
-    form.heightMax,
-    form.dimensionUnit !== 'Meter' ? form.dimensionUnit : undefined,
-  ].filter((value) => value !== undefined && value !== null && value !== '').length
-})
-
-const activeFilters = computed(() => {
-  const filters: { key: keyof ProductSearchForm; label: string }[] = []
-
-  if (form.producerId) filters.push({ key: 'producerId', label: t('products.producerFilter', { value: producerName(form.producerId) }) })
-  if (form.searchMode === 'sku') return filters
-
-  if (form.dimensionUnit !== 'Meter') filters.push({ key: 'dimensionUnit', label: t('products.unitFilter', { value: dimensionUnitLabel(form.dimensionUnit) }) })
-  if (form.lengthMin !== undefined) filters.push({ key: 'lengthMin', label: t('products.minFilter', { name: t('products.length'), value: formatDimension(form.lengthMin) }) })
-  if (form.lengthMax !== undefined) filters.push({ key: 'lengthMax', label: t('products.maxFilter', { name: t('products.length'), value: formatDimension(form.lengthMax) }) })
-  if (form.widthMin !== undefined) filters.push({ key: 'widthMin', label: t('products.minFilter', { name: t('products.width'), value: formatDimension(form.widthMin) }) })
-  if (form.widthMax !== undefined) filters.push({ key: 'widthMax', label: t('products.maxFilter', { name: t('products.width'), value: formatDimension(form.widthMax) }) })
-  if (form.heightMin !== undefined) filters.push({ key: 'heightMin', label: t('products.minFilter', { name: t('products.height'), value: formatDimension(form.heightMin) }) })
-  if (form.heightMax !== undefined) filters.push({ key: 'heightMax', label: t('products.maxFilter', { name: t('products.height'), value: formatDimension(form.heightMax) }) })
-
-  return filters
+const searchValidationMessage = computed(() => {
+  if (form.targets.length === 0) return t('products.selectSearchTarget')
+  if (form.skuModes.length === 0 && form.nameModes.length === 0) return t('products.selectSearchField')
+  const queryLength = form.query.trim().length
+  const selectedModes = [...form.skuModes, ...form.nameModes]
+  if (queryLength > 0 && queryLength < 4 && selectedModes.every((mode) => mode === 'Fuzzy')) {
+    return t('products.fuzzyMinimum')
+  }
+  return ''
 })
 
 const mobileSearchSummary = computed(() => {
-  const parts = [t(form.searchMode === 'sku' ? 'products.searchSku' : 'products.searchAll')]
-  if (form.searchMode === 'sku') {
-    parts.push(t(`products.skuSearchModes.${form.skuSearchMode}`))
-  }
+  const parts = [form.targets.map((target) => targetOptions.value.find((option) => option.value === target)?.label).join(', ')]
   const query = form.query.trim()
   if (query) parts.push(query)
-  if (activeFilters.value.length > 0) {
-    parts.push(t('products.filterCount', { count: activeFilters.value.length }))
-  }
+  if (form.producerIds.length > 0) parts.push(t('products.producersSelected', { count: form.producerIds.length }))
   return parts.join(' · ')
 })
 
 const debouncedProductSearch = useDebounceFn(async () => {
-  if (suspendAutoSearch) return
+  if (suspendAutoSearch || searchValidationMessage.value) return
 
   const query = form.query.trim()
   if (query === (queryString('query') ?? '').trim()) return
@@ -516,6 +612,20 @@ const debouncedProductSearch = useDebounceFn(async () => {
 
 function formatDimension(value: number) {
   return value.toLocaleString(locale.value)
+}
+
+function sameModes(left: SearchMatchType[], right: SearchMatchType[]) {
+  return left.length === right.length && right.every((mode) => left.includes(mode))
+}
+
+function targetCount(target: SearchTarget) {
+  return target === 'Products' ? productsTotal.value : candidatesTotal.value
+}
+
+async function applySearchPreset(preset: SearchPreset) {
+  form.skuModes = [...searchPresets[preset].sku]
+  form.nameModes = [...searchPresets[preset].name]
+  await applySearchConfiguration()
 }
 
 function rememberSearch(query: string) {
@@ -541,6 +651,118 @@ function selectSearchHistory(item: ProductSearchHistoryItem) {
 
 function producerName(id: number) {
   return producerNames.value[id] ?? '—'
+}
+
+function candidateNames(candidate: CatalogueCandidateSearchModel) {
+  return candidate.names.length > 0
+    ? candidate.names.join(' · ')
+    : t('products.noCandidateNames')
+}
+
+function highlightFragments(
+  highlights: Record<string, string[]> | null | undefined,
+  field: string,
+  fallback: string,
+) {
+  const fragments = highlights?.[field]?.filter(Boolean)
+  return fragments && fragments.length > 0 ? fragments : [fallback]
+}
+
+function resultSkuHighlight(row: CatalogueResultRow) {
+  const source = row.kind === 'product' ? row.product : row.candidate
+  return resolveSkuHighlight(
+    row.sku,
+    source.highlights?.sku ?? source.highlights?.normalizedSku,
+  )
+}
+
+function resultNameFragments(row: CatalogueResultRow) {
+  return row.kind === 'product'
+    ? highlightFragments(row.product.highlights, 'name', row.product.name)
+    : highlightFragments(row.candidate.highlights, 'names', candidateNames(row.candidate))
+}
+
+function catalogueResultRowClass({ row }: { row: CatalogueResultRow }) {
+  return [
+    row.kind === 'candidate' ? 'catalogue-result-row--candidate' : 'catalogue-result-row--product',
+    selectedResultKey.value === row.key ? 'catalogue-result-row--selected' : '',
+  ].filter(Boolean).join(' ')
+}
+
+function openCatalogueResult(row: CatalogueResultRow) {
+  selectedResultKey.value = row.key
+  if (row.kind === 'product') {
+    openQuickView(row.product)
+    return
+  }
+  openCandidate(row.candidate)
+}
+
+function openCatalogueResultDetails(row: CatalogueResultRow) {
+  selectedResultKey.value = row.key
+  if (row.kind === 'product') {
+    openCrosses(row.product.id)
+    return
+  }
+  openCandidate(row.candidate)
+}
+
+function ensureSelectedResult() {
+  if (!catalogueResults.value.some((row) => row.key === selectedResultKey.value)) {
+    selectedResultKey.value = catalogueResults.value[0]?.key ?? null
+  }
+}
+
+function selectResultAt(index: number) {
+  const row = catalogueResults.value[index]
+  if (!row) return
+  selectedResultKey.value = row.key
+  void nextTick(() => {
+    resultsScroll.value
+      ?.querySelector('.catalogue-result-row--selected, .product-mobile-row--selected')
+      ?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+function handleResultsKeydown(event: KeyboardEvent) {
+  if (event.target !== event.currentTarget || catalogueResults.value.length === 0) return
+  const currentIndex = Math.max(0, catalogueResults.value.findIndex((row) => row.key === selectedResultKey.value))
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+    event.preventDefault()
+    if (event.key === 'Home') selectResultAt(0)
+    else if (event.key === 'End') selectResultAt(catalogueResults.value.length - 1)
+    else selectResultAt(Math.min(
+      catalogueResults.value.length - 1,
+      Math.max(0, currentIndex + (event.key === 'ArrowDown' ? 1 : -1)),
+    ))
+    return
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    const row = catalogueResults.value[currentIndex]
+    if (!row) return
+    if (event.ctrlKey || event.metaKey) openCatalogueResultDetails(row)
+    else openCatalogueResult(row)
+    return
+  }
+
+  if (event.key === 'Escape' && quickViewOpen.value) {
+    event.preventDefault()
+    quickViewOpen.value = false
+    resultsScroll.value?.focus()
+  }
+}
+
+function openCandidate(candidate: CatalogueCandidateSearchModel) {
+  router.push({
+    name: 'catalogue-enrichment',
+    query: {
+      sku: candidate.sku,
+      candidateId: candidate.id,
+    },
+  })
 }
 
 function openCrosses(productId: number) {
@@ -579,87 +801,92 @@ function queryNumber(name: string) {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-function querySkuSearchMode(fallback: SkuSearchMode): SkuSearchMode {
-  const value = queryString('skuSearchMode')
-  return skuSearchModes.includes(value as SkuSearchMode)
-    ? value as SkuSearchMode
-    : fallback
+function queryValues<T extends string>(name: string, allowed: T[]) {
+  const value = queryString(name)
+  if (!value) return []
+  return [...new Set(value.split(',').filter((item): item is T => allowed.includes(item as T)))]
+}
+
+function queryNumbers(name: string) {
+  return (queryString(name) ?? '')
+    .split(',')
+    .map(Number)
+    .filter((value) => Number.isInteger(value) && value > 0)
 }
 
 function syncFormFromRoute() {
   form.query = queryString('query') ?? ''
-  form.searchMode = queryString('searchMode') === 'sku'
-    ? 'sku'
-    : searchPreferences.searchMode
-  form.skuSearchMode = querySkuSearchMode(searchPreferences.skuSearchMode)
-  rememberSearchPreferences()
-  form.producerId = queryNumber('producerId')
-  if (form.searchMode === 'sku') {
-    clearDimensionFilters()
-  } else {
-    form.lengthMin = queryNumber('lengthMin')
-    form.lengthMax = queryNumber('lengthMax')
-    form.widthMin = queryNumber('widthMin')
-    form.widthMax = queryNumber('widthMax')
-    form.heightMin = queryNumber('heightMin')
-    form.heightMax = queryNumber('heightMax')
-    form.dimensionUnit = queryString('dimensionUnit') ?? 'Meter'
-  }
+  const routeTargets = queryValues('targets', ['Products', 'CatalogueCandidates'] satisfies SearchTarget[])
+  form.targets = canReviewCandidates.value
+    ? routeTargets.length > 0 ? routeTargets : [...searchPreferences.targets]
+    : ['Products']
+  const routeSkuModes = queryValues('skuModes', searchMatchTypes)
+  const routeNameModes = queryValues('nameModes', searchMatchTypes)
+  form.skuModes = routeSkuModes.length > 0 || routeNameModes.length > 0
+    ? routeSkuModes
+    : [...searchPreferences.skuModes]
+  form.nameModes = routeSkuModes.length > 0 || routeNameModes.length > 0
+    ? routeNameModes
+    : [...searchPreferences.nameModes]
+  form.includeHighlights = searchPreferences.includeHighlights
+  const requestedProducerIds = queryNumbers('producerIds')
+  form.producerIds = canReviewCandidates.value ? requestedProducerIds : requestedProducerIds.slice(0, 1)
   page.value = queryNumber('page') ?? 0
   size.value = queryNumber('size') ?? 20
-  sortBy.value = queryString('sortBy')
+  productSortBy.value = (queryString('productSort') ?? '').split(',').filter(Boolean)
+  candidateSortBy.value = (queryString('candidateSort') ?? '').split(',').filter(Boolean)
 }
 
 function buildRouteQuery(resetPage: boolean) {
-  const useDimensionFilters = form.searchMode === 'all'
-
   return {
     query: form.query.trim() || undefined,
-    searchMode: form.searchMode === 'sku' ? form.searchMode : undefined,
-    skuSearchMode: form.searchMode === 'sku' && form.skuSearchMode !== 'Full'
-      ? form.skuSearchMode
-      : undefined,
-    producerId: form.producerId,
-    lengthMin: useDimensionFilters ? form.lengthMin : undefined,
-    lengthMax: useDimensionFilters ? form.lengthMax : undefined,
-    widthMin: useDimensionFilters ? form.widthMin : undefined,
-    widthMax: useDimensionFilters ? form.widthMax : undefined,
-    heightMin: useDimensionFilters ? form.heightMin : undefined,
-    heightMax: useDimensionFilters ? form.heightMax : undefined,
-    dimensionUnit: useDimensionFilters ? form.dimensionUnit || undefined : undefined,
-    sortBy: sortBy.value,
+    targets: canReviewCandidates.value ? form.targets.join(',') : undefined,
+    skuModes: canReviewCandidates.value ? form.skuModes.join(',') : undefined,
+    nameModes: canReviewCandidates.value ? form.nameModes.join(',') : undefined,
+    producerIds: form.producerIds.length > 0 ? form.producerIds.join(',') : undefined,
+    productSort: productSortBy.value.length > 0 ? productSortBy.value.join(',') : undefined,
+    candidateSort: candidateSortBy.value.length > 0 ? candidateSortBy.value.join(',') : undefined,
     page: resetPage ? 0 : page.value,
     size: size.value,
   }
 }
 
 async function applyFilters(replaceRoute = false) {
-  if (filtersDrawerOpen.value) {
-    skipNextDrawerCloseApply.value = true
-  }
-
-  filtersDrawerOpen.value = false
+  const previousPath = route.fullPath
   const navigate = replaceRoute ? router.replace : router.push
   await navigate({
     name: 'products',
     query: buildRouteQuery(true),
   })
+  if (route.fullPath === previousPath) await loadProducts()
 }
 
-async function applySearchPreferences() {
+async function applySearchConfiguration() {
   rememberSearchPreferences()
   await applyFilters(true)
 }
 
 function rememberSearchPreferences() {
   searchPreferences = {
-    searchMode: form.searchMode,
-    skuSearchMode: form.skuSearchMode,
+    targets: [...form.targets],
+    skuModes: [...form.skuModes],
+    nameModes: [...form.nameModes],
+    includeHighlights: form.includeHighlights,
   }
-  saveProductSearchPreferences(productPageSearchPreferencesKey, searchPreferences)
+  saveCatalogueSearchPreferences(searchPreferences)
+}
+
+function isLastSearchMode(field: 'sku' | 'name', mode: SearchMatchType) {
+  const modes = field === 'sku' ? form.skuModes : form.nameModes
+  return modes.includes(mode) && form.skuModes.length + form.nameModes.length === 1
+}
+
+function setSingleProducer(producerId?: number) {
+  form.producerIds = producerId ? [producerId] : []
 }
 
 async function submitSearch() {
+  if (searchValidationMessage.value) return
   rememberSearch(form.query)
   await applyFilters()
   if (isMobileViewport.value) {
@@ -670,16 +897,9 @@ async function submitSearch() {
 async function resetFilters() {
   suspendAutoSearch = true
   form.query = ''
-  form.producerId = undefined
-  form.lengthMin = undefined
-  form.lengthMax = undefined
-  form.widthMin = undefined
-  form.widthMax = undefined
-  form.heightMin = undefined
-  form.heightMax = undefined
-  form.dimensionUnit = 'Meter'
-  sortBy.value = undefined
-  filtersDrawerOpen.value = false
+  form.producerIds = []
+  productSortBy.value = []
+  candidateSortBy.value = []
 
   await router.push({
     name: 'products',
@@ -688,42 +908,40 @@ async function resetFilters() {
   suspendAutoSearch = false
 }
 
-async function clearFilter(key: keyof ProductSearchForm) {
-  suspendAutoSearch = true
-  if (key === 'query') {
-    form.query = ''
-  } else if (key === 'searchMode') {
-    form.searchMode = 'all'
-  } else if (key === 'skuSearchMode') {
-    form.skuSearchMode = 'Full'
-  } else if (key === 'dimensionUnit') {
-    form.dimensionUnit = 'Meter'
-  } else {
-    form[key] = undefined
-  }
-
-  await applyFilters()
-  suspendAutoSearch = false
+function sortField(value: string) {
+  return value.endsWith('_desc') ? value.slice(0, -5) : value
 }
 
-function clearDimensionFilters() {
-  form.lengthMin = undefined
-  form.lengthMax = undefined
-  form.widthMin = undefined
-  form.widthMax = undefined
-  form.heightMin = undefined
-  form.heightMax = undefined
-  form.dimensionUnit = 'Meter'
+function activeSort() {
+  return form.targets.includes('Products') ? productSortBy.value : candidateSortBy.value
 }
 
-async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
-  if (!event.prop || !event.order) {
-    sortBy.value = undefined
-  } else {
-    sortBy.value = event.order === 'descending'
-      ? `${event.prop}_desc`
-      : event.prop
-  }
+function sortDirection(field: string): 'asc' | 'desc' | undefined {
+  const value = activeSort().find((item) => sortField(item) === field)
+  if (!value) return undefined
+  return value.endsWith('_desc') ? 'desc' : 'asc'
+}
+
+function sortPriority(field: string) {
+  const currentSort = activeSort()
+  const index = currentSort.findIndex((item) => sortField(item) === field)
+  return index >= 0 && currentSort.length > 1 ? index + 1 : ''
+}
+
+async function toggleSort(field: string, event: MouseEvent) {
+  const currentSort = activeSort()
+  const current = currentSort.find((item) => sortField(item) === field)
+  const next = !current ? field : current.endsWith('_desc') ? undefined : `${field}_desc`
+  const remaining = currentSort.filter((item) => sortField(item) !== field)
+  const nextSort = event.shiftKey
+    ? next ? [...remaining, next] : remaining
+    : next ? [next] : []
+  const candidateFields = new Set(['sku', 'producerId'])
+
+  productSortBy.value = form.targets.includes('Products') ? nextSort : []
+  candidateSortBy.value = form.targets.includes('CatalogueCandidates')
+    ? nextSort.filter((item) => candidateFields.has(sortField(item)))
+    : []
 
   await router.push({
     name: 'products',
@@ -736,35 +954,66 @@ async function loadProducts() {
   isLoading.value = true
   try {
     const query = form.query.trim()
-    const resp = form.searchMode === 'sku'
+    if (canReviewCandidates.value) {
+      if (searchValidationMessage.value) return
+      const response = await searchCatalogue({
+        query: query || undefined,
+        targets: form.targets,
+        fields: {
+          sku: form.skuModes,
+          name: form.nameModes,
+        },
+        producerIds: form.producerIds,
+        includeHighlights: form.includeHighlights && Boolean(query),
+        page: page.value,
+        size: size.value,
+        sortBy: {
+          products: productSortBy.value,
+          catalogueCandidates: candidateSortBy.value,
+        },
+      })
+
+      if (currentRequestId !== productsRequestId) return
+      products.value = response.products.items
+      catalogueCandidates.value = response.catalogueCandidates.items
+      productsTotal.value = response.products.total
+      candidatesTotal.value = response.catalogueCandidates.total
+      const nextOffset = (page.value + 1) * size.value
+      hasNext.value = (
+        form.targets.includes('Products') && nextOffset < response.products.total
+      ) || (
+        form.targets.includes('CatalogueCandidates') && nextOffset < response.catalogueCandidates.total
+      )
+      await loadProducerNames(response.products.items, form.producerIds, response.catalogueCandidates.items)
+      return
+    }
+
+    const onlySku = form.nameModes.length === 0 && form.skuModes.length > 0
+    const resp = onlySku
       ? await searchProductsBySku({
           sku: query,
-          producerId: form.producerId,
-          searchMode: form.skuSearchMode,
+          producerId: form.producerIds[0],
+          searchMode: form.skuModes.length === 1 ? form.skuModes[0] : 'Full',
           page: page.value,
           size: size.value,
-          sortBy: sortBy.value ? [sortBy.value] : undefined,
+          sortBy: productSortBy.value,
         })
       : await searchProducts({
           query: query || undefined,
-          producerId: form.producerId,
-          lengthMin: form.lengthMin,
-          lengthMax: form.lengthMax,
-          widthMin: form.widthMin,
-          widthMax: form.widthMax,
-          heightMin: form.heightMin,
-          heightMax: form.heightMax,
-          dimensionUnit: form.dimensionUnit,
+          producerId: form.producerIds[0],
           page: page.value,
           size: size.value,
-          sortBy: sortBy.value ? [sortBy.value] : undefined,
+          sortBy: productSortBy.value,
         })
 
     if (currentRequestId !== productsRequestId) return
 
     products.value = resp.products
+    catalogueCandidates.value = []
+    productsTotal.value = resp.products.length
+    candidatesTotal.value = 0
     hasNext.value = resp.products.length === size.value
-    await loadProducerNames(resp.products, form.producerId)
+    await loadProducerNames(resp.products, form.producerIds)
   } finally {
     if (currentRequestId === productsRequestId) {
       isLoading.value = false
@@ -772,10 +1021,15 @@ async function loadProducts() {
   }
 }
 
-async function loadProducerNames(items: ProductSearchModel[], selectedProducerId?: number) {
+async function loadProducerNames(
+  items: ProductSearchModel[],
+  selectedProducerIds: number[] = [],
+  candidates: CatalogueCandidateSearchModel[] = [],
+) {
   const ids = [...new Set([
     ...items.map((product) => product.producerId),
-    ...(selectedProducerId ? [selectedProducerId] : []),
+    ...candidates.map((candidate) => candidate.producerId),
+    ...selectedProducerIds,
   ])]
     .filter((id) => !producerNames.value[id])
 
@@ -798,20 +1052,15 @@ watch(() => form.query, (query) => {
   void debouncedProductSearch()
 })
 
-watch(() => form.producerId, (producerId) => {
-  if (suspendAutoSearch || producerId === queryNumber('producerId')) return
+watch(() => form.producerIds, (producerIds) => {
+  if (suspendAutoSearch || producerIds.join(',') === (queryString('producerIds') ?? '')) return
   void applyFilters(true)
-})
+}, { deep: true })
 
-watch(filtersDrawerOpen, async (isOpen, wasOpen) => {
-  if (isOpen || !wasOpen) return
-
-  if (skipNextDrawerCloseApply.value) {
-    skipNextDrawerCloseApply.value = false
-    return
+watch(catalogueResults, (rows) => {
+  if (!rows.some((row) => row.key === selectedResultKey.value)) {
+    selectedResultKey.value = null
   }
-
-  await applyFilters()
 })
 
 watch(page, async () => {
@@ -834,9 +1083,7 @@ onMounted(async () => {
   await loadProducts()
   if (isMobileViewport.value && (
     form.query.trim()
-    || form.producerId
-    || form.searchMode === 'sku'
-    || dimensionFiltersCount.value > 0
+    || form.producerIds.length > 0
   )) {
     mobileSearchCollapsed.value = true
   }
@@ -885,22 +1132,6 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.product-active-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  border-top: 1px solid #eceff2;
-  padding-top: 10px;
-}
-
-.product-active-filters__label {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .product-results-panel {
   display: flex;
   flex: 1;
@@ -938,6 +1169,62 @@ onMounted(async () => {
   font-weight: 600;
 }
 
+.product-results-aside {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.product-results-tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.product-highlight-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 11px;
+}
+
+.product-highlight-toggle__sample {
+  color: #047857;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.product-sort-hint {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.product-sort-hint kbd {
+  border: 1px solid #cbd5e1;
+  border-bottom-color: #94a3b8;
+  border-radius: 4px;
+  background: #f8fafc;
+  padding: 1px 5px;
+  color: #334155;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.catalogue-results-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.catalogue-results-scroll:focus-visible {
+  outline: 2px solid #86bda4;
+  outline-offset: -2px;
+}
+
 .product-results-footer {
   flex: 0 0 auto;
   border-top: 1px solid #dfe3e8;
@@ -946,8 +1233,7 @@ onMounted(async () => {
 }
 
 .products-table {
-  flex: 1;
-  min-height: 0;
+  width: 100%;
 }
 
 .products-table :deep(.el-table__header th) {
@@ -966,141 +1252,251 @@ onMounted(async () => {
   background: #fafbfc;
 }
 
+.products-table :deep(.catalogue-result-row--selected > td.el-table__cell) {
+  background: #eef6f1;
+}
+
 .products-table :deep(.el-table__cell) {
   padding-top: 9px;
   padding-bottom: 9px;
   color: #1e293b;
 }
 
-:deep(.product-filters-drawer .el-drawer__header) {
-  margin-bottom: 0;
-  border-bottom: 1px solid #dfe3e8;
-  padding: 18px 20px;
-}
-
-:deep(.product-filters-drawer .el-drawer__body) {
-  padding: 0;
-}
-
-.product-filter-drawer {
-  display: flex;
-  height: 100%;
-  flex-direction: column;
-}
-
-.product-filter-drawer__body {
-  flex: 1;
-  overflow: auto;
-  padding: 20px;
-}
-
-.product-filter-section {
-  min-width: 0;
-}
-
-.product-filter-section__header {
-  display: flex;
+.sortable-column-header {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border-bottom: 1px solid #dfe3e8;
-  padding-bottom: 12px;
-  color: #1e293b;
-  font-size: 15px;
-  font-weight: 650;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
-.product-filter-unit {
-  padding: 16px 0 18px;
+.sortable-column-header:hover,
+.sortable-column-header:focus-visible {
+  color: #0f172a;
 }
 
-.dimension-filter-list {
-  border-top: 1px solid #eceff2;
+.sortable-column-header:focus-visible {
+  outline: 2px solid #86bda4;
+  outline-offset: 3px;
 }
 
-.dimension-filter-row {
+.sortable-column-header span {
+  color: #047857;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.sortable-column-header:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
+.catalogue-search-primary {
   display: grid;
-  gap: 10px;
-  border-bottom: 1px solid #eceff2;
-  padding: 14px 0;
-}
-
-.dimension-filter-row__title {
-  color: #1e293b;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.dimension-range-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(320px, 1fr) minmax(260px, 360px) auto;
+  align-items: end;
   gap: 12px;
 }
 
-.dimension-range-field {
-  display: grid;
-  gap: 6px;
+.catalogue-search-query,
+.catalogue-search-producers {
   min-width: 0;
 }
 
-.dimension-range-field > span {
+.catalogue-search-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.catalogue-search-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+
+.catalogue-search-targets {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.catalogue-search-targets legend,
+.catalogue-search-option-group legend {
+  margin-bottom: 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.catalogue-search-targets :deep(.el-checkbox-group),
+.catalogue-search-option-group :deep(.el-checkbox-group) {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 3px;
+}
+
+.catalogue-search-targets :deep(.el-checkbox),
+.catalogue-search-option-group :deep(.el-checkbox) {
+  height: 24px;
+  margin-right: 0;
+}
+
+.catalogue-search-targets :deep(.el-checkbox__label),
+.catalogue-search-option-group :deep(.el-checkbox__label) {
+  padding-left: 6px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.catalogue-search-target-count {
+  margin-left: 4px;
   color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.catalogue-search-settings-toggle {
+  display: flex;
+  min-width: min(440px, 42vw);
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #334155;
+  text-align: right;
+  cursor: pointer;
+}
+
+.catalogue-search-settings-toggle > span {
+  display: grid;
+  min-width: 0;
+  justify-items: end;
+  gap: 2px;
+}
+
+.catalogue-search-settings-toggle strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.catalogue-search-settings-toggle em {
+  overflow: hidden;
+  max-width: 100%;
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalogue-search-settings-toggle > .el-icon {
+  flex: 0 0 auto;
+  transition: transform 140ms ease;
+}
+
+.catalogue-search-settings-toggle > .el-icon.is-open {
+  transform: rotate(180deg);
+}
+
+.catalogue-search-settings-toggle:hover strong,
+.catalogue-search-settings-toggle:focus-visible strong {
+  color: #047857;
+}
+
+.catalogue-search-settings-toggle:focus-visible {
+  outline: 2px solid #86bda4;
+  outline-offset: 3px;
+}
+
+.catalogue-search-options {
+  display: grid;
+  grid-template-columns: auto minmax(310px, 1fr) minmax(310px, 1fr);
+  gap: 18px;
+  margin-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+
+.catalogue-search-option-group {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0 0 0 18px;
+  border-left: 1px solid #e2e8f0;
+}
+
+.catalogue-search-presets {
+  min-width: 220px;
+}
+
+.catalogue-search-presets > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.catalogue-search-presets > div {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+}
+
+.catalogue-search-presets button {
+  border: 0;
+  border-right: 1px solid #cbd5e1;
+  background: #ffffff;
+  padding: 5px 9px;
+  color: #475569;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.catalogue-search-presets button:last-child {
+  border-right: 0;
+}
+
+.catalogue-search-presets button:hover,
+.catalogue-search-presets button:focus-visible {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.catalogue-search-presets button:focus-visible {
+  outline: 2px solid #86bda4;
+  outline-offset: -2px;
+}
+
+.catalogue-search-presets button.is-active {
+  background: #eef6f1;
+  color: #047857;
+  font-weight: 650;
+}
+
+.catalogue-search-validation {
+  margin: 8px 0 0;
+  color: #b42318;
   font-size: 12px;
   font-weight: 600;
 }
 
-.product-filter-drawer__footer {
-  border-top: 1px solid #dfe3e8;
-  background: #fff;
-  padding: 14px 20px;
-}
-
-:deep(.product-filters-drawer .el-form-item) {
-  margin-bottom: 0;
-}
-
-.product-search-toolbar {
-  display: grid;
-  grid-template-columns: minmax(520px, 1fr) auto 40px;
-  align-items: end;
-  gap: 12px;
-}
-
-.product-search-toolbar__search-group {
-  display: grid;
-  grid-template-columns: 190px minmax(280px, 1fr);
-  align-items: end;
-  gap: 10px;
+.catalogue-search-primary :deep(.el-select),
+.catalogue-search-primary :deep(.el-autocomplete) {
   min-width: 0;
-}
-
-.product-search-toolbar__search-group--sku {
-  grid-template-columns: 190px minmax(280px, 1fr) minmax(170px, 210px);
-}
-
-.product-search-toolbar__filter-group {
-  display: grid;
-  grid-template-columns: minmax(190px, 240px) max-content;
-  align-items: end;
-  gap: 10px;
-  min-width: 0;
-  border-left: 1px solid #e2e8f0;
-  padding-left: 12px;
-}
-
-.product-search-toolbar__mode,
-.product-search-toolbar__query,
-.product-search-toolbar__producer,
-.product-search-toolbar__sku-mode {
-  min-width: 0;
-}
-
-.product-search-toolbar__action {
-  align-self: end;
-}
-
-.product-search-toolbar__reset {
-  width: 40px;
-  padding: 0;
 }
 
 .product-search-history-option {
@@ -1146,6 +1542,30 @@ onMounted(async () => {
   outline-offset: 3px;
 }
 
+.product-identity__primary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.catalogue-source-label {
+  flex: 0 0 auto;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.catalogue-source-label--candidate {
+  border-color: #dbe3ef;
+  background: #f8fafc;
+  color: #002fa7;
+}
+
 .product-identity__name {
   overflow: hidden;
   color: #475569;
@@ -1154,6 +1574,12 @@ onMounted(async () => {
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.candidate-sku {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 750;
 }
 
 .products-mobile-list {
@@ -1176,6 +1602,10 @@ onMounted(async () => {
 
 .product-mobile-row:hover {
   background: #fafbfc;
+}
+
+.product-mobile-row--selected {
+  background: #eef6f1;
 }
 
 .product-mobile-row:focus-visible {
@@ -1292,30 +1722,39 @@ onMounted(async () => {
     padding: 12px;
   }
 
-  .product-search-toolbar {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
+  .catalogue-search-primary {
+    grid-template-columns: 1fr;
   }
 
-  .product-search-toolbar__search-group {
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(0, 1fr);
+  .catalogue-search-actions :deep(.el-button:first-child) {
+    flex: 1;
   }
 
-  .product-search-toolbar__filter-group {
-    grid-column: 1 / 3;
-    grid-template-columns: minmax(0, 1fr) max-content;
-    border-top: 1px solid #e2e8f0;
-    border-left: 0;
-    padding-top: 10px;
-    padding-left: 0;
+  .catalogue-search-options {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
-  .product-search-toolbar__action :deep(.el-button) {
+  .catalogue-search-toolbar {
+    display: grid;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .catalogue-search-settings-toggle {
     width: 100%;
+    min-width: 0;
+    text-align: left;
   }
 
-  .product-search-toolbar__reset {
-    width: 40px;
+  .catalogue-search-settings-toggle > span {
+    justify-items: start;
+  }
+
+  .catalogue-search-option-group {
+    border-top: 1px solid #eceff2;
+    border-left: 0;
+    padding: 10px 0 0;
   }
 
   .products-table--desktop {
@@ -1341,43 +1780,15 @@ onMounted(async () => {
     white-space: nowrap;
   }
 
-  :deep(.product-filters-drawer .el-drawer__header) {
-    padding: 16px 14px;
-  }
-
-  .product-filter-drawer__body {
-    padding: 10px 14px 20px;
-  }
-
-  .product-filter-drawer__footer {
-    padding: 12px 14px;
-  }
-
 }
 
 @media (min-width: 761px) and (max-width: 1180px) {
-  .product-search-toolbar {
-    grid-template-columns: minmax(0, 1fr) 40px;
+  .catalogue-search-primary {
+    grid-template-columns: minmax(280px, 1fr) minmax(240px, 320px) auto;
   }
 
-  .product-search-toolbar__search-group {
-    grid-column: 1 / -1;
-  }
-
-  .product-search-toolbar__filter-group {
-    grid-column: 1;
-    border-top: 1px solid #e2e8f0;
-    border-left: 0;
-    padding-top: 10px;
-    padding-left: 0;
-  }
-
-  .product-search-toolbar__action :deep(.el-button) {
-    width: 100%;
-  }
-
-  .product-search-toolbar__reset {
-    width: 40px;
+  .catalogue-search-options {
+    grid-template-columns: auto 1fr 1fr;
   }
 
 }

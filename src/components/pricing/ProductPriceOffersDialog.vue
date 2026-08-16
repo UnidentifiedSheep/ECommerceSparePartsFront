@@ -214,6 +214,7 @@ import { getCurrencies } from '@/services/api/currencies.ts'
 import { getPriceOffersForProduct } from '@/services/api/priceOffers.ts'
 import { getStorages } from '@/services/api/storages.ts'
 import { useI18n } from '@/i18n'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -360,7 +361,9 @@ async function loadCurrencies() {
   try {
     const resp = await getCurrencies()
     currencies.value = resp.currencies
-    selectedCurrencyId.value = props.currencyId ?? selectedCurrencyId.value ?? resp.currencies[0]?.id
+    selectedCurrencyId.value = props.currencyId
+      ?? selectedCurrencyId.value
+      ?? resolveDefaultCurrencyId(resp.currencies)
   } finally {
     isCurrenciesLoading.value = false
   }

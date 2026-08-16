@@ -220,6 +220,7 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import { calculateDeliveryCost } from '@/services/api/logistics.ts'
 import { editPurchase } from '@/services/api/purchases.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 
 interface EditPurchaseProductForm {
@@ -325,7 +326,7 @@ const canSave = computed(() => (
 ))
 
 function resetForm() {
-  form.currencyId = props.purchase?.currency.id ?? props.currencies[0]?.id
+  form.currencyId = props.purchase?.currency.id ?? resolveDefaultCurrencyId(props.currencies)
   form.purchaseDate = props.purchase
     ? toLocalDateTimeInputValue(new Date(props.purchase.purchaseDatetime))
     : toLocalDateTimeInputValue(new Date())

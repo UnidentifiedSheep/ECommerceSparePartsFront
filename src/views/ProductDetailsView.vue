@@ -23,6 +23,13 @@
           >
             {{ t('priceOffers.open') }}
           </el-button>
+          <el-button
+            v-if="product && canReviewCatalogueCandidates"
+            plain
+            @click="openCatalogueCandidates"
+          >
+            {{ t('catalogueReview.productCandidates') }}
+          </el-button>
           <el-dropdown trigger="click" @command="handleProductAction">
             <el-button :icon="MoreFilled" circle plain :aria-label="t('common.labels.actions')" />
             <template #dropdown>
@@ -180,6 +187,7 @@
       v-if="product && canEditProduct"
       v-model="editDialogOpen"
       :product="product"
+      :alternative-names="alternativeProductNames"
       @saved="refreshSummary"
     />
     <ProductReservationsDialog
@@ -261,6 +269,7 @@ import {
   deleteProductContent,
   deleteProductImage,
   editProduct,
+  getCatalogueCandidatesForReview,
   getProductById,
   getProductCharacteristics,
   getProductContent,
@@ -273,6 +282,7 @@ import {
 import { deleteStorageContent, getStorageContent } from '@/services/api/storages.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
+import { groupCatalogueCandidateNames, type CatalogueNameGroup } from '@/utils/catalogueCandidateNames.ts'
 
 type ProductTab = 'crosses' | 'storage' | 'content' | 'characteristics'
 
@@ -289,6 +299,7 @@ const crosses = ref<ProductModel[]>([])
 const storageContent = ref<StorageContentModel[]>([])
 const productContent = ref<ProductContentModel[]>([])
 const characteristics = ref<ProductCharacteristicModel[]>([])
+const alternativeProductNames = ref<CatalogueNameGroup[]>([])
 const activeTab = ref<ProductTab>('crosses')
 const loadedTabs = ref<Record<ProductTab, boolean>>({
   crosses: false,
@@ -341,6 +352,7 @@ const canDeleteImages = computed(() => hasPermission('ARTICLE_IMAGES_DELETE'))
 const canViewStorageContent = computed(() => hasPermission('STORAGES_CONTENT_GET_ALL'))
 const canViewProductReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
 const canViewPriceOffers = computed(() => hasPermission('PRICES_GET_DETAILED'))
+const canReviewCatalogueCandidates = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))
 const canCreateStorageContent = computed(() => hasPermission('STORAGES_CONTENT_CREATE'))
 const canEditStorageContent = computed(() => hasPermission('STORAGES_CONTENT_EDIT'))
 const canDeleteStorageContent = computed(() => hasPermission('STORAGES_CONTENT_DELETE'))
@@ -398,6 +410,14 @@ const characteristicsSummary = computed(() => {
 
 function openProduct(id: number) {
   router.push({ name: 'product-details', params: { id } })
+}
+
+function openCatalogueCandidates() {
+  if (!product.value) return
+  router.push({
+    name: 'catalogue-enrichment',
+    query: { productId: String(product.value.id) },
+  })
 }
 
 function openPairSelector() {
@@ -585,6 +605,22 @@ async function loadProduct() {
   product.value = (await getProductById(productId.value)).product
 }
 
+async function loadAlternativeProductNames() {
+  alternativeProductNames.value = []
+  if (!canReviewCatalogueCandidates.value || !canEditProduct.value) return
+
+  try {
+    const response = await getCatalogueCandidatesForReview({
+      productId: productId.value,
+      page: 0,
+      size: 100,
+    })
+    alternativeProductNames.value = groupCatalogueCandidateNames(response.candidates)
+  } catch {
+    alternativeProductNames.value = []
+  }
+}
+
 async function loadPair() {
   productPair.value = (await getProductPair(productId.value)).pair
 }
@@ -667,7 +703,7 @@ async function ensureTabLoaded(tab: ProductTab, force = false) {
 }
 
 async function refreshSummary() {
-  await Promise.all([loadProduct(), loadPair(), loadProductMetrics()])
+  await Promise.all([loadProduct(), loadPair(), loadProductMetrics(), loadAlternativeProductNames()])
 }
 
 async function refreshCrosses() {
@@ -707,6 +743,7 @@ function resetPageState() {
   storageContent.value = []
   productContent.value = []
   characteristics.value = []
+  alternativeProductNames.value = []
   page.value = 0
   storageContentPage.value = 0
   characteristicsPage.value = 0

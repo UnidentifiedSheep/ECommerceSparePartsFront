@@ -245,6 +245,7 @@ import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { calculateDeliveryCost } from '@/services/api/logistics.ts'
 import { createPurchase } from '@/services/api/purchases.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 
 interface CreatePurchaseItemForm {
@@ -345,7 +346,7 @@ const canSave = computed(() => (
 
 function resetForm() {
   form.supplier = undefined
-  form.currencyId = props.currencies[0]?.id
+  form.currencyId = resolveDefaultCurrencyId(props.currencies)
   form.storageName = undefined
   form.purchaseDate = toLocalDateTimeInputValue(new Date())
   form.comment = ''

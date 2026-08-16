@@ -222,6 +222,7 @@ import {
   type MarkupRangeModel,
 } from '@/services/api/markups.ts'
 import { useI18n } from '@/i18n'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 
 interface RangeFormRow {
   key: string
@@ -305,7 +306,7 @@ async function loadGroups() {
 function openCreateDrawer() {
   editingGroupId.value = null
   form.name = ''
-  form.currencyId = currencies.value[0]?.id ?? null
+  form.currencyId = resolveDefaultCurrencyId(currencies.value) ?? null
   form.ranges = [createRangeRow()]
   drawerOpen.value = true
 }

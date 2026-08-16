@@ -37,6 +37,13 @@
       </template>
 
       <el-menu-item index="/products" @click="openRoute('/products')">{{ t('nav.products') }}</el-menu-item>
+      <el-menu-item
+        v-if="canReviewCatalogueCandidates"
+        index="/products/enrichment"
+        @click="openRoute('/products/enrichment')"
+      >
+        {{ t('nav.catalogueReview') }}
+      </el-menu-item>
       <el-menu-item index="/producers" @click="openRoute('/producers')">{{ t('nav.producers') }}</el-menu-item>
       <el-menu-item index="/storages" @click="openRoute('/storages')">{{ t('nav.storages') }}</el-menu-item>
     </el-sub-menu>
@@ -109,12 +116,14 @@ const { t } = useI18n()
 const { hasPermission } = usePermissions()
 const canManagePriceAppliers = computed(() => hasPermission('PRICE_APPLIERS_MANAGE'))
 const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
+const canReviewCatalogueCandidates = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))
 
 const routeRoots = [
   '/purchases',
   '/sales',
   '/reservations',
   '/transactions',
+  '/products/enrichment',
   '/products',
   '/producers',
   '/storages',

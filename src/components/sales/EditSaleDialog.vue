@@ -354,6 +354,7 @@ import { getProductStock } from '@/services/api/products.ts'
 import { editSale } from '@/services/api/sales.ts'
 import { getUserDiscount } from '@/services/api/users.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 
 type DiscountMode = 'Manual' | 'User'
@@ -485,7 +486,7 @@ const hasUnsavedChanges = computed(() => (
 ))
 
 function resetForm() {
-  form.currencyId = props.sale?.currency.id ?? props.currencies[0]?.id
+  form.currencyId = props.sale?.currency.id ?? resolveDefaultCurrencyId(props.currencies)
   form.saleDateTime = props.sale
     ? toLocalDateTimeInputValue(new Date(props.sale.saleDatetime))
     : toLocalDateTimeInputValue(new Date())

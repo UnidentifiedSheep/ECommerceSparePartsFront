@@ -1,16 +1,20 @@
 <template>
   <div class="product-sku">
     <span class="product-sku__indicator" :style="indicatorStyle" />
-    <span class="product-sku__text">{{ sku }}</span>
+    <span class="product-sku__text">
+      <SearchHighlightedText :text="highlight || sku" />
+    </span>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue'
 
 const props = defineProps<{
   sku: string
   indicator?: string | null
+  highlight?: string | null
 }>()
 
 const indicatorStyle = computed(() => ({

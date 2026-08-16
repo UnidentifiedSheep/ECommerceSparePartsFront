@@ -353,6 +353,7 @@ import { getProductStock } from '@/services/api/products.ts'
 import { createSale } from '@/services/api/sales.ts'
 import { getUserDiscount } from '@/services/api/users.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 
 interface SaleItemForm {
@@ -475,7 +476,7 @@ const canSave = computed(() => (
 
 function resetForm() {
   form.buyer = undefined
-  form.currencyId = props.currencies[0]?.id
+  form.currencyId = resolveDefaultCurrencyId(props.currencies)
   form.storageName = undefined
   form.saleDateTime = toLocalDateTimeInputValue(new Date())
   form.comment = ''

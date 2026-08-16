@@ -134,8 +134,10 @@ function formatPercent(value: number) {
 <style scoped>
 .sale-details {
   height: 100%;
-  min-height: calc(100vh - 238px);
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 16px;
 }
 

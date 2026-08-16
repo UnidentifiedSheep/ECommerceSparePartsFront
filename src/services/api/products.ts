@@ -7,6 +7,7 @@ import type {
   ProductReservationModel,
 } from '@/models/productReservationModel.ts'
 import { mapOrganizationModel, type OrganizationDto } from '@/models/organizationModel.ts'
+import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 
 export interface CreateProductRequestItem {
@@ -71,6 +72,17 @@ export interface GetProductsByIdsResponse {
 
 export interface GetProductStockResponse {
   stock: number
+}
+
+export interface GetCatalogueCandidatesForReviewRequest {
+  productId?: number
+  sku?: string
+  page: number
+  size: number
+}
+
+export interface GetCatalogueCandidatesForReviewResponse {
+  candidates: CatalogueCandidateReviewModel[]
 }
 
 export interface GetProductPairResponse {
@@ -243,6 +255,21 @@ export async function getProductStock(productId: number, storageName?: string | 
   const resp = await api.get<GetProductStockResponse>(`/main/products/${productId}/stock`, {
     params: {
       storageName: storageName || undefined,
+    },
+  })
+
+  return resp.data
+}
+
+export async function getCatalogueCandidatesForReview(
+  req: GetCatalogueCandidatesForReviewRequest,
+): Promise<GetCatalogueCandidatesForReviewResponse> {
+  const resp = await api.get<GetCatalogueCandidatesForReviewResponse>('/main/products/enrichment', {
+    params: {
+      productId: req.productId,
+      sku: req.sku?.trim() || undefined,
+      page: req.page,
+      size: clampPageSize(req.size),
     },
   })
 

@@ -18,6 +18,34 @@
       </aside>
 
       <main class="settings-content">
+        <section v-if="activeTab === 'operations'" class="settings-panel">
+          <div class="border-b border-slate-200 pb-3">
+            <h2 class="text-xl font-semibold text-slate-900">{{ t('settings.operations') }}</h2>
+            <p class="mt-1 text-sm text-slate-500">{{ t('settings.operationsHint') }}</p>
+          </div>
+
+          <div class="settings-field">
+            <label for="default-currency">{{ t('settings.defaultCurrency') }}</label>
+            <el-select
+              id="default-currency"
+              v-model="defaultCurrencyId"
+              clearable
+              filterable
+              :loading="isLoadingCurrencies"
+              :placeholder="t('settings.firstAvailableCurrency')"
+              @change="updateDefaultCurrency"
+            >
+              <el-option
+                v-for="currency in currencies"
+                :key="currency.id"
+                :label="currencyLabel(currency)"
+                :value="currency.id"
+              />
+            </el-select>
+            <p>{{ t('settings.defaultCurrencyHint') }}</p>
+          </div>
+        </section>
+
         <section v-if="activeTab === 'security'" class="settings-panel">
           <div class="border-b border-slate-200 pb-3">
             <h2 class="text-xl font-semibold text-slate-900">{{ t('settings.security') }}</h2>
@@ -98,8 +126,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
-import { Lock } from '@element-plus/icons-vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { Coin, Lock } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { changePassword } from '@/services/api/authApi.ts'
@@ -107,6 +135,9 @@ import { makeMyEmailPrimary, requestMyEmailVerification } from '@/services/api/u
 import { ApiError } from '@/models/errorModel.ts'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { useI18n } from '@/i18n'
+import { getCurrencies } from '@/services/api/currencies.ts'
+import type { CurrencyModel } from '@/models/currencyModel.ts'
+import { loadDefaultCurrencyId, saveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 
 interface PasswordForm {
   previousPassword: string
@@ -127,14 +158,22 @@ const canMakeEmailPrimary = computed(() => (
   && !isMakingEmailPrimary.value
   && !isRequestingEmailVerification.value
 ))
-const activeTab = ref('security')
+const activeTab = ref('operations')
 const settingsSections = computed(() => [
+  {
+    name: 'operations',
+    label: t('settings.operations'),
+    icon: Coin,
+  },
   {
     name: 'security',
     label: t('settings.security'),
     icon: Lock,
   },
 ])
+const currencies = ref<CurrencyModel[]>([])
+const defaultCurrencyId = ref<number>()
+const isLoadingCurrencies = ref(false)
 const passwordDialogOpen = ref(false)
 const isChangingPassword = ref(false)
 const isRequestingEmailVerification = ref(false)
@@ -160,6 +199,31 @@ const passwordRules = computed<FormRules<PasswordForm>>(() => ({
     },
   ],
 }))
+
+function currencyLabel(currency: CurrencyModel) {
+  const sign = currency.currencySign ? ` · ${currency.currencySign}` : ''
+  return `${currency.shortName} (${currency.code})${sign}`
+}
+
+function updateDefaultCurrency(currencyId?: number) {
+  saveDefaultCurrencyId(currencyId)
+}
+
+async function loadCurrencies() {
+  isLoadingCurrencies.value = true
+  try {
+    const response = await getCurrencies()
+    currencies.value = response.currencies
+    const storedCurrencyId = loadDefaultCurrencyId()
+    defaultCurrencyId.value = response.currencies.some((currency) => currency.id === storedCurrencyId)
+      ? storedCurrencyId
+      : undefined
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('settings.currenciesLoadError'))
+  } finally {
+    isLoadingCurrencies.value = false
+  }
+}
 
 function openPasswordDialog() {
   passwordForm.previousPassword = ''
@@ -225,6 +289,8 @@ async function makeEmailPrimary() {
     isMakingEmailPrimary.value = false
   }
 }
+
+onMounted(loadCurrencies)
 </script>
 
 <style scoped>
@@ -284,6 +350,26 @@ async function makeEmailPrimary() {
   border-radius: 8px;
   background: #ffffff;
   padding: 24px;
+}
+
+.settings-field {
+  display: grid;
+  gap: 7px;
+  width: min(420px, 100%);
+  margin-top: 20px;
+}
+
+.settings-field > label {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.settings-field > p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 @media (max-width: 768px) {

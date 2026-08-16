@@ -308,6 +308,7 @@ import {
   getProductReservations,
 } from '@/services/api/products.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 
 const { locale, t } = useI18n()
@@ -499,7 +500,7 @@ function resetCreateForm() {
   createForm.reservedCount = 1
   createForm.currentCount = 0
   createForm.proposedPrice = undefined
-  createForm.givenCurrencyId = currencies.value[0]?.id
+  createForm.givenCurrencyId = resolveDefaultCurrencyId(currencies.value)
   createForm.comment = ''
 }
 

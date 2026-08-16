@@ -94,6 +94,7 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import { createStorageRoute } from '@/services/api/storages.ts'
+import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 
 const isOpen = defineModel<boolean>('is-open')
@@ -149,9 +150,8 @@ watch([() => isOpen.value, () => props.storage], ([open, storage]) => {
 async function loadCurrencies() {
   const resp = await getCurrencies()
   currencies.value = resp.currencies
-  const firstCurrency = resp.currencies[0]
-  if (!form.currencyId && firstCurrency) {
-    form.currencyId = firstCurrency.id
+  if (!form.currencyId) {
+    form.currencyId = resolveDefaultCurrencyId(resp.currencies) ?? 0
   }
 }
 
