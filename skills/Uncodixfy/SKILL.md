@@ -147,7 +147,7 @@ This one is **THE BIGGEST NO**.
 
 ## Rule
 
-If a UI choice feels like a default AI UI move, ban it and pick the harder, cleaner option.
+If a UI  choice feels like a default AI UI move, ban it and pick the harder, cleaner option.
 - Colors should stay calm, not fight.
 
 - You are bad at picking colors follow this priority order when selecting colors:
