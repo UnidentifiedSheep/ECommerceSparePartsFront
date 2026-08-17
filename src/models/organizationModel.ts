@@ -8,6 +8,7 @@ export interface OrganizationModel {
   type: OrganizationType
   name: string
   systemName: string
+  isHidden: boolean
   owner: OrganizationMemberModel
   approximateBalanceInBaseCurrency?: number | null
 }
@@ -36,6 +37,7 @@ export interface OrganizationListItemDto extends OrganizationDto {
 export function mapOrganizationModel(dto: OrganizationDto): OrganizationModel {
   return {
     ...dto,
+    isHidden: dto.isHidden,
     owner: {
       ...dto.owner,
       user: mapUserModel(dto.owner.user),

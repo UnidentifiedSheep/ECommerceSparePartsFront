@@ -22,6 +22,7 @@ export interface GetOrganizationsRequest {
   page: number
   limit: number
   sortBy?: string[]
+  showHidden?: boolean
 }
 
 export interface GetOrganizationsResponse {
@@ -50,6 +51,20 @@ export interface CreateOrganizationResponse {
 
 export interface IsOrganizationSystemNameAvailableResponse {
   isAvailable: boolean
+}
+
+interface PatchField<T> {
+  isSet: true
+  value: T
+}
+
+export interface UpdateOrganizationRequest {
+  name?: string
+  isHidden?: boolean
+}
+
+export interface UpdateOrganizationResponse {
+  organization: OrganizationModel
 }
 
 export interface AddOrganizationMemberRequest {
@@ -85,11 +100,27 @@ export async function getOrganizations(req: GetOrganizationsRequest): Promise<Ge
   params.append('page', String(req.page))
   params.append('limit', String(clampPageSize(req.limit)))
   req.sortBy?.forEach((sort) => params.append('sortBy', sort))
+  if (req.showHidden) params.append('showHidden', 'true')
 
   const response = await api.get<{ organizations: OrganizationListItemDto[] }>('/main/organizations', { params })
   return {
     organizations: response.data.organizations.map(mapOrganizationListItemModel),
   }
+}
+
+export async function updateOrganization(
+  organizationId: string,
+  req: UpdateOrganizationRequest,
+): Promise<UpdateOrganizationResponse> {
+  const organization: Record<string, PatchField<unknown>> = {}
+  if (req.name !== undefined) organization.name = { isSet: true, value: req.name }
+  if (req.isHidden !== undefined) organization.isHidden = { isSet: true, value: req.isHidden }
+
+  const response = await api.patch<{ organization: OrganizationDto }>(
+    `/main/organizations/${organizationId}`,
+    { organization },
+  )
+  return { organization: mapOrganizationModel(response.data.organization) }
 }
 
 export async function getOrganizationMembers(

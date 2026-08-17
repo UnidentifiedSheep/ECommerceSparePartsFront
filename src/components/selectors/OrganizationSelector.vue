@@ -50,6 +50,7 @@
           <div
             class="organization-row"
             :class="{
+              'is-hidden': organization.isHidden,
               'is-selected': modelValue?.organization.id === organization.id
                 && (organization.type === 'Individual' || !modelValue.member),
             }"
@@ -64,7 +65,12 @@
             </el-icon>
             <span v-else class="branch-leaf" aria-hidden="true" />
             <div class="organization-copy">
-              <strong>{{ organization.name }}</strong>
+              <div class="organization-title">
+                <strong>{{ organization.name }}</strong>
+                <span v-if="organization.isHidden" class="organization-hidden-state">
+                  {{ t('organizationPage.hidden') }}
+                </span>
+              </div>
               <UserHoverCard
                 v-if="organization.type === 'Individual'"
                 :user="organization.owner.user"
@@ -139,6 +145,22 @@
           {{ t('organizations.loadMoreOrganizations') }}
         </button>
       </div>
+
+      <div class="organization-selector-footer">
+        <button
+          type="button"
+          class="organization-hidden-toggle"
+          :class="{ 'is-active': includeHidden }"
+          :aria-pressed="includeHidden"
+          :disabled="organizationsLoading"
+          @click.stop="toggleIncludeHidden"
+        >
+          <span class="organization-hidden-toggle__box" aria-hidden="true">
+            <el-icon v-if="includeHidden"><Check /></el-icon>
+          </span>
+          {{ t('organizations.includeHidden') }}
+        </button>
+      </div>
     </div>
   </el-popover>
 </template>
@@ -199,6 +221,7 @@ const organizations = ref<OrganizationModel[]>([])
 const organizationsPage = ref(0)
 const organizationsHasNext = ref(true)
 const organizationsLoading = ref(false)
+const includeHidden = ref(false)
 const branches = reactive<Record<string, MemberBranch>>({})
 let organizationsRequestId = 0
 
@@ -242,6 +265,7 @@ async function loadOrganizations(reset: boolean) {
       page: organizationsPage.value,
       limit: organizationLimit,
       sortBy: ['Name'],
+      showHidden: includeHidden.value,
     })
     if (requestId !== organizationsRequestId) return
 
@@ -249,11 +273,21 @@ async function loadOrganizations(reset: boolean) {
     const existingIds = new Set(organizations.value.map((organization) => organization.id))
     organizations.value.push(...response.organizations.filter((organization) => !existingIds.has(organization.id)))
     ensureSelectedOrganization()
+    organizations.value = orderOrganizations(organizations.value)
     organizationsHasNext.value = response.organizations.length === organizationLimit
     organizationsPage.value += 1
   } finally {
     if (requestId === organizationsRequestId) organizationsLoading.value = false
   }
+}
+
+async function toggleIncludeHidden() {
+  includeHidden.value = !includeHidden.value
+  await loadOrganizations(true)
+}
+
+function orderOrganizations(items: OrganizationModel[]) {
+  return [...items].sort((left, right) => Number(left.isHidden) - Number(right.isHidden))
 }
 
 function handleOrganizationClick(organization: OrganizationModel) {
@@ -336,11 +370,12 @@ function selectionPrimary(selection: OrganizationSelection) {
 }
 
 function selectionSecondary(selection: OrganizationSelection) {
+  const hiddenSuffix = selection.organization.isHidden ? ` · ${t('organizationPage.hidden')}` : ''
   if (selection.organization.type === 'Individual' && selection.member) {
-    return `${selection.member.user.userName} · ${selection.organization.name}`
+    return `${selection.member.user.userName} · ${selection.organization.name}${hiddenSuffix}`
   }
-  if (selection.member) return userIdentity(selection.member.user)
-  return organizationMeta(selection.organization)
+  if (selection.member) return `${userIdentity(selection.member.user)}${hiddenSuffix}`
+  return `${organizationMeta(selection.organization)}${hiddenSuffix}`
 }
 
 function selectionTitle(selection: OrganizationSelection) {
@@ -406,13 +441,18 @@ watch(() => props.types, () => void loadOrganizations(true), { deep: true })
 .organization-branch + .organization-branch { border-top: 1px solid var(--el-border-color-lighter); }
 .organization-row { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 5px 6px; cursor: pointer; }
 .organization-row:hover, .organization-row.is-selected { background: var(--el-fill-color-light); }
+.organization-row.is-hidden { background: #f8fafc; opacity: 0.62; }
+.organization-row.is-hidden:hover,
+.organization-row.is-hidden.is-selected { background: var(--el-fill-color-light); opacity: 0.82; }
 .branch-arrow { flex: none; color: var(--el-text-color-secondary); transition: transform 150ms ease; }
 .branch-arrow.is-expanded { transform: rotate(90deg); }
 .branch-leaf { width: 14px; height: 14px; flex: none; position: relative; }
 .branch-leaf::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--el-color-primary); }
 .organization-check { flex: none; color: var(--el-color-primary); }
 .organization-copy, .member-copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.organization-title { display: flex; min-width: 0; align-items: center; gap: 6px; }
 .organization-copy strong, .member-copy strong { overflow: hidden; color: var(--el-text-color-primary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.organization-copy .organization-hidden-state { flex: none; border: 1px solid var(--el-border-color); border-radius: 4px; padding: 0 4px; color: var(--el-text-color-secondary); font-size: 9px; font-weight: 650; line-height: 15px; }
 .organization-copy span, .member-copy span { overflow: hidden; color: var(--el-text-color-secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .organization-copy :deep(.user-hover-card-reference) { display: block; width: 100%; color: var(--el-text-color-secondary); font-size: 11px; font-weight: 400; }
 .organization-copy :deep(.user-hover-card-reference:hover) { color: var(--el-color-primary); }
@@ -424,4 +464,13 @@ watch(() => props.types, () => void loadOrganizations(true), { deep: true })
 .load-more { width: 100%; padding: 8px; border: 0; background: transparent; color: var(--el-color-primary); font-size: 12px; cursor: pointer; }
 .load-more:disabled { color: var(--el-text-color-placeholder); cursor: wait; }
 .organization-load-more { border-top: 1px solid var(--el-border-color-lighter); }
+.organization-selector-footer { border-top: 1px solid var(--el-border-color-lighter); padding-top: 8px; }
+.organization-hidden-toggle { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; padding: 2px 1px; color: var(--el-text-color-secondary); font-size: 11px; cursor: pointer; }
+.organization-hidden-toggle:hover,
+.organization-hidden-toggle.is-active { color: var(--el-color-primary); }
+.organization-hidden-toggle:focus-visible { outline: 2px solid #86bda4; outline-offset: 2px; }
+.organization-hidden-toggle:disabled { color: var(--el-text-color-placeholder); cursor: wait; }
+.organization-hidden-toggle__box { width: 13px; height: 13px; display: grid; flex: none; place-items: center; border: 1px solid var(--el-border-color); border-radius: 3px; background: var(--el-fill-color-blank); }
+.organization-hidden-toggle.is-active .organization-hidden-toggle__box { border-color: var(--el-color-primary); background: var(--el-color-primary); color: #fff; }
+.organization-hidden-toggle__box :deep(.el-icon) { font-size: 10px; }
 </style>

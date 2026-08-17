@@ -11,28 +11,40 @@
     <div class="organizations-layout">
       <section class="organizations-panel organizations-list-panel">
         <div class="organizations-toolbar">
-          <el-input
-            v-model="searchTerm"
-            clearable
-            :placeholder="t('organizationPage.searchPlaceholder')"
-          />
-          <el-select
-            v-model="typeFilters"
-            multiple
-            collapse-tags
-            clearable
-            :placeholder="t('organizationPage.allTypes')"
-          >
-            <el-option
-              v-for="type in organizationTypes"
-              :key="type"
-              :label="organizationTypeLabel(type)"
-              :value="type"
+          <div class="organizations-toolbar__primary">
+            <el-input
+              v-model="searchTerm"
+              :prefix-icon="Search"
+              clearable
+              :placeholder="t('organizationPage.searchPlaceholder')"
             />
-          </el-select>
-          <el-button :loading="organizationsLoading" @click="loadOrganizations(true)">
-            {{ t('common.actions.refresh') }}
-          </el-button>
+            <el-select
+              v-model="typeFilters"
+              multiple
+              collapse-tags
+              clearable
+              :placeholder="t('organizationPage.allTypes')"
+            >
+              <el-option
+                v-for="type in organizationTypes"
+                :key="type"
+                :label="organizationTypeLabel(type)"
+                :value="type"
+              />
+            </el-select>
+            <el-button plain :loading="organizationsLoading" @click="loadOrganizations(true)">
+              {{ t('common.actions.refresh') }}
+            </el-button>
+          </div>
+          <div class="organizations-visibility-filter">
+            <el-switch
+              v-model="showHidden"
+              size="small"
+              :aria-label="t('organizationPage.showHidden')"
+              @change="loadOrganizations(true)"
+            />
+            <button type="button" @click="toggleShowHidden">{{ t('organizationPage.showHidden') }}</button>
+          </div>
         </div>
 
         <el-table
@@ -43,6 +55,7 @@
           height="100%"
           highlight-current-row
           class="organizations-table"
+          :row-class-name="organizationRowClass"
           :default-sort="{ prop: 'name', order: 'ascending' }"
           @current-change="selectOrganization"
           @sort-change="handleOrganizationsSortChange"
@@ -56,7 +69,20 @@
           >
             <template #default="{ row }">
               <div class="organization-name-cell">
-                <strong>{{ row.name }}</strong>
+                <div>
+                  <strong>{{ row.name }}</strong>
+                  <el-tooltip
+                    v-if="row.isHidden"
+                    :content="t('organizationPage.hiddenStatusHint')"
+                    placement="top"
+                    :show-after="250"
+                  >
+                    <span class="organization-hidden-badge">
+                      <el-icon><Lock /></el-icon>
+                      {{ t('organizationPage.hidden') }}
+                    </span>
+                  </el-tooltip>
+                </div>
                 <span>{{ row.systemName }}</span>
               </div>
             </template>
@@ -94,6 +120,23 @@
               </div>
             </template>
           </el-table-column>
+          <el-table-column
+            v-if="canEditOrganizations"
+            fixed="right"
+            width="48"
+            align="right"
+          >
+            <template #default="{ row }">
+              <div class="organization-row-actions" @click.stop>
+                <ActionIconButton
+                  :label="t(row.isHidden ? 'organizationPage.show' : 'organizationPage.hide')"
+                  :icon="row.isHidden ? Hide : View"
+                  :loading="visibilityUpdatingId === row.id"
+                  @click="toggleOrganizationVisibility(row)"
+                />
+              </div>
+            </template>
+          </el-table-column>
         </el-table>
 
         <div class="organizations-pagination">
@@ -120,6 +163,13 @@
               </el-button>
               <el-button v-if="canViewReservations" @click="reservationsDialogOpen = true">
                 {{ t('reservations.title') }}
+              </el-button>
+              <el-button
+                v-if="canEditOrganizations"
+                :icon="EditPen"
+                @click="openEditDialog"
+              >
+                {{ t('common.actions.edit') }}
               </el-button>
               <el-button :loading="detailsLoading" @click="loadOrganizationDetails">
                 {{ t('common.actions.refresh') }}
@@ -324,6 +374,32 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="editDialogOpen" :title="t('organizationPage.editTitle')" width="480">
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-position="top">
+        <el-form-item :label="t('common.labels.name')" prop="name">
+          <el-input v-model="editForm.name" :placeholder="t('organizationPage.namePlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="t('organizationPage.systemName')">
+          <el-input :model-value="selectedOrganization?.systemName" disabled />
+        </el-form-item>
+        <el-form-item :label="t('organizationPage.visibility')">
+          <div class="organization-visibility-control">
+            <el-switch v-model="editForm.isHidden" />
+            <div>
+              <strong>{{ t('organizationPage.hideOrganization') }}</strong>
+              <span>{{ t('organizationPage.hideOrganizationHint') }}</span>
+            </div>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="organizationSaving" @click="saveOrganization">
+          {{ t('common.actions.save') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <ProductReservationsDialog
       v-if="selectedOrganization && canViewReservations"
       v-model="reservationsDialogOpen"
@@ -346,8 +422,9 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElNotification, type FormInstance, type FormRules, type TableInstance } from 'element-plus'
-import { CircleCheck, Loading, Plus } from '@element-plus/icons-vue'
+import { CircleCheck, EditPen, Hide, Loading, Lock, Plus, Search, View } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
@@ -370,6 +447,7 @@ import {
   getOrganizations,
   isOrganizationSystemNameAvailable,
   removeOrganizationMember,
+  updateOrganization,
   updateOrganizationFinancialInfo,
   type GetOrganizationFinancialInfoResponse,
 } from '@/services/api/organizations.ts'
@@ -407,6 +485,7 @@ const organizations = ref<OrganizationModel[]>([])
 const selectedOrganization = ref<OrganizationModel>()
 const searchTerm = ref('')
 const typeFilters = ref<OrganizationType[]>([])
+const showHidden = ref(false)
 const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
@@ -435,12 +514,17 @@ const createTransactionDialogOpen = ref(false)
 const transactionCurrencies = ref<CurrencyModel[]>([])
 const transactionCurrenciesLoading = ref(false)
 const addingMember = ref(false)
+const editDialogOpen = ref(false)
+const editFormRef = ref<FormInstance>()
+const organizationSaving = ref(false)
+const visibilityUpdatingId = ref('')
 let organizationsRequestId = 0
 let detailsRequestId = 0
 let createSystemNameRequestId = 0
 
 const createForm = reactive<CreateOrganizationForm>({ owner: undefined, name: '', systemName: '' })
 const memberForm = reactive<{ user?: UserModel, role: OrganizationRole }>({ user: undefined, role: 'Member' })
+const editForm = reactive({ name: '', isHidden: false })
 const createRules = computed<FormRules<CreateOrganizationForm>>(() => ({
   owner: [{ required: true, message: t('organizationPage.ownerRequired'), trigger: 'change' }],
   name: [
@@ -450,6 +534,12 @@ const createRules = computed<FormRules<CreateOrganizationForm>>(() => ({
   systemName: [
     { required: true, message: t('organizationPage.systemNameRequired'), trigger: 'blur' },
     { max: 128, message: t('organizationPage.systemNameLength'), trigger: 'blur' },
+  ],
+}))
+const editRules = computed<FormRules>(() => ({
+  name: [
+    { required: true, message: t('organizationPage.nameRequired'), trigger: 'blur' },
+    { min: 3, max: 128, message: t('organizationPage.nameLength'), trigger: 'blur' },
   ],
 }))
 
@@ -579,9 +669,10 @@ async function loadOrganizations(reset = false) {
       page: page.value,
       limit: limit.value,
       sortBy: [organizationsSortBy.value],
+      showHidden: showHidden.value,
     })
     if (requestId !== organizationsRequestId) return
-    organizations.value = response.organizations
+    organizations.value = orderOrganizations(response.organizations)
     hasNext.value = response.organizations.length === limit.value
 
     if (selectedOrganization.value) {
@@ -590,6 +681,121 @@ async function loadOrganizations(reset = false) {
     }
   } finally {
     if (requestId === organizationsRequestId) organizationsLoading.value = false
+  }
+}
+
+function organizationRowClass({ row }: { row: OrganizationModel }) {
+  return row.isHidden ? 'organization-row--hidden' : ''
+}
+
+async function toggleShowHidden() {
+  showHidden.value = !showHidden.value
+  await loadOrganizations(true)
+}
+
+function orderOrganizations(items: OrganizationModel[]) {
+  return [...items].sort((left, right) => Number(left.isHidden) - Number(right.isHidden))
+}
+
+function openEditDialog() {
+  if (!selectedOrganization.value) return
+  editForm.name = selectedOrganization.value.name
+  editForm.isHidden = selectedOrganization.value.isHidden
+  editDialogOpen.value = true
+  nextTick(() => editFormRef.value?.clearValidate())
+}
+
+async function saveOrganization() {
+  const organization = selectedOrganization.value
+  if (!organization || !editFormRef.value || organizationSaving.value) return
+  const valid = await editFormRef.value.validate().catch(() => false)
+  if (!valid) return
+  const name = editForm.name.trim()
+  const isHidden = editForm.isHidden
+  if (name === organization.name && isHidden === organization.isHidden) {
+    editDialogOpen.value = false
+    return
+  }
+
+  organizationSaving.value = true
+  try {
+    const response = await updateOrganization(organization.id, {
+      ...(name !== organization.name ? { name } : {}),
+      ...(isHidden !== organization.isHidden ? { isHidden } : {}),
+    })
+    const updated = { ...organization, ...response.organization, isHidden }
+    editDialogOpen.value = false
+    if (isHidden && !showHidden.value) {
+      organizations.value = organizations.value.filter((item) => item.id !== organization.id)
+      selectedOrganization.value = undefined
+      members.value = []
+      financialInfo.value = undefined
+      await router.replace({ name: 'organizations' })
+    } else {
+      selectedOrganization.value = updated
+      organizations.value = orderOrganizations(
+        organizations.value.map((item) => item.id === updated.id ? updated : item),
+      )
+    }
+    ElNotification({ title: t('common.labels.success'), message: t('organizationPage.updated'), type: 'success' })
+  } finally {
+    organizationSaving.value = false
+  }
+}
+
+async function toggleOrganizationVisibility(organization: OrganizationModel) {
+  if (visibilityUpdatingId.value) return
+  const isHidden = !organization.isHidden
+  const balance = organization.approximateBalanceInBaseCurrency ?? 0
+  if (isHidden && balance !== 0) {
+    try {
+      await ElMessageBox.confirm(
+        t('organizationPage.hideWithBalanceConfirm', {
+          name: organization.name,
+          balance: formatAmount(balance, baseCurrency.value),
+        }),
+        t('organizationPage.hideWithBalanceTitle'),
+        {
+          type: 'warning',
+          confirmButtonText: t('organizationPage.hide'),
+          cancelButtonText: t('common.actions.cancel'),
+        },
+      )
+    } catch {
+      return
+    }
+  }
+  visibilityUpdatingId.value = organization.id
+  try {
+    const response = await updateOrganization(organization.id, { isHidden })
+    const updated = {
+      ...organization,
+      ...response.organization,
+      approximateBalanceInBaseCurrency: organization.approximateBalanceInBaseCurrency,
+    }
+
+    if (isHidden && !showHidden.value) {
+      organizations.value = organizations.value.filter((item) => item.id !== organization.id)
+      if (selectedOrganization.value?.id === organization.id) {
+        selectedOrganization.value = undefined
+        members.value = []
+        financialInfo.value = undefined
+        await router.replace({ name: 'organizations' })
+      }
+    } else {
+      organizations.value = orderOrganizations(
+        organizations.value.map((item) => item.id === updated.id ? updated : item),
+      )
+      if (selectedOrganization.value?.id === updated.id) selectedOrganization.value = updated
+    }
+
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t(isHidden ? 'organizationPage.hiddenSuccess' : 'organizationPage.shownSuccess'),
+      type: 'success',
+    })
+  } finally {
+    visibilityUpdatingId.value = ''
   }
 }
 
@@ -823,7 +1029,7 @@ async function selectOrganizationFromRoute() {
   if (!organizationId || selectedOrganization.value?.id === organizationId) return
   let organization = organizations.value.find((item) => item.id === organizationId)
   if (!organization) {
-    const response = await getOrganizations({ ids: [organizationId], page: 0, limit: 1 })
+    const response = await getOrganizations({ ids: [organizationId], page: 0, limit: 1, showHidden: showHidden.value })
     organization = response.organizations[0]
     if (organization) organizations.value = [organization, ...organizations.value.filter((item) => item.id !== organizationId)]
   }
@@ -872,11 +1078,39 @@ onMounted(async () => {
 .organizations-layout { display: grid; grid-template-columns: minmax(360px, 0.75fr) minmax(520px, 1.25fr); gap: 16px; padding: 16px; }
 .organizations-panel { min-width: 0; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
 .organizations-list-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: calc(100vh - 120px); min-height: 620px; padding: 16px; }
-.organizations-toolbar { display: grid; grid-template-columns: minmax(130px, 1fr) 150px auto; gap: 8px; padding-bottom: 12px; }
+.organizations-toolbar { display: grid; gap: 4px; padding-bottom: 10px; }
+.organizations-toolbar__primary { display: grid; grid-template-columns: minmax(130px, 1fr) 150px auto; align-items: stretch; gap: 8px; }
+.organizations-toolbar__primary > :deep(.el-input),
+.organizations-toolbar__primary > :deep(.el-select),
+.organizations-toolbar__primary > :deep(.el-button) { height: 32px; }
+.organizations-toolbar__primary :deep(.el-input__wrapper),
+.organizations-toolbar__primary :deep(.el-select__wrapper) { min-height: 32px; }
+.organizations-visibility-filter { display: inline-flex; width: fit-content; min-height: 26px; align-items: center; gap: 7px; color: #475569; font-size: 12px; }
+.organizations-visibility-filter button { border: 0; background: transparent; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.organizations-visibility-filter button:focus-visible { outline: 2px solid #86bda4; outline-offset: 2px; }
 .organizations-table :deep(.el-table__row) { cursor: pointer; }
+.organizations-table :deep(.organization-row--hidden > td.el-table__cell) { background: #f8fafc; color: #64748b; }
+.organizations-table :deep(.organization-row--hidden > td.el-table__cell:not(:last-child) .cell) { opacity: 0.62; }
 .organization-name-cell { min-width: 0; display: grid; gap: 2px; }
+.organization-name-cell > div { display: flex; min-width: 0; align-items: baseline; gap: 7px; }
 .organization-name-cell strong { overflow: hidden; color: #0f172a; text-overflow: ellipsis; white-space: nowrap; }
 .organization-name-cell span { overflow: hidden; color: #64748b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.organization-name-cell .organization-hidden-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 16px;
+}
+.organization-hidden-badge :deep(.el-icon) { font-size: 11px; }
+.organization-row-actions { display: flex; justify-content: flex-end; gap: 4px; }
 .balance-column-header {
   border-bottom: 1px dotted #94a3b8;
   cursor: help;
@@ -891,7 +1125,11 @@ onMounted(async () => {
 .organization-details-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #e2e8f0; padding: 16px 18px; }
 .organization-details-header h2 { margin: 0; overflow: hidden; color: #0f172a; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
 .organization-details-header p { margin: 3px 0 0; overflow: hidden; color: #64748b; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.organization-details-actions { display: flex; flex: none; align-items: center; gap: 8px; }
+.organization-details-actions { display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.organization-visibility-control { display: flex; align-items: flex-start; gap: 10px; }
+.organization-visibility-control > div { display: grid; gap: 2px; }
+.organization-visibility-control strong { color: #0f172a; font-size: 13px; line-height: 20px; }
+.organization-visibility-control span { color: #64748b; font-size: 12px; line-height: 18px; }
 .organization-tabs { padding: 0 18px 18px; }
 .organization-tabs :deep(.el-tabs__header) { margin-bottom: 14px; }
 .tab-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
@@ -924,7 +1162,7 @@ onMounted(async () => {
 }
 @media (max-width: 680px) {
   .organizations-layout { padding: 10px; }
-  .organizations-toolbar { grid-template-columns: 1fr; }
+  .organizations-toolbar__primary { grid-template-columns: 1fr; }
   .financial-summary { grid-template-columns: 1fr; }
 }
 </style>
