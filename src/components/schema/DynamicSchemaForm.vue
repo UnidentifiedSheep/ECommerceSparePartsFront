@@ -116,7 +116,7 @@
         </template>
 
         <el-switch
-          v-else-if="field.type === 'boolean'"
+          v-else-if="field.type === 'Boolean'"
           :model-value="Boolean(modelValue[field.name])"
           @update:model-value="(value: boolean) => setFieldValue(field.name, value)"
         />
@@ -148,20 +148,11 @@ import { onBeforeUnmount } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { attachSelectDropdownInfiniteScroll } from '@/composables/useSelectInfiniteScroll.ts'
 import { useI18n } from '@/i18n'
+import type { SchemaUiField } from '@/models/schemaModel.ts'
 
 export type FieldValue = string | number | boolean | null
 
-export interface DynamicSchemaField {
-  name: string
-  type: string
-  label?: string
-  description?: string
-  required?: boolean
-  control?: string
-  dependsOnEntity?: string
-  dependsOnField?: string
-  accepts?: string[]
-}
+export type DynamicSchemaField = SchemaUiField
 
 type SelectorOption = any
 type UploadOption = any

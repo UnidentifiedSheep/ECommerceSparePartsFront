@@ -154,26 +154,14 @@ import { getServiceNamedObjects, type NamedObjectModel } from '@/services/api/jo
 import { getMarkupGroups, type MarkupGroupModel } from '@/services/api/markups.ts'
 import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { getServiceSettings, updateServiceSetting, type SettingModel } from '@/services/api/serviceSettings.ts'
+import { toSchemaUiFields, type ObjectSchema, type SchemaUiField } from '@/models/schemaModel.ts'
 
 interface ServiceCard {
   key: string
   available: boolean
 }
 
-interface SettingSchemaField {
-  name: string
-  type: string
-  label?: string
-  description?: string
-  required?: boolean
-  control?: string
-  dependsOnEntity?: string
-  dependsOnField?: string
-}
-
-interface SettingSchema {
-  fields: SettingSchemaField[]
-}
+type SettingSchemaField = SchemaUiField
 
 interface EnumSelectorOption {
   value: string
@@ -323,24 +311,19 @@ function resetInputState() {
   })
 }
 
-function parseSettingSchema(rawSchema: string) {
-  try {
-    const parsed = JSON.parse(rawSchema || '{}') as SettingSchema
-    schemaFields.value = Array.isArray(parsed.fields) ? parsed.fields : []
-    schemaFields.value.forEach((field) => {
-      inputState[field.name] = defaultValue(field)
-    })
-  } catch {
-    schemaError.value = t('serviceSettings.schemaError')
-  }
+function parseSettingSchema(schema: ObjectSchema) {
+  schemaFields.value = toSchemaUiFields(schema.fields)
+  schemaFields.value.forEach((field) => {
+    inputState[field.name] = defaultValue(field)
+  })
 }
 
-function hydrateOutputData(rawOutput: string, rawOutputMetadata?: string | null) {
+function hydrateOutputData(rawOutput: string, outputMetadata: ObjectSchema) {
   if (!rawOutput) return
 
   try {
     const parsed = JSON.parse(rawOutput) as Record<string, string | number | boolean | null>
-    const outputMetadataFields = parseOutputMetadataFields(rawOutputMetadata)
+    const outputMetadataFields = toSchemaUiFields(outputMetadata.fields)
     schemaFields.value.forEach((field) => {
       const currentValue = findCurrentFieldValue(parsed, field.name)
       if (currentValue.found) {
@@ -351,13 +334,6 @@ function hydrateOutputData(rawOutput: string, rawOutputMetadata?: string | null)
   } catch {
     schemaError.value = t('serviceSettings.outputParseError')
   }
-}
-
-function parseOutputMetadataFields(rawOutputMetadata?: string | null): SettingSchemaField[] {
-  if (!rawOutputMetadata) return []
-
-  const parsed = JSON.parse(rawOutputMetadata || '{}') as SettingSchema
-  return Array.isArray(parsed.fields) ? parsed.fields : []
 }
 
 function buildReadonlyOutputFields(source: Record<string, unknown>, outputMetadataFields: SettingSchemaField[]): ReadonlyOutputField[] {
@@ -371,7 +347,7 @@ function buildReadonlyOutputFields(source: Record<string, unknown>, outputMetada
         const readonlyField: ReadonlyOutputField = {
           name: field.name,
           label: fieldLabel(field),
-          description: field.description,
+          description: field.description ?? undefined,
           value: formatReadonlyValue(currentValue.value, field),
         }
         return readonlyField
@@ -462,7 +438,7 @@ function defaultValue(field: SettingSchemaField) {
   if (field.control === 'TextField') return ''
   if (field.control === 'DatePicker') return ''
   if (['EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return null
-  if (field.type === 'boolean') return false
+  if (field.type === 'Boolean') return false
   if (isNumberField(field)) return 0
   return ''
 }

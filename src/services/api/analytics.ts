@@ -1,4 +1,5 @@
 import api, { analyticsApiPrefix, clampPageSize } from '@/services/api/api.ts'
+import type { ObjectSchema, SchemaUiField } from '@/models/schemaModel.ts'
 
 export type CalculationStatus =
   | 'Pending'
@@ -16,33 +17,11 @@ export interface MetricInfoModel {
   systemName: string
   name: string
   description: string
-  inputSchema: string
+  inputSchema: ObjectSchema
 }
 
-export type MetricSchemaFieldControl =
-  | 'UploadFile'
-  | 'TextField'
-  | 'DatePicker'
-  | 'EntitySelector'
-  | 'EnumSelector'
-  | 'NamedObjectSelector'
-  | string
-
-export interface MetricSchemaField {
-  name: string
-  type: string
-  label?: string
-  description?: string
-  required?: boolean
-  control?: MetricSchemaFieldControl
-  accepts?: string[]
-  dependsOnEntity?: string
-  dependsOnField?: string
-}
-
-export interface MetricInitStateSchema {
-  fields: MetricSchemaField[]
-}
+export type MetricSchemaField = SchemaUiField
+export type MetricInitStateSchema = ObjectSchema
 
 export type MetricSortBy =
   | 'id_asc'

@@ -1,12 +1,13 @@
 import api from '@/services/api/api.ts'
+import type { ObjectSchema } from '@/models/schemaModel.ts'
 
 export interface SettingModel {
   systemName: string
   name: string
   description: string
-  inputData: string
+  inputData: ObjectSchema
   outputData: string
-  outputMetadata?: string | null
+  outputMetadata: ObjectSchema
 }
 
 export interface GetSettingsResponse {

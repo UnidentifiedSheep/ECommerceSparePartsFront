@@ -1,10 +1,11 @@
 import api from '@/services/api/api.ts'
+import type { CsvColumnSchema, ObjectSchema, SchemaUiField } from '@/models/schemaModel.ts'
 
 export interface JobDefinitionModel {
   systemName: string
   name: string
   description: string
-  initStateSchema: string
+  initStateSchema: ObjectSchema
 }
 
 export interface JobsServiceModel {
@@ -135,40 +136,9 @@ export interface UpdateJobScheduleResponse {
   schedule: JobScheduleModel
 }
 
-export type JobSchemaFieldControl =
-  | 'UploadFile'
-  | 'TextField'
-  | 'DatePicker'
-  | 'EntitySelector'
-  | 'EnumSelector'
-  | 'NamedObjectSelector'
-  | string
-
-export interface JobSchemaField {
-  name: string
-  type: string
-  label?: string
-  description?: string
-  required?: boolean
-  control?: JobSchemaFieldControl
-  accepts?: string[]
-  dependsOnEntity?: string
-  dependsOnField?: string
-}
-
-export interface JobCsvSchemaField {
-  propertyName: string
-  names: string[]
-  type: string
-  required: boolean
-  label?: string | null
-  description?: string | null
-}
-
-export interface JobInitStateSchema {
-  fields: JobSchemaField[]
-  csvSchema?: JobCsvSchemaField[]
-}
+export type JobSchemaField = SchemaUiField
+export type JobCsvSchemaField = CsvColumnSchema
+export type JobInitStateSchema = ObjectSchema
 
 export interface ServiceJobDefinition {
   serviceKey: string

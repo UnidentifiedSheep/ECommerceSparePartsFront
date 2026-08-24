@@ -373,7 +373,6 @@ import {
   type CalculationStatus,
   type MetricCalculationJobSortBy,
   type MetricInfoModel,
-  type MetricInitStateSchema,
   type MetricModel,
   type MetricSchemaField,
   type MetricSortBy,
@@ -388,6 +387,7 @@ import {
   type MetricCalculationJobUpdatedEvent,
 } from '@/services/realtime/metricCalculationHub.ts'
 import { useI18n } from '@/i18n'
+import { toSchemaUiFields } from '@/models/schemaModel.ts'
 
 const { locale, t } = useI18n()
 
@@ -589,25 +589,20 @@ function parseCreateSchema() {
   schemaFields.value = []
   resetInputState()
 
-  const rawSchema = selectedCreateMetricInfo.value?.inputSchema
-  if (!rawSchema) return
+  const schema = selectedCreateMetricInfo.value?.inputSchema
+  if (!schema) return
 
-  try {
-    const parsed = JSON.parse(rawSchema) as MetricInitStateSchema
-    schemaFields.value = Array.isArray(parsed.fields) ? parsed.fields : []
-    schemaFields.value.forEach((field) => {
-      inputState[field.name] = defaultFieldValue(field)
-    })
-  } catch {
-    schemaError.value = t('analytics.schemaError')
-  }
+  schemaFields.value = toSchemaUiFields(schema.fields)
+  schemaFields.value.forEach((field) => {
+    inputState[field.name] = defaultFieldValue(field)
+  })
 }
 
 function defaultFieldValue(field: MetricSchemaField) {
   if (field.control === 'TextField') return ''
   if (field.control === 'DatePicker') return ''
   if (field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector') return null
-  if (field.type === 'boolean') return false
+  if (field.type === 'Boolean') return false
   if (isNumberField(field)) return 0
   return ''
 }

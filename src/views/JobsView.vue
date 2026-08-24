@@ -808,6 +808,7 @@ import { usePermissions } from '@/composables/usePermissions.ts'
 import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { useI18n } from '@/i18n'
 import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/jobHub.ts'
+import { toSchemaUiFields } from '@/models/schemaModel.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 interface ServiceCard {
@@ -1629,23 +1630,18 @@ function hydrateInputState(rawState: string) {
   }
 }
 
-function parseSchema(rawSchema: string) {
+function parseSchema(schema: JobInitStateSchema) {
   schemaError.value = null
   schemaFields.value = []
   csvSchemaFields.value = []
 
-  if (!rawSchema) return
+  if (!schema) return
 
-  try {
-    const parsed = JSON.parse(rawSchema) as JobInitStateSchema
-    schemaFields.value = Array.isArray(parsed.fields) ? parsed.fields : []
-    csvSchemaFields.value = Array.isArray(parsed.csvSchema) ? parsed.csvSchema : []
-    schemaFields.value.forEach((field) => {
-      inputState[field.name] = defaultValue(field)
-    })
-  } catch {
-    schemaError.value = t('jobs.schemaError')
-  }
+  schemaFields.value = toSchemaUiFields(schema.fields)
+  csvSchemaFields.value = schema.csvSchema?.columns ?? []
+  schemaFields.value.forEach((field) => {
+    inputState[field.name] = defaultValue(field)
+  })
 }
 
 function csvColumnLabel(column: JobCsvSchemaField) {
@@ -1662,7 +1658,7 @@ function defaultValue(field: JobSchemaField) {
   if (field.control === 'TextField') return ''
   if (field.control === 'DatePicker') return ''
   if (field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector') return null
-  if (field.type === 'boolean') return false
+  if (field.type === 'Boolean') return false
   if (isNumberField(field)) return 0
   return ''
 }
