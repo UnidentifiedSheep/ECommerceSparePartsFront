@@ -103,6 +103,10 @@
 
         </div>
 
+        <div v-if="nextCursor" class="partial-data-note">
+          {{ t('home.partialData') }}
+        </div>
+
         <div v-if="points.length > 0" class="chart-summary">
           <div>
             <span>{{ t('home.revenue') }}</span>
@@ -154,6 +158,10 @@
             :currency-label="currencyLabel"
             :accessible-label="chartDefinition?.name || t('home.salesProfitTitle')"
             :labels="chartLabels"
+            :has-more="Boolean(nextCursor)"
+            :loading-more="loadingMore"
+            :loading-more-label="t('home.loadingMore')"
+            @load-more="loadMoreChartData"
           />
         </div>
       </section>
@@ -180,8 +188,8 @@ import {
 import { useCurrencyStore } from '@/stores/currencyStore.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
-import { collectCursorPages } from '@/utils/cursorPagination.ts'
 import { fillTimeSeriesGaps } from '@/utils/timeSeries.ts'
+import { ElMessage } from 'element-plus'
 
 const salesProfitSystemName = 'SalesProfitOverTimeChartDataSource'
 const { locale, t } = useI18n()
@@ -192,11 +200,14 @@ const { baseCurrency } = storeToRefs(currencyStore)
 const canViewCharts = computed(() => hasPermission('CHARTS_GET'))
 const chartDefinition = ref<ChartModel>()
 const points = ref<SalesProfitDataPoint[]>([])
+const loadedDataPoints = ref<SalesProfitDataPoint[]>([])
+const nextCursor = ref<string | null>(null)
 const organizationSelection = ref<OrganizationSelection>()
 const dateRange = ref<[string, string]>(periodRange(30))
 const selectedPresetDays = ref<number | null>(30)
 const granularity = ref<ChartGranularity>('Day')
 const loading = ref(false)
+const loadingMore = ref(false)
 const loadError = ref('')
 let chartRequestId = 0
 let chartAbortController: AbortController | undefined
@@ -299,6 +310,10 @@ async function loadChartData() {
   chartAbortController = new AbortController()
   const { signal } = chartAbortController
   loading.value = true
+  loadingMore.value = false
+  loadedDataPoints.value = []
+  nextCursor.value = null
+  points.value = []
   loadError.value = ''
   try {
     if (!chartDefinition.value) {
@@ -311,35 +326,11 @@ async function loadChartData() {
       }
     }
 
-    const selection = organizationSelection.value
-    const dataPoints = await collectCursorPages(async (cursor) => {
-      const response = await querySalesProfitChart({
-        organizationId: selection?.organization.id ?? null,
-        buyerId: selection?.member?.user.id ?? null,
-        startDate: utcBoundary(dateRange.value[0], false),
-        endDate: utcBoundary(dateRange.value[1], true),
-        granularity: granularity.value,
-        cursor,
-        size: 100,
-      }, signal)
-      return { items: response.dataPoints, nextCursor: response.nextCursor }
-    })
+    const response = await loadChartPage(undefined, signal)
     if (requestId !== chartRequestId) return
-    points.value = fillTimeSeriesGaps({
-      points: dataPoints,
-      startDate: dateRange.value[0],
-      endDate: dateRange.value[1],
-      granularity: granularity.value,
-      createEmptyPoint: (periodStart) => ({
-        periodStart,
-        revenue: 0,
-        cost: 0,
-        grossProfit: 0,
-        salesCount: 0,
-        productsCount: 0,
-        margin: 0,
-      }),
-    })
+    loadedDataPoints.value = response.dataPoints
+    nextCursor.value = response.nextCursor
+    rebuildVisiblePoints()
   } catch (error) {
     if (requestId !== chartRequestId) return
     points.value = []
@@ -347,6 +338,62 @@ async function loadChartData() {
   } finally {
     if (requestId === chartRequestId) loading.value = false
   }
+}
+
+async function loadMoreChartData() {
+  if (!nextCursor.value || loadingMore.value || loading.value || !chartAbortController) return
+
+  const requestId = chartRequestId
+  const cursor = nextCursor.value
+  loadingMore.value = true
+  try {
+    const response = await loadChartPage(cursor, chartAbortController.signal)
+    if (requestId !== chartRequestId) return
+    loadedDataPoints.value.push(...response.dataPoints)
+    nextCursor.value = response.nextCursor
+    rebuildVisiblePoints()
+  } catch (error) {
+    if (requestId !== chartRequestId) return
+    ElMessage.error(error instanceof Error ? error.message : t('home.loadMoreError'))
+  } finally {
+    if (requestId === chartRequestId) loadingMore.value = false
+  }
+}
+
+function loadChartPage(cursor: string | undefined, signal: AbortSignal) {
+  const selection = organizationSelection.value
+  return querySalesProfitChart({
+    organizationId: selection?.organization.id ?? null,
+    buyerId: selection?.member?.user.id ?? null,
+    startDate: utcBoundary(dateRange.value[0], false),
+    endDate: utcBoundary(dateRange.value[1], true),
+    granularity: granularity.value,
+    cursor,
+    size: 100,
+  }, signal)
+}
+
+function rebuildVisiblePoints() {
+  const lastLoadedPoint = loadedDataPoints.value[loadedDataPoints.value.length - 1]
+  const visibleEndDate = nextCursor.value && lastLoadedPoint
+    ? lastLoadedPoint.periodStart
+    : dateRange.value[1]
+
+  points.value = fillTimeSeriesGaps({
+    points: loadedDataPoints.value,
+    startDate: dateRange.value[0],
+    endDate: visibleEndDate,
+    granularity: granularity.value,
+    createEmptyPoint: (periodStart) => ({
+      periodStart,
+      revenue: 0,
+      cost: 0,
+      grossProfit: 0,
+      salesCount: 0,
+      productsCount: 0,
+      margin: 0,
+    }),
+  })
 }
 
 function formatAmount(value: number) {
@@ -537,6 +584,14 @@ onMounted(async () => {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   border-bottom: 1px solid var(--app-border);
   padding: 14px 20px;
+}
+
+.partial-data-note {
+  border-bottom: 1px solid var(--app-border);
+  background: #f8fafc;
+  padding: 7px 20px;
+  color: var(--app-text-muted);
+  font-size: 12px;
 }
 
 .chart-summary > div {

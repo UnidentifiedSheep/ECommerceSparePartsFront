@@ -1,5 +1,8 @@
 <template>
-  <div ref="chartElement" class="sales-profit-chart" role="img" :aria-label="accessibleLabel" />
+  <div class="sales-profit-chart-wrap">
+    <div ref="chartElement" class="sales-profit-chart" role="img" :aria-label="accessibleLabel" />
+    <span v-if="loadingMore" class="sales-profit-chart-loading">{{ loadingMoreLabel }}</span>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -35,12 +38,21 @@ interface TooltipParam {
   dataIndex?: number
 }
 
+interface DataZoomEvent {
+  start?: number
+  end?: number
+  batch?: Array<{ start?: number; end?: number }>
+}
+
 const props = defineProps<{
   points: SalesProfitDataPoint[]
   locale: string
   granularity: TimeSeriesGranularity
   currencyLabel: string
   accessibleLabel: string
+  hasMore: boolean
+  loadingMore: boolean
+  loadingMoreLabel: string
   labels: {
     revenue: string
     cost: string
@@ -51,10 +63,17 @@ const props = defineProps<{
   }
 }>()
 
+const emit = defineEmits<{
+  'load-more': []
+}>()
+
 const chartElement = ref<HTMLDivElement>()
 let chart: ECharts | undefined
 let resizeObserver: ResizeObserver | undefined
-const showDataZoom = computed(() => props.points.length >= 30)
+const showDataZoom = computed(() => props.points.length >= 30 || props.hasMore)
+let zoomStartIndex = 0
+let zoomEndIndex = 29
+let applyingOption = false
 
 const option = computed<EChartsOption>(() => ({
   animationDuration: 220,
@@ -98,7 +117,10 @@ const option = computed<EChartsOption>(() => ({
     splitLine: { lineStyle: { color: '#edf0f4' } },
   },
   dataZoom: showDataZoom.value
-    ? [{ type: 'inside', start: 0, end: 100 }, { type: 'slider', height: 18, bottom: 8 }]
+    ? [
+        { type: 'inside', startValue: zoomStartIndex, endValue: Math.min(zoomEndIndex, props.points.length - 1) },
+        { type: 'slider', startValue: zoomStartIndex, endValue: Math.min(zoomEndIndex, props.points.length - 1), height: 18, bottom: 8 },
+      ]
     : [],
   series: [
     {
@@ -187,8 +209,26 @@ function formatTooltip(rawParams: unknown) {
 async function renderChart() {
   await nextTick()
   if (!chartElement.value) return
-  chart ??= init(chartElement.value)
+  if (!chart) {
+    chart = init(chartElement.value)
+    chart.on('datazoom', handleDataZoom)
+  }
+  applyingOption = true
   chart.setOption(option.value, true)
+  applyingOption = false
+}
+
+function handleDataZoom(rawEvent: unknown) {
+  if (applyingOption) return
+  const event = rawEvent as DataZoomEvent
+  const zoom = event.batch?.[0] ?? event
+  const lastIndex = Math.max(props.points.length - 1, 0)
+  const start = zoom.start ?? 0
+  const end = zoom.end ?? 100
+  zoomStartIndex = Math.round(lastIndex * start / 100)
+  zoomEndIndex = Math.round(lastIndex * end / 100)
+
+  if (end >= 85 && props.hasMore && !props.loadingMore) emit('load-more')
 }
 
 watch(option, renderChart, { deep: true })
@@ -211,6 +251,18 @@ onBeforeUnmount(() => {
 .sales-profit-chart {
   width: 100%;
   height: 420px;
+}
+
+.sales-profit-chart-wrap {
+  position: relative;
+}
+
+.sales-profit-chart-loading {
+  position: absolute;
+  right: 20px;
+  bottom: 10px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 @media (max-width: 760px) {
