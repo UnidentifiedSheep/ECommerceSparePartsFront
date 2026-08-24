@@ -24,6 +24,7 @@ import StoragesView from '@/views/StoragesView.vue'
 import TransactionsView from '@/views/TransactionsView.vue'
 import UsersView from '@/views/UsersView.vue'
 import OrganizationsView from '@/views/OrganizationsView.vue'
+import HomeView from '@/views/HomeView.vue'
 import { useAuthStore } from '@/stores/authStore.ts'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import ClearLayout from '@/layouts/ClearLayout.vue'
@@ -31,12 +32,14 @@ import ClearLayout from '@/layouts/ClearLayout.vue'
 const routes = [
   {
     path: '/',
-    redirect: '/storages',
-  },
-  {
-    path: '/',
     component: DefaultLayout,
     children: [
+      {
+        path: '',
+        name: 'home',
+        component: HomeView,
+        meta: { requiresAuth: true },
+      },
       {
         path: '/storages',
         name: 'storages',
@@ -204,7 +207,7 @@ router.beforeEach((to, _, next) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/auth')
   } else if (to.path === '/auth' && authStore.isAuthenticated) {
-    next('/storages')
+    next('/')
   } else {
     next()
   }

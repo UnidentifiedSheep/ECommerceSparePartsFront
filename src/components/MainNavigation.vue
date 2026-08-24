@@ -18,6 +18,11 @@
       </button>
     </div>
 
+    <el-menu-item v-if="canViewCharts" index="/" @click="openRoute('/')">
+      <el-icon><House /></el-icon>
+      <span>{{ t('nav.overview') }}</span>
+    </el-menu-item>
+
     <el-sub-menu index="operations">
       <template #title>
         <el-icon><Tickets /></el-icon>
@@ -95,7 +100,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Close, DataAnalysis, Key, Money, Tickets } from '@element-plus/icons-vue'
+import { Close, DataAnalysis, House, Key, Money, Tickets } from '@element-plus/icons-vue'
 import IconRoute from '@/components/icons/IconRoute.vue'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
@@ -117,6 +122,7 @@ const { hasPermission } = usePermissions()
 const canManagePriceAppliers = computed(() => hasPermission('PRICE_APPLIERS_MANAGE'))
 const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
 const canReviewCatalogueCandidates = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))
+const canViewCharts = computed(() => hasPermission('CHARTS_GET'))
 
 const routeRoots = [
   '/purchases',
@@ -139,7 +145,9 @@ const routeRoots = [
   '/jobs',
 ]
 
-const activeMenuIndex = computed(() => routeRoots.find((path) => route.path.startsWith(path)) ?? route.path)
+const activeMenuIndex = computed(() => route.path === '/'
+  ? '/'
+  : routeRoots.find((path) => route.path.startsWith(path)) ?? route.path)
 
 function openRoute(path: string) {
   emit('close')

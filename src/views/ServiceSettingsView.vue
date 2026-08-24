@@ -154,14 +154,14 @@ import { getServiceNamedObjects, type NamedObjectModel } from '@/services/api/jo
 import { getMarkupGroups, type MarkupGroupModel } from '@/services/api/markups.ts'
 import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { getServiceSettings, updateServiceSetting, type SettingModel } from '@/services/api/serviceSettings.ts'
-import { toSchemaUiFields, type ObjectSchema, type SchemaUiField } from '@/models/schemaModel.ts'
+import type { ObjectSchema, SchemaField } from '@/models/schemaModel.ts'
 
 interface ServiceCard {
   key: string
   available: boolean
 }
 
-type SettingSchemaField = SchemaUiField
+type SettingSchemaField = SchemaField
 
 interface EnumSelectorOption {
   value: string
@@ -312,7 +312,7 @@ function resetInputState() {
 }
 
 function parseSettingSchema(schema: ObjectSchema) {
-  schemaFields.value = toSchemaUiFields(schema.fields)
+  schemaFields.value = schema.fields
   schemaFields.value.forEach((field) => {
     inputState[field.name] = defaultValue(field)
   })
@@ -323,7 +323,7 @@ function hydrateOutputData(rawOutput: string, outputMetadata: ObjectSchema) {
 
   try {
     const parsed = JSON.parse(rawOutput) as Record<string, string | number | boolean | null>
-    const outputMetadataFields = toSchemaUiFields(outputMetadata.fields)
+    const outputMetadataFields = outputMetadata.fields
     schemaFields.value.forEach((field) => {
       const currentValue = findCurrentFieldValue(parsed, field.name)
       if (currentValue.found) {
@@ -495,7 +495,7 @@ function isSupportedSelector(field: SettingSchemaField) {
     || entity === 'ExchangeRateProvider'
     || entity === 'ProductPricingType'
     || entity === 'MarkupGroup'
-    || (field.control === 'NamedObjectSelector' && Boolean(field.dependsOnEntity))
+    || (field.control === 'NamedObjectSelector' && Boolean(field.dependency?.entityName))
 }
 
 function isSelectorLoading(field: SettingSchemaField) {
@@ -504,8 +504,8 @@ function isSelectorLoading(field: SettingSchemaField) {
   if (entity === 'Product') return isLoadingProducts.value
   if (entity === 'Storage') return isStoragesLoading.value
   if (entity === 'MarkupGroup') return isLoadingMarkupGroups.value
-  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedService.value) {
-    return loadingNamedObjectGroups.value.has(namedObjectsCacheKey(selectedService.value, field.dependsOnEntity))
+  if (field.control === 'NamedObjectSelector' && field.dependency?.entityName && selectedService.value) {
+    return loadingNamedObjectGroups.value.has(namedObjectsCacheKey(selectedService.value, field.dependency.entityName))
   }
   return false
 }
@@ -530,8 +530,8 @@ function selectorOptions(field: SettingSchemaField): SelectorOption[] {
       { value: 'Lowest', label: t('common.productPricingTypes.Lowest') },
     ]
   }
-  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity && selectedService.value) {
-    return namedObjects.value[namedObjectsCacheKey(selectedService.value, field.dependsOnEntity)] ?? []
+  if (field.control === 'NamedObjectSelector' && field.dependency?.entityName && selectedService.value) {
+    return namedObjects.value[namedObjectsCacheKey(selectedService.value, field.dependency.entityName)] ?? []
   }
   return []
 }
@@ -547,7 +547,7 @@ function selectorOptionValue(field: SettingSchemaField, option: SelectorOption):
   if ('systemName' in option) return option.systemName
   if (entityName(field) === 'Storage') return (option as StorageModel).name
 
-  const key = field.dependsOnField ?? 'id'
+  const key = field.dependency?.fieldName ?? 'id'
   const value = option[key as keyof SelectorOption]
   if (typeof value === 'number' || typeof value === 'string') return value
   return 'id' in option ? option.id : ''
@@ -581,7 +581,7 @@ function selectorOptionLabel(field: SettingSchemaField, option: SelectorOption) 
 }
 
 function entityName(field: SettingSchemaField) {
-  return field.dependsOnEntity?.split(',')[0]?.split('.').pop() ?? ''
+  return field.dependency?.entityName.split(',')[0]?.split('.').pop() ?? ''
 }
 
 async function loadCurrenciesIfNeeded() {
@@ -708,8 +708,8 @@ async function loadSelectorOptions(field: SettingSchemaField) {
     return
   }
 
-  if (field.control === 'NamedObjectSelector' && field.dependsOnEntity) {
-    await loadNamedObjects(field.dependsOnEntity)
+  if (field.control === 'NamedObjectSelector' && field.dependency?.entityName) {
+    await loadNamedObjects(field.dependency.entityName)
   }
 }
 

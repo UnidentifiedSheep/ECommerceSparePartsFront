@@ -74,6 +74,45 @@ export interface GetMetricInfosResponse {
   metrics: MetricInfoModel[]
 }
 
+export interface ChartModel {
+  systemName: string
+  name: string
+  description: string
+  queryInputSchema: ObjectSchema
+  dataPointSchema: ObjectSchema
+}
+
+export interface GetChartsResponse {
+  charts: ChartModel[]
+}
+
+export type ChartGranularity = 'Day' | 'Month' | 'Year'
+
+export interface SalesProfitChartQueryInput {
+  organizationId?: string | null
+  buyerId?: string | null
+  startDate: string
+  endDate: string
+  granularity: ChartGranularity
+  cursor?: string | null
+  size: number
+}
+
+export interface SalesProfitDataPoint {
+  periodStart: string
+  revenue: number
+  cost: number
+  grossProfit: number
+  salesCount: number
+  productsCount: number
+  margin: number
+}
+
+export interface QuerySalesProfitChartResponse {
+  dataPoints: SalesProfitDataPoint[]
+  nextCursor: string | null
+}
+
 export interface GetMetricsResponse {
   metrics: MetricModel[]
 }
@@ -160,6 +199,24 @@ function mapMetric(dto: MetricDto): MetricModel {
 
 export async function getMetricInfos(): Promise<GetMetricInfosResponse> {
   const resp = await api.get<GetMetricInfosResponse>(businessMetricsUrl('/info'))
+  return resp.data
+}
+
+export async function getCharts(signal?: AbortSignal): Promise<GetChartsResponse> {
+  const resp = await api.get<GetChartsResponse>(analyticsUrl('/charts'), { signal })
+  return resp.data
+}
+
+export async function querySalesProfitChart(
+  queryInput: SalesProfitChartQueryInput,
+  signal?: AbortSignal,
+): Promise<QuerySalesProfitChartResponse> {
+  const systemName = 'SalesProfitOverTimeChartDataSource'
+  const resp = await api.post<QuerySalesProfitChartResponse>(
+    analyticsUrl(`/charts/${systemName}/query`),
+    { queryInput },
+    { signal },
+  )
   return resp.data
 }
 

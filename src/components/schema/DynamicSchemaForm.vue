@@ -90,7 +90,7 @@
             :model-value="modelValue[field.name]"
             filterable
             clearable
-            :remote="field.dependsOnEntity === 'Product' || field.dependsOnEntity === 'Storage'"
+            :remote="isRemoteSelector(field)"
             :remote-method="(query: string) => searchSelectorOptions(field, query)"
             class="w-full"
             :loading="isSelectorLoading(field)"
@@ -215,6 +215,11 @@ function isSelectorControl(field: DynamicSchemaField) {
   return field.control === 'EntitySelector'
     || field.control === 'EnumSelector'
     || field.control === 'NamedObjectSelector'
+}
+
+function isRemoteSelector(field: DynamicSchemaField) {
+  const entityName = field.dependency?.entityName ?? field.dependsOnEntity
+  return entityName === 'Product' || entityName === 'Storage'
 }
 
 function isNumberField(field: DynamicSchemaField) {

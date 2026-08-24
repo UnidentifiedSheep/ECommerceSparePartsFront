@@ -81,7 +81,7 @@ async function handleLogin() {
       password: password.value,
     })
     authStore.login(resp.token, resp.refreshToken, resp.deviceId)
-    await router.push('/storages')
+    await router.push('/')
   } catch (error) {
     ElNotification({
       title: t('auth.errorTitle'),
