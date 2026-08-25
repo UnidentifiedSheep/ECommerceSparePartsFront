@@ -16,7 +16,7 @@
     </div>
 
     <el-table v-loading="loading" :data="contents" stripe :empty-text="t('products.details.noStocks')">
-      <el-table-column prop="storageName" :label="t('common.labels.storage')" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="storageCode" :label="t('common.labels.storage')" min-width="180" show-overflow-tooltip />
       <el-table-column prop="count" :label="t('common.labels.count')" width="140" align="right">
         <template #default="{ row }"><ProductStockCell :stock="row.count" /></template>
       </el-table-column>

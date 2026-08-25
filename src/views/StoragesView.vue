@@ -34,7 +34,7 @@
             <el-card shadow="never" class="h-[760px]">
               <template v-if="selectedStorage">
                 <div class="mb-4 rounded-lg bg-slate-50 p-4">
-                  <div class="text-lg font-semibold text-slate-900">{{ selectedStorage.name }}</div>
+                <div class="text-lg font-semibold text-slate-900">{{ selectedStorage.code }}</div>
                   <div class="mt-1 text-sm text-slate-500">
                     {{ selectedStorage.location || t('storages.locationMissing') }}
                   </div>

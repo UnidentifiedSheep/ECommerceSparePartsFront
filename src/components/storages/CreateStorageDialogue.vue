@@ -1,8 +1,8 @@
 <template>
   <el-dialog v-model="isOpen" :title="t('storages.createTitle')" width="500" align-center>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="auto" label-position="top">
-      <el-form-item :label="t('common.labels.name')" prop="name">
-        <el-input v-model="form.name" />
+      <el-form-item :label="t('common.labels.code')" prop="code">
+        <el-input v-model="form.code" />
       </el-form-item>
       <el-form-item :label="t('common.labels.description')" prop="description">
         <el-input v-model="form.description" />
@@ -30,23 +30,23 @@ import { createStorage, type CreateStorageRequest } from '@/services/api/storage
 import { useI18n } from '@/i18n'
 
 const emit = defineEmits<{
-  created: [name: string]
+  created: [code: string]
 }>()
 
 const { t } = useI18n()
 const isOpen = defineModel<boolean>('is-open')
 const formRef = ref<FormInstance>()
 const form = reactive<CreateStorageRequest>({
-  name: '',
+  code: '',
   description: undefined,
   location: undefined,
   type: StorageType.Warehouse,
 })
 
 const rules = computed<FormRules<CreateStorageRequest>>(() => ({
-  name: [
-    { required: true, message: t('storages.validation.nameRequired'), trigger: 'blur' },
-    { min: 2, max: 128, message: t('storages.validation.nameLength'), trigger: 'blur' },
+  code: [
+    { required: true, message: t('storages.validation.codeRequired'), trigger: 'blur' },
+    { min: 2, max: 26, message: t('storages.validation.codeLength'), trigger: 'blur' },
   ],
   description: [{ max: 256, message: t('storages.validation.descriptionMax'), trigger: 'blur' }],
   location: [{ max: 256, message: t('storages.validation.locationMax'), trigger: 'blur' }],
@@ -61,11 +61,11 @@ async function onSubmit(formEl: FormInstance | undefined) {
     const resp = await createStorage(form)
     ElNotification({
       title: t('common.labels.success'),
-      message: t('storages.created', { name: resp.name }),
+      message: t('storages.created', { name: resp.code }),
       type: 'success',
     })
     isOpen.value = false
-    emit('created', resp.name)
+    emit('created', resp.code)
   })
 }
 

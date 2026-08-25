@@ -545,7 +545,7 @@ function enumValueLabel(field: SettingSchemaField, value: string | number | bool
 function selectorOptionValue(field: SettingSchemaField, option: SelectorOption): string | number {
   if ('value' in option) return option.value
   if ('systemName' in option) return option.systemName
-  if (entityName(field) === 'Storage') return (option as StorageModel).name
+  if (entityName(field) === 'Storage') return (option as StorageModel).code
 
   const key = field.dependency?.fieldName ?? 'id'
   const value = option[key as keyof SelectorOption]
@@ -569,7 +569,7 @@ function selectorOptionLabel(field: SettingSchemaField, option: SelectorOption) 
   }
 
   if (entity === 'Storage') {
-    return (option as StorageModel).name
+    return (option as StorageModel).code
   }
 
   if (entity === 'MarkupGroup') {

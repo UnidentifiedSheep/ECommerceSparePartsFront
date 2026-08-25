@@ -16,7 +16,7 @@ interface SaleDto {
   saleDatetime: string
   transactionId: string
   totalSum: number
-  storage: string
+  storageCode: string
   state: SaleState
   rowVersion: number
   currency: CurrencyModel
@@ -34,7 +34,7 @@ export interface CreateSaleRequest {
   userId: string
   organizationId: string
   currencyId: number
-  storageName: string
+  storageCode: string
   saleDateTime: string
   contents: NewSaleContentRequest[]
   comment?: string | null
@@ -88,7 +88,7 @@ export interface GetSaleContentResponse {
 export interface ProductSaleHistoryModel {
   saleContentId: number
   productId: number
-  storageName: string
+  storageCode: string
   currencyId: number
   quantity: number
   discount: number
@@ -100,7 +100,7 @@ export interface ProductSaleHistoryModel {
 
 export interface GetProductSaleHistoryRequest {
   productId: number
-  storageName?: string
+  storageCode?: string
   organizationId?: string
   preferredOrganizationId?: string
   currencyId?: number
@@ -187,7 +187,7 @@ export async function getProductSaleHistory(
     `/main/sales/products/${req.productId}/history`,
     {
       params: {
-        storageName: req.storageName,
+        storageCode: req.storageCode,
         organizationId: req.organizationId,
         preferredOrganizationId: req.preferredOrganizationId,
         currencyId: req.currencyId,

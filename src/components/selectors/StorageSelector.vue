@@ -1,6 +1,6 @@
 <template>
   <el-select
-    v-model="selectedStorageName"
+    v-model="selectedStorageCode"
     filterable
     remote
     clearable
@@ -14,12 +14,12 @@
   >
     <el-option
       v-for="storage in storages"
-      :key="storage.name"
-      :label="storage.name"
-      :value="storage.name"
+      :key="storage.code"
+      :label="storage.code"
+      :value="storage.code"
     >
       <div class="storage-option">
-        <span>{{ storage.name }}</span>
+        <span>{{ storage.code }}</span>
         <small>{{ toText(storage.type) }}</small>
       </div>
     </el-option>
@@ -47,7 +47,7 @@ const props = withDefaults(defineProps<{
 
 const { t } = useI18n()
 const placeholder = computed(() => props.placeholder ?? t('storages.selectStorage'))
-const selectedStorageName = defineModel<string | undefined>({ required: true })
+const selectedStorageCode = defineModel<string | undefined>({ required: true })
 
 const storages = ref<StorageModel[]>([])
 const searchTerm = ref('')
@@ -63,12 +63,12 @@ const loadStoragesDebounced = useDebounceFn(async () => {
 }, 300)
 
 function ensureSelectedStorage() {
-  if (!selectedStorageName.value) return
-  const exists = storages.value.some((storage) => storage.name === selectedStorageName.value)
+  if (!selectedStorageCode.value) return
+  const exists = storages.value.some((storage) => storage.code === selectedStorageCode.value)
   if (exists) return
 
   storages.value.unshift({
-    name: selectedStorageName.value,
+    code: selectedStorageCode.value,
     type: props.type ?? storages.value[0]?.type,
   } as StorageModel)
 }
@@ -91,8 +91,8 @@ async function loadStorages(reset = false) {
       searchTerm: searchTerm.value.trim() || undefined,
       type: props.type,
     })
-    const existingNames = new Set(storages.value.map((storage) => storage.name))
-    storages.value.push(...resp.storages.filter((storage) => !existingNames.has(storage.name)))
+    const existingCodes = new Set(storages.value.map((storage) => storage.code))
+    storages.value.push(...resp.storages.filter((storage) => !existingCodes.has(storage.code)))
     hasNextPage.value = resp.storages.length === limit.value
     page.value += 1
     ensureSelectedStorage()
@@ -118,7 +118,7 @@ function onVisibleChange(open: boolean) {
   }
 }
 
-watch(selectedStorageName, ensureSelectedStorage)
+watch(selectedStorageCode, ensureSelectedStorage)
 watch(() => props.type, () => loadStorages(true))
 
 onMounted(() => loadStorages(true))

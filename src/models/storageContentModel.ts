@@ -2,7 +2,7 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 
 export interface StorageContentModel {
   id: number
-  storageName: string
+  storageCode: string
   productId: number
   count: number
   buyPrice: number

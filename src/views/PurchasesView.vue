@@ -168,7 +168,7 @@
                     </div>
                   </template>
                 </el-table-column>
-                <el-table-column prop="storage" :label="t('common.labels.storage')" min-width="150" />
+                <el-table-column prop="storageCode" :label="t('common.labels.storage')" min-width="150" />
                 <el-table-column prop="dateTime" :label="t('common.labels.date')" min-width="170" sortable="custom">
                   <template #default="{ row }">
                     {{ formatDate(row.purchaseDatetime) }}

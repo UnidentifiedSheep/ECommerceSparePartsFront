@@ -5,7 +5,7 @@ export interface GetPriceOffersForProductRequest {
   productId: number
   currencyId: number
   sources?: PriceOfferSource[]
-  storageName: string
+  storageCode: string
   page: number
   size: number
   sortBy?: string[]
@@ -21,7 +21,7 @@ export async function getPriceOffersForProduct(
   const params = new URLSearchParams()
   params.set('productId', String(req.productId))
   params.set('currencyId', String(req.currencyId))
-  params.set('storageName', req.storageName)
+  params.set('storageCode', req.storageCode)
   params.set('page', String(req.page))
   params.set('size', String(clampPageSize(req.size)))
   req.sortBy?.forEach((sort) => params.append('sortBy', sort))

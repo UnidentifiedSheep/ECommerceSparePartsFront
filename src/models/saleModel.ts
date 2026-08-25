@@ -12,7 +12,7 @@ export interface SaleModel {
   saleDatetime: string
   transactionId: string
   totalSum: number
-  storage: string
+  storageCode: string
   state: SaleState
   rowVersion: number
   currency: CurrencyModel

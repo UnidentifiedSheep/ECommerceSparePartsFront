@@ -13,7 +13,7 @@
       </div>
       <div>
         <span>{{ t('common.labels.storage') }}</span>
-        <strong>{{ storageName || '—' }}</strong>
+        <strong>{{ storageCode || '—' }}</strong>
       </div>
     </div>
 
@@ -64,7 +64,7 @@ import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
 const props = defineProps<{
-  storageName?: string
+  storageCode?: string
   productId?: number
   productName?: string
   productSku?: string
@@ -87,7 +87,7 @@ function formatDate(value: string) {
 }
 
 async function loadContents() {
-  if (!isOpen.value || !props.storageName || !props.productId) {
+  if (!isOpen.value || !props.storageCode || !props.productId) {
     contents.value = []
     hasNext.value = false
     return
@@ -96,7 +96,7 @@ async function loadContents() {
   isLoading.value = true
   try {
     const resp = await getStorageContent({
-      storageName: props.storageName,
+      storageCode: props.storageCode,
       productId: props.productId,
       page: page.value,
       size,
@@ -122,7 +122,7 @@ watch(page, () => {
   void loadContents()
 })
 
-watch(() => [props.storageName, props.productId], () => {
+watch(() => [props.storageCode, props.productId], () => {
   if (!isOpen.value) return
   page.value = 0
   void loadContents()

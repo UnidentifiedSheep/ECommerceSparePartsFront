@@ -40,9 +40,9 @@
         <el-collapse-transition>
           <div v-if="stockExpanded" class="quick-view-storage-stock">
             <div v-if="storageStocks.length > 0" class="quick-view-storage-stock__list">
-              <div v-for="item in storageStocks" :key="item.storageName" class="quick-view-storage-stock__row">
+              <div v-for="item in storageStocks" :key="item.storageCode" class="quick-view-storage-stock__row">
                 <span>
-                  <strong>{{ item.storageName }}</strong>
+                  <strong>{{ item.storageCode }}</strong>
                   <small>{{ t('products.quickView.storageBatches', { count: item.batches }) }}</small>
                 </span>
                 <ProductStockCell :stock="item.count" />
@@ -177,7 +177,7 @@ const canViewCrosses = computed(() => hasPermission('ARTICLE_CROSSES_GET'))
 const canViewStorageContent = computed(() => hasPermission('STORAGES_CONTENT_GET_ALL'))
 const fullProduct = ref<ProductModel | null>(null)
 const crosses = ref<ProductModel[]>([])
-const storageStocks = ref<Array<{ storageName: string; count: number; batches: number }>>([])
+const storageStocks = ref<Array<{ storageCode: string; count: number; batches: number }>>([])
 const stockExpanded = ref(false)
 const storageStockLoaded = ref(false)
 const isStorageStockLoading = ref(false)
@@ -224,20 +224,20 @@ async function loadStorageStock() {
       page += 1
     }
 
-    const byStorage = new Map<string, { storageName: string; count: number; batches: number }>()
+    const byStorage = new Map<string, { storageCode: string; count: number; batches: number }>()
     contents.forEach((item) => {
-      const current = byStorage.get(item.storageName) ?? {
-        storageName: item.storageName,
+      const current = byStorage.get(item.storageCode) ?? {
+        storageCode: item.storageCode,
         count: 0,
         batches: 0,
       }
       current.count += item.count
       current.batches += 1
-      byStorage.set(item.storageName, current)
+      byStorage.set(item.storageCode, current)
     })
 
     storageStocks.value = [...byStorage.values()].sort((left, right) => (
-      right.count - left.count || left.storageName.localeCompare(right.storageName, locale.value)
+      right.count - left.count || left.storageCode.localeCompare(right.storageCode, locale.value)
     ))
     storageStockLoaded.value = true
   } catch (error) {

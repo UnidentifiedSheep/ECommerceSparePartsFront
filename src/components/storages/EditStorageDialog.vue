@@ -1,8 +1,8 @@
 <template>
   <el-dialog v-model="isOpen" :title="t('storages.editTitle')" width="520" align-center>
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-      <el-form-item :label="t('common.labels.name')">
-        <el-input :model-value="storage?.name" disabled />
+      <el-form-item :label="t('common.labels.code')">
+        <el-input :model-value="storage?.code" disabled />
       </el-form-item>
       <el-form-item :label="t('common.labels.description')" prop="description">
         <el-input v-model="form.description" />
@@ -68,7 +68,7 @@ async function submit(formEl?: FormInstance) {
   if (!valid) return
 
   await editStorage({
-    storageName: props.storage.name,
+    storageCode: props.storage.code,
     description: form.description,
     location: form.location,
     type: form.type,
@@ -76,7 +76,7 @@ async function submit(formEl?: FormInstance) {
 
   ElNotification({
     title: t('common.labels.success'),
-    message: t('storages.updated', { name: props.storage.name }),
+    message: t('storages.updated', { name: props.storage.code }),
     type: 'success',
   })
 

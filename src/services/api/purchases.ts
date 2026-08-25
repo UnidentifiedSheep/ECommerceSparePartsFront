@@ -14,7 +14,7 @@ interface PurchaseDto {
   supplierOrganization: OrganizationDto
   currency: CurrencyModel
   comment?: string | null
-  storage: string
+  storageCode: string
   purchaseDatetime: string
   transactionId: string
   totalSum: number
@@ -83,7 +83,7 @@ export interface CreatePurchaseRequest {
   supplierUserId: string
   supplierOrganizationId: string
   currencyId: number
-  storageName: string
+  storageCode: string
   purchaseDate: string
   purchaseContent: NewPurchaseContentRequest[]
   withLogistics: boolean

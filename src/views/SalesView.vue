@@ -192,7 +192,7 @@
                 </span>
               </template>
             </el-table-column>
-            <el-table-column prop="storage" :label="t('sales.storage')" min-width="100" show-overflow-tooltip />
+            <el-table-column prop="storageCode" :label="t('sales.storage')" min-width="100" show-overflow-tooltip />
             <el-table-column prop="dateTime" :label="t('common.labels.date')" min-width="132" sortable="custom">
               <template #default="{ row }">
                 {{ formatDate(row.saleDatetime) }}

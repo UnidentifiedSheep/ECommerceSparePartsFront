@@ -10,7 +10,7 @@ export interface PurchaseModel {
   supplierOrganization: OrganizationModel
   currency: CurrencyModel
   comment?: string | null
-  storage: string
+  storageCode: string
   purchaseDatetime: string
   transactionId: string
   totalSum: number

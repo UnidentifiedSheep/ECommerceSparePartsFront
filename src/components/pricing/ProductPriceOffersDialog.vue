@@ -39,7 +39,7 @@
 
           <el-form-item :label="t('common.labels.storage')">
             <el-select
-              v-model="selectedStorageName"
+              v-model="selectedStorageCode"
               :disabled="lockContext"
               :loading="isStoragesLoading"
               filterable
@@ -48,12 +48,12 @@
             >
               <el-option
                 v-for="storage in storages"
-                :key="storage.name"
-                :label="storage.name"
-                :value="storage.name"
+                :key="storage.code"
+                :label="storage.code"
+                :value="storage.code"
               >
                 <div class="flex min-w-0 flex-col py-1">
-                  <span class="truncate">{{ storage.name }}</span>
+                  <span class="truncate">{{ storage.code }}</span>
                   <span class="truncate text-xs text-slate-500">
                     {{ storage.location || storage.description || t('priceOffers.noStorageDescription') }}
                   </span>
@@ -221,12 +221,12 @@ const props = withDefaults(defineProps<{
   productId: number
   productLabel?: string
   currencyId?: number | null
-  storageName?: string | null
+  storageCode?: string | null
   lockContext?: boolean
 }>(), {
   productLabel: '',
   currencyId: null,
-  storageName: null,
+  storageCode: null,
   lockContext: false,
 })
 
@@ -266,7 +266,7 @@ const currencies = ref<CurrencyModel[]>([])
 const storages = ref<StorageModel[]>([])
 const selectedSources = ref<PriceOfferSourceValue[]>([])
 const selectedCurrencyId = ref<number>()
-const selectedStorageName = ref('')
+const selectedStorageCode = ref('')
 const page = ref(0)
 const size = ref(10)
 const hasNext = ref(false)
@@ -277,7 +277,7 @@ let isPreparingContext = false
 let requestId = 0
 
 const selectedCurrency = computed(() => currencies.value.find((currency) => currency.id === selectedCurrencyId.value))
-const canLoadOffers = computed(() => Boolean(props.productId && selectedCurrencyId.value && selectedStorageName.value))
+const canLoadOffers = computed(() => Boolean(props.productId && selectedCurrencyId.value && selectedStorageCode.value))
 const sourceOptions: PriceOfferSourceValue[] = [
   PriceOfferSource.OurWarehouse,
   PriceOfferSource.Armtek,
@@ -379,7 +379,7 @@ async function loadStorages() {
       limit: 100,
     })
     storages.value = resp.storages
-    selectedStorageName.value = props.storageName || selectedStorageName.value || resp.storages[0]?.name || ''
+    selectedStorageCode.value = props.storageCode || selectedStorageCode.value || resp.storages[0]?.code || ''
   } finally {
     isStoragesLoading.value = false
   }
@@ -394,7 +394,7 @@ async function prepareContextAndLoadOffers() {
   isPreparingContext = true
   try {
     selectedCurrencyId.value = props.currencyId ?? selectedCurrencyId.value
-    selectedStorageName.value = props.storageName ?? selectedStorageName.value
+    selectedStorageCode.value = props.storageCode ?? selectedStorageCode.value
     await loadDictionaries()
   } finally {
     isPreparingContext = false
@@ -417,7 +417,7 @@ async function loadOffers() {
       productId: props.productId,
       currencyId: selectedCurrencyId.value!,
       sources: selectedSources.value,
-      storageName: selectedStorageName.value,
+      storageCode: selectedStorageCode.value,
       page: page.value,
       size: size.value,
       sortBy: ['score_desc'],
@@ -454,14 +454,14 @@ watch(
 )
 
 watch(
-  () => [props.currencyId, props.storageName],
+  () => [props.currencyId, props.storageCode],
   () => {
     if (props.currencyId) selectedCurrencyId.value = props.currencyId
-    if (props.storageName) selectedStorageName.value = props.storageName
+    if (props.storageCode) selectedStorageCode.value = props.storageCode
   },
 )
 
-watch([selectedCurrencyId, selectedStorageName, selectedSources], async () => {
+watch([selectedCurrencyId, selectedStorageCode, selectedSources], async () => {
   if (!props.modelValue || isPreparingContext) return
   page.value = 0
   await loadOffers()

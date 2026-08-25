@@ -49,7 +49,7 @@
 
       <template v-if="product">
         <div class="sale-history__context">
-          <span>{{ storageName || t('sales.history.anyStorage') }}</span>
+          <span>{{ storageCode || t('sales.history.anyStorage') }}</span>
           <span>{{ currencySign || t('sales.history.anyCurrency') }}</span>
         </div>
 
@@ -96,7 +96,7 @@
               </div>
               <div>
                 <dt>{{ t('common.labels.storage') }}</dt>
-                <dd>{{ entry.storageName }}</dd>
+                <dd>{{ entry.storageCode }}</dd>
               </div>
             </dl>
             <div class="sale-history__meta">
@@ -134,7 +134,7 @@ import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   product?: Pick<ProductSearchModel, 'id' | 'name' | 'sku'>
-  storageName?: string
+  storageCode?: string
   organizationId?: string
   preferredOrganizationId?: string
   currencyId?: number
@@ -182,7 +182,7 @@ async function load(reset: boolean) {
   try {
     const response = await getProductSaleHistory({
       productId: props.product.id,
-      storageName: props.storageName,
+      storageCode: props.storageCode,
       organizationId: props.organizationId,
       preferredOrganizationId: props.preferredOrganizationId,
       currencyId: props.currencyId,
@@ -250,7 +250,7 @@ watch(
   () => [
     isOpen.value,
     props.product?.id,
-    props.storageName,
+    props.storageCode,
     props.organizationId,
     props.preferredOrganizationId,
     props.currencyId,

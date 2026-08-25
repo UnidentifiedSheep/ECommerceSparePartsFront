@@ -37,8 +37,8 @@ export function useStorageEntityOptions(config: StorageEntityOptionsConfig = {})
       })
       if (version !== requestVersion) return
 
-      const existingNames = new Set(storages.value.map((storage) => storage.name))
-      storages.value.push(...response.storages.filter((storage) => !existingNames.has(storage.name)))
+      const existingCodes = new Set(storages.value.map((storage) => storage.code))
+      storages.value.push(...response.storages.filter((storage) => !existingCodes.has(storage.code)))
       storagesHaveMore.value = response.storages.length === pageSize
       storagePage.value += 1
     } catch (error) {

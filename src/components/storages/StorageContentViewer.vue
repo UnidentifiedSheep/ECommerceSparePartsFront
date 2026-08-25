@@ -163,7 +163,7 @@ async function loadContent() {
   }
 
   const resp = await getStorageContent({
-    storageName: storage.value.name,
+    storageCode: storage.value.code,
     page: 0,
     size: 50,
     showZeroContent: showZeroContent.value,
@@ -206,7 +206,7 @@ async function createItem() {
   if (!storage.value) return
 
   await addStorageContent({
-    storageName: storage.value.name,
+    storageCode: storage.value.code,
     storageContent: [
       {
         productId: createForm.productId,

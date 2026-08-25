@@ -66,7 +66,7 @@
             </el-form-item>
 
             <el-form-item :label="t('sales.writeOffStorage')" class="span-4">
-              <el-input :model-value="sale?.storage ?? ''" disabled />
+              <el-input :model-value="sale?.storageCode ?? ''" disabled />
             </el-form-item>
 
             <el-form-item :label="t('sales.saleDate')" class="span-4">
@@ -206,7 +206,7 @@
                         type="button"
                         class="stock-badge"
                         :class="stockColorClass(availableProductStock(item))"
-                        :disabled="!props.sale?.storage"
+                        :disabled="!props.sale?.storageCode"
                         @click="openStorageBatches(item)"
                       >
                         {{ t('sales.available') }}:
@@ -287,7 +287,7 @@
                   <template #dropdown>
                     <el-dropdown-menu>
                       <el-dropdown-item
-                        :disabled="!props.sale?.storage"
+                        :disabled="!props.sale?.storageCode"
                         @click="openStorageBatches(item)"
                       >
                         {{ t('sales.storageBatches') }}
@@ -307,7 +307,7 @@
       v-if="isOpen"
       v-model="historyPanelOpen"
       :product="selectedHistoryItem?.product"
-      :storage-name="props.sale?.storage"
+      :storage-code="props.sale?.storageCode"
       :preferred-organization-id="props.sale?.organization.id"
       :currency-id="form.currencyId"
       :currency-sign="selectedCurrency?.currencySign"
@@ -331,7 +331,7 @@
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
     <StorageContentBatchesDialog
       v-model="storageBatchesOpen"
-      :storage-name="props.sale?.storage"
+      :storage-code="props.sale?.storageCode"
       :product-id="storageBatchesProduct?.id"
       :product-name="storageBatchesProduct?.name"
       :product-sku="storageBatchesProduct?.sku"
@@ -533,13 +533,13 @@ async function loadCurrentProductStocks() {
   const ids = [...new Set(form.items.map((item) => item.product.id))]
   const requestId = ++stockRequestId
 
-  if (ids.length === 0 || !props.sale?.storage) return
+  if (ids.length === 0 || !props.sale?.storageCode) return
 
   isStockLoading.value = true
   try {
     const results = await Promise.all(ids.map(async (id) => ({
       id,
-      stock: (await getProductStock(id, props.sale?.storage)).stock,
+      stock: (await getProductStock(id, props.sale?.storageCode)).stock,
     })))
     if (requestId !== stockRequestId) return
 
@@ -592,10 +592,10 @@ async function addProduct(product: ProductSearchModel) {
 }
 
 async function loadProductStorageStock(productId: number) {
-  if (!props.sale?.storage) return 0
+  if (!props.sale?.storageCode) return 0
 
   try {
-    const resp = await getProductStock(productId, props.sale.storage)
+    const resp = await getProductStock(productId, props.sale.storageCode)
     return resp.stock
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('sales.loadStockError'))
@@ -625,7 +625,7 @@ function selectHistoryItem(index: number) {
 }
 
 function openStorageBatches(item: EditSaleItemForm) {
-  if (!props.sale?.storage) return
+  if (!props.sale?.storageCode) return
   storageBatchesProduct.value = item.product
   storageBatchesOpen.value = true
 }

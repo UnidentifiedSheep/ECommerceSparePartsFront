@@ -75,12 +75,12 @@
             </el-form-item>
 
             <el-form-item :label="t('purchases.arrivalStorage')" class="span-4">
-              <el-select v-model="form.storageName" filterable class="w-full" :placeholder="t('purchases.selectStorage')">
+              <el-select v-model="form.storageCode" filterable class="w-full" :placeholder="t('purchases.selectStorage')">
                 <el-option
                   v-for="storage in storages"
-                  :key="storage.name"
-                  :label="storage.name"
-                  :value="storage.name"
+                  :key="storage.code"
+                  :label="storage.code"
+                  :value="storage.code"
                 />
               </el-select>
             </el-form-item>
@@ -128,9 +128,9 @@
               <el-select v-model="form.storageFrom" filterable clearable class="w-full" :placeholder="t('purchases.selectStorage')">
                 <el-option
                   v-for="storage in storages"
-                  :key="storage.name"
-                  :label="storage.name"
-                  :value="storage.name"
+                  :key="storage.code"
+                  :label="storage.code"
+                  :value="storage.code"
                 />
               </el-select>
             </el-form-item>
@@ -279,7 +279,7 @@ let logisticsRequestId = 0
 const form = reactive({
   supplier: undefined as OrganizationSelection | undefined,
   currencyId: undefined as number | undefined,
-  storageName: undefined as string | undefined,
+  storageCode: undefined as string | undefined,
   purchaseDate: toLocalDateTimeInputValue(new Date()),
   comment: '',
   payedSum: undefined as number | undefined,
@@ -312,7 +312,7 @@ const remainingPayment = computed(() => (
 
 const completionSteps = computed(() => [
   { label: t('purchases.supplier'), done: !!form.supplier },
-  { label: t('common.labels.storage'), done: !!form.storageName },
+  { label: t('common.labels.storage'), done: !!form.storageCode },
   { label: t('common.labels.currency'), done: !!form.currencyId },
   { label: t('purchases.positions'), done: form.items.length > 0 },
   ...(form.withLogistics ? [{
@@ -335,7 +335,7 @@ const itemsSummary = computed(() => {
 const canSave = computed(() => (
   !!form.supplier
   && !!form.currencyId
-  && !!form.storageName
+  && !!form.storageCode
   && form.purchaseDate !== ''
   && form.items.length > 0
   && form.items.every((item) => item.product && item.count > 0 && item.price >= 0)
@@ -347,7 +347,7 @@ const canSave = computed(() => (
 function resetForm() {
   form.supplier = undefined
   form.currencyId = resolveDefaultCurrencyId(props.currencies)
-  form.storageName = undefined
+  form.storageCode = undefined
   form.purchaseDate = toLocalDateTimeInputValue(new Date())
   form.comment = ''
   form.payedSum = undefined
@@ -399,7 +399,7 @@ const recalculateLogistics = useDebounceFn(async () => {
     }
   })
 
-  if (!form.withLogistics || !form.storageFrom || !form.storageName || itemsToCalculate.length === 0) {
+  if (!form.withLogistics || !form.storageFrom || !form.storageCode || itemsToCalculate.length === 0) {
     clearLogisticsPreview()
     return
   }
@@ -408,7 +408,7 @@ const recalculateLogistics = useDebounceFn(async () => {
   try {
     const resp = await calculateDeliveryCost({
       storageFrom: form.storageFrom,
-      storageTo: form.storageName,
+      storageTo: form.storageCode,
       mode: 'Soft',
       items: itemsToCalculate.map(({ item }) => ({
         productId: item.product!.id,
@@ -433,7 +433,7 @@ const recalculateLogistics = useDebounceFn(async () => {
 }, 350)
 
 async function save() {
-  if (!canSave.value || !form.supplier?.member || !form.currencyId || !form.storageName) return
+  if (!canSave.value || !form.supplier?.member || !form.currencyId || !form.storageCode) return
 
   isSaving.value = true
   try {
@@ -441,7 +441,7 @@ async function save() {
       supplierUserId: form.supplier.member.user.id,
       supplierOrganizationId: form.supplier.organization.id,
       currencyId: form.currencyId,
-      storageName: form.storageName,
+      storageCode: form.storageCode,
       purchaseDate: toUtcDateTimeString(form.purchaseDate),
       purchaseContent: form.items.map((item) => ({
         productId: item.product!.id,
@@ -488,7 +488,7 @@ watch(
   () => ({
     withLogistics: form.withLogistics,
     storageFrom: form.storageFrom,
-    storageName: form.storageName,
+    storageCode: form.storageCode,
     items: form.items.map((item) => ({
       productId: item.product?.id,
       count: item.count,

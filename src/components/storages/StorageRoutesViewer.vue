@@ -64,7 +64,7 @@ const editingRoute = ref<StorageRouteModel>()
 
 const toolbarText = computed(() => {
   if (!storage.value) return ''
-  return t('storages.routesPanel.incoming', { name: storage.value.name })
+  return t('storages.routesPanel.incoming', { name: storage.value.code })
 })
 
 async function loadCurrencies() {
@@ -88,7 +88,7 @@ async function loadNext(reset: boolean) {
     const resp = await getStorageRoutes({
       page: page.value,
       limit: limit.value,
-      to: storage.value.name,
+      to: storage.value.code,
     })
 
     routes.value.push(...resp.storageRoutes)

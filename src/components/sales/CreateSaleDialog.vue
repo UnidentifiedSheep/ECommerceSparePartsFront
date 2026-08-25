@@ -84,7 +84,7 @@
             </el-form-item>
 
             <el-form-item :label="t('sales.writeOffStorage')" class="span-4">
-              <StorageSelector v-model="form.storageName" :placeholder="t('sales.selectStorage')" />
+              <StorageSelector v-model="form.storageCode" :placeholder="t('sales.selectStorage')" />
             </el-form-item>
 
             <el-form-item :label="t('sales.saleDate')" class="span-4">
@@ -210,7 +210,7 @@
                         type="button"
                         class="stock-badge"
                         :class="stockColorClass(item.product?.stock ?? 0)"
-                        :disabled="!form.storageName || !item.product"
+                        :disabled="!form.storageCode || !item.product"
                         @click="openStorageBatches(item)"
                       >
                         {{ t('sales.available') }}:
@@ -283,7 +283,7 @@
                   <template #dropdown>
                     <el-dropdown-menu>
                       <el-dropdown-item
-                        :disabled="!form.storageName || !item.product"
+                        :disabled="!form.storageCode || !item.product"
                         @click="openStorageBatches(item)"
                       >
                         {{ t('sales.storageBatches') }}
@@ -301,7 +301,7 @@
         v-if="isOpen"
         v-model="historyPanelOpen"
         :product="selectedHistoryItem?.product"
-        :storage-name="form.storageName"
+        :storage-code="form.storageCode"
         :preferred-organization-id="form.buyer?.organization.id"
         :currency-id="form.currencyId"
         :currency-sign="selectedCurrency?.currencySign"
@@ -327,7 +327,7 @@
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
     <StorageContentBatchesDialog
       v-model="storageBatchesOpen"
-      :storage-name="form.storageName"
+        :storage-code="form.storageCode"
       :product-id="storageBatchesProduct?.id"
       :product-name="storageBatchesProduct?.name"
       :product-sku="storageBatchesProduct?.sku"
@@ -400,7 +400,7 @@ let stockRequestId = 0
 const form = reactive({
   buyer: undefined as OrganizationSelection | undefined,
   currencyId: undefined as number | undefined,
-  storageName: undefined as string | undefined,
+  storageCode: undefined as string | undefined,
   saleDateTime: toLocalDateTimeInputValue(new Date()),
   comment: '',
   payedSum: undefined as number | undefined,
@@ -447,7 +447,7 @@ const remainingPayment = computed(() => (
 
 const completionSteps = computed(() => [
   { label: t('sales.buyer'), done: !!form.buyer },
-  { label: t('common.labels.storage'), done: !!form.storageName },
+  { label: t('common.labels.storage'), done: !!form.storageCode },
   { label: t('common.labels.currency'), done: !!form.currencyId },
   { label: t('sales.positions'), done: form.items.length > 0 },
 ])
@@ -461,7 +461,7 @@ const itemsSummary = computed(() => {
 const canSave = computed(() => (
   !!form.buyer
   && !!form.currencyId
-  && !!form.storageName
+  && !!form.storageCode
   && form.saleDateTime !== ''
   && form.items.length > 0
   && form.items.every((item) => (
@@ -477,7 +477,7 @@ const canSave = computed(() => (
 function resetForm() {
   form.buyer = undefined
   form.currencyId = resolveDefaultCurrencyId(props.currencies)
-  form.storageName = undefined
+  form.storageCode = undefined
   form.saleDateTime = toLocalDateTimeInputValue(new Date())
   form.comment = ''
   form.payedSum = undefined
@@ -493,7 +493,7 @@ function resetForm() {
 }
 
 async function addProduct(product: ProductSearchModel) {
-  if (!form.storageName) {
+  if (!form.storageCode) {
     ElMessage.warning(t('sales.selectStorage'))
     return
   }
@@ -527,10 +527,10 @@ async function addProduct(product: ProductSearchModel) {
 }
 
 async function loadProductStorageStock(productId: number) {
-  if (!form.storageName) return 0
+  if (!form.storageCode) return 0
 
   try {
-    const resp = await getProductStock(productId, form.storageName)
+    const resp = await getProductStock(productId, form.storageCode)
     return resp.stock
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('sales.loadStockError'))
@@ -539,12 +539,12 @@ async function loadProductStorageStock(productId: number) {
 }
 
 async function loadCurrentProductStocks() {
-  const storageName = form.storageName
+  const storageCode = form.storageCode
   const ids = [...new Set(form.items.map((item) => item.product?.id).filter((id): id is number => Boolean(id)))]
   const requestId = ++stockRequestId
 
-  if (!storageName || ids.length === 0) {
-    if (!storageName) {
+  if (!storageCode || ids.length === 0) {
+    if (!storageCode) {
       form.items.forEach((item) => {
         if (item.product) item.product.stock = 0
       })
@@ -556,7 +556,7 @@ async function loadCurrentProductStocks() {
   try {
     const results = await Promise.all(ids.map(async (id) => ({
       id,
-      stock: (await getProductStock(id, storageName)).stock,
+      stock: (await getProductStock(id, storageCode)).stock,
     })))
     if (requestId !== stockRequestId) return
 
@@ -599,7 +599,7 @@ function selectHistoryItem(index: number) {
 }
 
 function openStorageBatches(item: SaleItemForm) {
-  if (!item.product || !form.storageName) return
+  if (!item.product || !form.storageCode) return
   storageBatchesProduct.value = item.product
   storageBatchesOpen.value = true
 }
@@ -707,7 +707,7 @@ function formatCurrency(value: number, sign?: string) {
 }
 
 async function save(confirmationCode?: string) {
-  if (!canSave.value || !form.buyer?.member || !form.currencyId || !form.storageName || isSaving.value) return
+  if (!canSave.value || !form.buyer?.member || !form.currencyId || !form.storageCode || isSaving.value) return
 
   fillMissingManualDiscountPrices()
   isSaving.value = true
@@ -716,7 +716,7 @@ async function save(confirmationCode?: string) {
       userId: form.buyer.member.user.id,
       organizationId: form.buyer.organization.id,
       currencyId: form.currencyId,
-      storageName: form.storageName,
+      storageCode: form.storageCode,
       saleDateTime: form.saleDateTime,
       contents: form.items.map((item) => ({
         productId: item.product!.id,
@@ -867,7 +867,7 @@ watch(() => form.applyUserDiscountToAll, (enabled) => {
   })
 })
 
-watch(() => form.storageName, () => {
+watch(() => form.storageCode, () => {
   storageBatchesOpen.value = false
   void loadCurrentProductStocks()
 })

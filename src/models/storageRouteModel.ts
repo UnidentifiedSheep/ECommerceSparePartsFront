@@ -4,8 +4,8 @@ import { LogisticPricingType } from "@/enums/logisticPricingType.ts";
 
 export interface StorageRouteModel {
   id: string
-  fromStorageName: string
-  toStorageName: string
+  fromStorageCode: string
+  toStorageCode: string
   distanceM: number
   routeType: RouteType
   pricingModel: LogisticPricingType

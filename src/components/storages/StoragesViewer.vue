@@ -8,7 +8,7 @@
         highlight-current-row
         @current-change="handleCurrentChange"
       >
-        <el-table-column prop="name" :label="t('common.labels.name')" min-width="180" />
+        <el-table-column prop="code" :label="t('common.labels.code')" min-width="180" />
         <el-table-column prop="description" :label="t('common.labels.description')" min-width="220" />
         <el-table-column prop="location" :label="t('storages.location')" min-width="180" />
         <el-table-column :label="t('common.labels.type')" min-width="160">
@@ -147,12 +147,12 @@ async function removeStorage(index: number) {
   const storage = storages.value[index]
   if (!storage) return
 
-  await deleteStorage({ name: storage.name })
+  await deleteStorage({ code: storage.code })
   storages.value.splice(index, 1)
 
   ElNotification({
     title: t('common.labels.success'),
-    message: t('storages.removed', { name: storage.name }),
+    message: t('storages.removed', { name: storage.code }),
     type: 'success',
   })
 

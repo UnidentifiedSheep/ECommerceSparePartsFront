@@ -7,15 +7,15 @@
 
       <el-form-item :label="t('common.labels.storage')">
         <el-select
-          v-model="form.storageName"
+          v-model="form.storageCode"
           :loading="loadingStorages"
           filterable
           class="w-full"
           :placeholder="t('storages.selectStorage')"
         >
-          <el-option v-for="storage in storages" :key="storage.name" :label="storage.name" :value="storage.name">
+          <el-option v-for="storage in storages" :key="storage.code" :label="storage.code" :value="storage.code">
             <div class="flex min-w-0 flex-col py-1">
-              <span class="truncate">{{ storage.name }}</span>
+              <span class="truncate">{{ storage.code }}</span>
               <span class="truncate text-xs text-slate-500">
                 {{ storage.location || storage.description || t('products.details.noDescription') }}
               </span>
@@ -86,7 +86,7 @@ const loadingStorages = ref(false)
 const loadingCurrencies = ref(false)
 const saving = ref(false)
 const form = reactive({
-  storageName: '',
+  storageCode: '',
   count: 1,
   buyPrice: 0,
   currencyId: undefined as number | undefined,
@@ -94,7 +94,7 @@ const form = reactive({
 })
 
 function reset() {
-  form.storageName = storages.value[0]?.name ?? ''
+  form.storageCode = storages.value[0]?.code ?? ''
   form.count = 1
   form.buyPrice = 0
   form.currencyId = resolveDefaultCurrencyId(currencies.value)
@@ -111,7 +111,7 @@ async function loadOptions() {
     ])
     storages.value = storageResp.storages
     currencies.value = currencyResp.currencies
-    form.storageName ||= storages.value[0]?.name ?? ''
+    form.storageCode ||= storages.value[0]?.code ?? ''
     form.currencyId ||= resolveDefaultCurrencyId(currencies.value)
   } finally {
     loadingStorages.value = false
@@ -120,7 +120,7 @@ async function loadOptions() {
 }
 
 async function save() {
-  if (!form.storageName || !form.currencyId) {
+  if (!form.storageCode || !form.currencyId) {
     ElNotification({
       title: t('products.details.fillDataTitle'),
       message: t('products.details.selectStorageAndCurrency'),
@@ -132,7 +132,7 @@ async function save() {
   saving.value = true
   try {
     await addStorageContent({
-      storageName: form.storageName,
+      storageCode: form.storageCode,
       storageContent: [{
         productId: props.productId,
         count: form.count,

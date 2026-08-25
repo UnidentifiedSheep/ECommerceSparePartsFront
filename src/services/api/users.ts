@@ -129,12 +129,12 @@ export interface GetUserDiscountResponse {
 
 export interface AddStorageToUserRequest {
   userId: string
-  storageName: string
+  storageCode: string
 }
 
 export interface RemoveStorageFromUserRequest {
   userId: string
-  storageName: string
+  storageCode: string
 }
 
 export interface ChangeUserDiscountRequest {
@@ -332,9 +332,9 @@ export async function makeMyEmailPrimary(email: string): Promise<void> {
 }
 
 export async function addStorageToUser(req: AddStorageToUserRequest) {
-  await api.post(`/main/users/${req.userId}/storages/${req.storageName}`)
+  await api.post(`/main/users/${req.userId}/storages/${req.storageCode}`)
 }
 
 export async function removeStorageFromUser(req: RemoveStorageFromUserRequest) {
-  await api.delete(`/main/users/${req.userId}/storages/${req.storageName}`)
+  await api.delete(`/main/users/${req.userId}/storages/${req.storageCode}`)
 }

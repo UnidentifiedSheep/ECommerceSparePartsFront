@@ -253,12 +253,12 @@
                     <el-button size="small" type="primary" @click="openAddStorageDialog">{{ t('users.addStorage') }}</el-button>
                   </div>
                   <div class="grid gap-3 pb-4">
-                    <div v-for="storage in userStorages" :key="storage.name" class="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                    <div v-for="storage in userStorages" :key="storage.code" class="flex items-center justify-between rounded-lg bg-slate-50 p-3">
                       <div>
-                        <div class="font-medium text-slate-900">{{ storage.name }}</div>
+                        <div class="font-medium text-slate-900">{{ storage.code }}</div>
                         <div class="text-sm text-slate-500">{{ storage.location || t('users.locationMissing') }}</div>
                       </div>
-                      <el-button size="small" type="danger" plain @click="detachStorage(storage.name)">{{ t('common.actions.delete') }}</el-button>
+                      <el-button size="small" type="danger" plain @click="detachStorage(storage.code)">{{ t('common.actions.delete') }}</el-button>
                     </div>
                     <div v-if="userStorages.length === 0" class="text-sm text-slate-400">{{ t('users.noStorages') }}</div>
                   </div>
@@ -545,9 +545,9 @@
           <el-select v-model="storageToAttach" filterable class="w-full" :placeholder="t('users.selectStorage')">
             <el-option
               v-for="storage in attachableStorages"
-              :key="storage.name"
-              :label="storage.name"
-              :value="storage.name"
+              :key="storage.code"
+              :label="storage.code"
+              :value="storage.code"
             />
           </el-select>
         </el-form-item>
@@ -882,8 +882,8 @@ const canSaveEditInfo = computed(() => (
   && !editInfoSaving.value
 ))
 const attachableStorages = computed(() => {
-  const attached = new Set(userStorages.value.map((storage) => storage.name))
-  return allStorages.value.filter((storage) => !attached.has(storage.name))
+  const attached = new Set(userStorages.value.map((storage) => storage.code))
+  return allStorages.value.filter((storage) => !attached.has(storage.code))
 })
 const permissionsBySystemName = computed(() => new Map(
   permissionsCatalog.value.map((permission) => [permission.systemName, permission]),
@@ -1756,7 +1756,7 @@ async function attachStorage() {
 
   await addStorageToUser({
     userId: selectedUser.value.id,
-    storageName: storageToAttach.value,
+    storageCode: storageToAttach.value,
   })
 
   ElNotification({
@@ -1769,12 +1769,12 @@ async function attachStorage() {
   userStorages.value = (await getUserStorages(selectedUser.value.id)).storages
 }
 
-async function detachStorage(storageName: string) {
+async function detachStorage(storageCode: string) {
   if (!selectedUser.value) return
 
   await removeStorageFromUser({
     userId: selectedUser.value.id,
-    storageName,
+    storageCode,
   })
 
   ElNotification({
@@ -1783,7 +1783,7 @@ async function detachStorage(storageName: string) {
     type: 'success',
   })
 
-  userStorages.value = userStorages.value.filter((storage) => storage.name !== storageName)
+  userStorages.value = userStorages.value.filter((storage) => storage.code !== storageCode)
 }
 
 async function saveDiscount() {

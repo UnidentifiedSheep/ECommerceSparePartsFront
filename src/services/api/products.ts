@@ -251,10 +251,10 @@ export async function getProductsByIds(ids: number[]): Promise<GetProductsByIdsR
   return resp.data
 }
 
-export async function getProductStock(productId: number, storageName?: string | null): Promise<GetProductStockResponse> {
+export async function getProductStock(productId: number, storageCode?: string | null): Promise<GetProductStockResponse> {
   const resp = await api.get<GetProductStockResponse>(`/main/products/${productId}/stock`, {
     params: {
-      storageName: storageName || undefined,
+      storageCode: storageCode || undefined,
     },
   })
 

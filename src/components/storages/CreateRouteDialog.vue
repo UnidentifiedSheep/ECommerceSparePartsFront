@@ -143,7 +143,7 @@ const pricingOptions = computed(() => [
 watch([() => isOpen.value, () => props.storage], ([open, storage]) => {
   if (!open || !storage) return
   form.storageFrom = ''
-  form.storageTo = storage.name
+  form.storageTo = storage.code
   form.carrier = undefined
 })
 

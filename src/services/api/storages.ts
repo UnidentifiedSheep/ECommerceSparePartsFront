@@ -16,8 +16,8 @@ interface PatchField<T> {
 
 interface StorageRouteDto {
   id: string
-  fromStorageName: string
-  toStorageName: string
+  fromStorageCode: string
+  toStorageCode: string
   distanceM: number
   routeType: RouteType
   pricingModel: LogisticPricingType
@@ -54,7 +54,7 @@ export interface GetStoragesResponse {
 }
 
 export interface GetStorageRequest {
-  name: string
+  code: string
 }
 
 export interface GetStorageResponse {
@@ -62,25 +62,25 @@ export interface GetStorageResponse {
 }
 
 export interface CreateStorageRequest {
-  name: string
+  code: string
   description?: string
   location?: string
   type: StorageType
 }
 
 export interface CreateStorageResponse {
-  name: string
+  code: string
 }
 
 export interface EditStorageRequest {
-  storageName: string
+  storageCode: string
   description?: string
   location?: string
   type?: StorageType
 }
 
 export interface DeleteStorageRequest {
-  name: string
+  code: string
 }
 
 export interface GetStorageOwnersResponse {
@@ -88,7 +88,7 @@ export interface GetStorageOwnersResponse {
 }
 
 export interface GetStorageOwnersRequest {
-  storageName: string
+  storageCode: string
   page: number
   size: number
 }
@@ -144,7 +144,7 @@ export interface EditStorageRouteRequest {
 }
 
 export interface GetStorageContentRequest {
-  storageName?: string
+  storageCode?: string
   productId?: number
   page: number
   size?: number
@@ -170,7 +170,7 @@ export interface AddStorageContentItemRequest {
 }
 
 export interface AddStorageContentRequest {
-  storageName: string
+  storageCode: string
   storageContent: AddStorageContentItemRequest[]
 }
 
@@ -194,7 +194,7 @@ export async function getStorages(req: GetStoragesRequest): Promise<GetStoragesR
 }
 
 export async function getStorage(req: GetStorageRequest): Promise<GetStorageResponse> {
-  const resp = await api.get<GetStorageResponse>(`/main/storages/${req.name}`)
+  const resp = await api.get<GetStorageResponse>(`/main/storages/${req.code}`)
   return resp.data
 }
 
@@ -210,17 +210,17 @@ export async function editStorage(req: EditStorageRequest) {
   if (req.location !== undefined) payload.location = patchField(req.location)
   if (req.type !== undefined) payload.type = patchField(req.type)
 
-  await api.patch(`/main/storages/${req.storageName}`, {
+  await api.patch(`/main/storages/${req.storageCode}`, {
     editStorage: payload,
   })
 }
 
 export async function deleteStorage(req: DeleteStorageRequest) {
-  await api.delete(`/main/storages/${req.name}`)
+  await api.delete(`/main/storages/${req.code}`)
 }
 
 export async function getStorageOwners(req: GetStorageOwnersRequest): Promise<GetStorageOwnersResponse> {
-  const resp = await api.get<{ owners: UserModel[] }>(`/main/storages/${req.storageName}/owners`, {
+  const resp = await api.get<{ owners: UserModel[] }>(`/main/storages/${req.storageCode}/owners`, {
     params: {
       ...req,
       size: clampPageSize(req.size),
@@ -283,7 +283,7 @@ export async function getStorageContent(req: GetStorageContentRequest): Promise<
   const size = req.size ?? req.limit ?? 20
   const resp = await api.get<{ contents?: StorageContentDto[]; content?: StorageContentDto[] }>('/main/storages/contents', {
     params: {
-      storageName: req.storageName,
+      storageCode: req.storageCode,
       productId: req.productId,
       page: req.page,
       size: clampPageSize(size),

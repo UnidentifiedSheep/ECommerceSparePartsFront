@@ -74,7 +74,7 @@
     <el-dialog v-model="addOwnerDialogueOpen" :title="t('storages.ownersPanel.addTitle')" width="500">
       <el-form :model="addOwnerForm">
         <el-form-item :label="t('common.labels.storage')">
-          <el-input v-model="addOwnerForm!.storageName" readonly />
+          <el-input v-model="addOwnerForm!.storageCode" readonly />
         </el-form-item>
         <el-form-item :label="t('common.labels.user')">
           <UserSelector v-model:selected-user="addOwnerForm!.user"/>
@@ -111,7 +111,7 @@ const owners = ref<UserModel[]>([])
 
 const addOwnerDialogueOpen = ref(false);
 const addOwnerForm = ref<{
-  storageName: string
+  storageCode: string
   user?: UserModel
 }>()
 
@@ -130,7 +130,7 @@ async function loadOwners(reset: boolean) {
     }
 
     const resp = await getStorageOwners({
-      storageName: storage.value.name,
+      storageCode: storage.value.code,
       page: page.value,
       size: limit.value
     })
@@ -147,27 +147,27 @@ async function loadOwners(reset: boolean) {
 function OpenAddOwnerDialogue() {
   if (!storage.value) return
   addOwnerForm.value = {
-    storageName: storage.value.name
+    storageCode: storage.value.code
   }
   addOwnerDialogueOpen.value = true
 }
 
 async function SaveOwner() {
   if (!addOwnerForm.value?.user) return
-  if (!addOwnerForm.value?.storageName) return
+  if (!addOwnerForm.value?.storageCode) return
 
   const user = addOwnerForm.value.user;
-  const storageName = addOwnerForm.value.storageName
+  const storageCode = addOwnerForm.value.storageCode
 
   await addStorageToUser({
     userId: user.id,
-    storageName: storageName
+    storageCode: storageCode
   })
   owners.value.push(user)
 
   ElNotification({
     title: t('common.labels.success'),
-    message: t('storages.ownersPanel.attached', { user: `${user.surname} ${user.name}`.trim(), storage: storageName }),
+    message: t('storages.ownersPanel.attached', { user: `${user.surname} ${user.name}`.trim(), storage: storageCode }),
     type: 'success',
   })
 
@@ -177,13 +177,13 @@ async function SaveOwner() {
 async function removeOwner(user: UserModel) {
   if (!storage.value) return
   await removeStorageFromUser({
-    storageName: storage.value.name,
+    storageCode: storage.value.code,
     userId: user.id
   })
 
   ElNotification({
     title: t('common.labels.success'),
-    message: t('storages.ownersPanel.detached', { user: `${user.surname} ${user.name}`.trim(), storage: storage.value.name }),
+    message: t('storages.ownersPanel.detached', { user: `${user.surname} ${user.name}`.trim(), storage: storage.value.code }),
     type: 'success',
   })
 

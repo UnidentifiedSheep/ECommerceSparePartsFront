@@ -1,7 +1,7 @@
 import type { StorageType } from '@/enums/storageType.ts'
 
 export interface StorageModel {
-  name: string
+  code: string
   description?: string
   location?: string
   type: StorageType

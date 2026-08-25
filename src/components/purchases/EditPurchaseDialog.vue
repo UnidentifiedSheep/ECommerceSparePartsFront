@@ -39,7 +39,7 @@
           </div>
           <div>
             <span>{{ t('common.labels.storage') }}</span>
-            <strong>{{ purchase?.storage ?? '—' }}</strong>
+            <strong>{{ purchase?.storageCode ?? '—' }}</strong>
           </div>
         </div>
 
@@ -71,7 +71,7 @@
             </el-form-item>
 
             <el-form-item :label="t('purchases.arrivalStorage')" class="span-4">
-              <el-input :model-value="purchase?.storage ?? ''" disabled />
+      <el-input :model-value="purchase?.storageCode ?? ''" disabled />
             </el-form-item>
 
             <el-form-item :label="t('purchases.purchaseDate')" class="span-4">
@@ -104,9 +104,9 @@
               <el-select v-model="form.storageFrom" filterable clearable class="w-full" :placeholder="t('purchases.selectStorage')">
                 <el-option
                   v-for="storage in storages"
-                  :key="storage.name"
-                  :label="storage.name"
-                  :value="storage.name"
+                  :key="storage.code"
+                  :label="storage.code"
+                  :value="storage.code"
                 />
               </el-select>
             </el-form-item>
@@ -402,7 +402,7 @@ const recalculateLogistics = useDebounceFn(async () => {
     }
   })
 
-  if (!form.withLogistics || !form.storageFrom || !props.purchase?.storage || itemsToCalculate.length === 0) {
+  if (!form.withLogistics || !form.storageFrom || !props.purchase?.storageCode || itemsToCalculate.length === 0) {
     clearLogisticsPreview()
     return
   }
@@ -411,7 +411,7 @@ const recalculateLogistics = useDebounceFn(async () => {
   try {
     const resp = await calculateDeliveryCost({
       storageFrom: form.storageFrom,
-      storageTo: props.purchase.storage,
+      storageTo: props.purchase.storageCode,
       mode: 'Soft',
       items: itemsToCalculate.map(({ item }) => ({
         productId: item.product.id,
@@ -488,7 +488,7 @@ watch(
     open: isOpen.value,
     withLogistics: form.withLogistics,
     storageFrom: form.storageFrom,
-    storageName: props.purchase?.storage,
+    storageCode: props.purchase?.storageCode,
     items: form.items.map((item) => ({
       productId: item.product.id,
       count: item.count,

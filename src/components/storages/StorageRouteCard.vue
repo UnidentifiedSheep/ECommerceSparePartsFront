@@ -4,12 +4,12 @@
       <div class="route-card__path">
         <div class="route-point">
           <span>{{ t('storages.routesPanel.from') }}</span>
-          <strong>{{ route.fromStorageName }}</strong>
+          <strong>{{ route.fromStorageCode }}</strong>
         </div>
         <div class="route-arrow">→</div>
         <div class="route-point">
           <span>{{ t('storages.routesPanel.to') }}</span>
-          <strong>{{ route.toStorageName }}</strong>
+          <strong>{{ route.toStorageCode }}</strong>
         </div>
       </div>
 

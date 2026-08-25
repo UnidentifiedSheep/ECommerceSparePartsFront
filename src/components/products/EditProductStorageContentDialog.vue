@@ -2,7 +2,7 @@
   <el-dialog v-model="isOpen" :title="t('products.details.editStockTitle')" width="520">
     <el-form label-position="top">
       <el-form-item :label="t('common.labels.storage')">
-        <el-input :model-value="item.storageName" disabled />
+        <el-input :model-value="item.storageCode" disabled />
       </el-form-item>
       <div class="grid grid-cols-2 gap-3">
         <el-form-item :label="t('storages.contentPanel.quantity')">

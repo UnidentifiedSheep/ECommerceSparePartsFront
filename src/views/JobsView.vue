@@ -1716,7 +1716,7 @@ function entityOptions(field: JobSchemaField): EntitySelectorOption[] {
 function entityOptionValue(field: JobSchemaField, option: EntitySelectorOption): string | number {
   if ('value' in option) return option.value
   if ('systemName' in option) return option.systemName
-  if (field.dependsOnEntity === 'Storage') return (option as StorageModel).name
+  if (field.dependsOnEntity === 'Storage') return (option as StorageModel).code
 
   const key = field.dependsOnField ?? 'id'
   const value = option[key as keyof EntitySelectorOption]
@@ -1739,7 +1739,7 @@ function entityOptionLabel(field: JobSchemaField, option: EntitySelectorOption) 
   }
 
   if (field.dependsOnEntity === 'Storage') {
-    return (option as StorageModel).name
+    return (option as StorageModel).code
   }
 
   return String(entityOptionValue(field, option))
