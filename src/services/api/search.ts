@@ -81,25 +81,43 @@ export interface SearchProductsBySkuRequest {
 }
 
 export async function searchProducts(req: SearchProductsRequest): Promise<SearchProductsResponse> {
-  const resp = await api.get<{ products: ProductSearchModel[] }>('/search/products/all', {
-    params: {
-      ...req,
-      size: clampPageSize(req.size),
-    },
+  const response = await searchCatalogue({
+    query: req.query,
+    targets: ['Products'],
+    producerIds: req.producerId === undefined ? [] : [req.producerId],
+    page: req.page,
+    size: req.size,
+    sortBy: { products: req.sortBy ?? [] },
+    includeHighlights: false,
   })
 
-  return resp.data
+  return {
+    products: response.products.items,
+    total: response.products.total,
+  }
 }
 
 export async function searchProductsBySku(req: SearchProductsBySkuRequest): Promise<SearchProductsResponse> {
-  const resp = await api.get<{ products: ProductSearchModel[] }>('/search/products/sku', {
-    params: {
-      ...req,
-      size: clampPageSize(req.size),
-    },
+  const searchModes: SearchMatchType[] = req.searchMode === 'Full'
+    ? ['Exact', 'StartsWith', 'Contains']
+    : req.searchMode
+      ? [req.searchMode]
+      : ['Exact', 'StartsWith', 'Contains']
+  const response = await searchCatalogue({
+    query: req.sku,
+    targets: ['Products'],
+    fields: { sku: searchModes },
+    producerIds: req.producerId === undefined ? [] : [req.producerId],
+    page: req.page,
+    size: req.size,
+    sortBy: { products: req.sortBy ?? [] },
+    includeHighlights: false,
   })
 
-  return resp.data
+  return {
+    products: response.products.items,
+    total: response.products.total,
+  }
 }
 
 export async function searchCatalogue(req: SearchCatalogueRequest): Promise<SearchCatalogueResponse> {
