@@ -8,6 +8,11 @@ export interface ProductModel {
   indicator?: string | null
   images: string[]
   stock: number
+  pair?: ProductModel | null
+  contents?: ProductContentModel[]
+  crosses?: ProductModel[]
+  size?: ProductSizeModel | null
+  weight?: ProductWeightModel | null
 }
 
 export interface ProductSizeModel {

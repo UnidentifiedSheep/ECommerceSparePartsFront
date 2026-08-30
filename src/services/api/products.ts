@@ -1,5 +1,4 @@
 import type { ProductCharacteristicModel, ProductContentModel, ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
-import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type {
   EditProductReservationModel,
   ProductReservationHistoryModel,
@@ -9,6 +8,13 @@ import type {
 import { mapOrganizationModel, type OrganizationDto } from '@/models/organizationModel.ts'
 import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
+import {
+  getProductAvailableStockGraphql,
+  getProductByIdGraphql,
+  getProductContentsGraphql,
+  getProductCrossesGraphql,
+  getProductPairGraphql,
+} from '@/services/graphql/products.ts'
 
 export interface CreateProductRequestItem {
   sku: string
@@ -66,12 +72,8 @@ export interface GetProductWeightResponse {
   productWeight: ProductWeightModel
 }
 
-export interface GetProductsByIdsResponse {
-  products: ProductSearchModel[]
-}
-
-export interface GetProductStockResponse {
-  stock: number
+export interface GetProductAvailableStockResponse {
+  availableStock: number
 }
 
 export interface GetCatalogueCandidatesForReviewRequest {
@@ -207,20 +209,18 @@ export interface EditProductRequest {
 }
 
 export async function getProductCrosses(req: GetProductCrossesRequest): Promise<GetProductCrossesResponse> {
-  const resp = await api.get<GetProductCrossesResponse>(`/main/products/${req.productId}/crosses/`, {
-    params: {
-      page: req.page,
+  return {
+    crosses: await getProductCrossesGraphql({
+      ...req,
       size: clampPageSize(req.size),
-      sortBy: req.sortBy,
-    },
-  })
-
-  return resp.data
+    }),
+  }
 }
 
 export async function getProductById(productId: number): Promise<GetProductByIdResponse> {
-  const resp = await api.get<GetProductByIdResponse>(`/main/products/${productId}`)
-  return resp.data
+  const product = await getProductByIdGraphql(productId)
+  if (!product) throw new Error(`Product ${productId} not found`)
+  return { product }
 }
 
 export async function getProductReservations(req: GetProductReservationsRequest): Promise<GetProductReservationsResponse> {
@@ -240,25 +240,13 @@ export async function getProductReservations(req: GetProductReservationsRequest)
   }
 }
 
-export async function getProductsByIds(ids: number[]): Promise<GetProductsByIdsResponse> {
-  const params = new URLSearchParams()
-  ids.forEach((id) => params.append('id', String(id)))
-
-  const resp = await api.get<GetProductsByIdsResponse>('/main/products', {
-    params,
-  })
-
-  return resp.data
-}
-
-export async function getProductStock(productId: number, storageCode?: string | null): Promise<GetProductStockResponse> {
-  const resp = await api.get<GetProductStockResponse>(`/main/products/${productId}/stock`, {
-    params: {
-      storageCode: storageCode || undefined,
-    },
-  })
-
-  return resp.data
+export async function getProductAvailableStock(
+  productId: number,
+  storageCode: string,
+): Promise<GetProductAvailableStockResponse> {
+  return {
+    availableStock: await getProductAvailableStockGraphql(productId, storageCode),
+  }
 }
 
 export async function getCatalogueCandidatesForReview(
@@ -277,13 +265,11 @@ export async function getCatalogueCandidatesForReview(
 }
 
 export async function getProductPair(productId: number): Promise<GetProductPairResponse> {
-  const resp = await api.get<GetProductPairResponse>(`/main/products/${productId}/pairs`)
-  return resp.data
+  return { pair: await getProductPairGraphql(productId) }
 }
 
 export async function getProductContent(productId: number): Promise<GetProductContentResponse> {
-  const resp = await api.get<GetProductContentResponse>(`/main/products/${productId}/contents`)
-  return resp.data
+  return { content: await getProductContentsGraphql(productId) }
 }
 
 export async function addProductContent(req: AddProductContentRequest): Promise<void> {

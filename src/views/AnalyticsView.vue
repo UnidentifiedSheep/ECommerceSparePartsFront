@@ -293,14 +293,6 @@
           <div class="text-sm text-slate-500">
             {{ t('analytics.latestRuns') }}
           </div>
-          <el-select v-model="historySortBy" class="w-60" :placeholder="t('analytics.sorting')">
-            <el-option
-              v-for="option in historySortOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
         </div>
 
         <div class="min-h-0 flex-1 overflow-auto px-5 py-4">
@@ -310,19 +302,22 @@
             class="analytics-history-table"
             :empty-text="t('analytics.emptyHistory')"
           >
-            <el-table-column :label="t('common.labels.status')" min-width="150">
+            <el-table-column prop="status" min-width="150">
+              <template #header><SortableColumnHeader :label="t('common.labels.status')" field="status" :sort-by="historySortBy" :title="t('products.multiSortHint')" @toggle="handleHistorySortToggle" /></template>
               <template #default="{ row }">
                 <el-tag :type="statusTagType(row.status)" effect="light">
                   {{ statusLabel(row.status) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column :label="t('analytics.created')" min-width="170">
+            <el-table-column prop="createdAt" min-width="170">
+              <template #header><SortableColumnHeader :label="t('analytics.created')" field="createdAt" :sort-by="historySortBy" :title="t('products.multiSortHint')" @toggle="handleHistorySortToggle" /></template>
               <template #default="{ row }">
                 <span class="text-sm text-slate-700">{{ formatDateTime(row.createdAt) }}</span>
               </template>
             </el-table-column>
-            <el-table-column :label="t('analytics.updated')" min-width="170">
+            <el-table-column prop="updatedAt" min-width="170">
+              <template #header><SortableColumnHeader :label="t('analytics.updated')" field="updatedAt" :sort-by="historySortBy" :title="t('products.multiSortHint')" @toggle="handleHistorySortToggle" /></template>
               <template #default="{ row }">
                 <span class="text-sm text-slate-700">{{ formatDateTime(row.updatedAt) }}</span>
               </template>
@@ -381,6 +376,8 @@ import {
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { searchProducts } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import {
   startMetricCalculationHub,
@@ -423,7 +420,7 @@ const historyPage = ref(0)
 const historyLimit = ref(20)
 const historyHasNext = ref(false)
 const sortBy = ref<MetricSortBy>('createdAt_desc')
-const historySortBy = ref<MetricCalculationJobSortBy>('createdAt_desc')
+const { sortBy: historySortBy, toggleSort: toggleHistorySort } = useMultiSort(['-createdAt'])
 const inputState = reactive<Record<string, string | number | boolean | null>>({})
 let metricHubConnection: HubConnection | null = null
 const { hasPermission } = usePermissions()
@@ -437,15 +434,6 @@ const sortOptions = computed<Array<{ label: string, value: MetricSortBy }>>(() =
   { label: t('analytics.sort.updatedAsc'), value: 'updatedAt_asc' },
   { label: t('analytics.sort.recalculatedDesc'), value: 'recalculatedAt_desc' },
   { label: t('analytics.sort.recalculatedAsc'), value: 'recalculatedAt_asc' },
-])
-
-const historySortOptions = computed<Array<{ label: string, value: MetricCalculationJobSortBy }>>(() => [
-  { label: t('analytics.sort.createdDesc'), value: 'createdAt_desc' },
-  { label: t('analytics.sort.createdAsc'), value: 'createdAt_asc' },
-  { label: t('analytics.sort.updatedDesc'), value: 'updatedAt_desc' },
-  { label: t('analytics.sort.updatedAsc'), value: 'updatedAt_asc' },
-  { label: t('analytics.sort.statusAsc'), value: 'status_asc' },
-  { label: t('analytics.sort.statusDesc'), value: 'status_desc' },
 ])
 
 interface EnumSelectorOption {
@@ -884,13 +872,17 @@ async function loadMetricHistory() {
       metricId: historyMetric.value.id,
       page: historyPage.value,
       limit: historyLimit.value,
-      sortBy: [historySortBy.value],
+      sortBy: toSortExpressions(historySortBy.value, true) as MetricCalculationJobSortBy[],
     })
     historyJobs.value = resp.jobs
     historyHasNext.value = resp.jobs.length === historyLimit.value
   } finally {
     isHistoryLoading.value = false
   }
+}
+
+function handleHistorySortToggle(field: string, event: MouseEvent) {
+  toggleHistorySort(field, event)
 }
 
 async function loadMetricSnapshot(metric: MetricModel): Promise<MetricModel | null> {
@@ -1077,7 +1069,10 @@ watch(historyLimit, async () => {
 })
 watch(historySortBy, async () => {
   if (!historyDrawerOpen.value) return
-  historyPage.value = 0
+  if (historyPage.value !== 0) {
+    historyPage.value = 0
+    return
+  }
   await loadMetricHistory()
 })
 watch(historyDrawerOpen, (isOpen) => {

@@ -16,11 +16,15 @@
     </div>
 
     <el-table v-loading="loading" :data="contents" stripe :empty-text="t('products.details.noStocks')">
-      <el-table-column prop="storageCode" :label="t('common.labels.storage')" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="count" :label="t('common.labels.count')" width="140" align="right">
+      <el-table-column prop="storageCode" min-width="180" show-overflow-tooltip>
+        <template #header><SortableColumnHeader :label="t('common.labels.storage')" field="storageCode" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
+      </el-table-column>
+      <el-table-column prop="count" width="140" align="right">
+        <template #header><SortableColumnHeader :label="t('common.labels.count')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
         <template #default="{ row }"><ProductStockCell :stock="row.count" /></template>
       </el-table-column>
-      <el-table-column :label="t('products.details.purchase')" width="140" align="right">
+      <el-table-column prop="buyPrice" width="140" align="right">
+        <template #header><SortableColumnHeader :label="t('products.details.purchase')" field="buyPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
         <template #default="{ row }">{{ formatMoney(row.buyPrice, row.currency?.currencySign) }}</template>
       </el-table-column>
       <el-table-column v-if="canEdit || canDelete" label="" width="96" align="right">
@@ -58,6 +62,7 @@
 import { Delete, Edit, Plus } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
 import { useI18n } from '@/i18n'
 
@@ -69,18 +74,24 @@ defineProps<{
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
+  sortBy: string[]
 }>()
 
 const emit = defineEmits<{
   create: []
   edit: [item: StorageContentModel]
   delete: [item: StorageContentModel]
+  'sort-toggle': [field: string, event: MouseEvent]
 }>()
 
 const page = defineModel<number>('page', { required: true })
 const size = defineModel<number>('size', { required: true })
 const showZero = defineModel<boolean>('showZero', { required: true })
 const { locale, t } = useI18n()
+
+function forwardSortToggle(field: string, event: MouseEvent) {
+  emit('sort-toggle', field, event)
+}
 
 function formatMoney(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
@@ -114,4 +125,5 @@ function formatMoney(value: number, sign?: string) {
 :deep(.stock-cell) {
   justify-content: flex-end;
 }
+
 </style>

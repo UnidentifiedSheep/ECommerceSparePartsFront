@@ -134,9 +134,9 @@
         class="current-jobs-table"
         :empty-text="t('jobs.emptyCurrent')"
         height="100%"
-        @sort-change="handleCurrentJobsSortChange"
       >
-        <el-table-column prop="status" :label="t('common.labels.status')" min-width="120" sortable="custom">
+        <el-table-column prop="status" min-width="120">
+          <template #header><SortableColumnHeader :label="t('common.labels.status')" field="status" :sort-by="currentJobsSortBy" :title="t('products.multiSortHint')" @toggle="handleCurrentJobsSortToggle" /></template>
           <template #default="{ row }: { row: JobModel }">
             <el-tag :type="jobStatusTagType(row.status)" :class="jobStatusTagClass(row.status)" effect="light">
               {{ jobStatusLabel(row.status) }}
@@ -159,13 +159,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="createdAt" :label="t('common.labels.createdAt')" min-width="155" sortable="custom">
+        <el-table-column prop="createdAt" min-width="155">
+          <template #header><SortableColumnHeader :label="t('common.labels.createdAt')" field="createdAt" :sort-by="currentJobsSortBy" :title="t('products.multiSortHint')" @toggle="handleCurrentJobsSortToggle" /></template>
           <template #default="{ row }: { row: JobModel }">
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="updatedAt" :label="t('common.labels.updatedAt')" min-width="155" sortable="custom">
+        <el-table-column prop="updatedAt" min-width="155">
+          <template #header><SortableColumnHeader :label="t('common.labels.updatedAt')" field="updatedAt" :sort-by="currentJobsSortBy" :title="t('products.multiSortHint')" @toggle="handleCurrentJobsSortToggle" /></template>
           <template #default="{ row }: { row: JobModel }">
             {{ formatDateTime(row.updatedAt) }}
           </template>
@@ -259,9 +261,9 @@
         class="current-jobs-table"
         :empty-text="t('jobs.emptySchedules')"
         height="100%"
-        @sort-change="handleSchedulesSortChange"
       >
-        <el-table-column prop="enabled" :label="t('jobs.enabled')" width="100" sortable="custom">
+        <el-table-column prop="enabled" width="100">
+          <template #header><SortableColumnHeader :label="t('jobs.enabled')" field="enabled" :sort-by="schedulesSortBy" :title="t('products.multiSortHint')" @toggle="handleSchedulesSortToggle" /></template>
           <template #default="{ row }: { row: JobScheduleModel }">
             <el-switch
               :model-value="row.enabled"
@@ -271,7 +273,8 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="name" :label="t('common.labels.name')" min-width="170" sortable="custom">
+        <el-table-column prop="name" min-width="170">
+          <template #header><SortableColumnHeader :label="t('common.labels.name')" field="name" :sort-by="schedulesSortBy" :title="t('products.multiSortHint')" @toggle="handleSchedulesSortToggle" /></template>
           <template #default="{ row }: { row: JobScheduleModel }">
             <div class="current-job-title">
               <strong>{{ row.name }}</strong>
@@ -280,7 +283,8 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="jobSystemName" :label="t('common.labels.job')" min-width="180" sortable="custom">
+        <el-table-column prop="jobSystemName" min-width="180">
+          <template #header><SortableColumnHeader :label="t('common.labels.job')" field="jobSystemName" :sort-by="schedulesSortBy" :title="t('products.multiSortHint')" @toggle="handleSchedulesSortToggle" /></template>
           <template #default="{ row }: { row: JobScheduleModel }">
             <div class="current-job-title">
               <strong>{{ scheduleJobDefinitionName(row.jobSystemName) }}</strong>
@@ -304,13 +308,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="nextRunAt" :label="t('jobs.nextRunAt')" min-width="145" sortable="custom">
+        <el-table-column prop="nextRunAt" min-width="145">
+          <template #header><SortableColumnHeader :label="t('jobs.nextRunAt')" field="nextRunAt" :sort-by="schedulesSortBy" :title="t('products.multiSortHint')" @toggle="handleSchedulesSortToggle" /></template>
           <template #default="{ row }: { row: JobScheduleModel }">
             {{ formatDateTime(row.nextRunAt) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="lastQueuedAt" :label="t('jobs.lastQueuedAt')" min-width="145" sortable="custom">
+        <el-table-column prop="lastQueuedAt" min-width="145">
+          <template #header><SortableColumnHeader :label="t('jobs.lastQueuedAt')" field="lastQueuedAt" :sort-by="schedulesSortBy" :title="t('products.multiSortHint')" @toggle="handleSchedulesSortToggle" /></template>
           <template #default="{ row }: { row: JobScheduleModel }">
             {{ formatDateTime(row.lastQueuedAt) }}
           </template>
@@ -769,6 +775,7 @@ import type { HubConnection } from '@microsoft/signalr'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { Close, Delete, Edit, Filter, View } from '@element-plus/icons-vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import DynamicSchemaForm, {
@@ -805,6 +812,7 @@ import { searchProducts } from '@/services/api/search.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { useI18n } from '@/i18n'
 import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/jobHub.ts'
@@ -853,8 +861,8 @@ const currentJobStatuses = ref<JobStatus[]>([])
 const currentJobSystemNames = ref<string[]>([])
 const scheduleJobSystemNames = ref<string[]>([])
 const scheduleNextRunRange = ref<string[] | null>([])
-const currentJobsSortBy = ref('createdAt_desc')
-const schedulesSortBy = ref('id_desc')
+const { sortBy: currentJobsSortBy, toggleSort: toggleCurrentJobsSort } = useMultiSort(['-createdAt'])
+const { sortBy: schedulesSortBy, toggleSort: toggleSchedulesSort } = useMultiSort(['-id'])
 const currentJobsPage = ref(0)
 const currentJobsLimit = ref(20)
 const currentJobsHasNext = ref(false)
@@ -1158,8 +1166,9 @@ async function loadJobs() {
 async function loadCurrentJobs(resetPage = false) {
   if (!selectedCurrentService.value) return
 
-  if (resetPage) {
+  if (resetPage && currentJobsPage.value !== 0) {
     currentJobsPage.value = 0
+    return
   }
 
   isLoadingCurrentJobs.value = true
@@ -1169,7 +1178,7 @@ async function loadCurrentJobs(resetPage = false) {
       size: currentJobsLimit.value,
       statuses: currentJobStatuses.value,
       systemNames: currentJobSystemNames.value,
-      sortBy: [currentJobsSortBy.value],
+      sortBy: toSortExpressions(currentJobsSortBy.value),
     })
     currentJobs.value = response.jobs
     currentJobsHasNext.value = response.jobs.length === currentJobsLimit.value
@@ -1185,8 +1194,9 @@ async function loadCurrentJobs(resetPage = false) {
 async function loadSchedules(resetPage = false) {
   if (!selectedScheduleService.value) return
 
-  if (resetPage) {
+  if (resetPage && schedulesPage.value !== 0) {
     schedulesPage.value = 0
+    return
   }
 
   isLoadingSchedules.value = true
@@ -1201,7 +1211,7 @@ async function loadSchedules(resetPage = false) {
       nextRunTo: scheduleNextRunRange.value?.[1]
         ? toUtcDateTimeString(scheduleNextRunRange.value[1])
         : null,
-      sortBy: [schedulesSortBy.value],
+      sortBy: toSortExpressions(schedulesSortBy.value),
     })
     schedules.value = response.schedules
     schedulesHasNext.value = response.schedules.length === schedulesLimit.value
@@ -1933,26 +1943,12 @@ function handleJobStatusUpdated(event: JobStatusUpdatedEvent) {
   job.updatedAt = new Date().toISOString()
 }
 
-function handleCurrentJobsSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
-  if (!event.prop || !event.order) {
-    currentJobsSortBy.value = 'createdAt_desc'
-    return
-  }
-
-  currentJobsSortBy.value = event.order === 'descending'
-    ? `${event.prop}_desc`
-    : event.prop
+function handleCurrentJobsSortToggle(field: string, event: MouseEvent) {
+  toggleCurrentJobsSort(field, event)
 }
 
-function handleSchedulesSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
-  if (!event.prop || !event.order) {
-    schedulesSortBy.value = 'id_desc'
-    return
-  }
-
-  schedulesSortBy.value = event.order === 'descending'
-    ? `${event.prop}_desc`
-    : event.prop
+function handleSchedulesSortToggle(field: string, event: MouseEvent) {
+  toggleSchedulesSort(field, event)
 }
 
 function resetScheduleFilters() {

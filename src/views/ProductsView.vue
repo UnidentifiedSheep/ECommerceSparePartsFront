@@ -207,10 +207,7 @@
         >
           <el-table-column prop="sku" :label="t('products.productColumn')" min-width="330">
             <template #header>
-              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" @click="toggleSort('sku', $event)">
-                {{ t('products.productColumn') }}
-                <span v-if="sortDirection('sku')">{{ sortDirection('sku') === 'asc' ? '↑' : '↓' }}{{ sortPriority('sku') }}</span>
-              </button>
+              <SortableColumnHeader :label="t('products.productColumn')" field="sku" :sort-by="activeSort()" :title="t('products.multiSortHint')" @toggle="toggleSort" />
             </template>
             <template #default="{ row }">
               <button class="product-identity" type="button" @click.stop="openCatalogueResult(row)">
@@ -236,10 +233,7 @@
           </el-table-column>
           <el-table-column prop="producerId" :label="t('common.labels.producer')" min-width="170">
             <template #header>
-              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" @click="toggleSort('producerId', $event)">
-                {{ t('common.labels.producer') }}
-                <span v-if="sortDirection('producerId')">{{ sortDirection('producerId') === 'asc' ? '↑' : '↓' }}{{ sortPriority('producerId') }}</span>
-              </button>
+              <SortableColumnHeader :label="t('common.labels.producer')" field="producerId" :sort-by="activeSort()" :title="t('products.multiSortHint')" @toggle="toggleSort" />
             </template>
             <template #default="{ row }">
               {{ producerName(row.producerId) }}
@@ -247,10 +241,7 @@
           </el-table-column>
           <el-table-column prop="stock" :label="t('products.stock')" min-width="150">
             <template #header>
-              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @click="toggleSort('stock', $event)">
-                {{ t('products.stock') }}
-                <span v-if="sortDirection('stock')">{{ sortDirection('stock') === 'asc' ? '↑' : '↓' }}{{ sortPriority('stock') }}</span>
-              </button>
+              <SortableColumnHeader :label="t('products.stock')" field="stock" :sort-by="activeSort()" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @toggle="toggleSort" />
             </template>
             <template #default="{ row }">
               <ProductStockCell v-if="row.kind === 'product'" :stock="row.product.stock" />
@@ -259,10 +250,7 @@
           </el-table-column>
           <el-table-column prop="volume" :label="t('products.dimensions')" min-width="210">
             <template #header>
-              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @click="toggleSort('volume', $event)">
-                {{ t('products.dimensions') }}
-                <span v-if="sortDirection('volume')">{{ sortDirection('volume') === 'asc' ? '↑' : '↓' }}{{ sortPriority('volume') }}</span>
-              </button>
+              <SortableColumnHeader :label="t('products.dimensions')" field="volume" :sort-by="activeSort()" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @toggle="toggleSort" />
             </template>
             <template #default="{ row }">
               <span v-if="row.kind === 'product' && row.product.dimensions">
@@ -276,10 +264,7 @@
           </el-table-column>
           <el-table-column prop="weight" :label="t('products.weight')" min-width="140">
             <template #header>
-              <button class="sortable-column-header" type="button" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @click="toggleSort('weight', $event)">
-                {{ t('products.weight') }}
-                <span v-if="sortDirection('weight')">{{ sortDirection('weight') === 'asc' ? '↑' : '↓' }}{{ sortPriority('weight') }}</span>
-              </button>
+              <SortableColumnHeader :label="t('products.weight')" field="weight" :sort-by="activeSort()" :title="t('products.multiSortHint')" :disabled="!form.targets.includes('Products')" @toggle="toggleSort" />
             </template>
             <template #default="{ row }">
               <span v-if="row.kind === 'product' && row.product.weight">{{ row.product.weight.value }} {{ weightMeasureUnitLabel(row.product.weight.unit, row.product.weight.value) }}</span>
@@ -421,10 +406,10 @@ import ProductQuickViewDrawer from '@/components/products/ProductQuickViewDrawer
 import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import ProducerMultiSelector from '@/components/selectors/ProducerMultiSelector.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
-import { getProducersByIds } from '@/services/api/producers.ts'
 import {
   type CatalogueCandidateSearchModel,
   type SearchMatchType,
@@ -435,6 +420,7 @@ import {
 } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useProductSearchHistory } from '@/composables/useProductSearchHistory.ts'
+import { nextSortValues, sortField } from '@/composables/useMultiSort.ts'
 import {
   dimensionMeasureUnitLabel,
   weightMeasureUnitLabel,
@@ -908,34 +894,13 @@ async function resetFilters() {
   suspendAutoSearch = false
 }
 
-function sortField(value: string) {
-  return value.endsWith('_desc') ? value.slice(0, -5) : value
-}
-
 function activeSort() {
   return form.targets.includes('Products') ? productSortBy.value : candidateSortBy.value
 }
 
-function sortDirection(field: string): 'asc' | 'desc' | undefined {
-  const value = activeSort().find((item) => sortField(item) === field)
-  if (!value) return undefined
-  return value.endsWith('_desc') ? 'desc' : 'asc'
-}
-
-function sortPriority(field: string) {
-  const currentSort = activeSort()
-  const index = currentSort.findIndex((item) => sortField(item) === field)
-  return index >= 0 && currentSort.length > 1 ? index + 1 : ''
-}
-
 async function toggleSort(field: string, event: MouseEvent) {
   const currentSort = activeSort()
-  const current = currentSort.find((item) => sortField(item) === field)
-  const next = !current ? field : current.endsWith('_desc') ? undefined : `${field}_desc`
-  const remaining = currentSort.filter((item) => sortField(item) !== field)
-  const nextSort = event.shiftKey
-    ? next ? [...remaining, next] : remaining
-    : next ? [next] : []
+  const nextSort = nextSortValues(currentSort, field, event.shiftKey, 'suffix')
   const candidateFields = new Set(['sku', 'producerId'])
 
   productSortBy.value = form.targets.includes('Products') ? nextSort : []
@@ -984,7 +949,7 @@ async function loadProducts() {
       ) || (
         form.targets.includes('CatalogueCandidates') && nextOffset < response.catalogueCandidates.total
       )
-      await loadProducerNames(response.products.items, form.producerIds, response.catalogueCandidates.items)
+      loadProducerNames(response.products.items, response.catalogueCandidates.items)
       return
     }
 
@@ -1013,7 +978,7 @@ async function loadProducts() {
     productsTotal.value = resp.products.length
     candidatesTotal.value = 0
     hasNext.value = resp.products.length === size.value
-    await loadProducerNames(resp.products, form.producerIds)
+    loadProducerNames(resp.products)
   } finally {
     if (currentRequestId === productsRequestId) {
       isLoading.value = false
@@ -1021,21 +986,15 @@ async function loadProducts() {
   }
 }
 
-async function loadProducerNames(
+function loadProducerNames(
   items: ProductSearchModel[],
-  selectedProducerIds: number[] = [],
   candidates: CatalogueCandidateSearchModel[] = [],
 ) {
-  const ids = [...new Set([
-    ...items.map((product) => product.producerId),
-    ...candidates.map((candidate) => candidate.producerId),
-    ...selectedProducerIds,
-  ])]
-    .filter((id) => !producerNames.value[id])
-
-  const producers = await getProducersByIds(ids)
-  producers.forEach((producer) => {
-    producerNames.value[producer.id] = producer.name
+  items.forEach((product) => {
+    if (product.producerName) producerNames.value[product.producerId] = product.producerName
+  })
+  candidates.forEach((candidate) => {
+    if (candidate.producerName) producerNames.value[candidate.producerId] = candidate.producerName
   })
 }
 
@@ -1260,39 +1219,6 @@ onMounted(async () => {
   padding-top: 9px;
   padding-bottom: 9px;
   color: #1e293b;
-}
-
-.sortable-column-header {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.sortable-column-header:hover,
-.sortable-column-header:focus-visible {
-  color: #0f172a;
-}
-
-.sortable-column-header:focus-visible {
-  outline: 2px solid #86bda4;
-  outline-offset: 3px;
-}
-
-.sortable-column-header span {
-  color: #047857;
-  font-variant-numeric: tabular-nums;
-  font-weight: 750;
-}
-
-.sortable-column-header:disabled {
-  color: #94a3b8;
-  cursor: default;
 }
 
 .catalogue-search-primary {

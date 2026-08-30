@@ -17,14 +17,16 @@
     </div>
 
     <el-table :data="content" stripe height="100%">
-      <el-table-column prop="productId" label="Product ID" min-width="110" />
-      <el-table-column prop="count" :label="t('storages.contentPanel.quantity')" min-width="100" />
-      <el-table-column :label="t('storages.contentPanel.buyPrice')" min-width="140">
+      <el-table-column prop="productId" min-width="110"><template #header><SortableColumnHeader label="Product ID" field="productId" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template></el-table-column>
+      <el-table-column prop="count" min-width="100"><template #header><SortableColumnHeader :label="t('storages.contentPanel.quantity')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template></el-table-column>
+      <el-table-column prop="buyPrice" min-width="140">
+        <template #header><SortableColumnHeader :label="t('storages.contentPanel.buyPrice')" field="buyPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
         <template #default="{ row }">
           {{ row.buyPrice }} {{ row.currency.currencySign }}
         </template>
       </el-table-column>
-      <el-table-column :label="t('storages.contentPanel.purchaseDate')" min-width="170">
+      <el-table-column prop="purchaseDatetime" min-width="170">
+        <template #header><SortableColumnHeader :label="t('storages.contentPanel.purchaseDate')" field="purchaseDatetime" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
         <template #default="{ row }">
           {{ formatDate(row.purchaseDatetime) }}
         </template>
@@ -118,6 +120,7 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import { Delete, Edit } from '@element-plus/icons-vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
@@ -126,6 +129,7 @@ import { addStorageContent, deleteStorageContent, editStorageContent, getStorage
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
+import { useMultiSort } from '@/composables/useMultiSort.ts'
 
 const { t } = useI18n()
 const storage = defineModel<StorageModel | undefined>('storage')
@@ -136,6 +140,7 @@ const showZeroContent = ref(true)
 const createOpen = ref(false)
 const editOpen = ref(false)
 const editingItem = ref<StorageContentModel>()
+const { sortBy, toggleSort } = useMultiSort()
 
 const createForm = reactive({
   productId: 1,
@@ -167,9 +172,15 @@ async function loadContent() {
     page: 0,
     size: 50,
     showZeroContent: showZeroContent.value,
+    sortBy: sortBy.value,
   })
 
   content.value = resp.contents
+}
+
+async function handleSortToggle(field: string, event: MouseEvent) {
+  toggleSort(field, event)
+  await loadContent()
 }
 
 async function loadCurrencies() {

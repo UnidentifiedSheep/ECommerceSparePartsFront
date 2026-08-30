@@ -56,17 +56,13 @@
           highlight-current-row
           class="organizations-table"
           :row-class-name="organizationRowClass"
-          :default-sort="{ prop: 'name', order: 'ascending' }"
           @current-change="selectOrganization"
-          @sort-change="handleOrganizationsSortChange"
         >
           <el-table-column
             prop="name"
-            :label="t('common.labels.name')"
             min-width="165"
-            sortable="custom"
-            :sort-orders="['ascending', 'descending']"
           >
+            <template #header><SortableColumnHeader :label="t('common.labels.name')" field="name" :sort-by="organizationsSortBy" :title="t('products.multiSortHint')" @toggle="handleOrganizationsSortToggle" /></template>
             <template #default="{ row }">
               <div class="organization-name-cell">
                 <div>
@@ -89,11 +85,9 @@
           </el-table-column>
           <el-table-column
             prop="type"
-            :label="t('common.labels.type')"
             min-width="90"
-            sortable="custom"
-            :sort-orders="['ascending', 'descending']"
           >
+            <template #header><SortableColumnHeader :label="t('common.labels.type')" field="type" :sort-by="organizationsSortBy" :title="t('products.multiSortHint')" @toggle="handleOrganizationsSortToggle" /></template>
             <template #default="{ row }">
               {{ organizationTypeLabel(row.type) }}
             </template>
@@ -103,14 +97,10 @@
             min-width="120"
             align="right"
             header-align="right"
-            sortable="custom"
-            :sort-orders="['ascending', 'descending']"
           >
             <template #header>
               <el-tooltip :content="t('organizations.approximateBalance')" placement="top">
-                <span class="balance-column-header" data-testid="organization-balance-header">
-                  {{ t('organizationPage.balance') }}
-                </span>
+                <SortableColumnHeader data-testid="organization-balance-header" :label="t('organizationPage.balance')" field="approximateBalance" :sort-by="organizationsSortBy" :title="t('products.multiSortHint')" @toggle="handleOrganizationsSortToggle" />
               </el-tooltip>
             </template>
             <template #default="{ row }">
@@ -426,6 +416,7 @@ import { CircleCheck, EditPen, Hide, Loading, Lock, Plus, Search, View } from '@
 import PageHeader from '@/components/common/PageHeader.vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import OrganizationApproximateBalance from '@/components/organizations/OrganizationApproximateBalance.vue'
@@ -452,6 +443,7 @@ import {
   type GetOrganizationFinancialInfoResponse,
 } from '@/services/api/organizations.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { useI18n } from '@/i18n'
 import { normalizeTransliteratedIdentifier } from '@/utils/transliteration.ts'
 import { storeToRefs } from 'pinia'
@@ -490,7 +482,7 @@ const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
 const organizationsLoading = ref(false)
-const organizationsSortBy = ref('name')
+const { sortBy: organizationsSortBy, toggleSort: toggleOrganizationsSort } = useMultiSort(['name'])
 const detailsLoading = ref(false)
 const detailsTab = ref('members')
 const members = ref<OrganizationMemberModel[]>([])
@@ -668,7 +660,7 @@ async function loadOrganizations(reset = false) {
       types: typeFilters.value.length ? typeFilters.value : undefined,
       page: page.value,
       limit: limit.value,
-      sortBy: [organizationsSortBy.value],
+      sortBy: toSortExpressions(organizationsSortBy.value),
       showHidden: showHidden.value,
     })
     if (requestId !== organizationsRequestId) return
@@ -799,15 +791,8 @@ async function toggleOrganizationVisibility(organization: OrganizationModel) {
   }
 }
 
-async function handleOrganizationsSortChange(event: {
-  prop?: string
-  order?: 'ascending' | 'descending' | null
-}) {
-  if (!event.prop || !event.order) return
-
-  organizationsSortBy.value = event.order === 'descending'
-    ? `${event.prop}_desc`
-    : event.prop
+async function handleOrganizationsSortToggle(field: string, event: MouseEvent) {
+  toggleOrganizationsSort(field, event)
   await loadOrganizations(true)
 }
 

@@ -8,6 +8,7 @@ import type { LogisticPricingType } from '@/enums/logisticPricingType.ts'
 import type { RouteType } from '@/enums/routeType.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
+import { searchStorageContentsGraphql } from '@/services/graphql/products.ts'
 
 interface PatchField<T> {
   isSet: boolean
@@ -150,6 +151,7 @@ export interface GetStorageContentRequest {
   size?: number
   limit?: number
   showZeroContent?: boolean
+  sortBy?: string[]
 }
 
 export interface GetStorageContentResponse {
@@ -281,22 +283,19 @@ export async function deleteStorageRoute(id: string) {
 
 export async function getStorageContent(req: GetStorageContentRequest): Promise<GetStorageContentResponse> {
   const size = req.size ?? req.limit ?? 20
-  const resp = await api.get<{ contents?: StorageContentDto[]; content?: StorageContentDto[] }>('/main/storages/contents', {
-    params: {
-      storageCode: req.storageCode,
-      productId: req.productId,
-      page: req.page,
-      size: clampPageSize(size),
-      showZeroContent: req.showZeroContent,
-    },
-  })
-  const contents = resp.data.contents ?? resp.data.content ?? []
 
   return {
-    contents: contents.map((item) => ({
-      ...item,
-      count: item.count ?? item.quantity ?? item.stock ?? 0,
-    })),
+    contents: await searchStorageContentsGraphql({
+      productId: req.productId,
+      storageCode: req.storageCode,
+      page: req.page,
+      size: clampPageSize(size),
+      showZeroCount: req.showZeroContent,
+      sortBy: (req.sortBy ?? []).map((field) => ({
+        field: field.replace(/^-/, ''),
+        isDescending: field.startsWith('-'),
+      })),
+    }),
   }
 }
 

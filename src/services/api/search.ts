@@ -1,6 +1,12 @@
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { ProducerSearchModel } from '@/models/producerSearchModel.ts'
-import api, { clampPageSize } from '@/services/api/api.ts'
+import { clampPageSize } from '@/services/api/api.ts'
+import {
+  searchCatalogueGraphql,
+  searchProducersGraphql,
+  searchProductsGraphql,
+} from '@/services/graphql/products.ts'
+import type { SearchMatchType as GraphqlSearchMatchType } from '@/graphql/generated/graphql.ts'
 
 export interface SearchProductsRequest {
   query?: string
@@ -28,6 +34,7 @@ export interface CatalogueCandidateSearchModel {
   id: string
   sku: string
   producerId: number
+  producerName?: string
   names: string[]
   highlights?: Record<string, string[]> | null
 }
@@ -80,21 +87,25 @@ export interface SearchProductsBySkuRequest {
   sortBy?: string[]
 }
 
-export async function searchProducts(req: SearchProductsRequest): Promise<SearchProductsResponse> {
-  const response = await searchCatalogue({
-    query: req.query,
-    targets: ['Products'],
-    producerIds: req.producerId === undefined ? [] : [req.producerId],
-    page: req.page,
-    size: req.size,
-    sortBy: { products: req.sortBy ?? [] },
-    includeHighlights: false,
-  })
+const graphqlSearchMatchTypes: Record<SearchMatchType, GraphqlSearchMatchType> = {
+  Exact: 'EXACT',
+  StartsWith: 'STARTS_WITH',
+  Contains: 'CONTAINS',
+  Fuzzy: 'FUZZY',
+}
 
-  return {
-    products: response.products.items,
-    total: response.products.total,
-  }
+function toGraphqlSearchMatchTypes(values: SearchMatchType[] | undefined) {
+  return values?.map((value) => graphqlSearchMatchTypes[value])
+}
+
+export async function searchProducts(req: SearchProductsRequest): Promise<SearchProductsResponse> {
+  return searchProductsGraphql({
+    query: req.query,
+    producerId: req.producerId,
+    page: req.page,
+    size: clampPageSize(req.size),
+    sortBy: req.sortBy,
+  })
 }
 
 export async function searchProductsBySku(req: SearchProductsBySkuRequest): Promise<SearchProductsResponse> {
@@ -103,46 +114,40 @@ export async function searchProductsBySku(req: SearchProductsBySkuRequest): Prom
     : req.searchMode
       ? [req.searchMode]
       : ['Exact', 'StartsWith', 'Contains']
-  const response = await searchCatalogue({
+  return searchProductsGraphql({
     query: req.sku,
-    targets: ['Products'],
-    fields: { sku: searchModes },
-    producerIds: req.producerId === undefined ? [] : [req.producerId],
+    producerId: req.producerId,
     page: req.page,
-    size: req.size,
-    sortBy: { products: req.sortBy ?? [] },
-    includeHighlights: false,
+    size: clampPageSize(req.size),
+    skuModes: toGraphqlSearchMatchTypes(searchModes),
+    nameModes: [],
+    sortBy: req.sortBy,
   })
-
-  return {
-    products: response.products.items,
-    total: response.products.total,
-  }
 }
 
 export async function searchCatalogue(req: SearchCatalogueRequest): Promise<SearchCatalogueResponse> {
-  const resp = await api.post<SearchCatalogueResponse>('/search/catalogue/search', {
-    ...req,
-    query: req.query?.trim() || null,
+  return searchCatalogueGraphql({
+    query: req.query?.trim() || undefined,
+    targets: (req.targets ?? ['Products']).map((target) => (
+      target === 'Products' ? 'PRODUCTS' : 'CATALOGUE_CANDIDATES'
+    )),
+    skuModes: toGraphqlSearchMatchTypes(req.fields?.sku),
+    nameModes: toGraphqlSearchMatchTypes(req.fields?.name),
     producerIds: req.producerIds ?? [],
     includeHighlights: req.includeHighlights ?? false,
+    page: req.page,
     size: clampPageSize(req.size),
-    sortBy: {
-      products: req.sortBy?.products ?? [],
-      catalogueCandidates: req.sortBy?.catalogueCandidates ?? [],
-    },
+    productSortBy: req.sortBy?.products,
+    catalogueCandidateSortBy: req.sortBy?.catalogueCandidates,
   })
-
-  return resp.data
 }
 
 export async function searchProducers(req: SearchProducersRequest): Promise<SearchProducersResponse> {
-  const resp = await api.get<SearchProducersResponse>('/search/producers', {
-    params: {
-      ...req,
+  return {
+    producers: await searchProducersGraphql({
+      query: req.query,
+      page: req.page,
       size: clampPageSize(req.size),
-    },
-  })
-
-  return resp.data
+    }),
+  }
 }

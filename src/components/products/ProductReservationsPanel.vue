@@ -29,7 +29,6 @@
       size="small"
       :empty-text="t('reservations.empty')"
       class="reservation-table"
-      @sort-change="handleSortChange"
     >
       <el-table-column :label="t('organizations.organization')" min-width="190" show-overflow-tooltip>
         <template #default="{ row }">
@@ -37,7 +36,8 @@
         </template>
       </el-table-column>
 
-      <el-table-column :label="t('common.labels.status')" width="112" sortable="custom" prop="status">
+      <el-table-column width="112" prop="status">
+        <template #header><SortableColumnHeader :label="t('common.labels.status')" field="status" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)" effect="light">
             {{ statusText(row.status) }}
@@ -68,7 +68,8 @@
         </template>
       </el-table-column>
 
-      <el-table-column :label="t('common.labels.updatedAtShort')" width="150" sortable="custom" prop="updatedAt">
+      <el-table-column width="150" prop="updatedAt">
+        <template #header><SortableColumnHeader :label="t('common.labels.updatedAtShort')" field="updatedAt" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
         <template #default="{ row }">
           {{ formatDate(row.updatedAt) }}
         </template>
@@ -283,6 +284,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Clock, Delete, Edit, Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
@@ -297,6 +299,7 @@ import type {
 import type { UserModel } from '@/models/userModel.ts'
 import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { getRoles, type RoleModel } from '@/services/api/roles.ts'
 import { getUserFullInfo } from '@/services/api/users.ts'
@@ -337,7 +340,7 @@ const currencies = ref<CurrencyModel[]>([])
 const page = ref(0)
 const size = ref(10)
 const hasNext = ref(false)
-const sortBy = ref<string>('updatedAt_desc')
+const { sortBy, toggleSort } = useMultiSort(['-updatedAt'])
 const isLoading = ref(false)
 const isSaving = ref(false)
 const isCurrenciesLoading = ref(false)
@@ -548,7 +551,7 @@ async function loadReservations() {
       showDeleted: props.showDeleted,
       page: page.value,
       size: size.value,
-      sortBy: [sortBy.value],
+      sortBy: toSortExpressions(sortBy.value),
     })
 
     reservations.value = resp.reservations
@@ -641,20 +644,12 @@ async function removeReservation(row: ProductReservationModel) {
   ElNotification({ title: t('common.labels.success'), message: t('reservations.removed'), type: 'success' })
 }
 
-async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
-  if (!event.prop || !event.order) {
-    sortBy.value = 'updatedAt_desc'
-  } else {
-    sortBy.value = event.order === 'descending'
-      ? `${event.prop}_desc`
-      : event.prop
-  }
-
+async function handleSortToggle(field: string, event: MouseEvent) {
+  toggleSort(field, event)
   if (page.value !== 0) {
     page.value = 0
     return
   }
-
   await loadReservations()
 }
 

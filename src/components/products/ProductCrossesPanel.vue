@@ -20,18 +20,22 @@
       :data="crosses"
       stripe
       :empty-text="t('products.details.noCrosses')"
-      @sort-change="emit('sort-change', $event)"
     >
-      <el-table-column prop="sku" :label="t('products.sku')" min-width="145" sortable="custom">
+      <el-table-column prop="sku" min-width="145">
+        <template #header><SortableColumnHeader :label="t('products.sku')" field="sku" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
         <template #default="{ row }">
           <ProductSkuCell :sku="row.sku" :indicator="row.indicator" />
         </template>
       </el-table-column>
-      <el-table-column prop="name" :label="t('common.labels.name')" min-width="210" show-overflow-tooltip sortable="custom" />
-      <el-table-column prop="producerName" :label="t('common.labels.producer')" min-width="130" sortable="custom">
+      <el-table-column prop="name" min-width="210" show-overflow-tooltip>
+        <template #header><SortableColumnHeader :label="t('common.labels.name')" field="name" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
+      </el-table-column>
+      <el-table-column prop="producerName" min-width="130">
+        <template #header><SortableColumnHeader :label="t('common.labels.producer')" field="producerName" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
         <template #default="{ row }">{{ row.producerName || '-' }}</template>
       </el-table-column>
-      <el-table-column prop="count" :label="t('products.stock')" width="128" align="right" sortable="custom">
+      <el-table-column prop="count" width="128" align="right">
+        <template #header><SortableColumnHeader :label="t('products.stock')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
         <template #default="{ row }"><ProductStockCell :stock="row.stock" /></template>
       </el-table-column>
       <el-table-column label="" width="72" align="right">
@@ -58,6 +62,7 @@ import { Plus, View } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { ProductModel } from '@/models/productModel.ts'
 import { useI18n } from '@/i18n'
 
@@ -67,18 +72,23 @@ defineProps<{
   summary: string
   hasNext: boolean
   canCreate: boolean
+  sortBy: string[]
 }>()
 
 const emit = defineEmits<{
   create: []
   open: [id: number]
-  'sort-change': [event: { prop?: string; order?: 'ascending' | 'descending' | null }]
+  'sort-toggle': [field: string, event: MouseEvent]
 }>()
 
 const search = defineModel<string>('search', { required: true })
 const page = defineModel<number>('page', { required: true })
 const size = defineModel<number>('size', { required: true })
 const { t } = useI18n()
+
+function forwardSortToggle(field: string, event: MouseEvent) {
+  emit('sort-toggle', field, event)
+}
 </script>
 
 <style scoped>

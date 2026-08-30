@@ -290,10 +290,9 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateModel.ts'
-import type { ProductModel } from '@/models/productModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { Supplier } from '@/models/producerModel.ts'
-import { getCatalogueCandidatesForReview, getProductsByIds } from '@/services/api/products.ts'
+import { getCatalogueCandidatesForReview, getProductById } from '@/services/api/products.ts'
 import { searchProductsBySku } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
@@ -402,8 +401,16 @@ async function loadSelectedFilterProduct() {
   if (!filters.productId) return
 
   try {
-    const response = await getProductsByIds([filters.productId])
-    selectedFilterProduct.value = response.products[0]
+    const { product } = await getProductById(filters.productId)
+    selectedFilterProduct.value = {
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      producerId: product.producerId,
+      producerName: product.producerName,
+      indicator: product.indicator,
+      stock: product.stock,
+    }
   } catch {
     selectedFilterProduct.value = undefined
   }

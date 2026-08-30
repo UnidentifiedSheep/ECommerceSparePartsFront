@@ -93,11 +93,12 @@
               :crosses="filteredCrosses"
               :loading="isCrossesLoading"
               :summary="crossesSummary"
+              :sort-by="crossesSortBy"
               :has-next="hasNext"
               :can-create="canCreateCrosses"
               @create="crossDialogOpen = true"
               @open="openProduct"
-              @sort-change="handleSortChange"
+              @sort-toggle="handleCrossesSortToggle"
             />
           </el-tab-pane>
 
@@ -114,6 +115,7 @@
               :contents="storageContent"
               :loading="isStorageContentLoading"
               :summary="storageContentSummary"
+              :sort-by="storageSortBy"
               :has-next="storageContentHasNext"
               :can-create="canCreateStorageContent"
               :can-edit="canEditStorageContent"
@@ -121,6 +123,7 @@
               @create="addStorageContentDialogOpen = true"
               @edit="openEditStorageContentDialog"
               @delete="removeStorageContentItem"
+              @sort-toggle="handleStorageSortToggle"
             />
           </el-tab-pane>
 
@@ -272,17 +275,14 @@ import {
   getCatalogueCandidatesForReview,
   getProductById,
   getProductCharacteristics,
-  getProductContent,
   getProductCrosses,
-  getProductPair,
-  getProductSize,
-  getProductWeight,
   uploadProductImages,
 } from '@/services/api/products.ts'
 import { deleteStorageContent, getStorageContent } from '@/services/api/storages.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
 import { groupCatalogueCandidateNames, type CatalogueNameGroup } from '@/utils/catalogueCandidateNames.ts'
+import { useMultiSort } from '@/composables/useMultiSort.ts'
 
 type ProductTab = 'crosses' | 'storage' | 'content' | 'characteristics'
 
@@ -319,7 +319,8 @@ const characteristicsSize = ref(10)
 const characteristicsHasNext = ref(false)
 const showZeroStorageContent = ref(false)
 const crossSearch = ref('')
-const sortBy = ref<string>()
+const { sortBy: crossesSortBy, toggleSort: toggleCrossesSort } = useMultiSort()
+const { sortBy: storageSortBy, toggleSort: toggleStorageSort } = useMultiSort()
 
 const isLoading = ref(false)
 const isCrossesLoading = ref(false)
@@ -590,10 +591,8 @@ async function removeCharacteristic(item: ProductCharacteristicModel) {
   await refreshCharacteristics()
 }
 
-async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
-  sortBy.value = event.prop && event.order
-    ? (event.order === 'descending' ? `${event.prop}_desc` : event.prop)
-    : undefined
+async function handleCrossesSortToggle(field: string, event: MouseEvent) {
+  toggleCrossesSort(field, event)
   if (page.value !== 0) {
     page.value = 0
     return
@@ -601,8 +600,19 @@ async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'd
   await refreshCrosses()
 }
 
+async function handleStorageSortToggle(field: string, event: MouseEvent) {
+  toggleStorageSort(field, event)
+  if (storageContentPage.value !== 0) {
+    storageContentPage.value = 0
+    return
+  }
+  await refreshStorageContent()
+}
+
 async function loadProduct() {
-  product.value = (await getProductById(productId.value)).product
+  const loadedProduct = (await getProductById(productId.value)).product
+  product.value = loadedProduct
+  productPair.value = loadedProduct.pair ?? null
 }
 
 async function loadAlternativeProductNames() {
@@ -622,28 +632,29 @@ async function loadAlternativeProductNames() {
 }
 
 async function loadPair() {
-  productPair.value = (await getProductPair(productId.value)).pair
+  productPair.value = product.value?.pair ?? null
 }
 
 async function loadProductMetrics() {
   productSize.value = null
   productWeight.value = null
-  const [sizeResp, weightResp] = await Promise.allSettled([
-    getProductSize(productId.value),
-    getProductWeight(productId.value),
-  ])
-  if (sizeResp.status === 'fulfilled') productSize.value = sizeResp.value.productSize
-  if (weightResp.status === 'fulfilled') productWeight.value = weightResp.value.productWeight
+  productSize.value = product.value?.size ?? null
+  productWeight.value = product.value?.weight ?? null
 }
 
 async function loadCrosses() {
+  if (crossesSortBy.value.length === 0 && page.value === 0 && product.value?.crosses !== undefined) {
+    crosses.value = product.value.crosses
+    hasNext.value = product.value.crosses.length === 100
+    return
+  }
   isCrossesLoading.value = true
   try {
     const resp = await getProductCrosses({
       productId: productId.value,
       page: page.value,
       size: size.value,
-      sortBy: sortBy.value ? [sortBy.value] : undefined,
+      sortBy: crossesSortBy.value,
     })
     crosses.value = resp.crosses
     hasNext.value = resp.crosses.length === size.value
@@ -661,6 +672,7 @@ async function loadStorageContent() {
       page: storageContentPage.value,
       size: storageContentSize.value,
       showZeroContent: showZeroStorageContent.value,
+      sortBy: storageSortBy.value,
     })
     storageContent.value = resp.contents
     storageContentHasNext.value = resp.contents.length === storageContentSize.value
@@ -670,12 +682,7 @@ async function loadStorageContent() {
 }
 
 async function loadProductContent() {
-  isProductContentLoading.value = true
-  try {
-    productContent.value = (await getProductContent(productId.value)).content
-  } finally {
-    isProductContentLoading.value = false
-  }
+  productContent.value = product.value?.contents ?? []
 }
 
 async function loadCharacteristics() {
@@ -703,7 +710,8 @@ async function ensureTabLoaded(tab: ProductTab, force = false) {
 }
 
 async function refreshSummary() {
-  await Promise.all([loadProduct(), loadPair(), loadProductMetrics(), loadAlternativeProductNames()])
+  await loadProduct()
+  await Promise.all([loadPair(), loadProductMetrics(), loadAlternativeProductNames()])
 }
 
 async function refreshCrosses() {
@@ -745,7 +753,9 @@ function resetPageState() {
   characteristics.value = []
   alternativeProductNames.value = []
   page.value = 0
+  crossesSortBy.value = []
   storageContentPage.value = 0
+  storageSortBy.value = []
   characteristicsPage.value = 0
   crossSearch.value = ''
   hasNext.value = false

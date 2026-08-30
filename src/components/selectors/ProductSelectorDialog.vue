@@ -133,10 +133,7 @@
       >
         <el-table-column prop="sku" :label="t('products.sku')" min-width="180">
           <template #header>
-            <button class="product-selector-sort" type="button" :title="t('products.multiSortHint')" @click="toggleSort('sku', $event)">
-              {{ t('products.sku') }}
-              <span v-if="sortDirection('sku')">{{ sortDirection('sku') === 'asc' ? '↑' : '↓' }}{{ sortPriority('sku') }}</span>
-            </button>
+            <SortableColumnHeader :label="t('products.sku')" field="sku" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
           </template>
           <template #default="{ row }">
             <ProductSkuCell :sku="row.sku" :indicator="row.indicator" :highlight="highlightedSku(row)" />
@@ -149,10 +146,7 @@
         </el-table-column>
         <el-table-column prop="producerId" :label="t('common.labels.producer')" min-width="180">
           <template #header>
-            <button class="product-selector-sort" type="button" :title="t('products.multiSortHint')" @click="toggleSort('producerId', $event)">
-              {{ t('common.labels.producer') }}
-              <span v-if="sortDirection('producerId')">{{ sortDirection('producerId') === 'asc' ? '↑' : '↓' }}{{ sortPriority('producerId') }}</span>
-            </button>
+            <SortableColumnHeader :label="t('common.labels.producer')" field="producerId" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
           </template>
           <template #default="{ row }">
             {{ producerName(row.producerId) }}
@@ -160,10 +154,7 @@
         </el-table-column>
         <el-table-column prop="stock" :label="t('products.stock')" min-width="140">
           <template #header>
-            <button class="product-selector-sort" type="button" :title="t('products.multiSortHint')" @click="toggleSort('stock', $event)">
-              {{ t('products.stock') }}
-              <span v-if="sortDirection('stock')">{{ sortDirection('stock') === 'asc' ? '↑' : '↓' }}{{ sortPriority('stock') }}</span>
-            </button>
+            <SortableColumnHeader :label="t('products.stock')" field="stock" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
           </template>
           <template #default="{ row }">
             <ProductStockCell :stock="row.stock" />
@@ -188,12 +179,13 @@ import { useDebounceFn } from '@vueuse/core'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import ProducerMultiSelector from '@/components/selectors/ProducerMultiSelector.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import { getProducersByIds } from '@/services/api/producers.ts'
+import { nextSortValues } from '@/composables/useMultiSort.ts'
 import {
   type SearchMatchType,
   searchCatalogue,
@@ -308,28 +300,8 @@ function productRowClass({ row }: { row: ProductSearchModel }) {
   return row.id === selectedProductId.value ? 'product-selector-row--selected' : ''
 }
 
-function sortField(value: string) {
-  return value.endsWith('_desc') ? value.slice(0, -5) : value
-}
-
-function sortDirection(field: string): 'asc' | 'desc' | undefined {
-  const value = sortBy.value.find((item) => sortField(item) === field)
-  if (!value) return undefined
-  return value.endsWith('_desc') ? 'desc' : 'asc'
-}
-
-function sortPriority(field: string) {
-  const index = sortBy.value.findIndex((item) => sortField(item) === field)
-  return index >= 0 && sortBy.value.length > 1 ? index + 1 : ''
-}
-
 async function toggleSort(field: string, event: MouseEvent) {
-  const current = sortBy.value.find((item) => sortField(item) === field)
-  const next = !current ? field : current.endsWith('_desc') ? undefined : `${field}_desc`
-  const remaining = sortBy.value.filter((item) => sortField(item) !== field)
-  sortBy.value = event.shiftKey
-    ? next ? [...remaining, next] : remaining
-    : next ? [next] : []
+  sortBy.value = nextSortValues(sortBy.value, field, event.shiftKey, 'suffix')
   await loadProducts(true)
 }
 
@@ -456,18 +428,15 @@ async function loadProducts(resetPage: boolean) {
     hasNext.value = hasExactTotal.value
       ? (page.value + 1) * size.value < total.value
       : products.value.length === size.value
-    await loadProducerNames(products.value)
+    loadProducerNames(products.value)
   } finally {
     if (requestId === productsRequestId) isLoading.value = false
   }
 }
 
-async function loadProducerNames(items: ProductSearchModel[]) {
-  const ids = [...new Set(items.map((product) => product.producerId))]
-    .filter((id) => !producerNames.value[id])
-  const producers = await getProducersByIds(ids)
-  producers.forEach((producer) => {
-    producerNames.value[producer.id] = producer.name
+function loadProducerNames(items: ProductSearchModel[]) {
+  items.forEach((product) => {
+    if (product.producerName) producerNames.value[product.producerId] = product.producerName
   })
 }
 
@@ -720,28 +689,6 @@ onMounted(async () => {
 
 .product-selector-results :deep(.product-selector-row--selected > td.el-table__cell) {
   background: #eef6f1;
-}
-
-.product-selector-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.product-selector-sort span {
-  color: #047857;
-  font-weight: 750;
-}
-
-.product-selector-sort:focus-visible {
-  outline: 2px solid #86bda4;
-  outline-offset: 3px;
 }
 
 @media (max-width: 760px) {

@@ -1,0 +1,116 @@
+fragment ProductFields on Product {
+  id
+  sku
+  name
+  description
+  indicator
+  images
+  stock
+  producer { id name description aliases }
+  size { length width height unit volumeM3 }
+  weight { weight unit }
+}
+
+fragment ProductListFields on Product {
+  id
+  sku
+  name
+  indicator
+  stock
+  producer { id name }
+}
+
+fragment ProductDetailsFields on Product {
+  ...ProductFields
+  pair { ...ProductListFields }
+  contents { quantity product { ...ProductListFields } }
+  crosses(input: $crossesInput) { ...ProductListFields }
+}
+
+fragment CatalogueCandidateSearchFields on CatalogueCandidate {
+  id
+  sku
+  producer { id name }
+  supplierProducts {
+    names { name }
+  }
+}
+
+query ProductById($id: Int!, $crossesInput: ProductCrossesInput!) {
+  products { byId(id: $id) { ...ProductDetailsFields } }
+}
+
+query CatalogueSearch($input: CatalogueSearchInput!) {
+  catalogue {
+    search(input: $input) {
+      products {
+        total
+        items {
+          item { ...ProductFields }
+          highlights { items { field fragments } }
+        }
+      }
+      catalogues {
+        total
+        items {
+          item { ...CatalogueCandidateSearchFields }
+          highlights { items { field fragments } }
+        }
+      }
+    }
+  }
+}
+
+query ProducerSearch($input: ProducerSearchInput!) {
+  producers {
+    search(input: $input) {
+      id
+      name
+      description
+    }
+  }
+}
+
+query ProductAvailableStock($id: Int!, $input: ProductAvailableStocksInput!) {
+  products {
+    byId(id: $id) {
+      availableStock(input: $input)
+    }
+  }
+}
+
+query ProductPair($id: Int!) {
+  products { byId(id: $id) { pair { ...ProductListFields } } }
+}
+
+query ProductContents($id: Int!) {
+  products { byId(id: $id) { contents { quantity product { ...ProductListFields } } } }
+}
+
+query ProductCrosses($id: Int!, $input: ProductCrossesInput!) {
+  products { byId(id: $id) { crosses(input: $input) { ...ProductListFields } } }
+}
+
+query ProductStorageContents($id: Int!, $input: ProductStorageContentsInput!) {
+  products {
+    byId(id: $id) {
+      storageContents(input: $input) {
+        id rowVersion count buyPrice purchaseDatetime
+        currency { id code name shortName sign }
+        storage { code description location type }
+        product { ...ProductListFields }
+      }
+    }
+  }
+}
+
+query StorageContentsSearch($input: StorageContentsSearchInput!) {
+  storageContents {
+    search(input: $input) {
+      id rowVersion count buyPrice purchaseDatetime
+      currency { id code name shortName sign }
+      storage { code description location type }
+      product { ...ProductListFields }
+    }
+  }
+}

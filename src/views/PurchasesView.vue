@@ -151,7 +151,6 @@
                 highlight-current-row
                 row-class-name="purchase-table-row"
                 @current-change="selectPurchase"
-                @sort-change="handleSortChange"
               >
                 <el-table-column :label="t('purchases.supplier')" min-width="180">
                   <template #default="{ row }">
@@ -169,12 +168,14 @@
                   </template>
                 </el-table-column>
                 <el-table-column prop="storageCode" :label="t('common.labels.storage')" min-width="150" />
-                <el-table-column prop="dateTime" :label="t('common.labels.date')" min-width="170" sortable="custom">
+                <el-table-column prop="dateTime" min-width="170">
+                  <template #header><SortableColumnHeader :label="t('common.labels.date')" field="dateTime" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
                   <template #default="{ row }">
                     {{ formatDate(row.purchaseDatetime) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="totalSum" :label="t('purchases.amount')" min-width="140" sortable="custom">
+                <el-table-column prop="totalSum" min-width="140">
+                  <template #header><SortableColumnHeader :label="t('purchases.amount')" field="totalSum" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
                   <template #default="{ row }">
                     {{ formatCurrency(row.totalSum, row.currency.currencySign) }}
                   </template>
@@ -257,6 +258,7 @@ import OrganizationSelector from '@/components/selectors/OrganizationSelector.vu
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
@@ -264,6 +266,7 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { deletePurchase, getPurchase, getPurchaseContent, getPurchases } from '@/services/api/purchases.ts'
 import { getStorages } from '@/services/api/storages.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
@@ -282,7 +285,7 @@ const supplierToAdd = ref<OrganizationSelection>()
 const currencyIds = ref<number[]>([])
 const selectedProducts = ref<ProductSearchModel[]>([])
 const searchTerm = ref<string>()
-const sortBy = ref<string>()
+const { sortBy, toggleSort } = useMultiSort()
 const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
@@ -338,15 +341,8 @@ async function applyDrawerFilters() {
   await loadPurchases(true)
 }
 
-async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
-  if (!event.prop || !event.order) {
-    sortBy.value = undefined
-  } else {
-    sortBy.value = event.order === 'descending'
-      ? `${event.prop}_desc`
-      : event.prop
-  }
-
+async function handleSortToggle(field: string, event: MouseEvent) {
+  toggleSort(field, event)
   await loadPurchases(true)
 }
 
@@ -406,7 +402,7 @@ async function loadPurchases(resetPage: boolean) {
       supplierOrganizationIds: selectedSuppliers.value.map((supplier) => supplier.organization.id),
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
-      sortBy: sortBy.value ? [sortBy.value] : undefined,
+      sortBy: toSortExpressions(sortBy.value),
       searchTerm: searchTerm.value,
     })
 

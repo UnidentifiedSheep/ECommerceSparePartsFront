@@ -171,7 +171,6 @@
             highlight-current-row
             :row-class-name="saleRowClassName"
             @current-change="handleCurrentSaleChange"
-            @sort-change="handleSortChange"
           >
             <el-table-column :label="t('sales.buyer')" min-width="140">
               <template #default="{ row }">
@@ -193,12 +192,14 @@
               </template>
             </el-table-column>
             <el-table-column prop="storageCode" :label="t('sales.storage')" min-width="100" show-overflow-tooltip />
-            <el-table-column prop="dateTime" :label="t('common.labels.date')" min-width="132" sortable="custom">
+            <el-table-column prop="dateTime" min-width="132">
+              <template #header><SortableColumnHeader :label="t('common.labels.date')" field="dateTime" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
               <template #default="{ row }">
                 {{ formatDate(row.saleDatetime) }}
               </template>
             </el-table-column>
-            <el-table-column prop="totalSum" :label="t('sales.amount')" width="106" sortable="custom" align="right">
+            <el-table-column prop="totalSum" width="106" align="right">
+              <template #header><SortableColumnHeader :label="t('sales.amount')" field="totalSum" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
               <template #default="{ row }">
                 <span class="sale-amount">{{ formatCurrency(row.totalSum, row.currency.currencySign) }}</span>
               </template>
@@ -278,6 +279,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleContentModel, SaleModel, SaleState } from '@/models/saleModel.ts'
@@ -285,6 +287,7 @@ import type { OrganizationModel, OrganizationSelection } from '@/models/organiza
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { deleteSale, getSale, getSaleContent, getSales } from '@/services/api/sales.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
@@ -306,7 +309,7 @@ const defaultSaleStates: SaleState[] = ['Completed']
 const saleStates = ref<SaleState[]>([...defaultSaleStates])
 const selectedProducts = ref<ProductSearchModel[]>([])
 const searchTerm = ref<string>()
-const sortBy = ref<string>()
+const { sortBy, toggleSort } = useMultiSort()
 const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
@@ -378,15 +381,8 @@ function isDefaultSaleStateFilter() {
     && defaultSaleStates.every((state) => saleStates.value.includes(state))
 }
 
-async function handleSortChange(event: { prop?: string; order?: 'ascending' | 'descending' | null }) {
-  if (!event.prop || !event.order) {
-    sortBy.value = undefined
-  } else {
-    sortBy.value = event.order === 'descending'
-      ? `${event.prop}_desc`
-      : event.prop
-  }
-
+async function handleSortToggle(field: string, event: MouseEvent) {
+  toggleSort(field, event)
   await loadSales(true)
 }
 
@@ -448,7 +444,7 @@ async function loadSales(resetPage: boolean) {
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
       states: saleStates.value,
-      sortBy: sortBy.value ? [sortBy.value] : undefined,
+      sortBy: toSortExpressions(sortBy.value),
       searchTerm: searchTerm.value,
     })
 

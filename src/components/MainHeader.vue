@@ -67,7 +67,7 @@
                   <code class="main-header__product-sku">{{ product.sku }}</code>
                   <span aria-hidden="true">·</span>
                   <span class="main-header__product-producer">
-                    {{ producerNames[product.producerId] || '—' }}
+                    {{ product.producerName || '—' }}
                   </span>
                 </span>
               </span>
@@ -115,8 +115,7 @@ import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { useProductSearchHistory } from '@/composables/useProductSearchHistory.ts'
-import { searchProducts } from '@/services/api/search.ts'
-import { getProducersByIds } from '@/services/api/producers.ts'
+import { searchProductsGraphql } from '@/services/graphql/products.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 
 const emit = defineEmits<{
@@ -129,23 +128,12 @@ const searchRoot = ref<HTMLElement>()
 const searchOpen = ref(false)
 const searchLoading = ref(false)
 const searchResults = ref<ProductSearchModel[]>([])
-const producerNames = ref<Record<number, string>>({})
 const authStore = useAuthStore()
 const { locale, t } = useI18n()
 const { searchHistory, rememberSearch } = useProductSearchHistory()
 const normalizedSearch = computed(() => search.value.trim())
 let searchRequestId = 0
 let suppressNextSearchWatch = false
-async function loadProducerNames(products: ProductSearchModel[]) {
-  const ids = [...new Set(products.map((product) => product.producerId))]
-    .filter((id) => !producerNames.value[id])
-
-  const producers = await getProducersByIds(ids).catch(() => [])
-  producers.forEach((producer) => {
-    producerNames.value[producer.id] = producer.name
-  })
-}
-
 const loadSearchResults = useDebounceFn(async () => {
   const query = normalizedSearch.value
   if (!query) return
@@ -153,9 +141,7 @@ const loadSearchResults = useDebounceFn(async () => {
   const requestId = ++searchRequestId
   searchLoading.value = true
   try {
-    const resp = await searchProducts({ query, page: 0, size: 6 })
-    if (requestId !== searchRequestId) return
-    await loadProducerNames(resp.products)
+    const resp = await searchProductsGraphql({ query, page: 0, size: 6 })
     if (requestId !== searchRequestId) return
     searchResults.value = resp.products
   } catch {

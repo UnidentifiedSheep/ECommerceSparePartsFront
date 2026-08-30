@@ -350,7 +350,7 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
-import { getProductStock } from '@/services/api/products.ts'
+import { getProductAvailableStock } from '@/services/api/products.ts'
 import { editSale } from '@/services/api/sales.ts'
 import { getUserDiscount } from '@/services/api/users.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
@@ -363,13 +363,13 @@ interface EditSaleProductForm {
   id: number
   sku: string
   name: string
-  stock: number
   producerName?: string
 }
 
 interface EditSaleItemForm {
   id?: number | null
   product: EditSaleProductForm
+  availableStock: number
   count: number
   price: number
   priceWithDiscount?: number
@@ -509,8 +509,8 @@ function resetForm() {
           sku: item.product.sku ?? '',
           name: item.product.name ?? t('sales.unnamed'),
           producerName: item.product.producerName,
-          stock: 0,
         },
+        availableStock: 0,
         count: item.count,
         price: item.price,
         priceWithDiscount,
@@ -532,20 +532,21 @@ function resetForm() {
 async function loadCurrentProductStocks() {
   const ids = [...new Set(form.items.map((item) => item.product.id))]
   const requestId = ++stockRequestId
+  const storageCode = props.sale?.storageCode
 
-  if (ids.length === 0 || !props.sale?.storageCode) return
+  if (ids.length === 0 || !storageCode) return
 
   isStockLoading.value = true
   try {
     const results = await Promise.all(ids.map(async (id) => ({
       id,
-      stock: (await getProductStock(id, props.sale?.storageCode)).stock,
+      availableStock: (await getProductAvailableStock(id, storageCode)).availableStock,
     })))
     if (requestId !== stockRequestId) return
 
-    const stocksById = new Map(results.map((product) => [product.id, product.stock]))
+    const stocksById = new Map(results.map((product) => [product.id, product.availableStock]))
     form.items.forEach((item) => {
-      item.product.stock = stocksById.get(item.product.id) ?? item.product.stock
+      item.availableStock = stocksById.get(item.product.id) ?? item.availableStock
     })
   } catch (error) {
     if (requestId === stockRequestId) {
@@ -578,8 +579,8 @@ async function addProduct(product: ProductSearchModel) {
       id: product.id,
       sku: product.sku,
       name: product.name,
-      stock: storageStock,
     },
+    availableStock: storageStock,
     count: 1,
     price: 0,
     priceWithDiscount: undefined,
@@ -595,8 +596,8 @@ async function loadProductStorageStock(productId: number) {
   if (!props.sale?.storageCode) return 0
 
   try {
-    const resp = await getProductStock(productId, props.sale.storageCode)
-    return resp.stock
+    const resp = await getProductAvailableStock(productId, props.sale.storageCode)
+    return resp.availableStock
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('sales.loadStockError'))
     return 0
@@ -723,7 +724,7 @@ function otherItemsProductCount(item: EditSaleItemForm) {
 }
 
 function availableProductStock(item: EditSaleItemForm) {
-  return item.product.stock + initialProductCountById(item.product.id)
+  return item.availableStock + initialProductCountById(item.product.id)
 }
 
 function availableStockForItem(item: EditSaleItemForm) {

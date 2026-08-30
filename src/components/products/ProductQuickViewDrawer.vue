@@ -153,7 +153,7 @@ import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import type { ProductModel } from '@/models/productModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import { getProductById, getProductCrosses } from '@/services/api/products.ts'
+import { getProductById } from '@/services/api/products.ts'
 import { getStorageContent } from '@/services/api/storages.ts'
 import { dimensionMeasureUnitLabel, weightMeasureUnitLabel } from '@/utils/measurementUnits.ts'
 import { useI18n } from '@/i18n'
@@ -263,16 +263,11 @@ async function loadPreview() {
   isStorageStockLoading.value = false
 
   try {
-    const [productResponse, crossesResponse] = await Promise.all([
-      getProductById(props.product.id),
-      canViewCrosses.value
-        ? getProductCrosses({ productId: props.product.id, page: 0, size: 5, sortBy: ['sku'] })
-        : Promise.resolve({ crosses: [] }),
-    ])
+    const productResponse = await getProductById(props.product.id)
     if (currentRequestId !== requestId) return
 
     fullProduct.value = productResponse.product
-    crosses.value = crossesResponse.crosses
+    crosses.value = canViewCrosses.value ? (productResponse.product.crosses ?? []).slice(0, 5) : []
   } catch (error) {
     if (currentRequestId === requestId) {
       ElMessage.error(error instanceof Error ? error.message : t('products.quickView.loadError'))

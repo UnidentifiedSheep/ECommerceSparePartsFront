@@ -18,23 +18,27 @@
     </div>
 
     <el-table v-loading="isLoading" :data="contents" stripe max-height="420" class="batches-table">
-      <el-table-column prop="id" label="ID" width="82" />
-      <el-table-column :label="t('common.labels.count')" min-width="110">
+      <el-table-column prop="id" width="82"><template #header><SortableColumnHeader label="ID" field="id" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template></el-table-column>
+      <el-table-column prop="count" min-width="110">
+        <template #header><SortableColumnHeader :label="t('common.labels.count')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
         <template #default="{ row }">
           <strong>{{ row.count.toLocaleString(locale) }}</strong>
         </template>
       </el-table-column>
-      <el-table-column :label="t('sales.purchasePrice')" min-width="130">
+      <el-table-column prop="buyPrice" min-width="130">
+        <template #header><SortableColumnHeader :label="t('sales.purchasePrice')" field="buyPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
         <template #default="{ row }">
           {{ formatCurrency(row.buyPrice, row.currency?.currencySign) }}
         </template>
       </el-table-column>
-      <el-table-column :label="t('common.labels.currency')" min-width="150" show-overflow-tooltip>
+      <el-table-column prop="currencyId" min-width="150" show-overflow-tooltip>
+        <template #header><SortableColumnHeader :label="t('common.labels.currency')" field="currencyId" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
         <template #default="{ row }">
           {{ row.currency?.shortName }} ({{ row.currency?.currencySign }})
         </template>
       </el-table-column>
-      <el-table-column :label="t('sales.purchaseDate')" min-width="180">
+      <el-table-column prop="purchaseDatetime" min-width="180">
+        <template #header><SortableColumnHeader :label="t('sales.purchaseDate')" field="purchaseDatetime" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
         <template #default="{ row }">
           {{ formatDate(row.purchaseDatetime) }}
         </template>
@@ -58,10 +62,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
 import { getStorageContent } from '@/services/api/storages.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
+import { useMultiSort } from '@/composables/useMultiSort.ts'
 
 const props = defineProps<{
   storageCode?: string
@@ -77,6 +83,7 @@ const isLoading = ref(false)
 const page = ref(0)
 const size = 20
 const hasNext = ref(false)
+const { sortBy, toggleSort } = useMultiSort()
 
 function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
@@ -101,6 +108,7 @@ async function loadContents() {
       page: page.value,
       size,
       showZeroContent: false,
+      sortBy: sortBy.value,
     })
     contents.value = resp.contents
     hasNext.value = resp.contents.length === size
@@ -109,6 +117,15 @@ async function loadContents() {
   } finally {
     isLoading.value = false
   }
+}
+
+async function handleSortToggle(field: string, event: MouseEvent) {
+  toggleSort(field, event)
+  if (page.value !== 0) {
+    page.value = 0
+    return
+  }
+  await loadContents()
 }
 
 watch(isOpen, (open) => {
