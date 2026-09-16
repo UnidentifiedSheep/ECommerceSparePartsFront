@@ -102,7 +102,7 @@ const suggestedSection = computed(() => {
 
   if (/\/(sales|purchases|reservations|transactions)/.test(path)) return sections.operations
   if (/\/(users|roles|permissions|currencies|settings)/.test(path)) return sections.admin
-  if (/\/(analytics|jobs)/.test(path)) return sections.control
+  if (/\/jobs/.test(path)) return sections.control
   return sections.catalog
 })
 

@@ -125,7 +125,7 @@
           </footer>
         </aside>
 
-        <article v-if="selectedCandidate" class="candidate-details">
+        <article v-if="selectedCandidate" v-loading="isDetailsLoading" class="candidate-details">
           <header class="candidate-details-header">
             <div>
               <span>{{ selectedCandidate.producer.name }}</span>
@@ -158,7 +158,9 @@
             </div>
           </header>
 
-          <section class="candidate-section">
+          <el-tabs v-model="detailsTab" class="candidate-details-tabs">
+            <el-tab-pane :label="t('catalogueReview.dataTab')" name="data">
+              <section class="candidate-section">
             <div class="candidate-section-header">
               <h3>{{ t('catalogueReview.catalogueProduct') }}</h3>
             </div>
@@ -194,10 +196,32 @@
             <div v-else class="catalogue-product-empty">
               <span>{{ t('catalogueReview.noProduct') }}</span>
               <p>{{ t('catalogueReview.noProductHint') }}</p>
+              <div class="catalogue-product-create">
+                <el-select
+                  v-model="selectedCatalogueName"
+                  clearable
+                  filterable
+                  :placeholder="t('catalogueReview.nameForCatalogue')"
+                >
+                  <el-option
+                    v-for="group in groupedCandidateNames"
+                    :key="group.name"
+                    :label="group.name"
+                    :value="group.name"
+                  />
+                </el-select>
+                <el-button
+                  type="primary"
+                  :loading="isAddingToCatalogue"
+                  @click="addSelectedCandidateToCatalogue"
+                >
+                  {{ t('catalogueReview.addToCatalogue') }}
+                </el-button>
+              </div>
             </div>
-          </section>
+              </section>
 
-          <section class="candidate-section candidate-sources-section">
+              <section class="candidate-section candidate-sources-section">
             <div class="candidate-section-header">
               <h3>{{ t('catalogueReview.alternativeNames') }}</h3>
               <span>{{ groupedCandidateNames.length }}</span>
@@ -223,9 +247,9 @@
               </div>
             </div>
             <p v-else class="supplier-product-empty">{{ t('catalogueReview.noNames') }}</p>
-          </section>
+              </section>
 
-          <section class="candidate-section candidate-sources-section">
+              <section class="candidate-section candidate-sources-section">
             <div class="candidate-section-header">
               <h3>{{ t('catalogueReview.supplierProducts') }}</h3>
               <span>{{ selectedCandidate.supplierProducts.length }}</span>
@@ -264,7 +288,72 @@
               </el-table-column>
             </el-table>
             <el-empty v-else :description="t('catalogueReview.noSources')" :image-size="64" />
-          </section>
+              </section>
+            </el-tab-pane>
+
+            <el-tab-pane
+              :label="t('catalogueReview.crossesTab', { count: candidateCrosses.length })"
+              name="crosses"
+            >
+              <section class="candidate-section candidate-crosses-section">
+                <el-table
+                  v-if="candidateCrosses.length"
+                  :data="candidateCrosses"
+                  class="supplier-products-table supplier-crosses-table"
+                  row-key="key"
+                >
+                  <el-table-column :label="t('common.labels.status')" width="150">
+                    <template #default="{ row }">
+                      <span
+                        class="candidate-cross-status"
+                        :class="`candidate-cross-status--${row.status}`"
+                      >
+                        {{ row.status === 'mapped'
+                          ? t('catalogueReview.mappedCross')
+                          : t('catalogueReview.notMappedCross') }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('catalogueReview.supplierSku')" min-width="190">
+                    <template #default="{ row }">
+                      <div class="supplier-cross-product">
+                        <strong>{{ row.sku }}</strong>
+                      </div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('common.labels.producer')" min-width="180">
+                    <template #default="{ row }">
+                      <strong class="supplier-products-table__producer">{{ row.producer }}</strong>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('catalogueReview.sources')" min-width="280">
+                    <template #default="{ row }">
+                      <div class="supplier-cross-sources">
+                        <span
+                          v-for="source in row.sources"
+                          :key="`${source.supplier}:${source.producer}`"
+                          class="supplier-cross-source"
+                        >
+                          <span class="supplier-source-label" :class="supplierColorClass(source.supplier)">
+                            {{ supplierLabel(source.supplier) }}
+                          </span>
+                          · {{ source.producer }}
+                        </span>
+                      </div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="t('catalogueReview.names')" min-width="240">
+                    <template #default="{ row }">
+                      <span class="supplier-cross-names">
+                        {{ row.names.join('; ') || '—' }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-empty v-else :description="t('catalogueReview.noCrosses')" :image-size="64" />
+              </section>
+            </el-tab-pane>
+          </el-tabs>
         </article>
 
         <div v-else class="candidate-details-empty">
@@ -289,10 +378,15 @@ import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
-import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateModel.ts'
+import type { CatalogueCandidateReviewModel, SupplierProductModel } from '@/models/catalogueCandidateModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { Supplier } from '@/models/producerModel.ts'
-import { getCatalogueCandidatesForReview, getProductById } from '@/services/api/products.ts'
+import {
+  candidateToCatalogue,
+  getCatalogueCandidateById,
+  getCatalogueCandidatesForReview,
+  getProductById,
+} from '@/services/api/products.ts'
 import { searchProductsBySku } from '@/services/api/search.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
@@ -312,6 +406,10 @@ const page = ref(queryInteger(route.query.page, 0) ?? 0)
 const size = ref(queryInteger(route.query.size, 20) ?? 20)
 const hasNext = ref(false)
 const isLoading = ref(false)
+const isDetailsLoading = ref(false)
+const isAddingToCatalogue = ref(false)
+const selectedCatalogueName = ref('')
+const detailsTab = ref<'data' | 'crosses'>('data')
 let requestId = 0
 
 const filters = reactive({
@@ -322,6 +420,45 @@ const hasFilters = computed(() => Boolean(filters.sku.trim() || filters.productI
 const groupedCandidateNames = computed(() => (
   selectedCandidate.value ? groupCatalogueCandidateNames([selectedCandidate.value]) : []
 ))
+
+interface CandidateCrossRow {
+  key: string
+  sku: string
+  producer: string
+  status: 'mapped' | 'not-mapped'
+  sources: SupplierProductModel[]
+  names: string[]
+}
+
+const candidateCrosses = computed<CandidateCrossRow[]>(() => {
+  const mapped = (selectedCandidate.value?.crosses?.mapped ?? []).map((candidate): CandidateCrossRow => ({
+    key: `mapped:${candidate.id}`,
+    sku: candidate.sku,
+    producer: candidate.producer.name,
+    status: 'mapped',
+    sources: candidate.supplierProducts,
+    names: uniqueSupplierProductNames(candidate.supplierProducts),
+  }))
+  const notMappedGroups = new Map<string, CandidateCrossRow>()
+
+  for (const cross of selectedCandidate.value?.crosses?.notMapped ?? []) {
+    const key = `${normalizeSku(cross.sku)}:${normalizeSku(cross.producer)}`
+    const group = notMappedGroups.get(key) ?? {
+      key: `not-mapped:${key}`,
+      sku: cross.sku,
+      producer: cross.producer,
+      status: 'not-mapped',
+      sources: [],
+      names: [],
+    }
+
+    addUniqueSupplierProduct(group.sources, cross)
+    group.names = [...new Set([...group.names, ...cross.names.map((name) => name.name)])]
+    notMappedGroups.set(key, group)
+  }
+
+  return [...mapped, ...notMappedGroups.values()]
+})
 const linkedCandidatesCount = computed(() => candidates.value.filter((candidate) => candidate.product).length)
 const unlinkedCandidatesCount = computed(() => candidates.value.length - linkedCandidatesCount.value)
 const selectedCandidateIndex = computed(() => (
@@ -353,6 +490,22 @@ function supplierColorClass(supplier: Supplier) {
 
 function productInitial(name: string) {
   return name.trim().charAt(0).toLocaleUpperCase() || '—'
+}
+
+function normalizeSku(sku: string) {
+  return sku.toLocaleUpperCase().replace(/[^\p{L}\p{N}]/gu, '')
+}
+
+function addUniqueSupplierProduct(products: SupplierProductModel[], product: SupplierProductModel) {
+  const sourceKey = `${product.supplier}:${product.producer.toLocaleUpperCase()}`
+  const alreadyAdded = products.some((item) => (
+    `${item.supplier}:${item.producer.toLocaleUpperCase()}` === sourceKey
+  ))
+  if (!alreadyAdded) products.push(product)
+}
+
+function uniqueSupplierProductNames(products: SupplierProductModel[]) {
+  return [...new Set(products.flatMap((product) => product.names.map((name) => name.name)))]
 }
 
 async function suggestSku(
@@ -422,7 +575,40 @@ function openProduct(productId: number) {
 
 async function selectCandidate(candidate: CatalogueCandidateReviewModel) {
   selectedCandidate.value = candidate
+  selectedCatalogueName.value = groupCatalogueCandidateNames([candidate])[0]?.name ?? ''
   await syncRoute(candidate.id)
+  const selectedId = candidate.id
+  isDetailsLoading.value = true
+  try {
+    const details = await getCatalogueCandidateById(selectedId)
+    if (selectedCandidate.value?.id === selectedId && details) {
+      selectedCandidate.value = details
+      selectedCatalogueName.value ||= groupCatalogueCandidateNames([details])[0]?.name ?? ''
+    }
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('catalogueReview.loadDetailsError'))
+  } finally {
+    if (selectedCandidate.value?.id === selectedId) isDetailsLoading.value = false
+  }
+}
+
+async function addSelectedCandidateToCatalogue() {
+  if (!selectedCandidate.value || selectedCandidate.value.product) return
+
+  isAddingToCatalogue.value = true
+  try {
+    const added = await candidateToCatalogue(
+      selectedCandidate.value.id,
+      selectedCatalogueName.value || undefined,
+    )
+    if (!added) throw new Error(t('catalogueReview.addFailed'))
+    ElMessage.success(t('catalogueReview.addedToCatalogue'))
+    await loadCandidates()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('catalogueReview.addFailed'))
+  } finally {
+    isAddingToCatalogue.value = false
+  }
 }
 
 async function selectAdjacentCandidate(offset: -1 | 1) {
@@ -458,15 +644,18 @@ async function loadCandidates() {
     if (currentRequestId !== requestId) return
 
     candidates.value = response.candidates
-    hasNext.value = response.candidates.length === size.value
+    hasNext.value = (page.value + 1) * size.value < response.total
     const requestedCandidateId = typeof route.query.candidateId === 'string'
       ? route.query.candidateId
       : undefined
     const nextSelection = response.candidates.find((item) => item.id === requestedCandidateId)
       ?? response.candidates.find((item) => item.id === selectedCandidate.value?.id)
       ?? response.candidates[0]
-    selectedCandidate.value = nextSelection
-    await syncRoute(nextSelection?.id)
+    if (nextSelection) await selectCandidate(nextSelection)
+    else {
+      selectedCandidate.value = undefined
+      await syncRoute()
+    }
   } catch (error) {
     if (currentRequestId === requestId) {
       candidates.value = []
@@ -568,6 +757,12 @@ onMounted(async () => {
 .candidate-details-header h2 { margin-top: 3px; font-size: 22px; }
 .candidate-details-navigation { display: flex; align-items: center; gap: 12px; }
 .candidate-id { color: #64748b; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.candidate-details-tabs :deep(.el-tabs__header) { margin: 0; border-bottom: 1px solid var(--app-border); padding: 0 20px; }
+.candidate-details-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
+.candidate-details-tabs :deep(.el-tabs__item) { height: 44px; padding: 0 18px; color: #64748b; font-weight: 650; }
+.candidate-details-tabs :deep(.el-tabs__item:first-child) { padding-left: 0; }
+.candidate-details-tabs :deep(.el-tabs__item.is-active) { color: #047857; }
+.candidate-details-tabs :deep(.el-tabs__active-bar) { background: #047857; }
 .candidate-section { padding: 20px; }
 .candidate-section + .candidate-section { border-top: 1px solid var(--app-border); }
 .candidate-section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -588,6 +783,7 @@ onMounted(async () => {
 .catalogue-product-empty { border-left: 3px solid #d97706; background: #fffbeb; padding: 12px 14px; }
 .catalogue-product-empty span { color: #78350f; font-weight: 650; }
 .catalogue-product-empty p { margin: 4px 0 0; color: #92400e; font-size: 13px; }
+.catalogue-product-create { display: grid; grid-template-columns: minmax(220px, 420px) auto; align-items: center; gap: 8px; margin-top: 12px; }
 .candidate-name-groups { border-top: 1px solid var(--app-border); }
 .candidate-name-group { display: grid; grid-template-columns: minmax(220px, 0.8fr) minmax(300px, 1.2fr); gap: 20px; border-bottom: 1px solid var(--app-border); padding: 12px 4px; }
 .candidate-name-group > strong { color: #0f172a; font-size: 13px; line-height: 1.45; }
@@ -601,6 +797,16 @@ onMounted(async () => {
 .supplier-products-table :deep(th.el-table__cell) { background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 650; }
 .supplier-products-table__sku, .supplier-products-table__producer { color: #0f172a; font-weight: 700; }
 .supplier-products-table__id { color: #94a3b8; font-size: 12px; font-variant-numeric: tabular-nums; }
+.candidate-crosses-section { padding-top: 16px; }
+.supplier-cross-product { display: grid; min-width: 0; gap: 3px; }
+.supplier-cross-product > strong { color: #0f172a; font-size: 13px; }
+.supplier-cross-product > span { overflow: hidden; color: #64748b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.supplier-cross-sources { display: grid; min-width: 0; gap: 2px; color: #64748b; font-size: 12px; }
+.supplier-cross-source { display: block; min-width: 0; }
+.supplier-cross-names { display: block; color: #475569; font-size: 13px; line-height: 1.45; }
+.candidate-cross-status { font-size: 12px; font-weight: 650; }
+.candidate-cross-status--mapped { color: #047857; }
+.candidate-cross-status--not-mapped { color: #9a6700; }
 .supplier-product-empty { margin: 0; color: #94a3b8; font-size: 13px; }
 .candidate-details-empty, .catalogue-review-no-access { display: grid; place-items: center; min-height: 480px; }
 @media (max-width: 980px) {
@@ -622,6 +828,7 @@ onMounted(async () => {
   .candidate-details-header { position: static; }
   .candidate-details-navigation { align-items: stretch; flex-direction: column; }
   .catalogue-product { grid-template-columns: 56px minmax(0, 1fr); }
+  .catalogue-product-create { grid-template-columns: 1fr; }
   .catalogue-product img, .catalogue-product__placeholder { width: 56px; height: 56px; }
 }
 </style>

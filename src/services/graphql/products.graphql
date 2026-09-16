@@ -22,9 +22,43 @@ fragment ProductListFields on Product {
 
 fragment ProductDetailsFields on Product {
   ...ProductFields
+  characteristics { name value }
   pair { ...ProductListFields }
   contents { quantity product { ...ProductListFields } }
   crosses(input: $crossesInput) { ...ProductListFields }
+}
+
+fragment SupplierProductFields on SupplierProduct {
+  id
+  candidateId
+  sku
+  producer
+  supplier
+  names { id supplierProductId name }
+}
+
+fragment CatalogueCandidateCrossFields on CatalogueCandidate {
+  id
+  sku
+  producer { id name description }
+  product { ...ProductFields }
+  supplierProducts { ...SupplierProductFields }
+}
+
+fragment CatalogueCandidateReviewFields on CatalogueCandidate {
+  id
+  sku
+  producer { id name description }
+  product { ...ProductFields }
+  supplierProducts { ...SupplierProductFields }
+}
+
+fragment CatalogueCandidateDetailsFields on CatalogueCandidate {
+  ...CatalogueCandidateReviewFields
+  crosses {
+    mapped { ...CatalogueCandidateCrossFields }
+    notMapped { ...SupplierProductFields }
+  }
 }
 
 fragment CatalogueCandidateSearchFields on CatalogueCandidate {
@@ -36,8 +70,11 @@ fragment CatalogueCandidateSearchFields on CatalogueCandidate {
   }
 }
 
-query ProductById($id: Int!, $crossesInput: ProductCrossesInput!) {
+query ProductById($id: Int!, $crossesInput: ProductCrossesInput!, $includeCatalogueCandidate: Boolean!) {
   products { byId(id: $id) { ...ProductDetailsFields } }
+  catalogueCandidates @include(if: $includeCatalogueCandidate) {
+    byProductId(productId: $id) { ...CatalogueCandidateReviewFields }
+  }
 }
 
 query CatalogueSearch($input: CatalogueSearchInput!) {
@@ -71,9 +108,47 @@ query ProducerSearch($input: ProducerSearchInput!) {
   }
 }
 
+query ProducersByIds($ids: [Int!]!) {
+  producers {
+    byIds(ids: $ids) { id name description }
+  }
+}
+
+query CatalogueCandidatesForReview($input: CatalogueSearchInput!) {
+  catalogue {
+    search(input: $input) {
+      catalogues {
+        total
+        items { item { ...CatalogueCandidateReviewFields } }
+      }
+    }
+  }
+}
+
+query CatalogueCandidateById($id: UUID!) {
+  catalogueCandidates { byId(id: $id) { ...CatalogueCandidateDetailsFields } }
+}
+
+query CatalogueCandidateByProductId($productId: Int!) {
+  catalogueCandidates { byProductId(productId: $productId) { ...CatalogueCandidateDetailsFields } }
+}
+
+mutation CandidateToCatalogue($input: CandidateToCatalogueInput!) {
+  catalogueCandidates { candidateToCatalogue(input: $input) }
+}
+
 query ProductAvailableStock($id: Int!, $input: ProductAvailableStocksInput!) {
   products {
     byId(id: $id) {
+      availableStock(input: $input)
+    }
+  }
+}
+
+query ProductsAvailableStock($ids: [Int!]!, $input: ProductAvailableStocksInput!) {
+  products {
+    byIds(ids: $ids) {
+      id
       availableStock(input: $input)
     }
   }

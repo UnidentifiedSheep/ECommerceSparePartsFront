@@ -13,6 +13,7 @@ export interface ProductModel {
   crosses?: ProductModel[]
   size?: ProductSizeModel | null
   weight?: ProductWeightModel | null
+  characteristics?: ProductCharacteristicModel[]
 }
 
 export interface ProductSizeModel {

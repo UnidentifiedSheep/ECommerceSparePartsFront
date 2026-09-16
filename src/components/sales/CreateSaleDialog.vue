@@ -349,7 +349,7 @@ import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleModel } from '@/models/saleModel.ts'
 import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { ApiError } from '@/models/errorModel.ts'
-import { getProductAvailableStock } from '@/services/api/products.ts'
+import { getProductAvailableStock, getProductsAvailableStock } from '@/services/api/products.ts'
 import { createSale } from '@/services/api/sales.ts'
 import { getUserDiscount } from '@/services/api/users.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
@@ -553,13 +553,8 @@ async function loadCurrentProductStocks() {
 
   isStockLoading.value = true
   try {
-    const results = await Promise.all(ids.map(async (id) => ({
-      id,
-      availableStock: (await getProductAvailableStock(id, storageCode)).availableStock,
-    })))
+    const stocksById = await getProductsAvailableStock(ids, storageCode)
     if (requestId !== stockRequestId) return
-
-    const stocksById = new Map(results.map((product) => [product.id, product.availableStock]))
     form.items.forEach((item) => {
       if (!item.product) return
       item.availableStock = stocksById.get(item.product.id) ?? item.availableStock

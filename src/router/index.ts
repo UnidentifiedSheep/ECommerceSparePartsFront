@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AuthView from '@/views/AuthView.vue'
-import AnalyticsView from '@/views/AnalyticsView.vue'
 import CurrenciesView from '@/views/CurrenciesView.vue'
 import JobsView from '@/views/JobsView.vue'
 import MarkupsView from '@/views/MarkupsView.vue'
@@ -128,12 +127,6 @@ const routes = [
         path: '/products/:id',
         name: 'product-details',
         component: ProductDetailsView,
-        meta: { requiresAuth: true },
-      },
-      {
-        path: '/analytics',
-        name: 'analytics',
-        component: AnalyticsView,
         meta: { requiresAuth: true },
       },
       {

@@ -266,15 +266,14 @@ import type {
   ProductWeightModel,
 } from '@/models/productModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
+import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateModel.ts'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
 import {
   deleteProductCharacteristic,
   deleteProductContent,
   deleteProductImage,
   editProduct,
-  getCatalogueCandidatesForReview,
   getProductById,
-  getProductCharacteristics,
   getProductCrosses,
   uploadProductImages,
 } from '@/services/api/products.ts'
@@ -292,6 +291,7 @@ const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
 
 const product = ref<ProductModel>()
+const catalogueCandidate = ref<CatalogueCandidateReviewModel | null>(null)
 const productPair = ref<ProductModel | null>(null)
 const productSize = ref<ProductSizeModel | null>(null)
 const productWeight = ref<ProductWeightModel | null>(null)
@@ -404,8 +404,9 @@ const contentSummary = computed(() => {
 })
 const characteristicsSummary = computed(() => {
   if (isCharacteristicsLoading.value) return t('products.details.loading')
-  return characteristics.value.length
-    ? t('products.details.characteristicsCount', { count: characteristics.value.length })
+  const count = product.value?.characteristics?.length ?? 0
+  return count
+    ? t('products.details.characteristicsCount', { count })
     : t('products.details.noCharacteristics')
 })
 
@@ -610,24 +611,18 @@ async function handleStorageSortToggle(field: string, event: MouseEvent) {
 }
 
 async function loadProduct() {
-  const loadedProduct = (await getProductById(productId.value)).product
-  product.value = loadedProduct
-  productPair.value = loadedProduct.pair ?? null
+  const response = await getProductById(productId.value, canReviewCatalogueCandidates.value && canEditProduct.value)
+  product.value = response.product
+  catalogueCandidate.value = response.catalogueCandidate
+  productPair.value = response.product.pair ?? null
 }
 
 async function loadAlternativeProductNames() {
   alternativeProductNames.value = []
   if (!canReviewCatalogueCandidates.value || !canEditProduct.value) return
 
-  try {
-    const response = await getCatalogueCandidatesForReview({
-      productId: productId.value,
-      page: 0,
-      size: 100,
-    })
-    alternativeProductNames.value = groupCatalogueCandidateNames(response.candidates)
-  } catch {
-    alternativeProductNames.value = []
+  if (catalogueCandidate.value) {
+    alternativeProductNames.value = groupCatalogueCandidateNames([catalogueCandidate.value])
   }
 }
 
@@ -688,13 +683,10 @@ async function loadProductContent() {
 async function loadCharacteristics() {
   isCharacteristicsLoading.value = true
   try {
-    const resp = await getProductCharacteristics({
-      productId: productId.value,
-      page: characteristicsPage.value,
-      size: characteristicsSize.value,
-    })
-    characteristics.value = resp.characteristics
-    characteristicsHasNext.value = resp.characteristics.length === characteristicsSize.value
+    const allCharacteristics = product.value?.characteristics ?? []
+    const start = characteristicsPage.value * characteristicsSize.value
+    characteristics.value = allCharacteristics.slice(start, start + characteristicsSize.value)
+    characteristicsHasNext.value = start + characteristicsSize.value < allCharacteristics.length
   } finally {
     isCharacteristicsLoading.value = false
   }
@@ -729,6 +721,7 @@ async function refreshProductContent() {
 }
 
 async function refreshCharacteristics() {
+  await loadProduct()
   await ensureTabLoaded('characteristics', true)
 }
 
@@ -744,6 +737,7 @@ async function refreshDetails() {
 
 function resetPageState() {
   product.value = undefined
+  catalogueCandidate.value = null
   productPair.value = null
   productSize.value = null
   productWeight.value = null

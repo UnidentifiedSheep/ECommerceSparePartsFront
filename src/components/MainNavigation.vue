@@ -91,7 +91,6 @@
         <span>{{ t('nav.control') }}</span>
       </template>
 
-      <el-menu-item index="/analytics" @click="openRoute('/analytics')">{{ t('nav.analytics') }}</el-menu-item>
       <el-menu-item index="/jobs" @click="openRoute('/jobs')">{{ t('nav.jobs') }}</el-menu-item>
     </el-sub-menu>
   </el-menu>
@@ -141,7 +140,6 @@ const routeRoots = [
   '/markups',
   '/price-appliers',
   '/service-settings',
-  '/analytics',
   '/jobs',
 ]
 

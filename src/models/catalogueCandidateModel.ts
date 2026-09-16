@@ -9,10 +9,16 @@ export interface SupplierProductNameModel {
 
 export interface SupplierProductModel {
   id: number
+  candidateId: string | null
   sku: string
   producer: string
   supplier: Supplier
   names: SupplierProductNameModel[]
+}
+
+export interface CatalogueCandidateCrossesModel {
+  mapped: CatalogueCandidateReviewModel[]
+  notMapped: SupplierProductModel[]
 }
 
 export interface CatalogueCandidateReviewModel {
@@ -21,4 +27,5 @@ export interface CatalogueCandidateReviewModel {
   product: ProductModel | null
   sku: string
   supplierProducts: SupplierProductModel[]
+  crosses?: CatalogueCandidateCrossesModel
 }

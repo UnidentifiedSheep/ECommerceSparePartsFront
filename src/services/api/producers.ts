@@ -5,6 +5,7 @@ import type {
   Supplier,
 } from '@/models/producerModel.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
+import { getProducersByIdsGraphql } from '@/services/graphql/products.ts'
 
 interface PatchField<T> {
   isSet: boolean
@@ -115,19 +116,7 @@ export async function getProducers(req: GetProducersRequest): Promise<GetProduce
 export async function getProducersByIds(ids: number[]): Promise<ProducerModel[]> {
   const uniqueIds = [...new Set(ids)]
   if (uniqueIds.length === 0) return []
-
-  const batches: number[][] = []
-  for (let index = 0; index < uniqueIds.length; index += 100) {
-    batches.push(uniqueIds.slice(index, index + 100))
-  }
-
-  const responses = await Promise.all(batches.map((batch) => getProducers({
-    ids: batch,
-    page: 0,
-    limit: batch.length,
-  })))
-
-  return responses.flatMap((response) => response.producers)
+  return getProducersByIdsGraphql(uniqueIds)
 }
 
 export async function createProducer(req: CreateProducerRequest): Promise<CreateProducerResponse> {

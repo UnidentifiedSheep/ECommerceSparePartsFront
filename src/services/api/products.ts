@@ -1,4 +1,4 @@
-import type { ProductCharacteristicModel, ProductContentModel, ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
+import type { ProductContentModel, ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
 import type {
   EditProductReservationModel,
   ProductReservationHistoryModel,
@@ -10,7 +10,11 @@ import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateM
 import api, { clampPageSize } from '@/services/api/api.ts'
 import {
   getProductAvailableStockGraphql,
+  getProductsAvailableStockGraphql,
   getProductByIdGraphql,
+  getCatalogueCandidatesForReviewGraphql,
+  getCatalogueCandidateByIdGraphql,
+  candidateToCatalogueGraphql,
   getProductContentsGraphql,
   getProductCrossesGraphql,
   getProductPairGraphql,
@@ -62,6 +66,7 @@ export interface GetProductCrossesResponse {
 
 export interface GetProductByIdResponse {
   product: ProductModel
+  catalogueCandidate: CatalogueCandidateReviewModel | null
 }
 
 export interface GetProductSizeResponse {
@@ -85,6 +90,7 @@ export interface GetCatalogueCandidatesForReviewRequest {
 
 export interface GetCatalogueCandidatesForReviewResponse {
   candidates: CatalogueCandidateReviewModel[]
+  total: number
 }
 
 export interface GetProductPairResponse {
@@ -105,16 +111,6 @@ export interface EditProductContentRequest {
   productId: number
   childProductId: number
   count: number
-}
-
-export interface GetProductCharacteristicsRequest {
-  productId: number
-  page: number
-  size: number
-}
-
-export interface GetProductCharacteristicsResponse {
-  characteristics: ProductCharacteristicModel[]
 }
 
 export interface AddProductCharacteristicRequest {
@@ -217,10 +213,13 @@ export async function getProductCrosses(req: GetProductCrossesRequest): Promise<
   }
 }
 
-export async function getProductById(productId: number): Promise<GetProductByIdResponse> {
-  const product = await getProductByIdGraphql(productId)
+export async function getProductById(
+  productId: number,
+  includeCatalogueCandidate = false,
+): Promise<GetProductByIdResponse> {
+  const { product, catalogueCandidate } = await getProductByIdGraphql(productId, includeCatalogueCandidate)
   if (!product) throw new Error(`Product ${productId} not found`)
-  return { product }
+  return { product, catalogueCandidate }
 }
 
 export async function getProductReservations(req: GetProductReservationsRequest): Promise<GetProductReservationsResponse> {
@@ -249,19 +248,29 @@ export async function getProductAvailableStock(
   }
 }
 
+export async function getProductsAvailableStock(
+  productIds: number[],
+  storageCode: string,
+): Promise<Map<number, number>> {
+  if (productIds.length === 0) return new Map()
+  return getProductsAvailableStockGraphql(productIds, storageCode)
+}
+
 export async function getCatalogueCandidatesForReview(
   req: GetCatalogueCandidatesForReviewRequest,
 ): Promise<GetCatalogueCandidatesForReviewResponse> {
-  const resp = await api.get<GetCatalogueCandidatesForReviewResponse>('/main/products/enrichment', {
-    params: {
-      productId: req.productId,
-      sku: req.sku?.trim() || undefined,
-      page: req.page,
-      size: clampPageSize(req.size),
-    },
+  return getCatalogueCandidatesForReviewGraphql({
+    ...req,
+    size: clampPageSize(req.size),
   })
+}
 
-  return resp.data
+export async function getCatalogueCandidateById(id: string): Promise<CatalogueCandidateReviewModel | null> {
+  return getCatalogueCandidateByIdGraphql(id)
+}
+
+export async function candidateToCatalogue(id: string, selectedName?: string): Promise<boolean> {
+  return candidateToCatalogueGraphql(id, selectedName)
 }
 
 export async function getProductPair(productId: number): Promise<GetProductPairResponse> {
@@ -288,19 +297,6 @@ export async function editProductContent(req: EditProductContentRequest): Promis
 
 export async function deleteProductContent(productId: number, childProductId: number): Promise<void> {
   await api.delete(`/main/products/${productId}/contents/${childProductId}`)
-}
-
-export async function getProductCharacteristics(
-  req: GetProductCharacteristicsRequest,
-): Promise<GetProductCharacteristicsResponse> {
-  const resp = await api.get<GetProductCharacteristicsResponse>(`/main/products/${req.productId}/characteristics`, {
-    params: {
-      page: req.page,
-      size: clampPageSize(req.size),
-    },
-  })
-
-  return resp.data
 }
 
 export async function addProductCharacteristic(req: AddProductCharacteristicRequest): Promise<void> {
