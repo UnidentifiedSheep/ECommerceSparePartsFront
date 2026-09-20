@@ -7,6 +7,10 @@ import type {
 } from '@/models/productReservationModel.ts'
 import { mapOrganizationModel, type OrganizationDto } from '@/models/organizationModel.ts'
 import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateModel.ts'
+import type {
+  CandidateMappingStatus,
+  ProductLinkageType as CandidateCrossLinkageType,
+} from '@/graphql/generated/graphql.ts'
 import api, { clampPageSize } from '@/services/api/api.ts'
 import {
   getProductAvailableStockGraphql,
@@ -15,6 +19,7 @@ import {
   getCatalogueCandidatesForReviewGraphql,
   getCatalogueCandidateByIdGraphql,
   candidateToCatalogueGraphql,
+  mapCandidateCrossesGraphql,
   getProductContentsGraphql,
   getProductCrossesGraphql,
   getProductPairGraphql,
@@ -84,6 +89,7 @@ export interface GetProductAvailableStockResponse {
 export interface GetCatalogueCandidatesForReviewRequest {
   productId?: number
   sku?: string
+  candidateMappingStatus: CandidateMappingStatus
   page: number
   size: number
 }
@@ -216,8 +222,13 @@ export async function getProductCrosses(req: GetProductCrossesRequest): Promise<
 export async function getProductById(
   productId: number,
   includeCatalogueCandidate = false,
+  crossesPageSize?: number,
 ): Promise<GetProductByIdResponse> {
-  const { product, catalogueCandidate } = await getProductByIdGraphql(productId, includeCatalogueCandidate)
+  const { product, catalogueCandidate } = await getProductByIdGraphql(
+    productId,
+    includeCatalogueCandidate,
+    crossesPageSize === undefined ? undefined : clampPageSize(crossesPageSize),
+  )
   if (!product) throw new Error(`Product ${productId} not found`)
   return { product, catalogueCandidate }
 }
@@ -271,6 +282,14 @@ export async function getCatalogueCandidateById(id: string): Promise<CatalogueCa
 
 export async function candidateToCatalogue(id: string, selectedName?: string): Promise<boolean> {
   return candidateToCatalogueGraphql(id, selectedName)
+}
+
+export async function mapCandidateCrosses(
+  candidateId: string,
+  crossCandidateIds: string[],
+  linkageType: CandidateCrossLinkageType,
+): Promise<CatalogueCandidateReviewModel[]> {
+  return mapCandidateCrossesGraphql(candidateId, crossCandidateIds, linkageType)
 }
 
 export async function getProductPair(productId: number): Promise<GetProductPairResponse> {

@@ -104,6 +104,25 @@ async function refreshAccessTokenAcrossTabs(
   return refreshOrReuseSession()
 }
 
+export async function refreshAuthSession(failedAccessToken: string | null): Promise<string> {
+  const store = initAuthStore()
+
+  try {
+    const response = await refreshAccessTokenAcrossTabs(failedAccessToken)
+    store.refresh(response.token, response.refreshToken)
+    api.defaults.headers.common.Authorization = `Bearer ${response.token}`
+    return response.token
+  } catch (refreshError) {
+    store.syncFromStorage()
+    if (failedAccessToken && store.token && store.token !== failedAccessToken) {
+      return store.token
+    }
+
+    store.logout()
+    throw refreshError
+  }
+}
+
 const api: AxiosInstance = axios.create({
   baseURL: apiBaseUrl,
   timeout: 10000,
@@ -141,31 +160,15 @@ api.interceptors.response.use(
       && !originalRequest._retry
       && !isRefreshRequest(originalRequest)
     ) {
-      const store = initAuthStore()
-
       markRetried(originalRequest)
       const failedAccessToken = requestAccessToken(originalRequest)
 
       try {
-        const response = await refreshAccessTokenAcrossTabs(failedAccessToken)
-
-        store.refresh(response.token, response.refreshToken)
-        api.defaults.headers.common.Authorization = `Bearer ${response.token}`
-        setAuthHeader(originalRequest, response.token)
+        const token = await refreshAuthSession(failedAccessToken)
+        setAuthHeader(originalRequest, token)
 
         return api(originalRequest)
       } catch (refreshError) {
-        store.syncFromStorage()
-        if (
-          failedAccessToken
-          && store.token
-          && store.token !== failedAccessToken
-        ) {
-          setAuthHeader(originalRequest, store.token)
-          return api(originalRequest)
-        }
-
-        store.logout()
         return Promise.reject(refreshError)
       }
     }

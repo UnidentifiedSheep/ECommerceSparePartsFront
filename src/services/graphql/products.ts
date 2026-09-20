@@ -16,6 +16,7 @@ import {
   CatalogueCandidateByProductIdDocument,
   CatalogueCandidatesForReviewDocument,
   CatalogueSearchDocument,
+  MapCandidateCrossesDocument,
   ProducerSearchDocument,
   ProducersByIdsDocument,
   ProductAvailableStockDocument,
@@ -34,6 +35,9 @@ import {
   type CatalogueCandidateReviewFieldsFragment,
   type CatalogueCandidatesForReviewQuery,
   type CatalogueSearchQuery,
+  type CandidateMappingStatus,
+  type MapCandidateCrossesMutation,
+  type ProductLinkageType as GraphqlProductLinkageType,
   type ProducerSearchQuery,
   type ProducersByIdsQuery,
   type ProductAvailableStockQuery,
@@ -66,6 +70,7 @@ type CatalogueCandidatesForReviewResponse = CatalogueCandidatesForReviewQuery
 type CatalogueCandidateByIdResponse = CatalogueCandidateByIdQuery
 type CatalogueCandidateByProductIdResponse = CatalogueCandidateByProductIdQuery
 type CandidateToCatalogueResponse = CandidateToCatalogueMutation
+type MapCandidateCrossesResponse = MapCandidateCrossesMutation
 type ProducersByIdsResponse = ProducersByIdsQuery
 
 function mapProduct(product: GqlProduct): ProductModel {
@@ -84,7 +89,7 @@ function mapProduct(product: GqlProduct): ProductModel {
   if ('contents' in product) {
     mapped.contents = product.contents.map((item) => ({ quantity: item.quantity, product: mapProduct(item.product) }))
   }
-  if ('crosses' in product) mapped.crosses = product.crosses.map(mapProduct)
+  if ('crosses' in product && product.crosses) mapped.crosses = product.crosses.map(mapProduct)
   if ('size' in product) mapped.size = product.size ? { productId: product.id, ...product.size } : null
   if ('weight' in product) mapped.weight = product.weight ? { productId: product.id, ...product.weight } : null
   if ('characteristics' in product) {
@@ -216,7 +221,11 @@ function mapStorageContent(
   }
 }
 
-export async function getProductByIdGraphql(productId: number, includeCatalogueCandidate = false): Promise<{
+export async function getProductByIdGraphql(
+  productId: number,
+  includeCatalogueCandidate = false,
+  crossesPageSize?: number,
+): Promise<{
   product: ProductModel | null
   catalogueCandidate: CatalogueCandidateReviewModel | null
 }> {
@@ -224,7 +233,8 @@ export async function getProductByIdGraphql(productId: number, includeCatalogueC
     query: ProductByIdDocument,
     variables: {
       id: productId,
-      crossesInput: { pagination: { page: 0, size: 100 }, sortBy: [] },
+      crossesInput: { pagination: { page: 0, size: crossesPageSize ?? 1 }, sortBy: [] },
+      includeCrosses: crossesPageSize !== undefined,
       includeCatalogueCandidate,
     },
     fetchPolicy: 'network-only',
@@ -240,6 +250,7 @@ export async function getProductByIdGraphql(productId: number, includeCatalogueC
 export async function getCatalogueCandidatesForReviewGraphql(options: {
   productId?: number
   sku?: string
+  candidateMappingStatus: CandidateMappingStatus
   page: number
   size: number
 }): Promise<{ candidates: CatalogueCandidateReviewModel[], total: number }> {
@@ -250,7 +261,14 @@ export async function getCatalogueCandidatesForReviewGraphql(options: {
       fetchPolicy: 'network-only',
     })
     const candidate = response.data.catalogueCandidates.byProductId
-    return { candidates: candidate ? [mapCatalogueCandidate(candidate)] : [], total: candidate ? 1 : 0 }
+    const matchesStatus = candidate && (
+      options.candidateMappingStatus === 'ALL'
+      || (options.candidateMappingStatus === 'MAPPED') === Boolean(candidate.product)
+    )
+    return {
+      candidates: matchesStatus ? [mapCatalogueCandidate(candidate)] : [],
+      total: matchesStatus ? 1 : 0,
+    }
   }
 
   const response = await graphqlClient.query<CatalogueCandidatesForReviewResponse>({
@@ -265,6 +283,7 @@ export async function getCatalogueCandidatesForReviewGraphql(options: {
         pagination: { page: options.page, size: options.size },
         productSortBy: [],
         catalogueCandidateSortBy: [],
+        candidateMappingStatus: options.candidateMappingStatus,
         includeHighlights: false,
       },
     },
@@ -292,7 +311,19 @@ export async function candidateToCatalogueGraphql(id: string, selectedName?: str
     mutation: CandidateToCatalogueDocument,
     variables: { input: { id, selectedName: selectedName?.trim() || null } },
   })
-  return response.data?.catalogueCandidates.candidateToCatalogue ?? false
+  return Boolean(response.data?.catalogueCandidates.candidateToCatalogue.id)
+}
+
+export async function mapCandidateCrossesGraphql(
+  candidateId: string,
+  crossCandidateIds: string[],
+  linkageType: GraphqlProductLinkageType,
+): Promise<CatalogueCandidateReviewModel[]> {
+  const response = await graphqlClient.mutate<MapCandidateCrossesResponse>({
+    mutation: MapCandidateCrossesDocument,
+    variables: { input: { candidateId, crossCandidateIds, linkageType } },
+  })
+  return (response.data?.catalogueCandidates.mapCrosses ?? []).map(mapCatalogueCandidate)
 }
 
 export async function searchProductsGraphql(options: {
@@ -331,6 +362,7 @@ export async function searchCatalogueGraphql(options: {
   nameModes?: GraphqlSearchMatchType[]
   productSortBy?: string[]
   catalogueCandidateSortBy?: string[]
+  candidateMappingStatus?: CandidateMappingStatus
   targets?: Array<'PRODUCTS' | 'CATALOGUE_CANDIDATES'>
   includeHighlights?: boolean
 }): Promise<{
@@ -349,6 +381,7 @@ export async function searchCatalogueGraphql(options: {
         pagination: { page: options.page, size: options.size },
         productSortBy: mapSortBy(options.productSortBy),
         catalogueCandidateSortBy: mapSortBy(options.catalogueCandidateSortBy),
+        candidateMappingStatus: options.candidateMappingStatus ?? 'UNMAPPED',
         includeHighlights: options.includeHighlights ?? false,
       },
     },

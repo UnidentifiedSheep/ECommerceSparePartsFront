@@ -25,7 +25,7 @@ fragment ProductDetailsFields on Product {
   characteristics { name value }
   pair { ...ProductListFields }
   contents { quantity product { ...ProductListFields } }
-  crosses(input: $crossesInput) { ...ProductListFields }
+  crosses(input: $crossesInput) @include(if: $includeCrosses) { ...ProductListFields }
 }
 
 fragment SupplierProductFields on SupplierProduct {
@@ -70,7 +70,7 @@ fragment CatalogueCandidateSearchFields on CatalogueCandidate {
   }
 }
 
-query ProductById($id: Int!, $crossesInput: ProductCrossesInput!, $includeCatalogueCandidate: Boolean!) {
+query ProductById($id: Int!, $crossesInput: ProductCrossesInput!, $includeCrosses: Boolean!, $includeCatalogueCandidate: Boolean!) {
   products { byId(id: $id) { ...ProductDetailsFields } }
   catalogueCandidates @include(if: $includeCatalogueCandidate) {
     byProductId(productId: $id) { ...CatalogueCandidateReviewFields }
@@ -134,12 +134,19 @@ query CatalogueCandidateByProductId($productId: Int!) {
 }
 
 mutation CandidateToCatalogue($input: CandidateToCatalogueInput!) {
-  catalogueCandidates { candidateToCatalogue(input: $input) }
+  catalogueCandidates { candidateToCatalogue(input: $input) { id } }
+}
+
+mutation MapCandidateCrosses($input: MaxCandidateCrossesInput!) {
+  catalogueCandidates {
+    mapCrosses(input: $input) { ...CatalogueCandidateDetailsFields }
+  }
 }
 
 query ProductAvailableStock($id: Int!, $input: ProductAvailableStocksInput!) {
   products {
     byId(id: $id) {
+      id
       availableStock(input: $input)
     }
   }
@@ -155,20 +162,21 @@ query ProductsAvailableStock($ids: [Int!]!, $input: ProductAvailableStocksInput!
 }
 
 query ProductPair($id: Int!) {
-  products { byId(id: $id) { pair { ...ProductListFields } } }
+  products { byId(id: $id) { id pair { ...ProductListFields } } }
 }
 
 query ProductContents($id: Int!) {
-  products { byId(id: $id) { contents { quantity product { ...ProductListFields } } } }
+  products { byId(id: $id) { id contents { quantity product { ...ProductListFields } } } }
 }
 
 query ProductCrosses($id: Int!, $input: ProductCrossesInput!) {
-  products { byId(id: $id) { crosses(input: $input) { ...ProductListFields } } }
+  products { byId(id: $id) { id crosses(input: $input) { ...ProductListFields } } }
 }
 
 query ProductStorageContents($id: Int!, $input: ProductStorageContentsInput!) {
   products {
     byId(id: $id) {
+      id
       storageContents(input: $input) {
         id rowVersion count buyPrice purchaseDatetime
         currency { id code name shortName sign }

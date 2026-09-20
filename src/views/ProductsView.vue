@@ -924,6 +924,7 @@ async function loadProducts() {
       const response = await searchCatalogue({
         query: query || undefined,
         targets: form.targets,
+        candidateMappingStatus: 'UNMAPPED',
         fields: {
           sku: form.skuModes,
           name: form.nameModes,

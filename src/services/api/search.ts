@@ -6,7 +6,12 @@ import {
   searchProducersGraphql,
   searchProductsGraphql,
 } from '@/services/graphql/products.ts'
-import type { SearchMatchType as GraphqlSearchMatchType } from '@/graphql/generated/graphql.ts'
+import type {
+  CandidateMappingStatus,
+  SearchMatchType as GraphqlSearchMatchType,
+} from '@/graphql/generated/graphql.ts'
+
+export type { CandidateMappingStatus } from '@/graphql/generated/graphql.ts'
 
 export interface SearchProductsRequest {
   query?: string
@@ -49,6 +54,7 @@ export interface SearchCatalogueRequest {
   targets?: SearchTarget[]
   fields?: CatalogueSearchFieldsRequest
   producerIds?: number[]
+  candidateMappingStatus?: CandidateMappingStatus
   includeHighlights?: boolean
   page: number
   size: number
@@ -134,6 +140,7 @@ export async function searchCatalogue(req: SearchCatalogueRequest): Promise<Sear
     skuModes: toGraphqlSearchMatchTypes(req.fields?.sku),
     nameModes: toGraphqlSearchMatchTypes(req.fields?.name),
     producerIds: req.producerIds ?? [],
+    candidateMappingStatus: req.candidateMappingStatus ?? 'UNMAPPED',
     includeHighlights: req.includeHighlights ?? false,
     page: req.page,
     size: clampPageSize(req.size),

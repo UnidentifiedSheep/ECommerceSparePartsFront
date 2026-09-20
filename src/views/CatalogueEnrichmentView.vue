@@ -2,7 +2,7 @@
   <div class="catalogue-review-page">
     <PageHeader :title="t('catalogueReview.title')" :description="t('catalogueReview.description')">
       <template #actions>
-        <el-button :icon="Refresh" :loading="isLoading" @click="loadCandidates">
+        <el-button :icon="Refresh" :loading="isLoading" @click="loadCandidates()">
           {{ t('common.actions.refresh') }}
         </el-button>
       </template>
@@ -55,6 +55,14 @@
             />
           </div>
         </div>
+        <label>
+          <span>{{ t('catalogueReview.mappingStatus') }}</span>
+          <el-select v-model="filters.mappingStatus" @change="applyFilters">
+            <el-option value="ALL" :label="t('catalogueReview.mappingStatuses.ALL')" />
+            <el-option value="UNMAPPED" :label="t('catalogueReview.mappingStatuses.UNMAPPED')" />
+            <el-option value="MAPPED" :label="t('catalogueReview.mappingStatuses.MAPPED')" />
+          </el-select>
+        </label>
         <div class="catalogue-review-filter-actions">
           <el-button type="primary" @click="applyFilters">{{ t('common.actions.apply') }}</el-button>
           <el-button :disabled="!hasFilters" @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
@@ -133,11 +141,13 @@
             </div>
             <div class="candidate-details-navigation">
               <span class="candidate-id">
-                {{ t('catalogueReview.candidatePosition', {
-                  current: selectedCandidateIndex + 1,
-                  total: candidates.length,
-                  id: selectedCandidate.id,
-                }) }}
+                {{ selectedCandidateIndex >= 0
+                  ? t('catalogueReview.candidatePosition', {
+                    current: selectedCandidateIndex + 1,
+                    total: candidates.length,
+                    id: selectedCandidate.id,
+                  })
+                  : t('catalogueReview.candidateOutsideList', { id: selectedCandidate.id }) }}
               </span>
               <el-button-group>
                 <el-button
@@ -148,7 +158,7 @@
                   {{ t('catalogueReview.previousCandidate') }}
                 </el-button>
                 <el-button
-                  :disabled="selectedCandidateIndex >= candidates.length - 1"
+                  :disabled="selectedCandidateIndex < 0 || selectedCandidateIndex >= candidates.length - 1"
                   @click="selectAdjacentCandidate(1)"
                 >
                   {{ t('catalogueReview.nextCandidate') }}
@@ -296,12 +306,59 @@
               name="crosses"
             >
               <section class="candidate-section candidate-crosses-section">
+                <div v-if="mappedCrossesCount" class="candidate-crosses-toolbar">
+                  <div class="candidate-crosses-toolbar__selection">
+                    {{ t('catalogueReview.selectedCrosses', { selected: selectedCrossIds.length, total: mappedCrossesCount }) }}
+                  </div>
+                  <label class="candidate-crosses-toolbar__type">
+                    <span>{{ t('products.crossesWizard.linkageType') }}</span>
+                    <el-select v-model="crossLinkageType" :aria-label="t('products.crossesWizard.linkageType')">
+                      <el-option
+                        v-for="option in crossLinkageOptions"
+                        :key="option.value"
+                        :value="option.value"
+                        :label="option.label"
+                      />
+                    </el-select>
+                  </label>
+                  <el-button
+                    type="primary"
+                    :loading="isMappingCrosses"
+                    :disabled="!selectedCrossIds.length"
+                    @click="createCrosses"
+                  >
+                    {{ t('catalogueReview.createCrosses') }}
+                  </el-button>
+                </div>
+                <p v-if="mappedCrossesCount" class="candidate-crosses-note">
+                  {{ t('catalogueReview.createCrossesHint') }}
+                </p>
                 <el-table
                   v-if="candidateCrosses.length"
                   :data="candidateCrosses"
                   class="supplier-products-table supplier-crosses-table"
                   row-key="key"
                 >
+                  <el-table-column width="48" align="center">
+                    <template #header>
+                      <el-checkbox
+                        :model-value="areAllMappedCrossesSelected"
+                        :indeterminate="isCrossSelectionIndeterminate"
+                        :disabled="!mappedCrossesCount || isMappingCrosses"
+                        :aria-label="t('catalogueReview.selectAllCrosses')"
+                        @change="toggleAllCrosses"
+                      />
+                    </template>
+                    <template #default="{ row }">
+                      <el-checkbox
+                        v-if="row.candidateId"
+                        :model-value="selectedCrossIds.includes(row.candidateId)"
+                        :disabled="isMappingCrosses"
+                        :aria-label="t('catalogueReview.selectCross', { sku: row.sku })"
+                        @change="(checked: boolean) => toggleCross(row.candidateId, checked)"
+                      />
+                    </template>
+                  </el-table-column>
                   <el-table-column :label="t('common.labels.status')" width="150">
                     <template #default="{ row }">
                       <span
@@ -317,7 +374,13 @@
                   <el-table-column :label="t('catalogueReview.supplierSku')" min-width="190">
                     <template #default="{ row }">
                       <div class="supplier-cross-product">
-                        <strong>{{ row.sku }}</strong>
+                        <RouterLink
+                          v-if="row.candidateId"
+                          class="supplier-cross-product__link"
+                          :to="crossCandidateRoute(row)"
+                          @click.stop
+                        >{{ row.sku }}</RouterLink>
+                        <strong v-else>{{ row.sku }}</strong>
                       </div>
                     </template>
                   </el-table-column>
@@ -371,7 +434,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft, ArrowRight, CircleCheckFilled, Close, Refresh, Search, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
@@ -380,9 +443,12 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import type { CatalogueCandidateReviewModel, SupplierProductModel } from '@/models/catalogueCandidateModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
+import type { CandidateMappingStatus } from '@/services/api/search.ts'
 import type { Supplier } from '@/models/producerModel.ts'
+import type { ProductLinkageType as CandidateCrossLinkageType } from '@/graphql/generated/graphql.ts'
 import {
   candidateToCatalogue,
+  mapCandidateCrosses,
   getCatalogueCandidateById,
   getCatalogueCandidatesForReview,
   getProductById,
@@ -408,21 +474,28 @@ const hasNext = ref(false)
 const isLoading = ref(false)
 const isDetailsLoading = ref(false)
 const isAddingToCatalogue = ref(false)
+const isMappingCrosses = ref(false)
+const selectedCrossIds = ref<string[]>([])
+const crossLinkageType = ref<CandidateCrossLinkageType>('SINGLE_CROSS')
 const selectedCatalogueName = ref('')
 const detailsTab = ref<'data' | 'crosses'>('data')
 let requestId = 0
+let restoringRouteState = false
+let routeReady = false
 
 const filters = reactive({
   sku: typeof route.query.sku === 'string' ? route.query.sku : '',
   productId: queryInteger(route.query.productId),
+  mappingStatus: queryMappingStatus(route.query.mappingStatus) ?? 'ALL',
 })
-const hasFilters = computed(() => Boolean(filters.sku.trim() || filters.productId))
+const hasFilters = computed(() => Boolean(filters.sku.trim() || filters.productId || filters.mappingStatus !== 'ALL'))
 const groupedCandidateNames = computed(() => (
   selectedCandidate.value ? groupCatalogueCandidateNames([selectedCandidate.value]) : []
 ))
 
 interface CandidateCrossRow {
   key: string
+  candidateId: string | null
   sku: string
   producer: string
   status: 'mapped' | 'not-mapped'
@@ -433,6 +506,7 @@ interface CandidateCrossRow {
 const candidateCrosses = computed<CandidateCrossRow[]>(() => {
   const mapped = (selectedCandidate.value?.crosses?.mapped ?? []).map((candidate): CandidateCrossRow => ({
     key: `mapped:${candidate.id}`,
+    candidateId: candidate.id,
     sku: candidate.sku,
     producer: candidate.producer.name,
     status: 'mapped',
@@ -445,6 +519,7 @@ const candidateCrosses = computed<CandidateCrossRow[]>(() => {
     const key = `${normalizeSku(cross.sku)}:${normalizeSku(cross.producer)}`
     const group = notMappedGroups.get(key) ?? {
       key: `not-mapped:${key}`,
+      candidateId: null,
       sku: cross.sku,
       producer: cross.producer,
       status: 'not-mapped',
@@ -459,6 +534,22 @@ const candidateCrosses = computed<CandidateCrossRow[]>(() => {
 
   return [...mapped, ...notMappedGroups.values()]
 })
+const mappedCrossIds = computed(() => (
+  [...new Set((selectedCandidate.value?.crosses?.mapped ?? []).map((candidate) => candidate.id))]
+))
+const mappedCrossesCount = computed(() => mappedCrossIds.value.length)
+const areAllMappedCrossesSelected = computed(() => (
+  mappedCrossesCount.value > 0 && mappedCrossIds.value.every((id) => selectedCrossIds.value.includes(id))
+))
+const isCrossSelectionIndeterminate = computed(() => (
+  selectedCrossIds.value.length > 0 && !areAllMappedCrossesSelected.value
+))
+const crossLinkageOptions = computed<{ value: CandidateCrossLinkageType; label: string }[]>(() => [
+  { value: 'SINGLE_CROSS', label: t('products.crossesWizard.linkageTypes.regular') },
+  { value: 'FULL_CROSS', label: t('products.crossesWizard.linkageTypes.fullGroup') },
+  { value: 'FULL_LEFT_TO_RIGHT_CROSS', label: t('products.crossesWizard.linkageTypes.productCrossesToCross') },
+  { value: 'FULL_RIGHT_TO_LEFT_CROSS', label: t('products.crossesWizard.linkageTypes.productToSelectedCrosses') },
+])
 const linkedCandidatesCount = computed(() => candidates.value.filter((candidate) => candidate.product).length)
 const unlinkedCandidatesCount = computed(() => candidates.value.length - linkedCandidatesCount.value)
 const selectedCandidateIndex = computed(() => (
@@ -470,6 +561,10 @@ const selectedCandidateIndex = computed(() => (
 function queryInteger(value: unknown, fallback?: number): number | undefined {
   const parsed = Number(value)
   return Number.isSafeInteger(parsed) && parsed >= (fallback === 0 ? 0 : 1) ? parsed : fallback
+}
+
+function queryMappingStatus(value: unknown): CandidateMappingStatus | undefined {
+  return value === 'ALL' || value === 'MAPPED' || value === 'UNMAPPED' ? value : undefined
 }
 
 function supplierLabel(supplier: Supplier) {
@@ -490,6 +585,17 @@ function supplierColorClass(supplier: Supplier) {
 
 function productInitial(name: string) {
   return name.trim().charAt(0).toLocaleUpperCase() || '—'
+}
+
+function crossCandidateRoute(row: CandidateCrossRow) {
+  return {
+    name: 'catalogue-enrichment',
+    query: {
+      sku: row.sku,
+      candidateId: row.candidateId,
+      ...(size.value !== 20 ? { size: String(size.value) } : {}),
+    },
+  }
 }
 
 function normalizeSku(sku: string) {
@@ -573,22 +679,58 @@ function openProduct(productId: number) {
   router.push({ name: 'product-details', params: { id: productId } })
 }
 
-async function selectCandidate(candidate: CatalogueCandidateReviewModel) {
+async function selectCandidate(candidate: CatalogueCandidateReviewModel, syncUrl = true) {
   selectedCandidate.value = candidate
+  selectedCrossIds.value = [...new Set(candidate.crosses?.mapped.map((cross) => cross.id) ?? [])]
   selectedCatalogueName.value = groupCatalogueCandidateNames([candidate])[0]?.name ?? ''
-  await syncRoute(candidate.id)
+  if (syncUrl) await syncRoute(candidate.id)
+  if (candidate.crosses) return
   const selectedId = candidate.id
   isDetailsLoading.value = true
   try {
     const details = await getCatalogueCandidateById(selectedId)
     if (selectedCandidate.value?.id === selectedId && details) {
       selectedCandidate.value = details
+      selectedCrossIds.value = [...new Set(details.crosses?.mapped.map((cross) => cross.id) ?? [])]
       selectedCatalogueName.value ||= groupCatalogueCandidateNames([details])[0]?.name ?? ''
     }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('catalogueReview.loadDetailsError'))
   } finally {
     if (selectedCandidate.value?.id === selectedId) isDetailsLoading.value = false
+  }
+}
+
+function toggleCross(candidateId: string, checked: boolean) {
+  selectedCrossIds.value = checked
+    ? [...new Set([...selectedCrossIds.value, candidateId])]
+    : selectedCrossIds.value.filter((id) => id !== candidateId)
+}
+
+function toggleAllCrosses(checked: boolean) {
+  selectedCrossIds.value = checked ? [...mappedCrossIds.value] : []
+}
+
+async function createCrosses() {
+  const candidateId = selectedCandidate.value?.id
+  const crossIds = selectedCrossIds.value.filter((id) => mappedCrossIds.value.includes(id))
+  if (!candidateId || !crossIds.length || isMappingCrosses.value) return
+
+  isMappingCrosses.value = true
+  try {
+    const updated = await mapCandidateCrosses(candidateId, crossIds, crossLinkageType.value)
+    const updatedById = new Map(updated.map((candidate) => [candidate.id, candidate]))
+    candidates.value = candidates.value.map((candidate) => updatedById.get(candidate.id) ?? candidate)
+    if (selectedCandidate.value?.id === candidateId) {
+      selectedCandidate.value = updatedById.get(candidateId) ?? selectedCandidate.value
+      selectedCrossIds.value = crossIds.filter((id) => mappedCrossIds.value.includes(id))
+    }
+    ElMessage.success(t('catalogueReview.crossesCreated'))
+    if (filters.mappingStatus !== 'ALL') await loadCandidates()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('catalogueReview.crossesCreateFailed'))
+  } finally {
+    isMappingCrosses.value = false
   }
 }
 
@@ -622,6 +764,7 @@ async function syncRoute(candidateId = selectedCandidate.value?.id) {
     query: {
       ...(filters.sku.trim() ? { sku: filters.sku.trim() } : {}),
       ...(filters.productId ? { productId: String(filters.productId) } : {}),
+      ...(filters.mappingStatus !== 'ALL' ? { mappingStatus: filters.mappingStatus } : {}),
       ...(page.value ? { page: String(page.value) } : {}),
       ...(size.value !== 20 ? { size: String(size.value) } : {}),
       ...(candidateId ? { candidateId: String(candidateId) } : {}),
@@ -629,7 +772,7 @@ async function syncRoute(candidateId = selectedCandidate.value?.id) {
   })
 }
 
-async function loadCandidates() {
+async function loadCandidates(requestedCandidateId?: string, allowOutsideList = false) {
   if (!canReview.value) return
 
   const currentRequestId = ++requestId
@@ -638,6 +781,7 @@ async function loadCandidates() {
     const response = await getCatalogueCandidatesForReview({
       productId: filters.productId,
       sku: filters.sku,
+      candidateMappingStatus: filters.mappingStatus,
       page: page.value,
       size: size.value,
     })
@@ -645,13 +789,21 @@ async function loadCandidates() {
 
     candidates.value = response.candidates
     hasNext.value = (page.value + 1) * size.value < response.total
-    const requestedCandidateId = typeof route.query.candidateId === 'string'
-      ? route.query.candidateId
-      : undefined
-    const nextSelection = response.candidates.find((item) => item.id === requestedCandidateId)
+    const requestedInList = response.candidates.find((item) => item.id === requestedCandidateId)
+    let requestedOutsideList: CatalogueCandidateReviewModel | null = null
+    if (allowOutsideList && requestedCandidateId && !requestedInList) {
+      try {
+        requestedOutsideList = await getCatalogueCandidateById(requestedCandidateId)
+      } catch (error) {
+        ElMessage.error(error instanceof Error ? error.message : t('catalogueReview.loadDetailsError'))
+      }
+    }
+    if (currentRequestId !== requestId) return
+    const nextSelection = requestedInList
+      ?? requestedOutsideList
       ?? response.candidates.find((item) => item.id === selectedCandidate.value?.id)
       ?? response.candidates[0]
-    if (nextSelection) await selectCandidate(nextSelection)
+    if (nextSelection) await selectCandidate(nextSelection, nextSelection.id !== requestedCandidateId)
     else {
       selectedCandidate.value = undefined
       await syncRoute()
@@ -676,19 +828,47 @@ async function applyFilters() {
 async function resetFilters() {
   filters.sku = ''
   filters.productId = undefined
+  filters.mappingStatus = 'ALL'
   selectedFilterProduct.value = undefined
   if (page.value !== 0) page.value = 0
   else await loadCandidates()
 }
 
-watch(page, loadCandidates)
+watch(page, () => {
+  if (!restoringRouteState) void loadCandidates()
+})
 watch(size, () => {
+  if (restoringRouteState) return
   if (page.value !== 0) page.value = 0
   else loadCandidates()
 })
 
+watch(() => route.query.candidateId, async (candidateId) => {
+  if (!routeReady || candidateId === selectedCandidate.value?.id) return
+
+  filters.sku = typeof route.query.sku === 'string' ? route.query.sku : ''
+  filters.productId = queryInteger(route.query.productId)
+  filters.mappingStatus = queryMappingStatus(route.query.mappingStatus) ?? 'ALL'
+  selectedFilterProduct.value = undefined
+
+  restoringRouteState = true
+  page.value = queryInteger(route.query.page, 0) ?? 0
+  size.value = queryInteger(route.query.size, 20) ?? 20
+  await nextTick()
+  restoringRouteState = false
+
+  await Promise.all([
+    loadSelectedFilterProduct(),
+    loadCandidates(typeof candidateId === 'string' ? candidateId : undefined, true),
+  ])
+})
+
 onMounted(async () => {
-  await Promise.all([loadSelectedFilterProduct(), loadCandidates()])
+  const requestedCandidateId = typeof route.query.candidateId === 'string'
+    ? route.query.candidateId
+    : undefined
+  await Promise.all([loadSelectedFilterProduct(), loadCandidates(requestedCandidateId, true)])
+  routeReady = true
 })
 </script>
 
@@ -697,7 +877,7 @@ onMounted(async () => {
 .catalogue-review-content { display: grid; min-height: 0; flex: 1; grid-template-rows: auto minmax(0, 1fr); gap: 12px; overflow: hidden; padding: 16px 24px 24px; }
 .catalogue-review-filters {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(280px, 420px) auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(260px, 360px) minmax(160px, 190px) auto;
   align-items: end;
   gap: 12px;
   border: 1px solid var(--app-border);
@@ -798,8 +978,16 @@ onMounted(async () => {
 .supplier-products-table__sku, .supplier-products-table__producer { color: #0f172a; font-weight: 700; }
 .supplier-products-table__id { color: #94a3b8; font-size: 12px; font-variant-numeric: tabular-nums; }
 .candidate-crosses-section { padding-top: 16px; }
+.candidate-crosses-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 16px; }
+.candidate-crosses-toolbar__selection { align-self: center; margin-right: auto; color: #475569; font-size: 13px; }
+.candidate-crosses-toolbar__type { display: grid; width: min(100%, 310px); gap: 5px; color: #475569; font-size: 12px; font-weight: 650; }
+.candidate-crosses-toolbar__type :deep(.el-select) { width: 100%; }
+.candidate-crosses-note { margin: -6px 0 14px; color: #64748b; font-size: 12px; line-height: 1.4; }
 .supplier-cross-product { display: grid; min-width: 0; gap: 3px; }
 .supplier-cross-product > strong { color: #0f172a; font-size: 13px; }
+.supplier-cross-product__link { width: fit-content; color: #047857; font-size: 13px; font-weight: 700; text-decoration: none; }
+.supplier-cross-product__link:hover { text-decoration: underline; }
+.supplier-cross-product__link:focus-visible { border-radius: 2px; outline: 2px solid #047857; outline-offset: 2px; }
 .supplier-cross-product > span { overflow: hidden; color: #64748b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .supplier-cross-sources { display: grid; min-width: 0; gap: 2px; color: #64748b; font-size: 12px; }
 .supplier-cross-source { display: block; min-width: 0; }
@@ -809,6 +997,9 @@ onMounted(async () => {
 .candidate-cross-status--not-mapped { color: #9a6700; }
 .supplier-product-empty { margin: 0; color: #94a3b8; font-size: 13px; }
 .candidate-details-empty, .catalogue-review-no-access { display: grid; place-items: center; min-height: 480px; }
+@media (max-width: 1100px) {
+  .catalogue-review-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 980px) {
   .catalogue-review-workspace { grid-template-columns: 320px minmax(0, 1fr); }
   .catalogue-product { grid-template-columns: 64px minmax(0, 1fr); }

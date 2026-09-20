@@ -610,11 +610,20 @@ async function handleStorageSortToggle(field: string, event: MouseEvent) {
   await refreshStorageContent()
 }
 
-async function loadProduct() {
-  const response = await getProductById(productId.value, canReviewCatalogueCandidates.value && canEditProduct.value)
+async function loadProduct(includeCrosses = false) {
+  const response = await getProductById(
+    productId.value,
+    canReviewCatalogueCandidates.value && canEditProduct.value,
+    includeCrosses ? size.value : undefined,
+  )
   product.value = response.product
   catalogueCandidate.value = response.catalogueCandidate
   productPair.value = response.product.pair ?? null
+  if (includeCrosses && response.product.crosses) {
+    crosses.value = response.product.crosses
+    hasNext.value = crosses.value.length === size.value
+    loadedTabs.value.crosses = true
+  }
 }
 
 async function loadAlternativeProductNames() {
@@ -638,11 +647,6 @@ async function loadProductMetrics() {
 }
 
 async function loadCrosses() {
-  if (crossesSortBy.value.length === 0 && page.value === 0 && product.value?.crosses !== undefined) {
-    crosses.value = product.value.crosses
-    hasNext.value = product.value.crosses.length === 100
-    return
-  }
   isCrossesLoading.value = true
   try {
     const resp = await getProductCrosses({
@@ -701,8 +705,8 @@ async function ensureTabLoaded(tab: ProductTab, force = false) {
   loadedTabs.value[tab] = true
 }
 
-async function refreshSummary() {
-  await loadProduct()
+async function refreshSummary(includeCrosses = false) {
+  await loadProduct(includeCrosses)
   await Promise.all([loadPair(), loadProductMetrics(), loadAlternativeProductNames()])
 }
 
@@ -765,7 +769,7 @@ async function loadInitialDetails() {
   }
   isLoading.value = true
   try {
-    await refreshSummary()
+    await refreshSummary(activeTab.value === 'crosses' && page.value === 0)
   } finally {
     isLoading.value = false
   }
