@@ -1,0 +1,31 @@
+fragment NotificationFields on Notification {
+  id
+  userId
+  text
+  createdAt
+  seenAt
+}
+
+query NotificationsList($input: ListNotificationsInput!) {
+  notifications {
+    list(input: $input) { ...NotificationFields }
+  }
+}
+
+query MyNotificationPreferences {
+  notifications {
+    myPreferences { channelName localizableChannelName enabled userId }
+  }
+}
+
+mutation SeeNotifications($ids: [Int!]!) {
+  notifications { see(ids: $ids) }
+}
+
+mutation UpsertNotificationPreferences($input: UpsertNotificationPreferencesInput!) {
+  notifications { upsertPreferences(input: $input) }
+}
+
+subscription NotificationCreated {
+  onNotificationCreated { notification { ...NotificationFields } }
+}

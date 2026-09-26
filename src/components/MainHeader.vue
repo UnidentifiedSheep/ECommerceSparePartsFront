@@ -87,6 +87,7 @@
     </div>
 
     <div class="main-header__actions">
+      <NotificationMenu v-if="hasPermission('NOTIFICATIONS_ME')" />
       <LocaleSwitcher variant="light" />
 
       <el-dropdown placement="bottom">
@@ -110,6 +111,8 @@ import { useRouter } from 'vue-router'
 import { ArrowRight, Clock, Loading, Menu, Search, Setting, User } from '@element-plus/icons-vue'
 import { onClickOutside, useDebounceFn } from '@vueuse/core'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
+import NotificationMenu from '@/components/notifications/NotificationMenu.vue'
+import { usePermissions } from '@/composables/usePermissions.ts'
 import IconExit from '@/components/icons/IconExit.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import { useI18n } from '@/i18n'
@@ -129,6 +132,7 @@ const searchOpen = ref(false)
 const searchLoading = ref(false)
 const searchResults = ref<ProductSearchModel[]>([])
 const authStore = useAuthStore()
+const { hasPermission } = usePermissions()
 const { locale, t } = useI18n()
 const { searchHistory, rememberSearch } = useProductSearchHistory()
 const normalizedSearch = computed(() => search.value.trim())

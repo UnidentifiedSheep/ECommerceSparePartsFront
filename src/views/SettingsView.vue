@@ -18,6 +18,9 @@
       </aside>
 
       <main class="settings-content">
+        <section v-if="activeTab === 'notifications' && hasPermission('NOTIFICATIONS_ME')" class="settings-panel">
+          <NotificationPreferences />
+        </section>
         <section v-if="activeTab === 'operations'" class="settings-panel">
           <div class="border-b border-slate-200 pb-3">
             <h2 class="text-xl font-semibold text-slate-900">{{ t('settings.operations') }}</h2>
@@ -126,10 +129,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { Coin, Lock } from '@element-plus/icons-vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { Coin, Lock, Bell } from '@element-plus/icons-vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
+import NotificationPreferences from '@/components/notifications/NotificationPreferences.vue'
+import { usePermissions } from '@/composables/usePermissions.ts'
 import { changePassword } from '@/services/api/authApi.ts'
 import { makeMyEmailPrimary, requestMyEmailVerification } from '@/services/api/users.ts'
 import { ApiError } from '@/models/errorModel.ts'
@@ -147,6 +153,8 @@ interface PasswordForm {
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { hasPermission } = usePermissions()
+const route = useRoute()
 const verificationEmail = ref(authStore.user?.email?.trim() ?? '')
 const canRequestEmailVerification = computed(() => (
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(verificationEmail.value.trim())
@@ -170,7 +178,11 @@ const settingsSections = computed(() => [
     label: t('settings.security'),
     icon: Lock,
   },
+  ...(hasPermission('NOTIFICATIONS_ME') ? [{ name: 'notifications', label: t('notifications.title'), icon: Bell }] : []),
 ])
+watch(() => route.query.section, (section) => {
+  if (typeof section === 'string' && settingsSections.value.some((item) => item.name === section)) activeTab.value = section
+}, { immediate: true })
 const currencies = ref<CurrencyModel[]>([])
 const defaultCurrencyId = ref<number>()
 const isLoadingCurrencies = ref(false)
