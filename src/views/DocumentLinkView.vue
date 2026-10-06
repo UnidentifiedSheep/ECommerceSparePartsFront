@@ -1,14 +1,16 @@
 <template>
   <div class="document-link-page">
-    <PageHeader :title="t('documents.preparingTitle')" :description="t('documents.preparingDescription')" />
+    <PageHeader :title="t('documents.preparingTitle')" :description="status === 'started' ? t('documents.downloadStartedHint') : t('documents.preparingDescription')" />
     <div class="document-link-panel">
       <el-icon v-if="status === 'loading'" class="is-loading" :size="30"><Loading /></el-icon>
+      <el-icon v-else-if="status === 'started'" :size="30" color="var(--el-color-success)"><CircleCheck /></el-icon>
       <el-icon v-else :size="30" color="var(--el-color-warning)"><Warning /></el-icon>
-      <h2>{{ status === 'loading' ? t('documents.waiting') : status === 'pending' ? t('documents.notReady') : t('documents.linkError') }}</h2>
+      <h2>{{ status === 'loading' ? t('documents.waiting') : status === 'started' ? t('documents.downloadStarted') : status === 'pending' ? t('documents.notReady') : t('documents.linkError') }}</h2>
       <p v-if="status === 'error'">{{ errorMessage }}</p>
+      <p v-else-if="status === 'started'">{{ t('documents.downloadStartedHint') }}</p>
       <p v-else>{{ t('documents.linkHint') }}</p>
       <div class="document-link-actions">
-        <el-button v-if="status !== 'loading'" type="primary" @click="resolveLink">{{ t('documents.retry') }}</el-button>
+        <el-button v-if="status !== 'loading'" type="primary" @click="resolveLink">{{ status === 'started' ? t('documents.downloadAgain') : t('documents.retry') }}</el-button>
         <el-button plain @click="router.push('/documents')">{{ t('documents.backToDocuments') }}</el-button>
       </div>
     </div>
@@ -18,14 +20,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Loading, Warning } from '@element-plus/icons-vue'
+import { CircleCheck, Loading, Warning } from '@element-plus/icons-vue'
+import PageHeader from '@/components/common/PageHeader.vue'
 import { getDocumentLink } from '@/services/graphql/documents.ts'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const status = ref<'loading' | 'pending' | 'error'>('loading')
+const status = ref<'loading' | 'pending' | 'error' | 'started'>('loading')
 const errorMessage = ref('')
 let active = true
 
@@ -43,6 +46,7 @@ async function resolveLink() {
     if (!active) return
     const destination = new URL(url, window.location.origin)
     if (!['https:', 'http:'].includes(destination.protocol)) throw new Error(t('documents.invalidLink'))
+    status.value = 'started'
     window.location.replace(destination.href)
   } catch (error) {
     if (!active) return
