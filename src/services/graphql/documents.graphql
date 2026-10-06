@@ -26,10 +26,30 @@ query AvailableDocuments {
   }
 }
 
-mutation CreateDocumentGenerationRequest($input: CreateGenerationRequestInput!) {
-  documents { createGenerationRequest(input: $input) }
+fragment DocumentGenerationRequestFields on DocumentGenerationRequest {
+  requestId
+  jobId
+  status
+  documentSystemName
+  requesterId
+  createdAt
+  generatedAt
+  expiresAt
+  fileLink { url expiresAtUtc }
 }
 
-query DocumentLink($requestId: UUID!) {
-  documents { link(requestId: $requestId) { url expiresAtUtc } }
+mutation CreateDocumentGenerationRequest($input: CreateGenerationRequestInput!) {
+  documents { createGenerationRequest(input: $input) { ...DocumentGenerationRequestFields } }
+}
+
+query DocumentById($requestId: UUID!) {
+  documents { byId(requestId: $requestId) { ...DocumentGenerationRequestFields } }
+}
+
+query DocumentsByIds($requestIds: [UUID!]!) {
+  documents { byIds(requestIds: $requestIds) { ...DocumentGenerationRequestFields } }
+}
+
+query SearchDocuments($input: SearchDocumentsInput!) {
+  documents { search(input: $input) { ...DocumentGenerationRequestFields } }
 }

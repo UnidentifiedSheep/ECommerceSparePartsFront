@@ -22,7 +22,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { CircleCheck, Loading, Warning } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import { getDocumentLink } from '@/services/graphql/documents.ts'
+import { getDocumentById } from '@/services/graphql/documents.ts'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
@@ -42,18 +42,24 @@ async function resolveLink() {
   }
   status.value = 'loading'
   try {
-    const url = await getDocumentLink(requestId)
+    const document = await getDocumentById(requestId)
     if (!active) return
-    const destination = new URL(url, window.location.origin)
+    if (!document) throw new Error(t('documents.requestNotFound'))
+    if (!document.fileLink) {
+      if (document.status === 'FAILED' || document.status === 'CANCELLED') {
+        throw new Error(t('documents.generationFailed'))
+      }
+      if (document.status === 'SUCCEEDED') throw new Error(t('documents.linkUnavailable'))
+      status.value = 'pending'
+      return
+    }
+    const destination = new URL(document.fileLink.url, window.location.origin)
     if (!['https:', 'http:'].includes(destination.protocol)) throw new Error(t('documents.invalidLink'))
     status.value = 'started'
     window.location.replace(destination.href)
   } catch (error) {
     if (!active) return
-    const gqlErrors = error && typeof error === 'object' && 'graphQLErrors' in error
-      ? error.graphQLErrors as Array<{ extensions?: Record<string, unknown> }> : []
-    const pending = gqlErrors.some((item) => item.extensions?.code === 'DocumentNotReadyException')
-    status.value = pending ? 'pending' : 'error'
+    status.value = 'error'
     errorMessage.value = error instanceof Error ? error.message : t('documents.linkError')
   }
 }

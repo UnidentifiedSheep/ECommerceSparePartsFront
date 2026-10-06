@@ -2,113 +2,51 @@
   <div class="sale-details">
     <template v-if="sale">
       <header class="details-header">
-        <div>
-          <h2>{{ t('sales.detailsTitle') }}</h2>
-          <div class="details-party-line">
-            <OrganizationPartyHoverCard
-              :organization="sale.organization"
-              :user="sale.buyer"
-              placement="bottom-start"
-            />
-            <span>·</span>
-            <OrganizationPartyHoverCard
-              :organization="sale.organization"
-              :user="sale.buyer"
-              placement="bottom-start"
-              trigger-entity="user"
-            />
-            <span>· {{ formatDate(sale.saleDatetime) }}</span>
-          </div>
-        </div>
-        <strong>{{ formatCurrency(sale.totalSum, sale.currency.currencySign) }}</strong>
+        <h2>{{ t('sales.detailsTitle') }}</h2>
+        <span>{{ t('sales.positions') }}: {{ content.length }}</span>
       </header>
 
-      <section v-if="sale.comment" class="details-comment">
-        {{ sale.comment }}
-      </section>
-
-      <section class="content-section">
-        <div class="content-title">{{ t('sales.positions') }}</div>
+      <div class="details-scroll">
+        <div class="content-columns" aria-hidden="true">
+          <span></span>
+          <span>{{ t('common.labels.count') }}</span>
+          <span>{{ t('common.labels.price') }}</span>
+          <span>{{ t('sales.discount') }}</span>
+          <span>{{ t('sales.amount') }}</span>
+        </div>
         <div v-loading="loading" class="content-list">
           <article v-for="row in content" :key="row.id" class="content-row">
-            <div class="product-cell">
-              <strong>{{ row.product.name || t('sales.unnamed') }}</strong>
-              <span>{{ row.product.sku || t('sales.noSku') }}</span>
-              <small v-if="row.product.producerName">{{ row.product.producerName }}</small>
+            <div class="product-cell" :title="[row.product.sku, row.product.producerName, row.product.name, row.comment].filter(Boolean).join(' · ')">
+              <div class="product-heading">
+                <RouterLink v-if="row.product.id" :to="{ name: 'product-details', params: { id: row.product.id } }" class="product-link">
+                  {{ row.product.sku || row.product.name || t('sales.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
+                </RouterLink>
+                <strong v-else class="product-link">
+                  {{ row.product.sku || row.product.name || t('sales.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
+                </strong>
+              </div>
+              <span v-if="row.product.name && row.product.name !== row.product.sku" class="product-meta">{{ row.product.name }}</span>
             </div>
-
-            <div class="amount-cell">
-              <span>{{ t('common.labels.count') }}</span>
-              <strong>{{ row.count.toLocaleString(locale) }}</strong>
-            </div>
-
-            <div class="amount-cell">
-              <span>{{ t('common.labels.price') }}</span>
-              <strong>{{ formatCurrency(row.price, sale.currency.currencySign) }}</strong>
-            </div>
-
-            <div class="amount-cell">
-              <span>{{ t('sales.discount') }}</span>
-              <strong>{{ formatPercent(row.discount) }}</strong>
-            </div>
-
-            <div class="amount-cell">
-              <span>{{ t('sales.amount') }}</span>
-              <strong>{{ formatCurrency(row.totalSum, sale.currency.currencySign) }}</strong>
-            </div>
-
-            <div v-if="row.comment" class="row-comment">
-              {{ row.comment }}
-            </div>
-
-            <el-collapse v-if="row.details.length > 0" class="row-details">
-              <el-collapse-item :title="t('sales.writeOffBatches')" :name="row.id">
-                <div class="details-table">
-                  <div class="details-table-head">
-                    <el-tooltip :content="t('sales.purchaseBatchCurrency')" placement="top">
-                      <span>{{ t('common.labels.currency') }}</span>
-                    </el-tooltip>
-                    <el-tooltip :content="t('sales.takenFromPurchase')" placement="top">
-                      <span>{{ t('common.labels.count') }}</span>
-                    </el-tooltip>
-                    <el-tooltip :content="t('sales.purchaseDate')" placement="top">
-                      <span>{{ t('common.labels.date') }}</span>
-                    </el-tooltip>
-                    <el-tooltip :content="t('sales.purchasePrice')" placement="top">
-                      <span>{{ t('common.labels.price') }}</span>
-                    </el-tooltip>
-                  </div>
-
-                  <div v-for="detail in row.details" :key="detail.id" class="detail-row">
-                    <strong :data-label="t('common.labels.currency')">{{ detail.currency.name }} ({{ detail.currency.currencySign }})</strong>
-                    <strong :data-label="t('common.labels.count')">{{ detail.count.toLocaleString(locale) }} {{ t('sales.pieces') }}</strong>
-                    <strong :data-label="t('common.labels.date')">{{ formatDate(detail.purchaseDatetime) }}</strong>
-                    <strong :data-label="t('common.labels.price')">{{ formatCurrency(detail.buyPrice, detail.currency.currencySign) }}</strong>
-                  </div>
-                </div>
-              </el-collapse-item>
-            </el-collapse>
+            <span class="content-value content-value--count">{{ row.count.toLocaleString(locale) }}</span>
+            <span class="content-value" :title="formatCurrency(row.price, sale.currency.currencySign)">{{ formatCurrency(row.price, sale.currency.currencySign) }}</span>
+            <span class="content-value">{{ formatPercent(row.discount) }}</span>
+            <strong class="content-value content-value--total" :title="formatCurrency(row.totalSum, sale.currency.currencySign)">{{ formatCurrency(row.totalSum, sale.currency.currencySign) }}</strong>
           </article>
-
           <el-empty v-if="!loading && content.length === 0" :description="t('sales.notFound')" />
         </div>
-      </section>
-    </template>
-
-    <template v-else>
-      <div class="sale-details-empty">
-        <h2>{{ t('sales.detailsTitle') }}</h2>
-        <p>{{ t('sales.selectToView') }}</p>
       </div>
     </template>
+
+    <div v-else class="sale-details-empty">
+      <h2>{{ t('sales.detailsTitle') }}</h2>
+      <p>{{ t('sales.selectToView') }}</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
-import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
-import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 
 const { locale, t } = useI18n()
 
@@ -117,10 +55,6 @@ defineProps<{
   content: SaleContentModel[]
   loading: boolean
 }>()
-
-function formatDate(value?: string | null) {
-  return formatLocalDateTime(value, t('sales.noData'))
-}
 
 function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
@@ -133,250 +67,129 @@ function formatPercent(value: number) {
 
 <style scoped>
 .sale-details {
+  display: flex;
   height: 100%;
   min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  padding: 16px;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .details-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 2px 0 14px;
+  flex: none;
+  padding: 14px 14px 10px;
 }
 
 .details-header h2 {
   margin: 0;
-  color: #0f172a;
-  font-size: 20px;
-  font-weight: 750;
+  color: var(--app-text);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
-.details-party-line {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 5px 0 0;
-  color: #64748b;
+.details-header span {
+  display: block;
+  margin-top: 3px;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
-.details-party-line :deep(.organization-party-reference:hover) { color: #047857; }
-
-.details-header strong {
-  color: #047857;
-  font-size: 20px;
-  white-space: nowrap;
+.details-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
-.details-comment,
-.content-section {
-  margin-top: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 14px;
-}
-
-.details-comment {
-  color: #334155;
-  font-size: 13px;
-}
-
-.content-title {
-  margin-bottom: 12px;
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 750;
-}
-
-.content-list {
-  display: grid;
-  gap: 10px;
-}
-
+.content-columns,
 .content-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: start;
-  gap: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
-  background: #ffffff;
+  grid-template-columns: minmax(0, 1fr) minmax(44px, 8%) minmax(64px, 14%) minmax(54px, 11%) minmax(78px, 16%);
+  gap: 5px;
+  align-items: center;
+  padding-right: 12px;
+  padding-left: 12px;
 }
 
-.product-cell {
-  grid-column: 1 / -1;
-  min-width: 0;
+.content-columns {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  min-height: 32px;
+  background: var(--app-surface-muted, #f7f9fa);
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.product-cell strong,
-.product-cell span,
-.product-cell small {
-  display: block;
+.content-columns span:not(:first-child) { text-align: right; }
+.content-columns span:nth-child(2) { text-align: center; }
+
+.content-row {
+  min-height: 66px;
+  border-bottom: 1px solid var(--app-border);
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.content-row:last-child { border-bottom: 0; }
+.product-cell { min-width: 0; }
+
+.product-heading {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.product-cell strong {
-  color: #0f172a;
-  font-size: 14px;
+.product-link {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-decoration: none;
 }
 
-.product-cell span,
-.product-cell small {
-  margin-top: 3px;
-  color: #64748b;
-  font-size: 12px;
-}
+a.product-link:hover { color: var(--app-primary); text-decoration: underline; }
 
-.amount-cell span,
-.details-table-head span {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.amount-cell strong,
-.detail-row strong {
-  display: block;
+.product-meta {
+  display: -webkit-box;
   overflow: hidden;
-  margin-top: 4px;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: normal;
-  word-break: break-word;
-}
-
-.row-details,
-.row-comment {
-  grid-column: 1 / -1;
-}
-
-.row-comment {
-  border-top: 1px solid #e2e8f0;
-  padding-top: 10px;
+  margin-top: 3px;
   color: #475569;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.row-details {
-  --el-collapse-border-color: transparent;
-  --el-collapse-header-height: 32px;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 4px;
+.content-value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.row-details :deep(.el-collapse-item__header) {
-  color: #334155;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.row-details :deep(.el-collapse-item__content) {
-  padding-bottom: 0;
-}
-
-.details-table {
-  display: grid;
-  gap: 6px;
-}
-
-.details-table-head,
-.detail-row {
-  display: grid;
-  grid-template-columns: minmax(150px, 1.1fr) minmax(76px, 0.55fr) minmax(150px, 1fr) minmax(86px, 0.65fr);
-  gap: 10px;
-  align-items: start;
-}
-
-.details-table-head {
-  padding: 0 10px;
-}
-
-.details-table-head span {
-  cursor: help;
-}
-
-.detail-row {
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 9px 10px;
-}
-
-.detail-row strong {
-  margin-top: 0;
-}
+.content-value--count { text-align: center; }
+.content-value--total { font-weight: 700; }
 
 .sale-details-empty {
   display: flex;
-  min-height: 360px;
+  flex: 1;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
-  border: 1px dashed #cfd8e5;
-  border-radius: 8px;
-  background: #fbfcfe;
-  padding: 28px;
+  padding: 24px;
   text-align: center;
 }
 
-.sale-details-empty h2 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 18px;
-  font-weight: 750;
-}
-
-.sale-details-empty p {
-  margin: 8px auto 0;
-  max-width: 320px;
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-@media (max-width: 760px) {
-  .sale-details {
-    height: auto;
-    min-height: 420px;
-    padding: 14px;
-  }
-
-  .details-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .content-row,
-  .details-table-head,
-  .detail-row {
-    grid-template-columns: 1fr;
-  }
-
-  .details-table-head {
-    display: none;
-  }
-
-  .detail-row strong::before {
-    display: block;
-    margin-bottom: 2px;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 650;
-  }
-
-  .detail-row strong::before {
-    content: attr(data-label);
-  }
-}
+.sale-details-empty h2 { margin: 0; color: var(--app-text); font-size: 16px; }
+.sale-details-empty p { margin: 7px 0 0; color: var(--app-text-muted); font-size: 13px; }
 </style>

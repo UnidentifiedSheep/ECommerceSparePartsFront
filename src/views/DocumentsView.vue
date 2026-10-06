@@ -1,11 +1,16 @@
 <template>
   <div class="documents-page">
     <PageHeader :title="t('documents.title')" :description="t('documents.description')">
-      <template #actions><el-button plain :loading="loading" @click="loadDefinitions()">{{ t('common.actions.refresh') }}</el-button></template>
+      <template #actions><el-button v-if="activeTab === 'create'" plain :loading="loading" @click="loadDefinitions()">{{ t('common.actions.refresh') }}</el-button></template>
     </PageHeader>
 
-    <el-alert v-if="loadError" type="error" :title="loadError" show-icon :closable="false" class="documents-alert" />
-    <div v-loading="loading" class="documents-layout">
+    <div class="documents-tabs" role="tablist" :aria-label="t('documents.title')">
+      <button type="button" role="tab" :aria-selected="activeTab === 'create'" :class="{ 'documents-tabs__active': activeTab === 'create' }" @click="activeTab = 'create'">{{ t('documents.createTab') }}</button>
+      <button type="button" role="tab" :aria-selected="activeTab === 'history'" :class="{ 'documents-tabs__active': activeTab === 'history' }" @click="activeTab = 'history'">{{ t('documents.history') }}</button>
+    </div>
+
+    <el-alert v-if="loadError && activeTab === 'create'" type="error" :title="loadError" show-icon :closable="false" class="documents-alert" />
+    <div v-if="activeTab === 'create'" v-loading="loading" class="documents-layout">
       <section class="documents-list" :aria-label="t('documents.available')">
         <div class="documents-section-title">{{ t('documents.available') }}</div>
         <div class="documents-list__items">
@@ -41,18 +46,21 @@
                   </el-select>
                 </el-form-item>
                 <DynamicSchemaForm
+                  v-if="formFields.length"
                   :fields="formFields"
                   :model-value="fieldValues"
                   :empty-text="t('documents.noFields')"
-                  :is-supported-selector="isSaleSelector"
-                  :is-selector-loading="() => salesLoading"
-                  :selector-options="() => saleOptions"
-                  :selector-option-value="(_field, sale) => sale.id"
-                  :selector-option-label="(_field, sale) => saleLabel(sale)"
-                  :search-selector-options="(_field, query) => searchSales(query)"
-                  :load-selector-options-on-open="(_field, open) => { if (open && !saleOptions.length) searchSales('') }"
                   @update-field="(name, value) => fieldValues[name] = value"
                 />
+                <el-form-item v-if="saleField" :required="saleField.required">
+                  <template #label>
+                    {{ saleField.label || saleField.name }}
+                    <el-tooltip v-if="saleField.description" :content="saleField.description" placement="top">
+                      <el-icon class="documents-field-help"><InfoFilled /></el-icon>
+                    </el-tooltip>
+                  </template>
+                  <SaleSelector :model-value="fieldValues[saleField.name] as string | null" @update:model-value="fieldValues[saleField.name] = $event" />
+                </el-form-item>
               </div>
             </div>
             <div class="documents-form__actions">
@@ -63,6 +71,7 @@
         <el-empty v-else :description="t('documents.choose')" />
       </section>
     </div>
+    <DocumentRequestsPanel v-else :definitions="definitions" :new-request="latestRequest" />
   </div>
 </template>
 
@@ -70,28 +79,27 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
+import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import DynamicSchemaForm from '@/components/schema/DynamicSchemaForm.vue'
+import DocumentRequestsPanel from '@/components/documents/DocumentRequestsPanel.vue'
+import SaleSelector from '@/components/selectors/SaleSelector.vue'
 import type { FieldValue } from '@/components/schema/DynamicSchemaForm.vue'
 import type { SchemaUiField, SchemaInputControl, SchemaValueType } from '@/models/schemaModel.ts'
-import { getSales, getSale } from '@/services/api/sales.ts'
-import type { SaleModel } from '@/models/saleModel.ts'
-import { createDocumentGenerationRequest, getAvailableDocuments, type DocumentDefinition } from '@/services/graphql/documents.ts'
+import { createDocumentGenerationRequest, getAvailableDocuments, type DocumentDefinition, type DocumentRequest } from '@/services/graphql/documents.ts'
 import { getAcceptLanguage, useI18n } from '@/i18n'
-import { formatLocalDateTime } from '@/utils/dateTime.ts'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const definitions = ref<DocumentDefinition[]>([])
+const activeTab = ref<'create' | 'history'>('create')
+const latestRequest = ref<DocumentRequest | null>(null)
 const selected = ref<DocumentDefinition | null>(null)
 const documentType = ref<string>('')
 const fieldValues = reactive<Record<string, FieldValue>>({})
-const saleOptions = ref<SaleModel[]>([])
-const salesLoading = ref(false)
 const loading = ref(false)
 const generating = ref(false)
 const loadError = ref('')
-let saleSearchVersion = 0
 
 const controlMap: Record<string, SchemaInputControl> = {
   UPLOAD_FILE: 'UploadFile', TEXT_FIELD: 'TextField', DATE_PICKER: 'DatePicker',
@@ -108,7 +116,8 @@ const unsupportedFields = computed(() => schemaFields.value
     || ((field.control === 'ENTITY_SELECTOR' || field.control === 'ENUM_SELECTOR' || field.control === 'NAMED_OBJECT_SELECTOR')
       && !isSaleDependency(field)))
   .map((field) => field.label || field.name))
-const formFields = computed<SchemaUiField[]>(() => schemaFields.value.map((field) => ({
+const saleField = computed(() => schemaFields.value.find(isSaleDependency))
+const formFields = computed<SchemaUiField[]>(() => schemaFields.value.filter((field) => !isSaleDependency(field)).map((field) => ({
   name: field.name,
   type: typeMap[field.type] ?? 'String',
   control: field.control ? controlMap[field.control] ?? null : null,
@@ -126,22 +135,6 @@ const formFields = computed<SchemaUiField[]>(() => schemaFields.value.map((field
 function isSaleDependency(field: { dependency?: { entityName: string; fieldName?: string | null } | null }) {
   return field.dependency?.entityName === 'Sale' && field.dependency.fieldName === 'id'
 }
-function isSaleSelector(field: SchemaUiField) { return isSaleDependency(field) }
-function saleLabel(sale: SaleModel) {
-  return `${formatLocalDateTime(sale.saleDatetime)} · ${sale.organization.name} · ${sale.totalSum} ${sale.currency.currencySign}`
-}
-async function searchSales(query: string) {
-  const version = ++saleSearchVersion
-  salesLoading.value = true
-  try {
-    const result = await getSales({ page: 0, limit: 20, searchTerm: query.trim() || undefined })
-    if (version === saleSearchVersion) saleOptions.value = result.sales
-  } catch (error) {
-    if (version === saleSearchVersion) ElMessage.error(error instanceof Error ? error.message : t('documents.salesError'))
-  } finally {
-    if (version === saleSearchVersion) salesLoading.value = false
-  }
-}
 function selectDefinition(definition: DocumentDefinition) {
   selected.value = definition
   documentType.value = definition.supportedDocumentTypes[0] ?? ''
@@ -149,9 +142,6 @@ function selectDefinition(definition: DocumentDefinition) {
   if (definition.requestSchema.fields.some((field) => isSaleDependency(field)) && typeof route.query.saleId === 'string') {
     const field = definition.requestSchema.fields.find((item) => isSaleDependency(item))!
     fieldValues[field.name] = route.query.saleId
-    void getSale(route.query.saleId).then((result) => {
-      if (!saleOptions.value.some((sale) => sale.id === result.sale.id)) saleOptions.value.unshift(result.sale)
-    }).catch(() => undefined)
   }
 }
 async function loadDefinitions(preserveForm = false) {
@@ -161,6 +151,9 @@ async function loadDefinitions(preserveForm = false) {
     definitions.value = await getAvailableDocuments()
     const current = definitions.value.find((item) => item.systemName === selected.value?.systemName)
       ?? definitions.value.find((item) => item.systemName === route.query.systemName)
+      ?? (typeof route.query.saleId === 'string'
+        ? definitions.value.find((item) => item.requestSchema.fields.some(isSaleDependency))
+        : undefined)
       ?? definitions.value[0]
     if (current) {
       if (preserveForm && current.systemName === selected.value?.systemName) selected.value = current
@@ -187,7 +180,7 @@ async function generate() {
   }
   generating.value = true
   try {
-    await createDocumentGenerationRequest(selected.value.systemName, request)
+    latestRequest.value = await createDocumentGenerationRequest(selected.value.systemName, request)
     ElNotification({
       title: t('common.labels.success'),
       message: t('documents.requestSubmitted'),
@@ -204,6 +197,11 @@ onMounted(() => { void loadDefinitions() })
 <style scoped>
 .documents-page { display: flex; height: calc(100dvh - 56px); min-height: 0; flex-direction: column; overflow: hidden; }
 .documents-page > :deep(.page-header) { flex: 0 0 auto; }
+.documents-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--app-border); background: var(--app-surface); padding: 0 24px; }
+.documents-tabs button { height: 43px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 0 2px; color: var(--app-text-muted); font: inherit; font-size: 14px; cursor: pointer; }
+.documents-tabs button:hover, .documents-tabs button:focus-visible { color: var(--app-text); }
+.documents-tabs button:focus-visible { outline: 2px solid var(--app-primary); outline-offset: -2px; }
+.documents-tabs .documents-tabs__active { border-bottom-color: var(--app-primary); color: var(--app-primary); font-weight: 650; }
 .documents-layout { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(270px, 320px) minmax(0, 1fr); overflow: hidden; margin: 16px 24px 24px; border: 1px solid var(--app-border); border-radius: 8px; background: var(--app-surface); }
 .documents-list { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; border-right: 1px solid var(--app-border); }
 .documents-section-title { padding: 16px 18px; border-bottom: 1px solid var(--app-border); color: var(--el-text-color-secondary); font-size: 13px; font-weight: 650; }
@@ -223,11 +221,13 @@ onMounted(() => { void loadDefinitions() })
 .documents-form__fields { min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 22px 24px; }
 .documents-form__fields-inner { max-width: 760px; }
 .documents-field { width: 100%; }
+.documents-field-help { margin-left: 4px; color: var(--el-text-color-secondary); vertical-align: middle; }
 .documents-form__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--app-border); background: var(--app-surface); padding: 12px 24px; }
 .documents-alert { margin: 16px 24px 0; }
 .documents-form__fields .documents-alert { margin: 0 0 16px; }
 @media (max-width: 760px) {
   .documents-page { height: auto; min-height: calc(100dvh - 56px); overflow: visible; }
+  .documents-tabs { padding: 0 16px; }
   .documents-layout { display: flex; min-height: 0; flex-direction: column; overflow: visible; margin: 14px 16px 18px; }
   .documents-list { min-height: 0; border-right: 0; border-bottom: 1px solid var(--app-border); }
   .documents-list__items { max-height: 250px; }

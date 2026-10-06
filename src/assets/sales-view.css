@@ -132,7 +132,7 @@
 .sales-workspace {
   display: grid;
   min-height: 0;
-  grid-template-columns: minmax(780px, 1fr) minmax(340px, 0.55fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(400px, 1fr);
   gap: 16px;
   overflow: hidden;
 }
@@ -140,9 +140,16 @@
 .sales-list-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   padding: 14px 16px 0;
+}
+
+.sales-table-region {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panel-footer {
@@ -155,6 +162,7 @@
 }
 
 .sale-details-panel {
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -209,23 +217,10 @@
   background: #f8fafc !important;
 }
 
-.sale-actions {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-  justify-content: flex-end;
-  white-space: nowrap;
-}
-
-.sale-actions :deep(.el-button) {
-  width: 28px;
-  margin-left: 0;
-  padding-right: 0;
-  padding-left: 0;
-}
+.sales-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 
 :deep(.el-table__body tr.current-row > td) {
-  background: #edf5ff !important;
+  background: var(--app-primary-soft) !important;
 }
 
 .sale-state {
@@ -275,7 +270,7 @@
   padding: 0;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1280px) {
   .sales-page {
     height: auto;
     min-height: calc(100dvh - 56px);
@@ -287,9 +282,15 @@
     overflow: visible;
   }
 
+  .sales-content {
+    display: flex;
+    flex-direction: column;
+  }
+
   .sales-list-panel,
   .sale-details-panel {
-    min-height: 560px;
+    height: clamp(360px, 62dvh, 620px);
+    min-height: 0;
   }
 }
 
@@ -322,7 +323,7 @@
   }
 
   .sales-list-panel {
-    min-height: 620px;
+    height: clamp(340px, 62dvh, 540px);
   }
 
   .drawer-body {

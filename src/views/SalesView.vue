@@ -162,6 +162,7 @@
             </div>
           </div>
 
+          <div class="sales-table-region">
           <el-table
             ref="salesTableRef"
             v-loading="salesLoading"
@@ -204,30 +205,23 @@
                 <span class="sale-amount">{{ formatCurrency(row.totalSum, row.currency.currencySign) }}</span>
               </template>
             </el-table-column>
-            <el-table-column v-if="canEditSales || canDeleteSales" :label="t('common.labels.actions')" width="88" align="right">
+            <el-table-column v-if="canGenerateDocuments || canEditSales || canDeleteSales" width="64" align="center">
+              <template #header><span class="sales-visually-hidden">{{ t('common.labels.actions') }}</span></template>
               <template #default="{ row }">
-                <div class="sale-actions">
-                  <ActionIconButton
-                    v-if="canEditSales"
-                    :label="t('common.actions.edit')"
-                    :icon="Edit"
-                    :disabled="row.state === 'Deleted'"
-                    :loading="editingSaleId === row.id"
-                    @click.stop="openEditSale(row)"
-                  />
-                  <ActionIconButton
-                    v-if="canDeleteSales"
-                    :label="t('common.actions.delete')"
-                    :icon="Delete"
-                    tone="danger"
-                    :disabled="row.state === 'Deleted'"
-                    :loading="deletingSaleId === row.id"
-                    @click.stop="removeSale(row)"
-                  />
-                </div>
+                <SaleActionsMenu
+                  :sale-id="row.id"
+                  :can-print="canGenerateDocuments"
+                  :can-edit="canEditSales"
+                  :can-delete="canDeleteSales"
+                  :deleted="row.state === 'Deleted'"
+                  :busy="editingSaleId === row.id || deletingSaleId === row.id"
+                  @edit="openEditSale(row)"
+                  @delete="removeSale(row)"
+                />
               </template>
             </el-table-column>
           </el-table>
+          </div>
 
           <div class="panel-footer">
             <ZeroPagination v-model:page="page" v-model:size="limit" :has-next="hasNext" />
@@ -267,17 +261,16 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Edit } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
 import CreateSaleDialog from '@/components/sales/CreateSaleDialog.vue'
 import EditSaleDialog from '@/components/sales/EditSaleDialog.vue'
 import SaleDetails from '@/components/sales/SaleDetails.vue'
+import SaleActionsMenu from '@/components/sales/SaleActionsMenu.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
-import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
@@ -294,6 +287,7 @@ import { useI18n } from '@/i18n'
 const { locale, t } = useI18n()
 const route = useRoute()
 const { hasPermission } = usePermissions()
+const canGenerateDocuments = computed(() => hasPermission('DOCUMENTS_ME', 'DOCUMENTS_ALL'))
 const canCreateSales = computed(() => hasPermission('SALES_CREATE'))
 const canEditSales = computed(() => hasPermission('SALES_EDIT'))
 const canDeleteSales = computed(() => hasPermission('SALES_DELETE'))
@@ -324,6 +318,7 @@ const deletingSaleId = ref<string>()
 const editingSaleId = ref<string>()
 const saleToEdit = ref<SaleModel>()
 const saleContentToEdit = ref<SaleContentModel[]>([])
+let contentRequestVersion = 0
 
 const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(() => [
   { label: t('sales.states.Draft'), value: 'Draft' },
@@ -455,7 +450,9 @@ async function loadSales(resetPage: boolean) {
       const nextSelectedSale = resp.sales.find((sale) => sale.id === selectedSale.value?.id)
       selectedSale.value = nextSelectedSale
       if (!nextSelectedSale) {
+        ++contentRequestVersion
         saleContent.value = []
+        contentLoading.value = false
       }
     }
   } catch (error) {
@@ -484,8 +481,10 @@ async function removeSale(sale: SaleModel) {
     ElMessage.success(t('sales.deleted'))
 
     if (selectedSale.value?.id === sale.id) {
+      ++contentRequestVersion
       selectedSale.value = undefined
       saleContent.value = []
+      contentLoading.value = false
     }
 
     await loadSales(false)
@@ -541,6 +540,7 @@ async function handleCurrentSaleChange(sale?: SaleModel) {
 }
 
 async function selectSale(sale?: SaleModel) {
+  const requestVersion = ++contentRequestVersion
   selectedSale.value = sale
   isSettingCurrentSale.value = true
   try {
@@ -552,18 +552,22 @@ async function selectSale(sale?: SaleModel) {
 
   if (!sale) {
     saleContent.value = []
+    contentLoading.value = false
     return
   }
 
   contentLoading.value = true
+  saleContent.value = []
   try {
     const resp = await getSaleContent(sale.id)
-    saleContent.value = resp.contents
+    if (requestVersion === contentRequestVersion) saleContent.value = resp.contents
   } catch (error) {
-    saleContent.value = []
-    ElMessage.error(error instanceof Error ? error.message : t('sales.loadContentError'))
+    if (requestVersion === contentRequestVersion) {
+      saleContent.value = []
+      ElMessage.error(error instanceof Error ? error.message : t('sales.loadContentError'))
+    }
   } finally {
-    contentLoading.value = false
+    if (requestVersion === contentRequestVersion) contentLoading.value = false
   }
 }
 
