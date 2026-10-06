@@ -134,6 +134,7 @@ const messages: Record<AppLocale, MessageTree> = {
       control: 'Контроль',
       analytics: 'Метрики',
       jobs: 'Задачи',
+      documents: 'Документы',
     },
     headerSearch: {
       recent: 'Недавние запросы',
@@ -1742,6 +1743,21 @@ const messages: Record<AppLocale, MessageTree> = {
       yes: 'Да',
       no: 'Нет',
     },
+    documents: {
+      title: 'Документы', description: 'Создание документов по доступным шаблонам.',
+      available: 'Доступные документы', empty: 'Доступных документов нет', form: 'Параметры документа',
+      choose: 'Выберите документ слева', format: 'Формат', selectFormat: 'Выберите формат',
+      noFields: 'Дополнительных параметров нет', generate: 'Создать документ',
+      unsupportedFields: 'Эти поля пока не поддерживаются: {fields}',
+      requiredField: 'Заполните поле «{field}»', loadError: 'Не удалось загрузить документы',
+      salesError: 'Не удалось найти продажи', generateError: 'Не удалось создать документ',
+      requestSubmitted: 'Запрос на создание документа отправлен.',
+      preparingTitle: 'Открытие документа', preparingDescription: 'Получаем ссылку на документ.',
+      waiting: 'Получаем ссылку', notReady: 'Документ ещё создаётся', linkError: 'Не удалось открыть документ',
+      linkHint: 'Если документ ещё не готов, попробуйте открыть его позже.',
+      retry: 'Проверить снова', backToDocuments: 'К документам', invalidRequestId: 'Некорректный номер заявки',
+      invalidLink: 'Сервис вернул некорректную ссылку',
+    },
     jobs: {
       title: 'Задачи',
       description: 'Запуск фоновых задач сервисов и подготовка входных данных.',
@@ -1999,6 +2015,7 @@ const messages: Record<AppLocale, MessageTree> = {
       control: 'Control',
       analytics: 'Metrics',
       jobs: 'Jobs',
+      documents: 'Documents',
     },
     headerSearch: {
       recent: 'Recent searches',
@@ -3607,6 +3624,21 @@ const messages: Record<AppLocale, MessageTree> = {
       yes: 'Yes',
       no: 'No',
     },
+    documents: {
+      title: 'Documents', description: 'Generate documents from available templates.',
+      available: 'Available documents', empty: 'No documents available', form: 'Document parameters',
+      choose: 'Select a document on the left', format: 'Format', selectFormat: 'Select format',
+      noFields: 'No additional parameters', generate: 'Generate document',
+      unsupportedFields: 'These fields are not supported yet: {fields}',
+      requiredField: 'Fill in “{field}”', loadError: 'Could not load documents',
+      salesError: 'Could not find sales', generateError: 'Could not generate document',
+      requestSubmitted: 'Document generation request sent.',
+      preparingTitle: 'Opening document', preparingDescription: 'Getting a link to the document.',
+      waiting: 'Getting link', notReady: 'Document is still being generated', linkError: 'Could not open document',
+      linkHint: 'If the document is not ready yet, try opening it later.',
+      retry: 'Check again', backToDocuments: 'Back to documents', invalidRequestId: 'Invalid request ID',
+      invalidLink: 'The service returned an invalid link',
+    },
     jobs: {
       title: 'Jobs',
       description: 'Run service background jobs and prepare input data.',
@@ -3864,6 +3896,7 @@ const messages: Record<AppLocale, MessageTree> = {
       control: 'Kontrol',
       analytics: 'Metrikler',
       jobs: 'Görevler',
+      documents: 'Belgeler',
     },
     headerSearch: {
       recent: 'Son aramalar',
@@ -5472,6 +5505,21 @@ const messages: Record<AppLocale, MessageTree> = {
       yes: 'Evet',
       no: 'Hayır',
     },
+    documents: {
+      title: 'Belgeler', description: 'Mevcut şablonlardan belge oluşturun.',
+      available: 'Mevcut belgeler', empty: 'Belge bulunamadı', form: 'Belge parametreleri',
+      choose: 'Soldan bir belge seçin', format: 'Biçim', selectFormat: 'Biçim seçin',
+      noFields: 'Ek parametre yok', generate: 'Belge oluştur',
+      unsupportedFields: 'Bu alanlar henüz desteklenmiyor: {fields}',
+      requiredField: '“{field}” alanını doldurun', loadError: 'Belgeler yüklenemedi',
+      salesError: 'Satışlar bulunamadı', generateError: 'Belge oluşturulamadı',
+      requestSubmitted: 'Belge oluşturma isteği gönderildi.',
+      preparingTitle: 'Belge açılıyor', preparingDescription: 'Belge bağlantısı alınıyor.',
+      waiting: 'Bağlantı alınıyor', notReady: 'Belge hâlâ oluşturuluyor', linkError: 'Belge açılamadı',
+      linkHint: 'Belge henüz hazır değilse daha sonra tekrar açmayı deneyin.',
+      retry: 'Tekrar kontrol et', backToDocuments: 'Belgelere dön', invalidRequestId: 'Geçersiz istek kimliği',
+      invalidLink: 'Servis geçersiz bir bağlantı döndürdü',
+    },
     jobs: {
       title: 'Görevler',
       description: 'Servis arka plan görevlerini çalıştırın ve giriş verilerini hazırlayın.',
@@ -5611,8 +5659,11 @@ function detectInitialLocale(): AppLocale {
   const saved = localStorage.getItem(storageKey)
   if (saved && supportedLocales.includes(saved as AppLocale)) return saved as AppLocale
 
-  const browserLocale = navigator.language.split('-')[0]
-  if (supportedLocales.includes(browserLocale as AppLocale)) return browserLocale as AppLocale
+  const browserLanguage = navigator.language.toLowerCase()
+  const browserLocale = supportedLocales.find((locale) => (
+    browserLanguage === locale || browserLanguage.startsWith(`${locale}-`)
+  ))
+  if (browserLocale) return browserLocale
 
   return 'ru'
 }
@@ -5650,6 +5701,15 @@ export function setLocale(localeValue: AppLocale) {
 
 export function getCurrentLocale(): AppLocale {
   return currentLocale.value
+}
+
+export function getAcceptLanguage(): string {
+  const languageTags: Record<AppLocale, string> = {
+    ru: 'ru-RU',
+    en: 'en-US',
+    tr: 'tr-TR',
+  }
+  return languageTags[currentLocale.value]
 }
 
 export function useI18n() {

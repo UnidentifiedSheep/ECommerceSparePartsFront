@@ -22,7 +22,7 @@
           {{ store.loading ? t('notifications.loading') : t('notifications.empty') }}
         </p>
         <article v-for="item in store.items" :key="item.id" :data-notification-id="item.id" class="notification-item" :class="{ 'notification-item--unread': !item.seenAt }">
-          <p>{{ item.text }}</p>
+          <NotificationText :text="item.text" />
           <div class="notification-item__footer">
             <time :datetime="item.createdAt">{{ formatDate(item.createdAt) }}</time>
             <el-button v-if="!item.seenAt" text size="small" :icon="Check" :loading="store.seeingIds.includes(item.id)" @click="markSeen(item.id)">
@@ -49,6 +49,7 @@ import { ElMessage } from 'element-plus'
 import { useNotificationStore } from '@/stores/notificationStore.ts'
 import { useI18n } from '@/i18n'
 import { useNotificationAutoRead } from './useNotificationAutoRead.ts'
+import NotificationText from './NotificationText.vue'
 
 const store = useNotificationStore()
 const router = useRouter()
@@ -102,7 +103,6 @@ watch(open, (visible) => { if (visible) void store.load() })
 .notification-menu__empty { padding: 24px 8px; text-align: center; color: var(--el-text-color-secondary); }
 .notification-item { padding: 12px 8px; border-bottom: 1px solid var(--app-border); }
 .notification-item--unread { border-left: 2px solid var(--el-color-primary); background: var(--el-color-primary-light-9); }
-.notification-item p { margin: 0 0 8px; color: var(--el-text-color-primary); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
 .notification-item__footer { color: var(--el-text-color-secondary); font-size: 12px; }
 .notification-item__footer .el-button { padding: 4px; height: auto; }
 .notification-menu__footer { padding-top: 8px; color: var(--el-text-color-secondary); font-size: 12px; }

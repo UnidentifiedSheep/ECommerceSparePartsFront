@@ -219,7 +219,7 @@ function isSelectorControl(field: DynamicSchemaField) {
 
 function isRemoteSelector(field: DynamicSchemaField) {
   const entityName = field.dependency?.entityName ?? field.dependsOnEntity
-  return entityName === 'Product' || entityName === 'Storage'
+  return entityName === 'Product' || entityName === 'Storage' || entityName === 'Sale'
 }
 
 function isNumberField(field: DynamicSchemaField) {

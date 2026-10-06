@@ -60,7 +60,7 @@ const form = reactive<{
   height?: number
   unit: DimensionUnit
 }>({
-  unit: 2,
+  unit: 'Meter',
 })
 const isSaving = ref(false)
 const isDeleting = ref(false)

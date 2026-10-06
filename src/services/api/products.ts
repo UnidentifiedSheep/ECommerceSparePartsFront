@@ -43,10 +43,10 @@ export interface CreateProductsResponse {
 }
 
 export type ProductLinkageType =
-  | 0
-  | 1
-  | 2
-  | 3
+  | 'SingleCross'
+  | 'FullCross'
+  | 'FullLeftToRightCross'
+  | 'FullRightToLeftCross'
 
 export interface ProductLinkageRequestItem {
   productId: number
@@ -166,8 +166,8 @@ interface ProductReservationDto extends Omit<ProductReservationModel, 'organizat
   organization: OrganizationDto
 }
 
-export type DimensionUnit = 0 | 1 | 2
-export type WeightUnit = 0 | 1 | 2
+export type DimensionUnit = 'Millimeter' | 'Centimeter' | 'Meter'
+export type WeightUnit = 'Gram' | 'Kilogram' | 'Tonne'
 
 export interface SetProductSizeRequest {
   length: number

@@ -11,15 +11,15 @@ export const dimensionSearchUnitOptions = [
 ] as const
 
 export const dimensionSetUnitOptions: { value: DimensionUnit; label: string }[] = [
-  { value: 0, get label() { return t('products.units.millimeters') } },
-  { value: 1, get label() { return t('products.units.centimeters') } },
-  { value: 2, get label() { return t('products.units.meters') } },
+  { value: 'Millimeter', get label() { return t('products.units.millimeters') } },
+  { value: 'Centimeter', get label() { return t('products.units.centimeters') } },
+  { value: 'Meter', get label() { return t('products.units.meters') } },
 ]
 
 export const weightSetUnitOptions: { value: WeightUnit; label: string }[] = [
-  { value: 0, get label() { return t('products.units.grams') } },
-  { value: 1, get label() { return t('products.units.kilograms') } },
-  { value: 2, get label() { return t('products.units.tonnes') } },
+  { value: 'Gram', get label() { return t('products.units.grams') } },
+  { value: 'Kilogram', get label() { return t('products.units.kilograms') } },
+  { value: 'Tonne', get label() { return t('products.units.tonnes') } },
 ]
 
 export function dimensionUnitLabel(unit: DimensionUnitLike) {
@@ -98,12 +98,12 @@ export function toDimensionUnit(unit: DimensionUnitLike): DimensionUnit {
   switch (unit) {
     case 0:
     case 'Millimeter':
-      return 0
+      return 'Millimeter'
     case 1:
     case 'Centimeter':
-      return 1
+      return 'Centimeter'
     default:
-      return 2
+      return 'Meter'
   }
 }
 
@@ -111,11 +111,11 @@ export function toWeightUnit(unit: WeightUnitLike): WeightUnit {
   switch (unit) {
     case 0:
     case 'Gram':
-      return 0
+      return 'Gram'
     case 2:
     case 'Tonne':
-      return 2
+      return 'Tonne'
     default:
-      return 1
+      return 'Kilogram'
   }
 }

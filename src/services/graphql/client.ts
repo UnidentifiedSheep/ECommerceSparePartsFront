@@ -3,7 +3,7 @@ import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 import { apiBaseUrl } from '@/services/api/api.ts'
 import { useAuthStore } from '@/stores/authStore.ts'
-import { getCurrentLocale } from '@/i18n'
+import { getAcceptLanguage } from '@/i18n'
 import { isGraphqlAuthError, goToLogin, refreshGraphqlSession } from './auth.ts'
 
 export const graphqlUrl = (import.meta.env.VITE_GRAPHQL_API_URL || `${apiBaseUrl}/graphql`).replace(/\/$/, '')
@@ -16,7 +16,7 @@ const authLink = setContext((_, { headers }) => {
     authAccessToken: auth.token,
     headers: {
       ...headers,
-      'Accept-Language': getCurrentLocale(),
+      'Accept-Language': getAcceptLanguage(),
       ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
     },
   }

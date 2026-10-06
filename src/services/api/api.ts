@@ -1,7 +1,7 @@
 import axios, { AxiosHeaders, type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { ApiError, type ErrorResponse } from '@/models/errorModel.ts'
-import { getCurrentLocale } from '@/i18n'
+import { getAcceptLanguage } from '@/i18n'
 
 export interface RefreshRequest {
   refreshToken: string
@@ -33,7 +33,9 @@ function initAuthStore(): ReturnType<typeof useAuthStore> {
 async function refreshAccessToken(req: RefreshRequest): Promise<RefreshResponse> {
   if (!refreshPromise) {
     refreshPromise = axios
-      .post<RefreshResponse>(`${api.defaults.baseURL}/main/auth/refresh`, req)
+      .post<RefreshResponse>(`${api.defaults.baseURL}/main/auth/refresh`, req, {
+        headers: { 'Accept-Language': getAcceptLanguage() },
+      })
       .then((response) => response.data)
       .finally(() => {
         refreshPromise = null
@@ -137,10 +139,7 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config) => {
     const store = initAuthStore()
-    config.headers.set?.('Accept-Language', getCurrentLocale())
-    if (!config.headers.set) {
-      config.headers['Accept-Language'] = getCurrentLocale()
-    }
+    config.headers.set('Accept-Language', getAcceptLanguage())
     if (store.isAuthenticated) {
       config.headers.Authorization = `Bearer ${store.token}`
     }

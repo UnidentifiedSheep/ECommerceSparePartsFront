@@ -1,0 +1,35 @@
+query AvailableDocuments {
+  documents {
+    available {
+      systemName
+      name
+      description
+      documentGroup
+      supportedDocumentTypes
+      requestSchema {
+        version
+        fields {
+          name
+          type
+          control
+          required
+          label
+          labelKey
+          description
+          descriptionKey
+          accepts
+          dependency { entityName fieldName }
+          nestedSchema { version fields { name type control required label description accepts } }
+        }
+      }
+    }
+  }
+}
+
+mutation CreateDocumentGenerationRequest($input: CreateGenerationRequestInput!) {
+  documents { createGenerationRequest(input: $input) }
+}
+
+query DocumentLink($requestId: UUID!) {
+  documents { link(requestId: $requestId) { url expiresAtUtc } }
+}

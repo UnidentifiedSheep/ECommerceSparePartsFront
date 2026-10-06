@@ -1,6 +1,6 @@
 import { HubConnectionBuilder, LogLevel, type HubConnection } from '@microsoft/signalr'
 import { apiBaseUrl } from '@/services/api/api.ts'
-import { getCurrentLocale } from '@/i18n'
+import { getAcceptLanguage } from '@/i18n'
 import { useAuthStore } from '@/stores/authStore.ts'
 
 export interface JobStatusUpdatedEvent {
@@ -43,9 +43,7 @@ export async function startJobHub(
   const connection = new HubConnectionBuilder()
     .withUrl(hubUrl(serviceKey), {
       accessTokenFactory: () => authStore.token ?? '',
-      headers: {
-        'Accept-Language': getCurrentLocale(),
-      },
+      headers: { 'Accept-Language': getAcceptLanguage() },
     })
     .withAutomaticReconnect()
     .configureLogging(LogLevel.Warning)

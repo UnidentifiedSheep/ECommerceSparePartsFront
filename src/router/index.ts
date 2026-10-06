@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AuthView from '@/views/AuthView.vue'
 import CurrenciesView from '@/views/CurrenciesView.vue'
 import JobsView from '@/views/JobsView.vue'
+import DocumentsView from '@/views/DocumentsView.vue'
+import DocumentLinkView from '@/views/DocumentLinkView.vue'
 import MarkupsView from '@/views/MarkupsView.vue'
 import PriceAppliersView from '@/views/PriceAppliersView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
@@ -133,6 +135,18 @@ const routes = [
         path: '/jobs',
         name: 'jobs',
         component: JobsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/documents',
+        name: 'documents',
+        component: DocumentsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/documents/:requestId',
+        name: 'document-link',
+        component: DocumentLinkView,
         meta: { requiresAuth: true },
       },
       {

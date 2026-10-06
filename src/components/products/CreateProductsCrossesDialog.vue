@@ -301,10 +301,10 @@ const canCreateProducts = computed(() => hasPermission('ARTICLES_CREATE'))
 const canCreateCrosses = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
 
 const linkageTypeOptions = computed<{ value: ProductLinkageType; label: string }[]>(() => [
-  { value: 0, label: t('products.crossesWizard.linkageTypes.regular') },
-  { value: 1, label: t('products.crossesWizard.linkageTypes.fullGroup') },
-  { value: 2, label: t('products.crossesWizard.linkageTypes.productCrossesToCross') },
-  { value: 3, label: t('products.crossesWizard.linkageTypes.productToSelectedCrosses') },
+  { value: 'SingleCross', label: t('products.crossesWizard.linkageTypes.regular') },
+  { value: 'FullCross', label: t('products.crossesWizard.linkageTypes.fullGroup') },
+  { value: 'FullLeftToRightCross', label: t('products.crossesWizard.linkageTypes.productCrossesToCross') },
+  { value: 'FullRightToLeftCross', label: t('products.crossesWizard.linkageTypes.productToSelectedCrosses') },
 ])
 
 const filledProductRowsCount = computed(() => validProductRows().length)
@@ -339,7 +339,7 @@ function emptyCrossRow(): CrossRow {
     productLabel: props.initialProductLabel ?? '',
     crossProductId: undefined,
     crossProductLabel: '',
-    linkageType: 0,
+    linkageType: 'SingleCross',
   }
 }
 
@@ -419,7 +419,7 @@ function addCreatedProductsAsCrosses() {
       productLabel: props.initialProductLabel ?? `#${props.initialProductId}`,
       crossProductId: product.id,
       crossProductLabel: productLabel(product),
-      linkageType: 0 as ProductLinkageType,
+      linkageType: 'SingleCross' as const,
     })))
   }
 
@@ -433,7 +433,7 @@ function addCreatedProductsAsCrosses() {
       productLabel: productLabel(base),
       crossProductId: product.id,
       crossProductLabel: productLabel(product),
-      linkageType: 1 as ProductLinkageType,
+      linkageType: 'FullCross' as const,
     })))
   }
 

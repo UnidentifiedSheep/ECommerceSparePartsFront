@@ -40,6 +40,7 @@ Use this skill for frontend work in the `ecom-spareparts` repository.
 - Localize all user-facing text through the project i18n layer; do not hardcode UI strings in views or components.
 - Do not show raw IDs unless they are useful for the workflow.
 - Pagination should be left-aligned.
+- API pagination is zero-based: the first request must send `page: 0`. Keep page state zero-based; add `1` only when displaying a human-readable page number.
 
 ## Localization
 

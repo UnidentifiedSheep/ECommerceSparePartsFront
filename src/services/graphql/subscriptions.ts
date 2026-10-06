@@ -4,7 +4,7 @@ import { createClient, type Client } from 'graphql-ws'
 import { jwtDecode } from 'jwt-decode'
 import type { TypedDocumentNode } from '@graphql-typed-document-node/core'
 import { useAuthStore } from '@/stores/authStore.ts'
-import { getCurrentLocale, t } from '@/i18n'
+import { getAcceptLanguage, t } from '@/i18n'
 import { graphqlUrl } from './client.ts'
 import { getGraphqlErrors, isGraphqlAuthError, goToLogin, refreshGraphqlSession } from './auth.ts'
 
@@ -104,7 +104,7 @@ export function subscribeGraphql<TData, TVariables extends Record<string, unknow
       retryWait: (attempt) => new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** Math.min(attempt, 5), 30000))),
       connectionAckWaitTimeout: 10000,
       keepAlive: 20000,
-      connectionParams: () => ({ authorization: `Bearer ${connectionToken}`, 'Accept-Language': getCurrentLocale() }),
+      connectionParams: () => ({ authorization: `Bearer ${connectionToken}`, 'Accept-Language': getAcceptLanguage() }),
       on: {
         connected: () => {
           if (!current()) return

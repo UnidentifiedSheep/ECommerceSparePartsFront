@@ -50,7 +50,7 @@ const form = reactive<{
   weight?: number
   unit: WeightUnit
 }>({
-  unit: 1,
+  unit: 'Kilogram',
 })
 const isSaving = ref(false)
 const isDeleting = ref(false)

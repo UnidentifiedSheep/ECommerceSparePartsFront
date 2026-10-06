@@ -92,6 +92,7 @@
       </template>
 
       <el-menu-item index="/jobs" @click="openRoute('/jobs')">{{ t('nav.jobs') }}</el-menu-item>
+      <el-menu-item v-if="canViewDocuments" index="/documents" @click="openRoute('/documents')">{{ t('nav.documents') }}</el-menu-item>
     </el-sub-menu>
   </el-menu>
 </template>
@@ -122,6 +123,7 @@ const canManagePriceAppliers = computed(() => hasPermission('PRICE_APPLIERS_MANA
 const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
 const canReviewCatalogueCandidates = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))
 const canViewCharts = computed(() => hasPermission('CHARTS_GET'))
+const canViewDocuments = computed(() => hasPermission('DOCUMENTS_ME', 'DOCUMENTS_ALL'))
 
 const routeRoots = [
   '/purchases',
@@ -141,6 +143,7 @@ const routeRoots = [
   '/price-appliers',
   '/service-settings',
   '/jobs',
+  '/documents',
 ]
 
 const activeMenuIndex = computed(() => route.path === '/'
