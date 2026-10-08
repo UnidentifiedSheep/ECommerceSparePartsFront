@@ -1,14 +1,12 @@
 <template>
   <div class="purchases-page">
-    <div class="purchases-header">
-      <div>
-        <h1>{{ t('purchases.title') }}</h1>
-        <p>{{ t('purchases.description') }}</p>
-      </div>
-      <el-button v-if="canCreatePurchases" type="primary" size="large" @click="createPurchaseDialogOpen = true">
-        {{ t('purchases.create') }}
-      </el-button>
-    </div>
+    <PageHeader :title="t('purchases.title')" :description="t('purchases.description')">
+      <template #actions>
+        <el-button v-if="canCreatePurchases" type="primary" size="large" @click="createPurchaseDialogOpen = true">
+          {{ t('purchases.create') }}
+        </el-button>
+      </template>
+    </PageHeader>
 
     <div class="purchases-content">
       <section class="purchases-toolbar">
@@ -136,12 +134,13 @@
       <div class="purchases-workspace">
         <section class="purchases-list-panel">
           <div class="panel-heading">
-          <div>
+            <div>
               <h2>{{ t('purchases.listTitle') }}</h2>
               <p>{{ t('purchases.onPage', { count: purchases.length }) }}</p>
+            </div>
           </div>
-        </div>
 
+          <div class="purchases-table-region">
               <el-table
                 ref="purchasesTableRef"
                 v-loading="purchasesLoading"
@@ -150,9 +149,9 @@
                 height="100%"
                 highlight-current-row
                 row-class-name="purchase-table-row"
-                @current-change="selectPurchase"
+                @current-change="handleCurrentPurchaseChange"
               >
-                <el-table-column :label="t('purchases.supplier')" min-width="180">
+                <el-table-column :label="t('purchases.supplier')" min-width="140">
                   <template #default="{ row }">
                     <div class="document-party-cell">
                       <OrganizationPartyHoverCard
@@ -167,46 +166,40 @@
                     </div>
                   </template>
                 </el-table-column>
-                <el-table-column prop="storageCode" :label="t('common.labels.storage')" min-width="150" />
-                <el-table-column prop="dateTime" min-width="170">
+                <el-table-column prop="storageCode" :label="t('common.labels.storage')" min-width="100" show-overflow-tooltip />
+                <el-table-column prop="dateTime" min-width="132">
                   <template #header><SortableColumnHeader :label="t('common.labels.date')" field="dateTime" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
                   <template #default="{ row }">
                     {{ formatDate(row.purchaseDatetime) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="totalSum" min-width="140">
+                <el-table-column prop="totalSum" width="106" align="right">
                   <template #header><SortableColumnHeader :label="t('purchases.amount')" field="totalSum" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
                   <template #default="{ row }">
-                    {{ formatCurrency(row.totalSum, row.currency.currencySign) }}
+                    <span class="purchase-amount">{{ formatCurrency(row.totalSum, row.currency.currencySign) }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column
                   v-if="canEditPurchases || canDeletePurchases"
                   fixed="right"
-                  :label="t('common.labels.actions')"
-                  width="92"
-                  align="right"
+                  width="64"
+                  align="center"
                 >
+                  <template #header><span class="purchases-visually-hidden">{{ t('common.labels.actions') }}</span></template>
                   <template #default="{ row }">
-                    <div class="purchase-actions">
-                    <ActionIconButton
-                      v-if="canEditPurchases"
-                      :label="t('common.actions.edit')"
-                      :icon="Edit"
-                      :loading="editPurchaseLoadingId === row.id"
-                      @click.stop="openEditPurchase(row)"
-                    />
-                    <ActionIconButton
-                      v-if="canDeletePurchases"
-                      :label="t('common.actions.delete')"
-                      :icon="Delete"
-                      tone="danger"
-                      @click.stop="removePurchase(row.id)"
-                    />
+                    <div @click.stop>
+                      <PurchaseActionsMenu
+                        :can-edit="canEditPurchases"
+                        :can-delete="canDeletePurchases"
+                        :busy="editPurchaseLoadingId === row.id || deletingPurchaseId === row.id"
+                        @edit="openEditPurchase(row)"
+                        @delete="removePurchase(row)"
+                      />
                     </div>
                   </template>
                 </el-table-column>
               </el-table>
+          </div>
 
           <div class="panel-footer">
             <ZeroPagination v-model:page="page" v-model:size="limit" :has-next="hasNext" />
@@ -246,17 +239,17 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
-import { Delete, Edit } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
-import { ElNotification } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import CreatePurchaseDialog from '@/components/purchases/CreatePurchaseDialog.vue'
 import EditPurchaseDialog from '@/components/purchases/EditPurchaseDialog.vue'
 import PurchaseDetails from '@/components/purchases/PurchaseDetails.vue'
+import PurchaseActionsMenu from '@/components/purchases/PurchaseActionsMenu.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
-import ActionIconButton from '@/components/common/ActionIconButton.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
@@ -291,11 +284,14 @@ const limit = ref(20)
 const hasNext = ref(false)
 const purchasesLoading = ref(false)
 const contentLoading = ref(false)
+const isSettingCurrentPurchase = ref(false)
 const createPurchaseDialogOpen = ref(false)
 const editPurchaseDialogOpen = ref(false)
 const editPurchaseLoadingId = ref<string>()
+const deletingPurchaseId = ref<string>()
 const productSelectorOpen = ref(false)
 const filtersDrawerOpen = ref(false)
+let contentRequestVersion = 0
 const { hasPermission } = usePermissions()
 const canCreatePurchases = computed(() => hasPermission('PURCHASE_CREATE'))
 const canEditPurchases = computed(() => hasPermission('PURCHASE_EDIT'))
@@ -413,30 +409,54 @@ async function loadPurchases(resetPage: boolean) {
       const nextSelectedPurchase = resp.purchases.find((purchase) => purchase.id === selectedPurchase.value?.id)
       selectedPurchase.value = nextSelectedPurchase
       if (!nextSelectedPurchase) {
+        ++contentRequestVersion
         purchaseContent.value = []
+        contentLoading.value = false
       }
     }
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('purchases.loadError'))
   } finally {
     purchasesLoading.value = false
   }
 }
 
-async function selectPurchase(purchase?: PurchaseModel) {
+async function handleCurrentPurchaseChange(purchase?: PurchaseModel) {
+  if (isSettingCurrentPurchase.value) return
+  await selectPurchase(purchase)
+}
+
+async function selectPurchase(purchase?: PurchaseModel): Promise<boolean> {
+  const requestVersion = ++contentRequestVersion
   selectedPurchase.value = purchase
-  await nextTick()
-  purchasesTableRef.value?.setCurrentRow(purchase)
+  isSettingCurrentPurchase.value = true
+  try {
+    await nextTick()
+    purchasesTableRef.value?.setCurrentRow(purchase)
+  } finally {
+    isSettingCurrentPurchase.value = false
+  }
 
   if (!purchase) {
     purchaseContent.value = []
-    return
+    contentLoading.value = false
+    return true
   }
 
   contentLoading.value = true
+  purchaseContent.value = []
   try {
     const resp = await getPurchaseContent(purchase.id)
-    purchaseContent.value = resp.content
+    if (requestVersion === contentRequestVersion) purchaseContent.value = resp.content
+    return requestVersion === contentRequestVersion
+  } catch (error) {
+    if (requestVersion === contentRequestVersion) {
+      purchaseContent.value = []
+      ElMessage.error(error instanceof Error ? error.message : t('purchases.loadContentError'))
+    }
+    return false
   } finally {
-    contentLoading.value = false
+    if (requestVersion === contentRequestVersion) contentLoading.value = false
   }
 }
 
@@ -445,8 +465,7 @@ async function openEditPurchase(purchase: PurchaseModel) {
 
   editPurchaseLoadingId.value = purchase.id
   try {
-    await selectPurchase(purchase)
-    editPurchaseDialogOpen.value = true
+    if (await selectPurchase(purchase)) editPurchaseDialogOpen.value = true
   } finally {
     editPurchaseLoadingId.value = undefined
   }
@@ -462,29 +481,49 @@ async function selectPurchaseFromRoute() {
     return
   }
 
-  const response = await getPurchase(purchaseId)
-  purchases.value = [
-    response.purchase,
-    ...purchases.value.filter((purchase) => purchase.id !== response.purchase.id),
-  ]
-  await selectPurchase(response.purchase)
+  try {
+    const response = await getPurchase(purchaseId)
+    purchases.value = [
+      response.purchase,
+      ...purchases.value.filter((purchase) => purchase.id !== response.purchase.id),
+    ]
+    await selectPurchase(response.purchase)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('purchases.loadError'))
+  }
 }
 
-async function removePurchase(id: string) {
-  await deletePurchase(id)
+async function removePurchase(purchase: PurchaseModel) {
+  if (deletingPurchaseId.value) return
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('purchases.removed'),
-    type: 'success',
-  })
-
-  if (selectedPurchase.value?.id === id) {
-    selectedPurchase.value = undefined
-    purchaseContent.value = []
+  try {
+    await ElMessageBox.confirm(t('purchases.deleteConfirm'), t('purchases.deleteTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
+      type: 'warning',
+    })
+  } catch {
+    return
   }
 
-  await loadPurchases(false)
+  deletingPurchaseId.value = purchase.id
+  try {
+    await deletePurchase(purchase.id)
+    ElMessage.success(t('purchases.removed'))
+
+    if (selectedPurchase.value?.id === purchase.id) {
+      ++contentRequestVersion
+      selectedPurchase.value = undefined
+      purchaseContent.value = []
+      contentLoading.value = false
+    }
+
+    await loadPurchases(false)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('purchases.deleteError'))
+  } finally {
+    deletingPurchaseId.value = undefined
+  }
 }
 
 async function onPurchaseCreated(purchase: PurchaseModel) {
@@ -496,16 +535,19 @@ async function onPurchaseCreated(purchase: PurchaseModel) {
 }
 
 async function onPurchaseUpdated(purchaseId: string) {
-  await loadPurchases(false)
-
-  const updatedPurchase = purchases.value.find((item) => item.id === purchaseId)
-  if (updatedPurchase) {
-    await selectPurchase(updatedPurchase)
-    return
+  try {
+    const response = await getPurchase(purchaseId)
+    const index = purchases.value.findIndex((item) => item.id === response.purchase.id)
+    if (index >= 0) {
+      purchases.value.splice(index, 1, response.purchase)
+    } else {
+      purchases.value = [response.purchase, ...purchases.value]
+    }
+    await selectPurchase(response.purchase)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('purchases.loadError'))
+    await loadPurchases(false)
   }
-
-  selectedPurchase.value = undefined
-  purchaseContent.value = []
 }
 
 watch(limit, async () => loadPurchases(true))

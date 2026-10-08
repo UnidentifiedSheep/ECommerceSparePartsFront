@@ -7,17 +7,6 @@
   background: #f7f7f8;
 }
 
-.purchases-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
-  padding: 18px 20px;
-}
-
-.purchases-header h1,
 .purchases-toolbar h2,
 .panel-heading h2 {
   margin: 0;
@@ -26,11 +15,6 @@
   line-height: 1.2;
 }
 
-.purchases-header h1 {
-  font-size: 26px;
-}
-
-.purchases-header p,
 .purchases-toolbar p,
 .panel-heading p {
   margin: 5px 0 0;
@@ -44,7 +28,7 @@
   flex: 1;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
-  padding: 16px;
+  padding: 16px 18px 18px;
 }
 
 .purchases-toolbar,
@@ -60,7 +44,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
+  padding: 14px 16px;
 }
 
 .toolbar-actions {
@@ -148,34 +132,37 @@
 .purchases-workspace {
   display: grid;
   min-height: 0;
-  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.85fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(400px, 1fr);
   gap: 16px;
   overflow: hidden;
 }
 
 .purchases-list-panel {
   display: grid;
+  min-width: 0;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
-  padding: 16px;
+  padding: 14px 16px 0;
+}
+
+.purchases-table-region {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panel-footer {
   display: flex;
   justify-content: flex-start;
   border-top: 1px solid #e2e8f0;
-  padding-top: 12px;
-}
-
-.purchase-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  margin: 0 -16px;
+  padding: 12px 16px;
+  background: #ffffff;
 }
 
 .purchase-details-panel {
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -196,15 +183,22 @@
   cursor: pointer;
 }
 
+:deep(.purchase-table-row > td) {
+  color: #0f172a;
+}
+
 :deep(.purchase-table-row:hover > td) {
   background: #f8fafc !important;
 }
 
 :deep(.el-table__body tr.current-row > td) {
-  background: #ecfdf5 !important;
+  background: var(--app-primary-soft) !important;
 }
 
-@media (max-width: 1180px) {
+.purchase-amount { color: #0f172a; font-weight: 750; }
+.purchases-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+
+@media (max-width: 1280px) {
   .purchases-page {
     height: auto;
     min-height: calc(100dvh - 56px);
@@ -212,7 +206,8 @@
   }
 
   .purchases-content {
-    display: grid;
+    display: flex;
+    flex-direction: column;
   }
 
   .purchases-workspace {
@@ -220,29 +215,18 @@
     overflow: visible;
   }
 
-  .purchases-list-panel {
-    height: 620px;
-  }
-
+  .purchases-list-panel,
   .purchase-details-panel {
-    min-height: 560px;
+    height: clamp(360px, 62dvh, 620px);
+    min-height: 0;
   }
 }
 
 @media (max-width: 720px) {
-  .purchases-header,
   .purchases-toolbar,
   .panel-heading {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .purchases-header {
-    padding: 16px 14px;
-  }
-
-  .purchases-header h1 {
-    font-size: 22px;
   }
 
   .purchases-content {
@@ -267,7 +251,7 @@
   }
 
   .purchases-list-panel {
-    height: 620px;
+    height: clamp(340px, 62dvh, 540px);
   }
 
   .drawer-body {

@@ -2,8 +2,9 @@
   <div class="purchase-details">
     <template v-if="purchase">
       <header class="details-header">
-        <div>
+        <div class="details-heading">
           <h2>{{ t('purchases.detailsTitle') }}</h2>
+          <span>{{ t('purchases.positions') }}: {{ content.length }}</span>
           <div class="details-party-line">
             <OrganizationPartyHoverCard
               :organization="purchase.supplierOrganization"
@@ -20,111 +21,81 @@
             <span>· {{ formatDate(purchase.purchaseDatetime) }}</span>
           </div>
         </div>
-        <strong>{{ formatCurrency(purchase.totalSum, purchase.currency.currencySign) }}</strong>
+        <strong class="details-total">{{ formatCurrency(purchase.totalSum, purchase.currency.currencySign) }}</strong>
       </header>
 
-      <section v-if="purchase.comment" class="details-comment">
-        {{ purchase.comment }}
-      </section>
+      <div class="details-scroll">
+        <div class="content-columns" aria-hidden="true">
+          <span></span>
+          <span>{{ t('common.labels.count') }}</span>
+          <span>{{ t('common.labels.price') }}</span>
+          <span>{{ t('purchases.amount') }}</span>
+        </div>
 
-      <el-collapse v-if="purchase.logistics" class="logistics-summary">
-        <el-collapse-item name="purchase-logistics">
-          <template #title>
-            <div class="summary-collapse-title">
-              <span>{{ t('purchases.logistics') }}</span>
-              <strong>{{ pricingTypeLabel(purchase.logistics.pricingModel) }}</strong>
-            </div>
-          </template>
-
-          <div class="summary-grid">
-            <div>
-              <span>{{ t('purchases.routeType') }}</span>
-              <strong>{{ routeTypeLabel(purchase.logistics.routeType) }}</strong>
-            </div>
-            <div>
-              <span>{{ t('purchases.pricing') }}</span>
-              <strong>{{ pricingTypeLabel(purchase.logistics.pricingModel) }}</strong>
-            </div>
-            <div>
-              <span>{{ t('purchases.perKg') }}</span>
-              <strong>{{ formatCurrency(purchase.logistics.priceKg, purchase.logistics.currency.currencySign) }}</strong>
-            </div>
-            <div>
-              <span>{{ t('purchases.perM3') }}</span>
-              <strong>{{ formatCurrency(purchase.logistics.pricePerM3, purchase.logistics.currency.currencySign) }}</strong>
-            </div>
-            <div>
-              <span>{{ t('purchases.perOrder') }}</span>
-              <strong>{{ formatCurrency(purchase.logistics.pricePerOrder, purchase.logistics.currency.currencySign) }}</strong>
-            </div>
-            <div>
-              <span>{{ t('purchases.minimumPrice') }}</span>
-              <strong>{{ purchase.logistics.minimumPrice ? formatCurrency(purchase.logistics.minimumPrice, purchase.logistics.currency.currencySign) : t('purchases.notSet') }}</strong>
-            </div>
-          </div>
-          <el-tag v-if="purchase.logistics.minimumPriceApplied" class="mt-3" type="warning" effect="light">
-            {{ t('purchases.minimumPriceApplied') }}
-          </el-tag>
-        </el-collapse-item>
-      </el-collapse>
-
-      <section class="content-section">
-        <div class="content-title">{{ t('purchases.positions') }}</div>
         <div v-loading="loading" class="content-list">
           <article v-for="row in content" :key="row.id" class="content-row">
-            <div class="product-cell">
-              <strong>{{ row.product.name || t('purchases.unnamed') }}</strong>
-              <span>{{ row.product.sku || t('purchases.noSku') }}</span>
-              <small v-if="row.product.producerName">{{ row.product.producerName }}</small>
+            <div class="product-cell" :title="[row.product.sku, row.product.producerName, row.product.name, row.comment].filter(Boolean).join(' · ')">
+              <div class="product-heading">
+                <RouterLink v-if="row.product.id" :to="{ name: 'product-details', params: { id: row.product.id } }" class="product-link">
+                  {{ row.product.sku || row.product.name || t('purchases.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
+                </RouterLink>
+                <strong v-else class="product-link">
+                  {{ row.product.sku || row.product.name || t('purchases.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
+                </strong>
+              </div>
+              <span v-if="row.product.name && row.product.name !== row.product.sku" class="product-meta">{{ row.product.name }}</span>
+              <span v-if="row.comment" class="product-comment">{{ row.comment }}</span>
             </div>
-
-            <div class="amount-cell">
-              <span>{{ t('common.labels.count') }}</span>
-              <strong>{{ row.count.toLocaleString(locale) }}</strong>
-            </div>
-
-            <div class="amount-cell">
-              <span>{{ t('common.labels.price') }}</span>
-              <strong>{{ formatCurrency(row.price, purchase.currency.currencySign) }}</strong>
-            </div>
-
-            <div class="amount-cell">
-              <span>{{ t('purchases.amount') }}</span>
-              <strong>{{ formatCurrency(row.totalSum, purchase.currency.currencySign) }}</strong>
-            </div>
-
-            <div v-if="row.comment" class="row-comment">
-              {{ row.comment }}
-            </div>
+            <span class="content-value content-value--count">{{ row.count.toLocaleString(locale) }}</span>
+            <span class="content-value" :title="formatCurrency(row.price, purchase.currency.currencySign)">{{ formatCurrency(row.price, purchase.currency.currencySign) }}</span>
+            <strong class="content-value content-value--total" :title="formatCurrency(row.totalSum, purchase.currency.currencySign)">{{ formatCurrency(row.totalSum, purchase.currency.currencySign) }}</strong>
 
             <el-collapse v-if="row.logistics" class="row-logistics">
-              <el-collapse-item :title="t('purchases.logistics')" :name="row.id">
-                <div class="logistics-row-grid">
-                  <div>
-                    <span>{{ t('purchases.cost') }}</span>
-                    <strong>{{ formatCurrency(row.logistics.price, purchase.logistics?.currency.currencySign) }}</strong>
-                  </div>
-                  <div>
-                    <span>{{ t('purchases.weight') }}</span>
-                    <strong>{{ row.logistics.weightKg.toLocaleString(locale) }} {{ t('purchases.kg') }}</strong>
-                  </div>
-                  <div>
-                    <span>{{ t('purchases.volume') }}</span>
-                    <strong>{{ row.logistics.areaM3.toLocaleString(locale) }} {{ t('purchases.m3') }}</strong>
-                  </div>
+              <el-collapse-item :name="row.id">
+                <template #title>
+                  <span class="logistics-trigger">{{ t('purchases.logistics') }} · {{ formatCurrency(row.logistics.price, purchase.logistics?.currency.currencySign) }}</span>
+                </template>
+                <div class="logistics-values">
+                  <div><span>{{ t('purchases.cost') }}</span><strong>{{ formatCurrency(row.logistics.price, purchase.logistics?.currency.currencySign) }}</strong></div>
+                  <div><span>{{ t('purchases.weight') }}</span><strong>{{ row.logistics.weightKg.toLocaleString(locale) }} {{ t('purchases.kg') }}</strong></div>
+                  <div><span>{{ t('purchases.volume') }}</span><strong>{{ row.logistics.areaM3.toLocaleString(locale) }} {{ t('purchases.m3') }}</strong></div>
                 </div>
               </el-collapse-item>
             </el-collapse>
           </article>
-
           <el-empty v-if="!loading && content.length === 0" :description="t('purchases.notFound')" />
         </div>
-      </section>
+
+        <section v-if="purchase.comment" class="details-comment">
+          <span>{{ t('common.labels.comment') }}</span>
+          <p>{{ purchase.comment }}</p>
+        </section>
+
+        <el-collapse v-if="purchase.logistics" class="logistics-summary">
+          <el-collapse-item name="purchase-logistics">
+            <template #title>
+              <span class="summary-collapse-title">{{ t('purchases.logistics') }} · {{ pricingTypeLabel(purchase.logistics.pricingModel) }}</span>
+            </template>
+            <div class="logistics-values logistics-values--summary">
+              <div><span>{{ t('purchases.routeType') }}</span><strong>{{ routeTypeLabel(purchase.logistics.routeType) }}</strong></div>
+              <div><span>{{ t('purchases.pricing') }}</span><strong>{{ pricingTypeLabel(purchase.logistics.pricingModel) }}</strong></div>
+              <div><span>{{ t('purchases.perKg') }}</span><strong>{{ formatCurrency(purchase.logistics.priceKg, purchase.logistics.currency.currencySign) }}</strong></div>
+              <div><span>{{ t('purchases.perM3') }}</span><strong>{{ formatCurrency(purchase.logistics.pricePerM3, purchase.logistics.currency.currencySign) }}</strong></div>
+              <div><span>{{ t('purchases.perOrder') }}</span><strong>{{ formatCurrency(purchase.logistics.pricePerOrder, purchase.logistics.currency.currencySign) }}</strong></div>
+              <div><span>{{ t('purchases.minimumPrice') }}</span><strong>{{ purchase.logistics.minimumPrice ? formatCurrency(purchase.logistics.minimumPrice, purchase.logistics.currency.currencySign) : t('purchases.notSet') }}</strong></div>
+            </div>
+            <el-tag v-if="purchase.logistics.minimumPriceApplied" class="minimum-price-tag" type="warning" effect="light">
+              {{ t('purchases.minimumPriceApplied') }}
+            </el-tag>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
     </template>
 
-    <template v-else>
-      <el-empty :description="t('purchases.selectToView')" />
-    </template>
+    <div v-else class="purchase-details-empty">
+      <h2>{{ t('purchases.detailsTitle') }}</h2>
+      <p>{{ t('purchases.selectToView') }}</p>
+    </div>
   </div>
 </template>
 
@@ -162,248 +133,70 @@ function routeTypeLabel(type: RouteType) {
 </script>
 
 <style scoped>
-.purchase-details {
-  height: 100%;
-  min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  padding: 16px;
-}
-
+.purchase-details { display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; }
 .details-header {
   display: flex;
+  flex: none;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 14px;
-}
-
-.details-header h2 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 20px;
-  font-weight: 750;
-}
-
-.details-party-line {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 5px 0 0;
-  color: #64748b;
-  font-size: 13px;
-}
-
-.details-party-line :deep(.organization-party-reference:hover) { color: #047857; }
-
-.details-header strong {
-  color: #002fa7;
-  font-size: 18px;
-  white-space: nowrap;
-}
-
-.details-comment,
-.logistics-summary,
-.content-section {
-  margin-top: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 14px;
-}
-
-.logistics-summary {
-  --el-collapse-border-color: transparent;
-  --el-collapse-header-height: 32px;
-}
-
-.logistics-summary :deep(.el-collapse-item__header) {
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 750;
-}
-
-.logistics-summary :deep(.el-collapse-item__content) {
-  padding-bottom: 0;
-}
-
-.summary-collapse-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  width: 100%;
-  padding-right: 12px;
+  padding: 14px 14px 10px;
 }
-
-.summary-collapse-title strong {
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.details-comment {
-  color: #334155;
-  font-size: 13px;
-}
-
-.summary-title,
-.content-title {
-  margin-bottom: 12px;
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 750;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.summary-grid div {
-  min-width: 0;
-  border-right: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 10px;
-}
-
-.summary-grid div:nth-child(3n) {
-  border-right: 0;
-}
-
-.summary-grid div:nth-last-child(-n + 3) {
-  border-bottom: 0;
-}
-
-.summary-grid span,
-.amount-cell span,
-.row-logistics span {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.summary-grid strong,
-.amount-cell strong,
-.row-logistics strong {
-  display: block;
-  overflow: hidden;
-  margin-top: 4px;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.content-list {
-  display: grid;
-  gap: 10px;
-}
-
+.details-heading { min-width: 0; }
+.details-header h2 { margin: 0; color: var(--app-text); font-size: 17px; font-weight: 700; line-height: 1.3; }
+.details-heading > span { display: block; margin-top: 3px; color: var(--app-text-muted); font-size: 13px; }
+.details-party-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 5px; color: var(--app-text-muted); font-size: 12px; }
+.details-party-line :deep(.organization-party-reference:hover) { color: var(--app-primary); }
+.details-total { flex: none; color: var(--app-text); font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.details-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.content-columns,
 .content-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 70px 100px 110px;
-  gap: 12px;
-  align-items: start;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
+  grid-template-columns: minmax(120px, 1fr) minmax(44px, 8%) minmax(70px, 17%) minmax(78px, 18%);
+  gap: 5px;
+  align-items: center;
+  min-width: 360px;
+  padding-right: 12px;
+  padding-left: 12px;
 }
-
-.product-cell {
-  min-width: 0;
-}
-
-.product-cell strong,
-.product-cell span,
-.product-cell small,
-.row-logistics small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.product-cell strong {
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.product-cell span,
-.product-cell small,
-.row-logistics small {
-  margin-top: 3px;
-  color: #64748b;
-  font-size: 12px;
-}
-
+.content-columns { position: sticky; z-index: 1; top: 0; min-height: 32px; background: var(--app-surface-muted, #f7f9fa); color: var(--app-text-muted); font-size: 12px; font-weight: 600; }
+.content-columns span:not(:first-child) { text-align: right; }
+.content-columns span:nth-child(2) { text-align: center; }
+.content-row { min-height: 66px; border-bottom: 1px solid var(--app-border); padding-top: 9px; padding-bottom: 9px; }
+.product-cell { min-width: 0; }
+.product-heading { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-link { color: var(--app-text); font-size: 13px; font-weight: 700; line-height: 1.3; text-decoration: none; }
+a.product-link:hover { color: var(--app-primary); text-decoration: underline; }
+.product-meta,
+.product-comment { display: -webkit-box; overflow: hidden; margin-top: 3px; color: #475569; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.product-comment { color: var(--app-text-muted); }
+.content-value { min-width: 0; overflow: hidden; color: var(--app-text); font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 500; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.content-value--count { text-align: center; }
+.content-value--total { font-weight: 700; }
+.row-logistics { grid-column: 1 / -1; }
 .row-logistics,
-.row-comment {
-  grid-column: 1 / -1;
-}
-
-.row-comment {
-  border-top: 1px solid #e2e8f0;
-  padding-top: 10px;
-  color: #475569;
-  font-size: 13px;
-}
-
-.row-logistics {
-  --el-collapse-border-color: transparent;
-  --el-collapse-header-height: 32px;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 4px;
-}
-
-.row-logistics :deep(.el-collapse-item__header) {
-  color: #334155;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.row-logistics :deep(.el-collapse-item__content) {
-  padding-bottom: 0;
-}
-
-.logistics-row-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.logistics-row-grid div {
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 8px;
-}
-
-.logistics-row-grid span {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.logistics-row-grid strong {
-  display: block;
-  margin-top: 4px;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 750;
-}
-
-@media (max-width: 760px) {
-  .summary-grid,
-  .content-row {
-    grid-template-columns: 1fr;
-  }
+.logistics-summary { --el-collapse-border-color: transparent; --el-collapse-header-height: 30px; }
+.row-logistics :deep(.el-collapse-item__header),
+.logistics-summary :deep(.el-collapse-item__header) { color: var(--app-text-muted); font-size: 12px; }
+.row-logistics :deep(.el-collapse-item__content),
+.logistics-summary :deep(.el-collapse-item__content) { padding-bottom: 8px; }
+.logistics-trigger,
+.summary-collapse-title { font-weight: 650; }
+.logistics-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.logistics-values div { min-width: 0; }
+.logistics-values span { display: block; color: var(--app-text-muted); font-size: 11px; }
+.logistics-values strong { display: block; overflow: hidden; margin-top: 3px; color: var(--app-text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.details-comment,
+.logistics-summary { margin: 12px 14px 0; border-top: 1px solid var(--app-border); padding-top: 10px; }
+.details-comment span { color: var(--app-text-muted); font-size: 12px; font-weight: 650; }
+.details-comment p { margin: 4px 0 0; color: var(--app-text); font-size: 13px; line-height: 1.4; }
+.logistics-summary { margin-bottom: 14px; }
+.minimum-price-tag { margin-top: 8px; }
+.purchase-details-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+.purchase-details-empty h2 { margin: 0; color: var(--app-text); font-size: 16px; }
+.purchase-details-empty p { margin: 7px 0 0; color: var(--app-text-muted); font-size: 13px; }
+@media (max-width: 480px) {
+  .details-header { flex-wrap: wrap; }
+  .details-total { font-size: 14px; }
 }
 </style>
