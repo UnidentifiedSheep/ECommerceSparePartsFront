@@ -1,5 +1,5 @@
 import api from '@/services/api/api.ts'
-import type { CsvColumnSchema, ObjectSchema, SchemaUiField } from '@/models/schemaModel.ts'
+import { normalizeObjectSchema, type CsvColumnSchema, type ObjectSchema, type SchemaUiField } from '@/models/schemaModel.ts'
 
 export interface JobDefinitionModel {
   systemName: string
@@ -164,7 +164,10 @@ export async function getGatewayJobs(): Promise<GetGatewayJobsResponse> {
       {
         available: service.available,
         statusCode: null,
-        jobs: service.jobs,
+        jobs: service.jobs.map((job) => ({
+          ...job,
+          initStateSchema: normalizeObjectSchema(job.initStateSchema),
+        })),
         error: null,
       },
     ])),

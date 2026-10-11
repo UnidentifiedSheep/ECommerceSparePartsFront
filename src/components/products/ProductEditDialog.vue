@@ -47,6 +47,10 @@
         <ProducerSelector v-model="form.producerId" />
       </el-form-item>
 
+      <el-form-item :label="t('products.productGroup')">
+        <ProductGroupSelector v-model="form.groupId" />
+      </el-form-item>
+
       <el-form-item :label="t('common.labels.description')">
         <el-input v-model="form.description" type="textarea" :rows="3" maxlength="255" show-word-limit />
       </el-form-item>
@@ -63,6 +67,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
+import ProductGroupSelector from '@/components/selectors/ProductGroupSelector.vue'
 import type { ProductModel } from '@/models/productModel.ts'
 import { editProduct } from '@/services/api/products.ts'
 import { useI18n } from '@/i18n'
@@ -83,12 +88,14 @@ const form = reactive<{
   sku: string
   name: string
   producerId?: number
+  groupId?: number
   description: string
   indicator: string | null
 }>({
   sku: '',
   name: '',
   producerId: undefined,
+  groupId: undefined,
   description: '',
   indicator: null,
 })
@@ -104,6 +111,7 @@ function resetForm() {
   form.sku = props.product.sku
   form.name = props.product.name
   form.producerId = props.product.producerId
+  form.groupId = props.product.group?.id
   form.description = props.product.description ?? ''
   form.indicator = props.product.indicator ?? null
   selectedAlternativeName.value = undefined
@@ -133,6 +141,7 @@ async function save() {
       sku,
       name,
       producerId: form.producerId,
+      groupId: form.groupId ?? null,
       description: form.description.trim() || null,
       indicator: form.indicator,
     })

@@ -7,6 +7,7 @@ fragment ProductFields on Product {
   images
   stock
   producer { id name description aliases }
+  group { id name }
   size { length width height unit volumeM3 }
   weight { weight unit }
 }
@@ -106,6 +107,28 @@ query ProducerSearch($input: ProducerSearchInput!) {
       description
     }
   }
+}
+
+query ProductGroupsSearch($input: SearchProductGroupsInput!) {
+  productGroups {
+    search(input: $input) { id name normalizedName }
+  }
+}
+
+query ProductGroupsByIds($ids: [Int!]!) {
+  productGroups { byIds(ids: $ids) { id name normalizedName } }
+}
+
+mutation ProductGroupUpsert($input: UpsertProductGroupInput!) {
+  productGroups { upsert(input: $input) { id name normalizedName } }
+}
+
+mutation ProductPatch($productId: Int!, $input: PatchProductInput!) {
+  products { patch(productId: $productId, input: $input) { id } }
+}
+
+mutation ProductCreate($products: [CreateProductInput!]!) {
+  products { create(products: $products) { id sku name } }
 }
 
 query ProducersByIds($ids: [Int!]!) {

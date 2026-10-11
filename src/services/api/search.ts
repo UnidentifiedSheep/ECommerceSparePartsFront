@@ -5,6 +5,7 @@ import {
   searchCatalogueGraphql,
   searchProducersGraphql,
   searchProductsGraphql,
+  searchProductGroupsGraphql,
 } from '@/services/graphql/products.ts'
 import type {
   CandidateMappingStatus,
@@ -16,6 +17,7 @@ export type { CandidateMappingStatus } from '@/graphql/generated/graphql.ts'
 export interface SearchProductsRequest {
   query?: string
   producerId?: number
+  productGroupIds?: number[]
   page: number
   size: number
   sortBy?: string[]
@@ -54,6 +56,7 @@ export interface SearchCatalogueRequest {
   targets?: SearchTarget[]
   fields?: CatalogueSearchFieldsRequest
   producerIds?: number[]
+  productGroupIds?: number[]
   candidateMappingStatus?: CandidateMappingStatus
   includeHighlights?: boolean
   page: number
@@ -87,6 +90,7 @@ export interface SearchProducersResponse {
 export interface SearchProductsBySkuRequest {
   sku: string
   producerId?: number
+  productGroupIds?: number[]
   searchMode?: SkuSearchMode
   page: number
   size: number
@@ -108,6 +112,7 @@ export async function searchProducts(req: SearchProductsRequest): Promise<Search
   return searchProductsGraphql({
     query: req.query,
     producerId: req.producerId,
+    productGroupIds: req.productGroupIds,
     page: req.page,
     size: clampPageSize(req.size),
     sortBy: req.sortBy,
@@ -123,6 +128,7 @@ export async function searchProductsBySku(req: SearchProductsBySkuRequest): Prom
   return searchProductsGraphql({
     query: req.sku,
     producerId: req.producerId,
+    productGroupIds: req.productGroupIds,
     page: req.page,
     size: clampPageSize(req.size),
     skuModes: toGraphqlSearchMatchTypes(searchModes),
@@ -140,6 +146,7 @@ export async function searchCatalogue(req: SearchCatalogueRequest): Promise<Sear
     skuModes: toGraphqlSearchMatchTypes(req.fields?.sku),
     nameModes: toGraphqlSearchMatchTypes(req.fields?.name),
     producerIds: req.producerIds ?? [],
+    productGroupIds: req.productGroupIds ?? [],
     candidateMappingStatus: req.candidateMappingStatus ?? 'UNMAPPED',
     includeHighlights: req.includeHighlights ?? false,
     page: req.page,
@@ -157,4 +164,8 @@ export async function searchProducers(req: SearchProducersRequest): Promise<Sear
       size: clampPageSize(req.size),
     }),
   }
+}
+
+export async function searchProductGroups(req: { searchTerm?: string; page: number; size: number }) {
+  return searchProductGroupsGraphql({ ...req, size: clampPageSize(req.size) })
 }

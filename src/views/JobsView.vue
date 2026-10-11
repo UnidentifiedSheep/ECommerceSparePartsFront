@@ -816,7 +816,12 @@ import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { useI18n } from '@/i18n'
 import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/jobHub.ts'
-import { toSchemaUiFields } from '@/models/schemaModel.ts'
+import {
+  formatStructuredSchemaValue,
+  isStructuredSchemaField,
+  parseStructuredSchemaValue,
+  toSchemaUiFields,
+} from '@/models/schemaModel.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 
 interface ServiceCard {
@@ -1631,9 +1636,13 @@ function hydrateInputState(rawState: string) {
   if (!rawState) return
 
   try {
-    const parsed = JSON.parse(rawState) as Record<string, string | number | boolean | null>
-    Object.entries(parsed).forEach(([key, value]) => {
-      inputState[key] = value
+    const parsed = JSON.parse(rawState) as Record<string, unknown>
+    schemaFields.value.forEach((field) => {
+      const value = parsed[field.name]
+      if (value === undefined) return
+      inputState[field.name] = isStructuredSchemaField(field)
+        ? formatStructuredSchemaValue(value)
+        : value as FieldValue
     })
   } catch {
     ElMessage.warning(t('jobs.stateParseError'))
@@ -1665,6 +1674,7 @@ function resetInputState() {
 }
 
 function defaultValue(field: JobSchemaField) {
+  if (isStructuredSchemaField(field)) return formatStructuredSchemaValue(null)
   if (field.control === 'TextField') return ''
   if (field.control === 'DatePicker') return ''
   if (field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector') return null
@@ -1679,10 +1689,31 @@ function isNumberField(field: JobSchemaField) {
 }
 
 function normalizedInputState() {
-  return Object.fromEntries(schemaFields.value.map((field): [string, string | number | boolean | null] => {
+  return Object.fromEntries(schemaFields.value.flatMap((field): [string, unknown][] => {
     const value = inputState[field.name]
-    return [field.name, !field.required && isEmptyValue(value) ? null : value ?? null]
+    if (!field.required && isEmptyValue(value)) return []
+    return [[field.name, isStructuredSchemaField(field)
+      ? parseStructuredSchemaValue(field, value)
+      : value ?? null]]
   }))
+}
+
+function serializeInputState(): string | null {
+  try {
+    return JSON.stringify(normalizedInputState())
+  } catch {
+    const invalidField = schemaFields.value.find((field) => {
+      if (!isStructuredSchemaField(field)) return false
+      try {
+        parseStructuredSchemaValue(field, inputState[field.name])
+        return false
+      } catch {
+        return true
+      }
+    })
+    ElMessage.warning(t('jobs.invalidStructuredField', { field: invalidField ? fieldLabel(invalidField) : '' }))
+    return null
+  }
 }
 
 function fieldLabel(field: JobSchemaField) {
@@ -1786,11 +1817,14 @@ async function submitJob() {
     return
   }
 
+  const payloadState = serializeInputState()
+  if (payloadState === null) return
+
   isCreatingJob.value = true
   try {
     await createServiceJob(serviceKey, {
       systemName,
-      inputState: JSON.stringify(normalizedInputState()),
+      inputState: payloadState,
       maxAttempts: maxAttempts.value,
     })
     ElMessage.success(t('jobs.created'))
@@ -1840,9 +1874,11 @@ async function submitSchedule() {
     return
   }
 
+  const payloadState = serializeInputState()
+  if (payloadState === null) return
+
   isSavingSchedule.value = true
   try {
-    const payloadState = JSON.stringify(normalizedInputState())
     if (drawerMode.value === 'schedule-create') {
       const response = await createServiceJobSchedule(selectedJob.value.serviceKey, {
         name: scheduleForm.name.trim(),

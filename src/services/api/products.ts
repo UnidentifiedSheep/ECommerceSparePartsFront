@@ -23,7 +23,10 @@ import {
   getProductContentsGraphql,
   getProductCrossesGraphql,
   getProductPairGraphql,
+  patchProductGraphql,
+  createProductsGraphql,
 } from '@/services/graphql/products.ts'
+import type { PatchProductInput } from '@/graphql/generated/graphql.ts'
 
 export interface CreateProductRequestItem {
   sku: string
@@ -31,7 +34,7 @@ export interface CreateProductRequestItem {
   producerId: number
   description?: string | null
   indicator?: string | null
-  categoryId?: number | null
+  groupId?: number | null
 }
 
 export interface CreateProductsRequest {
@@ -39,7 +42,7 @@ export interface CreateProductsRequest {
 }
 
 export interface CreateProductsResponse {
-  createdIds: number[]
+  products: Array<{ id: number; sku: string; name: string }>
 }
 
 export type ProductLinkageType =
@@ -208,6 +211,7 @@ export interface EditProductRequest {
   description?: string | null
   indicator?: string | null
   pairId?: number | null
+  groupId?: number | null
 }
 
 export async function getProductCrosses(req: GetProductCrossesRequest): Promise<GetProductCrossesResponse> {
@@ -373,8 +377,8 @@ export async function getProductReservationHistory(
 }
 
 export async function createProducts(req: CreateProductsRequest): Promise<CreateProductsResponse> {
-  const resp = await api.post<CreateProductsResponse>('/main/products', req)
-  return resp.data
+  const products = await createProductsGraphql(req.newProducts)
+  return { products }
 }
 
 export async function createProductCrosses(req: CreateProductCrossesRequest): Promise<void> {
@@ -382,7 +386,7 @@ export async function createProductCrosses(req: CreateProductCrossesRequest): Pr
 }
 
 export async function editProduct(req: EditProductRequest): Promise<void> {
-  const payload: Record<string, PatchField<unknown>> = {}
+  const payload: PatchProductInput = {}
 
   if (req.sku !== undefined) payload.sku = patchField(req.sku)
   if (req.name !== undefined) payload.name = patchField(req.name)
@@ -390,10 +394,9 @@ export async function editProduct(req: EditProductRequest): Promise<void> {
   if (req.description !== undefined) payload.description = patchField(req.description)
   if (req.indicator !== undefined) payload.indicator = patchField(req.indicator)
   if (req.pairId !== undefined) payload.pairId = patchField(req.pairId)
+  if (req.groupId !== undefined) payload.groupId = patchField(req.groupId)
 
-  await api.patch(`/main/products/${req.id}`, {
-    patchProduct: payload,
-  })
+  await patchProductGraphql(req.id, payload)
 }
 
 export async function uploadProductImages(productId: number, files: File[]): Promise<void> {

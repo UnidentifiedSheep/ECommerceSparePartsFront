@@ -7,6 +7,9 @@
       <dt>{{ t('common.labels.producer') }}</dt>
       <dd>{{ product.producerName || '-' }}</dd>
 
+      <dt>{{ t('products.productGroup') }}</dt>
+      <dd>{{ product.group?.name || '-' }}</dd>
+
       <dt>{{ t('common.labels.name') }}</dt>
       <dd>{{ product.name || '-' }}</dd>
 

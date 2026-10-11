@@ -92,6 +92,11 @@
                 <el-color-picker v-model="row.indicator" show-alpha />
               </label>
 
+              <label class="form-field form-field--group">
+                <span>{{ t('products.productGroup') }}</span>
+                <ProductGroupSelector v-model="row.groupId" />
+              </label>
+
               <label class="form-field form-field--description">
                 <span>{{ t('common.labels.description') }}</span>
                 <el-input
@@ -240,6 +245,7 @@ import { computed, ref, watch } from 'vue'
 import { Check, Close, Delete, Link, Plus } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
+import ProductGroupSelector from '@/components/selectors/ProductGroupSelector.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
@@ -255,6 +261,7 @@ interface ProductRow {
   sku: string
   name: string
   producerId?: number
+  groupId?: number
   description: string
   indicator: string | null
 }
@@ -326,6 +333,7 @@ function emptyProductRow(): ProductRow {
     sku: '',
     name: '',
     producerId: undefined,
+    groupId: undefined,
     description: '',
     indicator: null,
   }
@@ -445,7 +453,7 @@ function productLabel(product: CreatedProduct) {
 }
 
 function isProductRowFilled(row: ProductRow) {
-  return Boolean(row.sku.trim() || row.name.trim() || row.producerId || row.description.trim() || row.indicator)
+  return Boolean(row.sku.trim() || row.name.trim() || row.producerId || row.groupId || row.description.trim() || row.indicator)
 }
 
 function validProductRows() {
@@ -490,15 +498,11 @@ async function saveProducts() {
         producerId: row.producerId!,
         description: row.description || null,
         indicator: row.indicator || null,
-        categoryId: null,
+        groupId: row.groupId ?? null,
       })),
     })
 
-    createdProducts.value = resp.createdIds.map((id, index) => ({
-      id,
-      sku: rows[index]?.sku ?? String(id),
-      name: rows[index]?.name ?? '',
-    }))
+    createdProducts.value = resp.products
 
     addCreatedProductsAsCrosses()
 
@@ -721,7 +725,11 @@ watch(isOpen, (open) => {
 }
 
 .form-field--description {
-  grid-column: 1 / -1;
+  grid-column: 3 / -1;
+}
+
+.form-field--group {
+  grid-column: 1 / 3;
 }
 
 .form-field--color :deep(.el-color-picker) {
@@ -850,6 +858,11 @@ watch(isOpen, (open) => {
   .cross-edit-row__main,
   .cross-edit-row__side {
     grid-template-columns: 1fr;
+  }
+
+  .form-field--group,
+  .form-field--description {
+    grid-column: auto;
   }
 
   .cross-arrow {

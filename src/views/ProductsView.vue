@@ -2,9 +2,19 @@
   <div class="product-page">
     <PageHeader :title="t('products.title')" :description="t('products.description')">
       <template #actions>
-        <el-button v-if="canCreateProducts" :icon="Plus" type="primary" @click="createDialogOpen = true">
-          {{ t('products.createProducts') }}
-        </el-button>
+        <el-dropdown trigger="click" placement="bottom-end" @command="handleProductsAction">
+          <el-button :icon="MoreFilled" circle plain :aria-label="t('common.labels.actions')" />
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-if="canCreateProducts" command="create" :icon="Plus">
+                {{ t('products.createProduct') }}
+              </el-dropdown-item>
+              <el-dropdown-item command="groups" :divided="canCreateProducts">
+                {{ t('products.manageGroups') }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </template>
     </PageHeader>
 
@@ -50,21 +60,6 @@
               </el-autocomplete>
             </div>
 
-            <div class="catalogue-search-producers">
-              <label class="product-field-label">{{ t('common.labels.producer') }}</label>
-              <ProducerMultiSelector
-                v-if="canReviewCandidates"
-                v-model="form.producerIds"
-                :placeholder="t('products.allProducers')"
-              />
-              <ProducerSelector
-                v-else
-                :model-value="form.producerIds[0]"
-                :placeholder="t('products.allProducers')"
-                @update:model-value="setSingleProducer"
-              />
-            </div>
-
             <div class="catalogue-search-actions">
               <el-button type="primary" size="large" :disabled="Boolean(searchValidationMessage)" @click="submitSearch">
                 {{ t('products.find') }}
@@ -81,8 +76,8 @@
             </div>
           </div>
 
-          <div v-if="canReviewCandidates" class="catalogue-search-toolbar">
-            <fieldset class="catalogue-search-targets">
+          <div class="catalogue-search-toolbar">
+            <fieldset v-if="canReviewCandidates" class="catalogue-search-targets">
               <legend>{{ t('products.searchTargets') }}</legend>
               <el-checkbox-group v-model="form.targets" @change="applySearchConfiguration">
                 <el-checkbox
@@ -106,56 +101,83 @@
               @click="searchSettingsOpen = !searchSettingsOpen"
             >
               <span>
-                <strong>{{ t('products.searchSettings') }}</strong>
+                <strong>{{ t('products.filters') }}</strong>
                 <em>{{ searchSettingsSummary }}</em>
               </span>
               <el-icon :class="{ 'is-open': searchSettingsOpen }"><ArrowDown /></el-icon>
             </button>
           </div>
 
-          <div v-if="canReviewCandidates" v-show="searchSettingsOpen" class="catalogue-search-options">
-            <div class="catalogue-search-presets">
-              <span>{{ t('products.searchPreset') }}</span>
-              <div role="group" :aria-label="t('products.searchPreset')">
-                <button
-                  v-for="preset in searchPresetOptions"
-                  :key="preset.value"
-                  type="button"
-                  :class="{ 'is-active': currentSearchPreset === preset.value }"
-                  @click="applySearchPreset(preset.value)"
-                >
-                  {{ preset.label }}
-                </button>
+          <div v-show="searchSettingsOpen" class="catalogue-search-options">
+            <div class="catalogue-search-filters">
+              <div class="catalogue-search-producers">
+                <label class="product-field-label">{{ t('common.labels.producer') }}</label>
+                <ProducerMultiSelector
+                  v-if="canReviewCandidates"
+                  v-model="form.producerIds"
+                  :placeholder="t('products.allProducers')"
+                />
+                <ProducerSelector
+                  v-else
+                  :model-value="form.producerIds[0]"
+                  :placeholder="t('products.allProducers')"
+                  @update:model-value="setSingleProducer"
+                />
+              </div>
+              <div class="catalogue-search-groups">
+                <label class="product-field-label">{{ t('products.productGroups') }}</label>
+                <ProductGroupMultiSelector
+                  :key="productGroupsRevision"
+                  v-model="form.productGroupIds"
+                  :placeholder="t('products.allProductGroups')"
+                />
               </div>
             </div>
 
-            <fieldset class="catalogue-search-option-group">
-              <legend>{{ t('products.skuMatching') }}</legend>
-              <el-checkbox-group v-model="form.skuModes" @change="applySearchConfiguration">
-                <el-checkbox
-                  v-for="mode in matchTypeOptions"
-                  :key="mode.value"
-                  :label="mode.value"
-                  :disabled="isLastSearchMode('sku', mode.value)"
-                >
-                  {{ mode.label }}
-                </el-checkbox>
-              </el-checkbox-group>
-            </fieldset>
+            <div v-if="canReviewCandidates" class="catalogue-search-matching">
+              <div class="catalogue-search-presets">
+                <span>{{ t('products.searchPreset') }}</span>
+                <div role="group" :aria-label="t('products.searchPreset')">
+                  <button
+                    v-for="preset in searchPresetOptions"
+                    :key="preset.value"
+                    type="button"
+                    :class="{ 'is-active': currentSearchPreset === preset.value }"
+                    @click="applySearchPreset(preset.value)"
+                  >
+                    {{ preset.label }}
+                  </button>
+                </div>
+              </div>
 
-            <fieldset class="catalogue-search-option-group">
-              <legend>{{ t('products.nameMatching') }}</legend>
-              <el-checkbox-group v-model="form.nameModes" @change="applySearchConfiguration">
-                <el-checkbox
-                  v-for="mode in matchTypeOptions"
-                  :key="mode.value"
-                  :label="mode.value"
-                  :disabled="isLastSearchMode('name', mode.value)"
-                >
-                  {{ mode.label }}
-                </el-checkbox>
-              </el-checkbox-group>
-            </fieldset>
+              <fieldset class="catalogue-search-option-group">
+                <legend>{{ t('products.skuMatching') }}</legend>
+                <el-checkbox-group v-model="form.skuModes" @change="applySearchConfiguration">
+                  <el-checkbox
+                    v-for="mode in matchTypeOptions"
+                    :key="mode.value"
+                    :label="mode.value"
+                    :disabled="isLastSearchMode('sku', mode.value)"
+                  >
+                    {{ mode.label }}
+                  </el-checkbox>
+                </el-checkbox-group>
+              </fieldset>
+
+              <fieldset class="catalogue-search-option-group">
+                <legend>{{ t('products.nameMatching') }}</legend>
+                <el-checkbox-group v-model="form.nameModes" @change="applySearchConfiguration">
+                  <el-checkbox
+                    v-for="mode in matchTypeOptions"
+                    :key="mode.value"
+                    :label="mode.value"
+                    :disabled="isLastSearchMode('name', mode.value)"
+                  >
+                    {{ mode.label }}
+                  </el-checkbox>
+                </el-checkbox-group>
+              </fieldset>
+            </div>
           </div>
 
           <p v-if="searchValidationMessage" class="catalogue-search-validation">{{ searchValidationMessage }}</p>
@@ -375,6 +397,7 @@
     </div>
 
     <CreateProductsCrossesDialog v-if="canCreateProducts" v-model="createDialogOpen" @saved="loadProducts" />
+    <ProductGroupsDrawer v-model="groupsDrawerOpen" @saved="onProductGroupSaved" />
     <ProductQuickViewDrawer
       v-model="quickViewOpen"
       :product="selectedQuickProduct"
@@ -395,13 +418,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Clock, Money, Plus, RefreshLeft, Search, View } from '@element-plus/icons-vue'
+import { ArrowDown, Clock, Money, MoreFilled, Plus, RefreshLeft, Search, View } from '@element-plus/icons-vue'
 import { useDebounceFn, useMediaQuery } from '@vueuse/core'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
+import ProductGroupsDrawer from '@/components/products/ProductGroupsDrawer.vue'
 import ProductQuickViewDrawer from '@/components/products/ProductQuickViewDrawer.vue'
 import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
@@ -409,6 +433,7 @@ import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import ProducerMultiSelector from '@/components/selectors/ProducerMultiSelector.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
+import ProductGroupMultiSelector from '@/components/selectors/ProductGroupMultiSelector.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import {
   type CatalogueCandidateSearchModel,
@@ -440,6 +465,7 @@ interface ProductSearchForm {
   nameModes: SearchMatchType[]
   includeHighlights: boolean
   producerIds: number[]
+  productGroupIds: number[]
 }
 
 type SearchPreset = 'Exact' | 'Normal' | 'Broad'
@@ -476,6 +502,9 @@ const hasNext = ref(false)
 const isLoading = ref(false)
 const producerNames = ref<Record<number, string>>({})
 const createDialogOpen = ref(false)
+const groupsDrawerOpen = ref(false)
+const productGroupsRevision = ref(0)
+let resultsScrollPosition: number | null = null
 const priceOffersDialogOpen = ref(false)
 const selectedPriceProduct = ref<ProductSearchModel | null>(null)
 const quickViewOpen = ref(false)
@@ -501,6 +530,7 @@ const form = reactive<ProductSearchForm>({
   nameModes: [...searchPreferences.nameModes],
   includeHighlights: searchPreferences.includeHighlights,
   producerIds: [],
+  productGroupIds: [],
 })
 
 const searchMatchTypes: SearchMatchType[] = ['Exact', 'StartsWith', 'Contains', 'Fuzzy']
@@ -528,12 +558,17 @@ const currentSearchPreset = computed<SearchPreset | 'Custom'>(() => {
   return preset?.[0] ?? 'Custom'
 })
 const searchSettingsSummary = computed(() => {
-  const preset = t(`products.searchPresets.${currentSearchPreset.value}`)
-  return t('products.searchSettingsSummary', {
-    preset,
-    sku: form.skuModes.length,
-    name: form.nameModes.length,
-  })
+  const parts: string[] = []
+  if (form.producerIds.length) parts.push(t('products.producersSelected', { count: form.producerIds.length }))
+  if (form.productGroupIds.length) parts.push(t('products.productGroupsSelected', { count: form.productGroupIds.length }))
+  if (canReviewCandidates.value) {
+    parts.push(t('products.searchSettingsSummary', {
+      preset: t(`products.searchPresets.${currentSearchPreset.value}`),
+      sku: form.skuModes.length,
+      name: form.nameModes.length,
+    }))
+  }
+  return parts.join(' · ') || t('products.noFilters')
 })
 const catalogueResults = computed<CatalogueResultRow[]>(() => [
   ...(form.targets.includes('Products')
@@ -564,7 +599,7 @@ const hasExactTotal = computed(() => canReviewCandidates.value)
 const resultTitle = computed(() => {
   const query = form.query.trim()
   if (query) return t('products.queryResult', { query })
-  return form.producerIds.length > 0 ? t('products.filteredProducts') : t('products.allProducts')
+  return form.producerIds.length > 0 || form.productGroupIds.length > 0 ? t('products.filteredProducts') : t('products.allProducts')
 })
 
 const searchValidationMessage = computed(() => {
@@ -583,6 +618,7 @@ const mobileSearchSummary = computed(() => {
   const query = form.query.trim()
   if (query) parts.push(query)
   if (form.producerIds.length > 0) parts.push(t('products.producersSelected', { count: form.producerIds.length }))
+  if (form.productGroupIds.length > 0) parts.push(t('products.productGroupsSelected', { count: form.productGroupIds.length }))
   return parts.join(' · ')
 })
 
@@ -817,6 +853,7 @@ function syncFormFromRoute() {
   form.includeHighlights = searchPreferences.includeHighlights
   const requestedProducerIds = queryNumbers('producerIds')
   form.producerIds = canReviewCandidates.value ? requestedProducerIds : requestedProducerIds.slice(0, 1)
+  form.productGroupIds = queryNumbers('productGroupIds')
   page.value = queryNumber('page') ?? 0
   size.value = queryNumber('size') ?? 20
   productSortBy.value = (queryString('productSort') ?? '').split(',').filter(Boolean)
@@ -830,6 +867,7 @@ function buildRouteQuery(resetPage: boolean) {
     skuModes: canReviewCandidates.value ? form.skuModes.join(',') : undefined,
     nameModes: canReviewCandidates.value ? form.nameModes.join(',') : undefined,
     producerIds: form.producerIds.length > 0 ? form.producerIds.join(',') : undefined,
+    productGroupIds: form.productGroupIds.length > 0 ? form.productGroupIds.join(',') : undefined,
     productSort: productSortBy.value.length > 0 ? productSortBy.value.join(',') : undefined,
     candidateSort: candidateSortBy.value.length > 0 ? candidateSortBy.value.join(',') : undefined,
     page: resetPage ? 0 : page.value,
@@ -871,6 +909,27 @@ function setSingleProducer(producerId?: number) {
   form.producerIds = producerId ? [producerId] : []
 }
 
+function handleProductsAction(command: string) {
+  if (command === 'create' && canCreateProducts.value) {
+    createDialogOpen.value = true
+  } else if (command === 'groups') {
+    resultsScrollPosition = resultsScroll.value?.scrollTop ?? null
+    groupsDrawerOpen.value = true
+  }
+}
+
+function onProductGroupSaved() {
+  productGroupsRevision.value += 1
+}
+
+function restoreProductsScroll() {
+  if (resultsScrollPosition === null) return
+  const position = resultsScrollPosition
+  void nextTick(() => {
+    if (resultsScroll.value) resultsScroll.value.scrollTop = position
+  })
+}
+
 async function submitSearch() {
   if (searchValidationMessage.value) return
   rememberSearch(form.query)
@@ -884,6 +943,7 @@ async function resetFilters() {
   suspendAutoSearch = true
   form.query = ''
   form.producerIds = []
+  form.productGroupIds = []
   productSortBy.value = []
   candidateSortBy.value = []
 
@@ -930,6 +990,7 @@ async function loadProducts() {
           name: form.nameModes,
         },
         producerIds: form.producerIds,
+        productGroupIds: form.productGroupIds,
         includeHighlights: form.includeHighlights && Boolean(query),
         page: page.value,
         size: size.value,
@@ -959,6 +1020,7 @@ async function loadProducts() {
       ? await searchProductsBySku({
           sku: query,
           producerId: form.producerIds[0],
+          productGroupIds: form.productGroupIds,
           searchMode: form.skuModes.length === 1 ? form.skuModes[0] : 'Full',
           page: page.value,
           size: size.value,
@@ -967,6 +1029,7 @@ async function loadProducts() {
       : await searchProducts({
           query: query || undefined,
           producerId: form.producerIds[0],
+          productGroupIds: form.productGroupIds,
           page: page.value,
           size: size.value,
           sortBy: productSortBy.value,
@@ -1017,10 +1080,19 @@ watch(() => form.producerIds, (producerIds) => {
   void applyFilters(true)
 }, { deep: true })
 
+watch(() => form.productGroupIds, (groupIds) => {
+  if (suspendAutoSearch || groupIds.join(',') === (queryString('productGroupIds') ?? '')) return
+  void applyFilters(true)
+}, { deep: true })
+
 watch(catalogueResults, (rows) => {
   if (!rows.some((row) => row.key === selectedResultKey.value)) {
     selectedResultKey.value = null
   }
+})
+
+watch(groupsDrawerOpen, (open) => {
+  if (!open) restoreProductsScroll()
 })
 
 watch(page, async () => {
@@ -1044,6 +1116,7 @@ onMounted(async () => {
   if (isMobileViewport.value && (
     form.query.trim()
     || form.producerIds.length > 0
+    || form.productGroupIds.length > 0
   )) {
     mobileSearchCollapsed.value = true
   }
@@ -1224,13 +1297,14 @@ onMounted(async () => {
 
 .catalogue-search-primary {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(260px, 360px) auto;
+  grid-template-columns: minmax(320px, 1fr) auto;
   align-items: end;
   gap: 12px;
 }
 
 .catalogue-search-query,
-.catalogue-search-producers {
+.catalogue-search-producers,
+.catalogue-search-groups {
   min-width: 0;
 }
 
@@ -1349,9 +1423,22 @@ onMounted(async () => {
 
 .catalogue-search-options {
   display: grid;
+  gap: 12px;
+  margin-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+
+.catalogue-search-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.catalogue-search-matching {
+  display: grid;
   grid-template-columns: auto minmax(310px, 1fr) minmax(310px, 1fr);
   gap: 18px;
-  margin-top: 10px;
   border-top: 1px solid #e2e8f0;
   padding-top: 10px;
 }
@@ -1421,7 +1508,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.catalogue-search-primary :deep(.el-select),
+.catalogue-search-filters :deep(.el-select),
 .catalogue-search-primary :deep(.el-autocomplete) {
   min-width: 0;
 }
@@ -1658,8 +1745,12 @@ onMounted(async () => {
   }
 
   .catalogue-search-options {
-    grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .catalogue-search-filters,
+  .catalogue-search-matching {
+    grid-template-columns: 1fr;
   }
 
   .catalogue-search-toolbar {
@@ -1711,12 +1802,15 @@ onMounted(async () => {
 
 @media (min-width: 761px) and (max-width: 1180px) {
   .catalogue-search-primary {
-    grid-template-columns: minmax(280px, 1fr) minmax(240px, 320px) auto;
+    grid-template-columns: minmax(280px, 1fr) auto;
   }
 
-  .catalogue-search-options {
-    grid-template-columns: auto 1fr 1fr;
+  .catalogue-search-matching {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .catalogue-search-presets { grid-column: 1 / -1; }
+  .catalogue-search-option-group:nth-child(2) { border-left: 0; padding-left: 0; }
 
 }
 </style>

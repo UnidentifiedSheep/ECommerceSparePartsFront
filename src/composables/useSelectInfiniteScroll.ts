@@ -6,7 +6,7 @@ function isScrollNearEnd(element: HTMLElement, threshold: number) {
 
 function findDropdownWrap(popperClass: string) {
   const popper = document.querySelector(`.${popperClass}`)
-  return popper?.querySelector<HTMLElement>('.el-select-dropdown__wrap, .el-scrollbar__wrap')
+  return popper?.querySelector<HTMLElement>('.el-vl__window, .el-select-dropdown__wrap, .el-scrollbar__wrap')
 }
 
 function restoreScrollPosition(element: HTMLElement, scrollTop: number) {
@@ -24,8 +24,10 @@ export function useSelectInfiniteScroll(
   let cleanup: (() => void) | undefined
   let isLoadingMore = false
   let cooldownTimer: number | undefined
+  let attachId = 0
 
   function detach() {
+    attachId += 1
     if (cooldownTimer) {
       window.clearTimeout(cooldownTimer)
       cooldownTimer = undefined
@@ -36,12 +38,15 @@ export function useSelectInfiniteScroll(
 
   async function attach() {
     detach()
+    const currentAttachId = attachId
     await nextTick()
+    if (currentAttachId !== attachId) return
 
     let frame = 0
     let attempts = 0
 
     const tryAttach = () => {
+      if (currentAttachId !== attachId) return
       const wrap = findDropdownWrap(popperClass)
       if (!wrap) {
         attempts += 1

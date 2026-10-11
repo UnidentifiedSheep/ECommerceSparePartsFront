@@ -84,6 +84,15 @@
           @update:model-value="(value: string | null) => setFieldValue(field.name, value)"
         />
 
+        <el-input
+          v-else-if="isStructuredSchemaField(field)"
+          :model-value="String(modelValue[field.name] ?? '')"
+          type="textarea"
+          :rows="4"
+          :placeholder="field.type === 'Array' ? '[]' : '{}'"
+          @update:model-value="(value: string) => setFieldValue(field.name, value)"
+        />
+
         <template v-else-if="isSelectorControl(field)">
           <el-select
             v-if="isSupportedSelector(field)"
@@ -148,7 +157,7 @@ import { onBeforeUnmount } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { attachSelectDropdownInfiniteScroll } from '@/composables/useSelectInfiniteScroll.ts'
 import { useI18n } from '@/i18n'
-import type { SchemaUiField } from '@/models/schemaModel.ts'
+import { isStructuredSchemaField, type SchemaUiField } from '@/models/schemaModel.ts'
 
 export type FieldValue = string | number | boolean | null
 

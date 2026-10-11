@@ -18,6 +18,11 @@ import {
   CatalogueSearchDocument,
   MapCandidateCrossesDocument,
   ProducerSearchDocument,
+  ProductGroupsSearchDocument,
+  ProductGroupsByIdsDocument,
+  ProductGroupUpsertDocument,
+  ProductPatchDocument,
+  ProductCreateDocument,
   ProducersByIdsDocument,
   ProductAvailableStockDocument,
   ProductsAvailableStockDocument,
@@ -39,6 +44,13 @@ import {
   type MapCandidateCrossesMutation,
   type ProductLinkageType as GraphqlProductLinkageType,
   type ProducerSearchQuery,
+  type ProductGroupsSearchQuery,
+  type ProductGroupsByIdsQuery,
+  type ProductGroupUpsertMutation,
+  type ProductPatchMutation,
+  type ProductCreateMutation,
+  type CreateProductInput,
+  type PatchProductInput,
   type ProducersByIdsQuery,
   type ProductAvailableStockQuery,
   type ProductsAvailableStockQuery,
@@ -81,6 +93,7 @@ function mapProduct(product: GqlProduct): ProductModel {
     description: 'description' in product ? product.description : null,
     producerId: product.producer.id,
     producerName: product.producer.name,
+    group: 'group' in product ? product.group : undefined,
     indicator: product.indicator,
     images: 'images' in product ? product.images : [],
     stock: product.stock ?? 0,
@@ -329,6 +342,7 @@ export async function mapCandidateCrossesGraphql(
 export async function searchProductsGraphql(options: {
   query?: string
   producerId?: number
+  productGroupIds?: number[]
   page: number
   size: number
   skuModes?: GraphqlSearchMatchType[]
@@ -338,6 +352,7 @@ export async function searchProductsGraphql(options: {
   const response = await searchCatalogueGraphql({
     query: options.query,
     producerIds: options.producerId === undefined ? [] : [options.producerId],
+    productGroupIds: options.productGroupIds,
     page: options.page,
     size: options.size,
     skuModes: options.skuModes,
@@ -356,6 +371,7 @@ export async function searchProductsGraphql(options: {
 export async function searchCatalogueGraphql(options: {
   query?: string
   producerIds?: number[]
+  productGroupIds?: number[]
   page: number
   size: number
   skuModes?: GraphqlSearchMatchType[]
@@ -378,6 +394,7 @@ export async function searchCatalogueGraphql(options: {
         skuModes: options.skuModes ?? ['EXACT', 'STARTS_WITH', 'CONTAINS'],
         nameModes: options.nameModes ?? ['EXACT', 'STARTS_WITH', 'FUZZY'],
         producerIds: options.producerIds ?? [],
+        productGroupIds: options.productGroupIds ?? [],
         pagination: { page: options.page, size: options.size },
         productSortBy: mapSortBy(options.productSortBy),
         catalogueCandidateSortBy: mapSortBy(options.catalogueCandidateSortBy),
@@ -416,6 +433,62 @@ export async function searchProducersGraphql(options: {
     fetchPolicy: 'network-only',
   })
   return response.data.producers.search
+}
+
+export async function searchProductGroupsGraphql(options: {
+  searchTerm?: string
+  page: number
+  size: number
+}): Promise<ProductGroupsSearchQuery['productGroups']['search']> {
+  const response = await graphqlClient.query<ProductGroupsSearchQuery>({
+    query: ProductGroupsSearchDocument,
+    variables: {
+      input: {
+        searchTerm: options.searchTerm?.trim() || null,
+        pagination: { page: options.page, size: options.size },
+        sortBy: [],
+      },
+    },
+    fetchPolicy: 'network-only',
+  })
+  return response.data.productGroups.search
+}
+
+export type ProductGroup = ProductGroupsSearchQuery['productGroups']['search'][number]
+
+export async function getProductGroupsByIdsGraphql(ids: number[]): Promise<ProductGroup[]> {
+  if (ids.length === 0) return []
+  const response = await graphqlClient.query<ProductGroupsByIdsQuery>({
+    query: ProductGroupsByIdsDocument,
+    variables: { ids: [...new Set(ids)] },
+    fetchPolicy: 'network-only',
+  })
+  return response.data.productGroups.byIds
+}
+
+export async function upsertProductGroupGraphql(input: { id?: number; name: string }): Promise<ProductGroup> {
+  const response = await graphqlClient.mutate<ProductGroupUpsertMutation>({
+    mutation: ProductGroupUpsertDocument,
+    variables: { input: { id: input.id ?? null, name: input.name } },
+  })
+  if (!response.data) throw new Error('Product group mutation returned no data')
+  return response.data.productGroups.upsert
+}
+
+export async function patchProductGraphql(productId: number, input: PatchProductInput): Promise<void> {
+  await graphqlClient.mutate<ProductPatchMutation>({
+    mutation: ProductPatchDocument,
+    variables: { productId, input },
+  })
+}
+
+export async function createProductsGraphql(products: CreateProductInput[]): Promise<ProductCreateMutation['products']['create']> {
+  const response = await graphqlClient.mutate<ProductCreateMutation>({
+    mutation: ProductCreateDocument,
+    variables: { products },
+  })
+  if (!response.data) throw new Error('Product creation returned no data')
+  return response.data.products.create
 }
 
 export async function getProducersByIdsGraphql(ids: number[]): Promise<ProducerModel[]> {

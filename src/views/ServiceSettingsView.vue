@@ -154,7 +154,13 @@ import { getServiceNamedObjects, type NamedObjectModel } from '@/services/api/jo
 import { getMarkupGroups, type MarkupGroupModel } from '@/services/api/markups.ts'
 import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { getServiceSettings, updateServiceSetting, type SettingModel } from '@/services/api/serviceSettings.ts'
-import type { ObjectSchema, SchemaField } from '@/models/schemaModel.ts'
+import {
+  formatStructuredSchemaValue,
+  isStructuredSchemaField,
+  parseStructuredSchemaValue,
+  type ObjectSchema,
+  type SchemaField,
+} from '@/models/schemaModel.ts'
 
 interface ServiceCard {
   key: string
@@ -411,6 +417,7 @@ function findCurrentFieldValue(source: Record<string, unknown>, fieldName: strin
 
 function normalizeFieldValue(field: SettingSchemaField, value: unknown) {
   if (value === null || value === undefined) return defaultValue(field)
+  if (isStructuredSchemaField(field)) return formatStructuredSchemaValue(value)
   if (field.control === 'DatePicker' && typeof value === 'string') return value.slice(0, 10)
   if (field.control === 'EnumSelector' && isPrimitiveSettingValue(value)) return normalizeEnumValue(field, value)
   if (isPrimitiveSettingValue(value)) return value
@@ -435,6 +442,7 @@ function isPrimitiveSettingValue(value: unknown): value is string | number | boo
 }
 
 function defaultValue(field: SettingSchemaField) {
+  if (isStructuredSchemaField(field)) return formatStructuredSchemaValue(null)
   if (field.control === 'TextField') return ''
   if (field.control === 'DatePicker') return ''
   if (['EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return null
@@ -461,16 +469,18 @@ function setInputStateField(name: string, value: FieldValue) {
 }
 
 function normalizedInputState() {
-  return Object.fromEntries(schemaFields.value.map((field): [string, string | number | boolean | null] => {
+  return Object.fromEntries(schemaFields.value.map((field): [string, unknown] => {
     const value = inputState[field.name]
     if (!field.required && isEmptyValue(value)) return [field.name, null]
     return [field.name, normalizeInputValueForSave(field, value)]
   }))
 }
 
-function normalizeInputValueForSave(field: SettingSchemaField, value: unknown): string | number | boolean | null {
+function normalizeInputValueForSave(field: SettingSchemaField, value: unknown): unknown {
   if (value === undefined || value === null) return null
   if (isEmptyValue(value)) return null
+
+  if (isStructuredSchemaField(field)) return parseStructuredSchemaValue(field, value)
 
   if (isNumericSchemaField(field)) {
     if (typeof value === 'number') return value
@@ -753,10 +763,27 @@ async function saveSetting() {
     return
   }
 
+  let json: string
+  try {
+    json = JSON.stringify(normalizedInputState())
+  } catch {
+    const invalidField = schemaFields.value.find((field) => {
+      if (!isStructuredSchemaField(field)) return false
+      try {
+        parseStructuredSchemaValue(field, inputState[field.name])
+        return false
+      } catch {
+        return true
+      }
+    })
+    ElMessage.warning(t('serviceSettings.invalidStructuredField', { field: invalidField ? fieldLabel(invalidField) : '' }))
+    return
+  }
+
   isSaving.value = true
   try {
     await updateServiceSetting(selectedService.value, selectedSetting.value.systemName, {
-      json: JSON.stringify(normalizedInputState()),
+      json,
     })
     ElMessage.success(t('serviceSettings.saved'))
     await loadSettings()

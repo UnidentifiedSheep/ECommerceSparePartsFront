@@ -1,5 +1,5 @@
 import api, { analyticsApiPrefix, clampPageSize } from '@/services/api/api.ts'
-import type { ObjectSchema, SchemaUiField } from '@/models/schemaModel.ts'
+import { normalizeObjectSchema, type ObjectSchema, type SchemaUiField } from '@/models/schemaModel.ts'
 
 export type CalculationStatus =
   | 'Pending'
@@ -199,12 +199,23 @@ function mapMetric(dto: MetricDto): MetricModel {
 
 export async function getMetricInfos(): Promise<GetMetricInfosResponse> {
   const resp = await api.get<GetMetricInfosResponse>(businessMetricsUrl('/info'))
-  return resp.data
+  return {
+    metrics: resp.data.metrics.map((metric) => ({
+      ...metric,
+      inputSchema: normalizeObjectSchema(metric.inputSchema),
+    })),
+  }
 }
 
 export async function getCharts(signal?: AbortSignal): Promise<GetChartsResponse> {
   const resp = await api.get<GetChartsResponse>(analyticsUrl('/charts'), { signal })
-  return resp.data
+  return {
+    charts: resp.data.charts.map((chart) => ({
+      ...chart,
+      queryInputSchema: normalizeObjectSchema(chart.queryInputSchema),
+      dataPointSchema: normalizeObjectSchema(chart.dataPointSchema),
+    })),
+  }
 }
 
 export async function querySalesProfitChart(

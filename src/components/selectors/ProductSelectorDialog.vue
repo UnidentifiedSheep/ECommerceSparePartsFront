@@ -18,21 +18,6 @@
           />
         </div>
 
-        <div class="product-selector-field product-selector-field--producer">
-          <label>{{ t('common.labels.producer') }}</label>
-          <ProducerMultiSelector
-            v-if="canUseCatalogueSearch"
-            v-model="producerIds"
-            :placeholder="t('products.allProducers')"
-          />
-          <ProducerSelector
-            v-else
-            :model-value="producerIds[0]"
-            :placeholder="t('products.allProducers')"
-            @update:model-value="setSingleProducer"
-          />
-        </div>
-
         <div class="product-selector-actions">
           <el-button native-type="submit" type="primary" :disabled="Boolean(searchValidationMessage)">
             {{ t('products.find') }}
@@ -44,62 +29,84 @@
       </form>
 
       <button
-        v-if="canUseCatalogueSearch"
         class="product-selector-settings-toggle"
         type="button"
         :aria-expanded="searchSettingsOpen"
         @click="searchSettingsOpen = !searchSettingsOpen"
       >
         <span>
-          <strong>{{ t('products.searchSettings') }}</strong>
+          <strong>{{ t('products.filters') }}</strong>
           <em>{{ searchSettingsSummary }}</em>
         </span>
         <el-icon :class="{ 'is-open': searchSettingsOpen }"><ArrowDown /></el-icon>
       </button>
 
-      <div v-if="canUseCatalogueSearch" v-show="searchSettingsOpen" class="product-selector-settings">
-        <div class="product-selector-presets">
-          <span>{{ t('products.searchPreset') }}</span>
-          <div role="group" :aria-label="t('products.searchPreset')">
-            <button
-              v-for="preset in searchPresetOptions"
-              :key="preset.value"
-              type="button"
-              :class="{ 'is-active': currentSearchPreset === preset.value }"
-              @click="applySearchPreset(preset.value)"
-            >
-              {{ preset.label }}
-            </button>
+      <div v-show="searchSettingsOpen" class="product-selector-settings">
+        <div class="product-selector-filters">
+          <div class="product-selector-field">
+            <label>{{ t('common.labels.producer') }}</label>
+            <ProducerMultiSelector
+              v-if="canUseCatalogueSearch"
+              v-model="producerIds"
+              :placeholder="t('products.allProducers')"
+            />
+            <ProducerSelector
+              v-else
+              :model-value="producerIds[0]"
+              :placeholder="t('products.allProducers')"
+              @update:model-value="setSingleProducer"
+            />
+          </div>
+          <div class="product-selector-field">
+            <label>{{ t('products.productGroups') }}</label>
+            <ProductGroupMultiSelector v-model="productGroupIds" :placeholder="t('products.allProductGroups')" />
           </div>
         </div>
 
-        <fieldset class="product-selector-mode-group">
-          <legend>{{ t('products.skuMatching') }}</legend>
-          <el-checkbox-group v-model="skuModes" @change="handleModesChanged">
-            <el-checkbox
-              v-for="mode in matchTypeOptions"
-              :key="mode.value"
-              :label="mode.value"
-              :disabled="isLastSearchMode('sku', mode.value)"
-            >
-              {{ mode.label }}
-            </el-checkbox>
-          </el-checkbox-group>
-        </fieldset>
+        <div v-if="canUseCatalogueSearch" class="product-selector-matching">
+          <div class="product-selector-presets">
+            <span>{{ t('products.searchPreset') }}</span>
+            <div role="group" :aria-label="t('products.searchPreset')">
+              <button
+                v-for="preset in searchPresetOptions"
+                :key="preset.value"
+                type="button"
+                :class="{ 'is-active': currentSearchPreset === preset.value }"
+                @click="applySearchPreset(preset.value)"
+              >
+                {{ preset.label }}
+              </button>
+            </div>
+          </div>
 
-        <fieldset class="product-selector-mode-group">
-          <legend>{{ t('products.nameMatching') }}</legend>
-          <el-checkbox-group v-model="nameModes" @change="handleModesChanged">
-            <el-checkbox
-              v-for="mode in matchTypeOptions"
-              :key="mode.value"
-              :label="mode.value"
-              :disabled="isLastSearchMode('name', mode.value)"
-            >
-              {{ mode.label }}
-            </el-checkbox>
-          </el-checkbox-group>
-        </fieldset>
+          <fieldset class="product-selector-mode-group">
+            <legend>{{ t('products.skuMatching') }}</legend>
+            <el-checkbox-group v-model="skuModes" @change="handleModesChanged">
+              <el-checkbox
+                v-for="mode in matchTypeOptions"
+                :key="mode.value"
+                :label="mode.value"
+                :disabled="isLastSearchMode('sku', mode.value)"
+              >
+                {{ mode.label }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </fieldset>
+
+          <fieldset class="product-selector-mode-group">
+            <legend>{{ t('products.nameMatching') }}</legend>
+            <el-checkbox-group v-model="nameModes" @change="handleModesChanged">
+              <el-checkbox
+                v-for="mode in matchTypeOptions"
+                :key="mode.value"
+                :label="mode.value"
+                :disabled="isLastSearchMode('name', mode.value)"
+              >
+                {{ mode.label }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </fieldset>
+        </div>
       </div>
 
       <p v-if="searchValidationMessage" class="product-selector-validation">{{ searchValidationMessage }}</p>
@@ -182,6 +189,7 @@ import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import ProducerMultiSelector from '@/components/selectors/ProducerMultiSelector.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
+import ProductGroupMultiSelector from '@/components/selectors/ProductGroupMultiSelector.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
@@ -214,6 +222,7 @@ const products = ref<ProductSearchModel[]>([])
 const producerNames = ref<Record<number, string>>({})
 const query = ref('')
 const producerIds = ref<number[]>([])
+const productGroupIds = ref<number[]>([])
 const sortBy = ref<string[]>([])
 const page = ref(0)
 const size = ref(20)
@@ -250,11 +259,19 @@ const currentSearchPreset = computed<SearchPreset | 'Custom'>(() => {
     .find(([, modes]) => sameModes(skuModes.value, modes.sku) && sameModes(nameModes.value, modes.name))
   return preset?.[0] ?? 'Custom'
 })
-const searchSettingsSummary = computed(() => t('products.searchSettingsSummary', {
-  preset: t(`products.searchPresets.${currentSearchPreset.value}`),
-  sku: skuModes.value.length,
-  name: nameModes.value.length,
-}))
+const searchSettingsSummary = computed(() => {
+  const parts: string[] = []
+  if (producerIds.value.length) parts.push(t('products.producersSelected', { count: producerIds.value.length }))
+  if (productGroupIds.value.length) parts.push(t('products.productGroupsSelected', { count: productGroupIds.value.length }))
+  if (canUseCatalogueSearch.value) {
+    parts.push(t('products.searchSettingsSummary', {
+      preset: t(`products.searchPresets.${currentSearchPreset.value}`),
+      sku: skuModes.value.length,
+      name: nameModes.value.length,
+    }))
+  }
+  return parts.join(' · ') || t('products.noFilters')
+})
 const searchValidationMessage = computed(() => {
   if (skuModes.value.length === 0 && nameModes.value.length === 0) return t('products.selectSearchField')
   const selectedModes = [...skuModes.value, ...nameModes.value]
@@ -341,6 +358,7 @@ function resetSelectorState() {
   productsRequestId += 1
   query.value = ''
   producerIds.value = []
+  productGroupIds.value = []
   sortBy.value = []
   page.value = 0
   size.value = 20
@@ -362,6 +380,7 @@ async function resetFilters() {
   isResetting = true
   query.value = ''
   producerIds.value = []
+  productGroupIds.value = []
   sortBy.value = []
   page.value = 0
   selectedProductId.value = undefined
@@ -388,6 +407,7 @@ async function loadProducts(resetPage: boolean) {
           name: nameModes.value,
         },
         producerIds: producerIds.value,
+        productGroupIds: productGroupIds.value,
         includeHighlights: includeHighlights.value && Boolean(normalizedQuery),
         page: page.value,
         size: size.value,
@@ -406,6 +426,7 @@ async function loadProducts(resetPage: boolean) {
         ? await searchProductsBySku({
             sku: normalizedQuery,
             producerId: producerIds.value[0],
+            productGroupIds: productGroupIds.value,
             searchMode: skuModes.value.length === 1 ? skuModes.value[0] : 'Full',
             page: page.value,
             size: size.value,
@@ -414,6 +435,7 @@ async function loadProducts(resetPage: boolean) {
         : await searchProducts({
             query: normalizedQuery || undefined,
             producerId: producerIds.value[0],
+            productGroupIds: productGroupIds.value,
             page: page.value,
             size: size.value,
             sortBy: sortBy.value,
@@ -454,6 +476,9 @@ watch(size, async () => {
 watch(producerIds, async () => {
   if (!isResetting) await loadProducts(true)
 }, { deep: true })
+watch(productGroupIds, async () => {
+  if (!isResetting) await loadProducts(true)
+}, { deep: true })
 watch(query, () => {
   if (!isResetting) searchProductsDebounced()
 })
@@ -479,7 +504,7 @@ onMounted(async () => {
 
 .product-selector-search {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(240px, 320px) auto;
+  grid-template-columns: minmax(300px, 1fr) auto;
   align-items: end;
   gap: 12px;
 }
@@ -551,6 +576,19 @@ onMounted(async () => {
 }
 
 .product-selector-settings {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+
+.product-selector-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.product-selector-matching {
   display: grid;
   grid-template-columns: auto 1fr 1fr;
   gap: 16px;
@@ -705,7 +743,8 @@ onMounted(async () => {
   }
 
   .product-selector-search,
-  .product-selector-settings {
+  .product-selector-filters,
+  .product-selector-matching {
     grid-template-columns: 1fr;
   }
 

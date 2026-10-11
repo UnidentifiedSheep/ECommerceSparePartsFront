@@ -5,6 +5,7 @@ export interface ProductModel {
   description?: string | null
   producerId: number
   producerName: string
+  group?: { id: number; name: string } | null
   indicator?: string | null
   images: string[]
   stock: number
