@@ -31,6 +31,8 @@ interface GetAggregatedAvailableJobsResponse {
 
 export interface JobModel {
   id: string
+  isStep: boolean
+  multiStepJobId: string | null
   systemName: string
   status: string
   attempts: number
@@ -50,6 +52,8 @@ export type JobStatus =
   | 'Succeeded'
   | 'CancellationRequested'
   | 'Cancelled'
+  | 'Waiting'
+  | 'Blocked'
 
 export interface GetServiceJobsRequest {
   page: number

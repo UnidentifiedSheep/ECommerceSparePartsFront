@@ -942,6 +942,8 @@ const jobStatusOptions = computed<Array<{ label: string; value: JobStatus }>>(()
   { label: t('jobs.statuses.Pending'), value: 'Pending' },
   { label: t('jobs.statuses.Locked'), value: 'Locked' },
   { label: t('jobs.statuses.Processing'), value: 'Processing' },
+  { label: t('jobs.statuses.Waiting'), value: 'Waiting' },
+  { label: t('jobs.statuses.Blocked'), value: 'Blocked' },
   { label: t('jobs.statuses.Failed'), value: 'Failed' },
   { label: t('jobs.statuses.Succeeded'), value: 'Succeeded' },
   { label: t('jobs.statuses.CancellationRequested'), value: 'CancellationRequested' },
@@ -2044,11 +2046,14 @@ async function deleteSchedule(row: JobScheduleModel) {
 }
 
 function canCancelJob(row: JobModel) {
-  return canCancelJobs.value && ['Pending', 'Locked', 'Processing'].includes(row.status)
+  return canCancelJobs.value
+    && row.isStep === false
+    && ['Pending', 'Locked', 'Processing', 'Waiting', 'Blocked'].includes(row.status)
 }
 
 async function cancelJob(row: JobModel) {
   if (!selectedCurrentService.value || !canCancelJob(row)) return
+  const serviceKey = selectedCurrentService.value
 
   try {
     await ElMessageBox.confirm(t('jobs.cancelJobConfirm'), t('jobs.cancelJobTitle'), {
@@ -2061,12 +2066,16 @@ async function cancelJob(row: JobModel) {
     return
   }
 
+  if (!canCancelJob(row)) return
+  const cancelsImmediately = ['Pending', 'Waiting', 'Blocked'].includes(row.status)
+
   cancellingJobId.value = row.id
   try {
-    await cancelServiceJob(selectedCurrentService.value, row.id)
-    row.status = 'CancellationRequested'
+    await cancelServiceJob(serviceKey, row.id)
+    row.status = cancelsImmediately ? 'Cancelled' : 'CancellationRequested'
     row.updatedAt = new Date().toISOString()
-    ElMessage.success(t('jobs.cancelRequested'))
+    ElMessage.success(t(cancelsImmediately ? 'jobs.cancelled' : 'jobs.cancelRequested'))
+    if (selectedCurrentService.value === serviceKey) await loadCurrentJobs()
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('jobs.cancelJobError'))
   } finally {
@@ -2117,6 +2126,8 @@ function jobStatusTagType(status: JobStatus | string) {
     Pending: 'info',
     Locked: 'warning',
     Processing: 'warning',
+    Waiting: 'warning',
+    Blocked: 'info',
     Failed: 'danger',
     Succeeded: 'success',
     CancellationRequested: 'warning',
