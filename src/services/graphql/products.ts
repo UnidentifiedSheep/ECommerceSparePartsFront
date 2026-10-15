@@ -20,9 +20,15 @@ import {
   ProducerSearchDocument,
   ProductGroupsSearchDocument,
   ProductGroupsByIdsDocument,
+  CharacteristicsSearchDocument,
+  CharacteristicsByIdsDocument,
+  CharacteristicUpsertDocument,
+  CharacteristicDeleteDocument,
   ProductGroupUpsertDocument,
   ProductPatchDocument,
   ProductCreateDocument,
+  ProductEanCreateDocument,
+  ProductEanDeleteDocument,
   ProducersByIdsDocument,
   ProductAvailableStockDocument,
   ProductsAvailableStockDocument,
@@ -46,9 +52,16 @@ import {
   type ProducerSearchQuery,
   type ProductGroupsSearchQuery,
   type ProductGroupsByIdsQuery,
+  type CharacteristicsSearchQuery,
+  type CharacteristicsByIdsQuery,
+  type CharacteristicUpsertMutation,
+  type CharacteristicDeleteMutation,
+  type ProductSearchCriteriaInput,
   type ProductGroupUpsertMutation,
   type ProductPatchMutation,
   type ProductCreateMutation,
+  type ProductEanCreateMutation,
+  type ProductEanDeleteMutation,
   type CreateProductInput,
   type PatchProductInput,
   type ProducersByIdsQuery,
@@ -106,8 +119,14 @@ function mapProduct(product: GqlProduct): ProductModel {
   if ('size' in product) mapped.size = product.size ? { productId: product.id, ...product.size } : null
   if ('weight' in product) mapped.weight = product.weight ? { productId: product.id, ...product.weight } : null
   if ('characteristics' in product) {
-    mapped.characteristics = product.characteristics.map((item) => ({ productId: product.id, ...item }))
+    mapped.characteristics = product.characteristics.map((item) => ({
+      productId: product.id,
+      characteristicId: item.characteristic.id,
+      name: item.characteristic.name,
+      value: item.value,
+    }))
   }
+  if ('eans' in product) mapped.eans = product.eans ?? []
   return mapped
 }
 
@@ -238,6 +257,7 @@ export async function getProductByIdGraphql(
   productId: number,
   includeCatalogueCandidate = false,
   crossesPageSize?: number,
+  includeEans = false,
 ): Promise<{
   product: ProductModel | null
   catalogueCandidate: CatalogueCandidateReviewModel | null
@@ -249,6 +269,7 @@ export async function getProductByIdGraphql(
       crossesInput: { pagination: { page: 0, size: crossesPageSize ?? 1 }, sortBy: [] },
       includeCrosses: crossesPageSize !== undefined,
       includeCatalogueCandidate,
+      includeEans,
     },
     fetchPolicy: 'network-only',
   })
@@ -348,11 +369,13 @@ export async function searchProductsGraphql(options: {
   skuModes?: GraphqlSearchMatchType[]
   nameModes?: GraphqlSearchMatchType[]
   sortBy?: string[]
+  productCriteria?: ProductSearchCriteriaInput | null
 }): Promise<{ products: ProductSearchModel[]; total: number }> {
   const response = await searchCatalogueGraphql({
     query: options.query,
     producerIds: options.producerId === undefined ? [] : [options.producerId],
     productGroupIds: options.productGroupIds,
+    productCriteria: options.productCriteria,
     page: options.page,
     size: options.size,
     skuModes: options.skuModes,
@@ -381,6 +404,7 @@ export async function searchCatalogueGraphql(options: {
   candidateMappingStatus?: CandidateMappingStatus
   targets?: Array<'PRODUCTS' | 'CATALOGUE_CANDIDATES'>
   includeHighlights?: boolean
+  productCriteria?: ProductSearchCriteriaInput | null
 }): Promise<{
   products: { items: ProductSearchModel[], total: number }
   catalogueCandidates: { items: CatalogueCandidateSearchModel[], total: number }
@@ -400,6 +424,7 @@ export async function searchCatalogueGraphql(options: {
         catalogueCandidateSortBy: mapSortBy(options.catalogueCandidateSortBy),
         candidateMappingStatus: options.candidateMappingStatus ?? 'UNMAPPED',
         includeHighlights: options.includeHighlights ?? false,
+        productCriteria: options.productCriteria ?? null,
       },
     },
     fetchPolicy: 'network-only',
@@ -456,6 +481,44 @@ export async function searchProductGroupsGraphql(options: {
 
 export type ProductGroup = ProductGroupsSearchQuery['productGroups']['search'][number]
 
+export type Characteristic = CharacteristicsSearchQuery['characteristics']['search'][number]
+
+export async function searchCharacteristicsGraphql(options: { searchTerm?: string; page: number; size: number }): Promise<Characteristic[]> {
+  const response = await graphqlClient.query<CharacteristicsSearchQuery>({
+    query: CharacteristicsSearchDocument,
+    variables: { input: { searchTerm: options.searchTerm ?? null, pagination: { page: options.page, size: options.size } } },
+    fetchPolicy: 'network-only',
+  })
+  return response.data.characteristics.search
+}
+
+export async function getCharacteristicsByIdsGraphql(ids: number[]): Promise<Characteristic[]> {
+  if (ids.length === 0) return []
+  const response = await graphqlClient.query<CharacteristicsByIdsQuery>({
+    query: CharacteristicsByIdsDocument,
+    variables: { ids: [...new Set(ids)] },
+    fetchPolicy: 'network-only',
+  })
+  return response.data.characteristics.byIds
+}
+
+export async function upsertCharacteristicGraphql(input: { id?: number; name: string }): Promise<Characteristic> {
+  const response = await graphqlClient.mutate<CharacteristicUpsertMutation>({
+    mutation: CharacteristicUpsertDocument,
+    variables: { input: { id: input.id ?? null, name: input.name } },
+  })
+  if (!response.data) throw new Error('Characteristic mutation returned no data')
+  return response.data.characteristics.upsert
+}
+
+export async function deleteCharacteristicGraphql(id: number): Promise<void> {
+  const response = await graphqlClient.mutate<CharacteristicDeleteMutation>({
+    mutation: CharacteristicDeleteDocument,
+    variables: { id },
+  })
+  if (response.data?.characteristics.delete !== true) throw new Error('Characteristic deletion failed')
+}
+
 export async function getProductGroupsByIdsGraphql(ids: number[]): Promise<ProductGroup[]> {
   if (ids.length === 0) return []
   const response = await graphqlClient.query<ProductGroupsByIdsQuery>({
@@ -489,6 +552,22 @@ export async function createProductsGraphql(products: CreateProductInput[]): Pro
   })
   if (!response.data) throw new Error('Product creation returned no data')
   return response.data.products.create
+}
+
+export async function createProductEanGraphql(productId: number, ean: string): Promise<void> {
+  const response = await graphqlClient.mutate<ProductEanCreateMutation>({
+    mutation: ProductEanCreateDocument,
+    variables: { input: { productId, ean } },
+  })
+  if (response.data?.productEans.create !== true) throw new Error('Product EAN creation failed')
+}
+
+export async function deleteProductEanGraphql(productId: number, ean: string): Promise<void> {
+  const response = await graphqlClient.mutate<ProductEanDeleteMutation>({
+    mutation: ProductEanDeleteDocument,
+    variables: { input: { productId, ean } },
+  })
+  if (response.data?.productEans.delete !== true) throw new Error('Product EAN deletion failed')
 }
 
 export async function getProducersByIdsGraphql(ids: number[]): Promise<ProducerModel[]> {

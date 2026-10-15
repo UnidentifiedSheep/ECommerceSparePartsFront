@@ -1,12 +1,8 @@
 <template>
   <el-dialog v-model="isOpen" :title="dialogTitle" width="520">
     <el-form label-position="top">
-      <el-form-item :label="t('common.labels.name')">
-        <el-input
-          v-model="form.name"
-          :disabled="Boolean(item)"
-          :placeholder="t('products.details.characteristicNamePlaceholder')"
-        />
+      <el-form-item :label="t('products.characteristic')">
+        <CharacteristicSelector v-model="form.characteristicId" :selected-name="item?.name" :disabled="Boolean(item)" />
       </el-form-item>
       <el-form-item :label="t('common.labels.value')">
         <el-input
@@ -14,6 +10,8 @@
           type="textarea"
           :autosize="{ minRows: 3, maxRows: 6 }"
           :placeholder="t('products.details.characteristicValuePlaceholder')"
+          maxlength="128"
+          show-word-limit
         />
       </el-form-item>
     </el-form>
@@ -30,6 +28,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import type { ProductCharacteristicModel } from '@/models/productModel.ts'
 import { addProductCharacteristic, editProductCharacteristic } from '@/services/api/products.ts'
+import CharacteristicSelector from '@/components/selectors/CharacteristicSelector.vue'
 import { useI18n } from '@/i18n'
 
 const props = defineProps<{
@@ -40,15 +39,15 @@ const emit = defineEmits<{ saved: [] }>()
 const isOpen = defineModel<boolean>({ required: true })
 const { t } = useI18n()
 const saving = ref(false)
-const form = reactive({ name: '', value: '' })
+const form = reactive<{ characteristicId: number | undefined; value: string }>({ characteristicId: undefined, value: '' })
 const dialogTitle = computed(() => props.item
   ? t('products.details.editCharacteristicTitle')
   : t('products.details.addCharacteristicTitle'))
 
 async function save() {
-  const name = form.name.trim()
+  const characteristicId = form.characteristicId
   const value = form.value.trim()
-  if (!name || !value) {
+  if (!characteristicId || value.length < 3 || value.length > 128) {
     ElNotification({
       title: t('products.details.fillDataTitle'),
       message: t('products.details.fillCharacteristic'),
@@ -61,11 +60,11 @@ async function save() {
     if (props.item) {
       await editProductCharacteristic({
         productId: props.productId,
-        name: props.item.name,
+        characteristicId: props.item.characteristicId,
         value,
       })
     } else {
-      await addProductCharacteristic({ productId: props.productId, name, value })
+      await addProductCharacteristic({ productId: props.productId, characteristicId, value })
     }
     ElNotification({
       title: t('products.details.characteristicSavedTitle'),
@@ -81,7 +80,7 @@ async function save() {
 
 watch(isOpen, (open) => {
   if (!open) return
-  form.name = props.item?.name ?? ''
+  form.characteristicId = props.item?.characteristicId
   form.value = props.item?.value ?? ''
 })
 </script>

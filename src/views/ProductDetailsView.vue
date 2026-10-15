@@ -73,6 +73,11 @@
             :can-delete-size="canDeleteSize"
             :can-set-weight="canSetWeight"
             :can-delete-weight="canDeleteWeight"
+            :can-view-eans="canViewEans"
+            :can-edit-eans="canEditEans"
+            :ean-busy="eanBusy"
+            @add-ean="addEan"
+            @delete-ean="removeEan"
             @manage-size="sizeDialogOpen = true"
             @manage-weight="weightDialogOpen = true"
             @select-pair="openPairSelector"
@@ -282,6 +287,7 @@ import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
 import { groupCatalogueCandidateNames, type CatalogueNameGroup } from '@/utils/catalogueCandidateNames.ts'
 import { useMultiSort } from '@/composables/useMultiSort.ts'
+import { createProductEanGraphql, deleteProductEanGraphql } from '@/services/graphql/products.ts'
 
 type ProductTab = 'crosses' | 'storage' | 'content' | 'characteristics'
 
@@ -330,6 +336,7 @@ const isCharacteristicsLoading = ref(false)
 const isUploadingImages = ref(false)
 const deletingImage = ref<string | null>(null)
 const deletingStorageContentId = ref<number>()
+const eanBusy = ref(false)
 
 const crossDialogOpen = ref(false)
 const sizeDialogOpen = ref(false)
@@ -347,6 +354,8 @@ const editingContentItem = ref<ProductContentModel>()
 const editingCharacteristic = ref<ProductCharacteristicModel>()
 
 const canEditProduct = computed(() => hasPermission('ARTICLES_EDIT'))
+const canViewEans = computed(() => hasPermission('ARTICLE_EANS_GET'))
+const canEditEans = computed(() => canViewEans.value && hasPermission('ARTICLE_EANS_EDIT'))
 const canCreateCrosses = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
 const canAddImages = computed(() => hasPermission('ARTICLE_IMAGES_CREATE'))
 const canDeleteImages = computed(() => hasPermission('ARTICLE_IMAGES_DELETE'))
@@ -364,8 +373,10 @@ const canDeleteWeight = computed(() => hasPermission('ARTICLE_WEIGHT_DELETE'))
 const canCreateProductContent = computed(() => hasPermission('ARTICLE_CONTENT_CREATE'))
 const canEditProductContent = computed(() => hasPermission('ARTICLE_CONTENT_EDIT'))
 const canDeleteProductContent = computed(() => hasPermission('ARTICLE_CONTENT_DELETE'))
-const canCreateCharacteristics = computed(() => hasPermission('ARTICLE_CHARACTERISTICS_CREATE'))
-const canEditCharacteristics = computed(() => hasPermission('ARTICLE_CHARACTERISTICS_UPDATE'))
+const canCreateCharacteristics = computed(() => hasPermission('ARTICLES_DETAILS_GET')
+  && hasPermission('ARTICLE_CHARACTERISTICS_CREATE') && hasPermission('ARTICLE_CHARACTERISTICS_UPDATE'))
+const canEditCharacteristics = computed(() => hasPermission('ARTICLE_CHARACTERISTICS_CREATE')
+  && hasPermission('ARTICLE_CHARACTERISTICS_UPDATE'))
 const canDeleteCharacteristics = computed(() => hasPermission('ARTICLE_CHARACTERISTICS_DELETE'))
 const canManageSize = computed(() => canSetSize.value || Boolean(productSize.value && canDeleteSize.value))
 const canManageWeight = computed(() => canSetWeight.value || Boolean(productWeight.value && canDeleteWeight.value))
@@ -512,6 +523,51 @@ async function removeImage(image: string) {
   }
 }
 
+async function addEan(ean: string) {
+  if (!product.value || !canEditEans.value || eanBusy.value) return
+  eanBusy.value = true
+  try {
+    await createProductEanGraphql(product.value.id, ean)
+    await loadProduct()
+    ElNotification({ title: t('products.details.eanAdded'), type: 'success' })
+  } catch (error) {
+    ElNotification({
+      title: t('products.details.eanSaveFailed'),
+      message: error instanceof Error ? error.message : undefined,
+      type: 'error',
+    })
+  } finally {
+    eanBusy.value = false
+  }
+}
+
+async function removeEan(ean: string) {
+  if (!product.value || !canEditEans.value || eanBusy.value) return
+  try {
+    await ElMessageBox.confirm(t('products.details.deleteEanConfirm', { ean }), t('products.details.deleteEanTitle'), {
+      confirmButtonText: t('common.actions.delete'),
+      cancelButtonText: t('common.actions.cancel'),
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+  eanBusy.value = true
+  try {
+    await deleteProductEanGraphql(product.value.id, ean)
+    await loadProduct()
+    ElNotification({ title: t('products.details.eanDeleted'), type: 'success' })
+  } catch (error) {
+    ElNotification({
+      title: t('products.details.eanDeleteFailed'),
+      message: error instanceof Error ? error.message : undefined,
+      type: 'error',
+    })
+  } finally {
+    eanBusy.value = false
+  }
+}
+
 function openEditStorageContentDialog(item: StorageContentModel) {
   editingStorageContent.value = item
   editStorageContentDialogOpen.value = true
@@ -583,7 +639,7 @@ async function removeCharacteristic(item: ProductCharacteristicModel) {
   } catch {
     return
   }
-  await deleteProductCharacteristic(product.value.id, item.name)
+  await deleteProductCharacteristic(product.value.id, item.characteristicId)
   ElNotification({
     title: t('products.details.characteristicDeletedTitle'),
     message: t('products.details.characteristicDeletedMessage'),
@@ -615,6 +671,7 @@ async function loadProduct(includeCrosses = false) {
     productId.value,
     canReviewCatalogueCandidates.value && canEditProduct.value,
     includeCrosses ? size.value : undefined,
+    canViewEans.value,
   )
   product.value = response.product
   catalogueCandidate.value = response.catalogueCandidate

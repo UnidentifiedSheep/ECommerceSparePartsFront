@@ -2,7 +2,7 @@
   <div class="product-groups-page">
     <PageHeader :title="t('productGroups.title')" :description="t('productGroups.description')">
       <template #actions>
-        <el-button :icon="Plus" type="primary" @click="openCreateDialog">
+        <el-button v-if="canEdit" :icon="Plus" type="primary" @click="openCreateDialog">
           {{ t('productGroups.create') }}
         </el-button>
       </template>
@@ -41,7 +41,7 @@
           <el-table-column width="64" align="right">
             <template #header><span class="sr-only">{{ t('common.labels.actions') }}</span></template>
             <template #default="{ row }">
-              <ActionIconButton :label="t('common.actions.edit')" :icon="Edit" @click="openEditDialog(row)" />
+              <ActionIconButton v-if="canEdit" :label="t('common.actions.edit')" :icon="Edit" @click="openEditDialog(row)" />
             </template>
           </el-table-column>
         </el-table>
@@ -94,8 +94,11 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import { useI18n } from '@/i18n'
 import { searchProductGroups } from '@/services/api/search.ts'
 import { upsertProductGroupGraphql, type ProductGroup } from '@/services/graphql/products.ts'
+import { usePermissions } from '@/composables/usePermissions.ts'
 
 const { t } = useI18n()
+const { hasPermission } = usePermissions()
+const canEdit = computed(() => hasPermission('ARTICLES_DETAILS_EDIT'))
 const groups = ref<ProductGroup[]>([])
 const searchTerm = ref('')
 const page = ref(0)
@@ -160,7 +163,7 @@ function resetDialog() {
 }
 
 async function saveGroup() {
-  if (!canSave.value || saving.value) return
+  if (!canEdit.value || !canSave.value || saving.value) return
   saving.value = true
   try {
     await upsertProductGroupGraphql({

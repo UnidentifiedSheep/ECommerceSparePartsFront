@@ -16,12 +16,12 @@
           :aria-label="t('productGroups.searchPlaceholder')"
           clearable
         />
-        <el-button :icon="Plus" type="primary" @click="openCreateForm">
+        <el-button v-if="canEdit" :icon="Plus" type="primary" @click="openCreateForm">
           {{ t('common.actions.create') }}
         </el-button>
       </div>
 
-      <form v-if="formOpen" class="product-groups-manager__form" @submit.prevent="saveGroup">
+      <form v-if="formOpen && canEdit" class="product-groups-manager__form" @submit.prevent="saveGroup">
         <div class="product-groups-manager__form-heading">
           <strong>{{ editingGroup ? t('productGroups.edit') : t('productGroups.create') }}</strong>
           <el-button text size="small" @click="closeForm">{{ t('common.actions.cancel') }}</el-button>
@@ -52,7 +52,7 @@
               <span>{{ group.normalizedName }}</span>
             </div>
             <span class="product-groups-manager__id">#{{ group.id }}</span>
-            <ActionIconButton :label="t('common.actions.edit')" :icon="Edit" @click="openEditForm(group)" />
+            <ActionIconButton v-if="canEdit" :label="t('common.actions.edit')" :icon="Edit" @click="openEditForm(group)" />
           </li>
         </ul>
         <div v-else-if="!loading" class="product-groups-manager__empty">
@@ -82,6 +82,7 @@ import { useI18n } from '@/i18n'
 import { searchProductGroups } from '@/services/api/search.ts'
 import { upsertProductGroupGraphql, type ProductGroup } from '@/services/graphql/products.ts'
 
+const props = defineProps<{ canEdit: boolean }>()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{ saved: [group: ProductGroup] }>()
 const { t } = useI18n()
@@ -151,7 +152,7 @@ function closeForm() {
 }
 
 async function saveGroup() {
-  if (!canSave.value || saving.value) return
+  if (!props.canEdit || !canSave.value || saving.value) return
   saving.value = true
   try {
     const saved = await upsertProductGroupGraphql({

@@ -4,6 +4,45 @@
       <dt>{{ t('products.sku') }}</dt>
       <dd><ProductSkuCell :sku="product.sku" :indicator="product.indicator" /></dd>
 
+      <template v-if="canViewEans">
+        <dt>EAN</dt>
+        <dd class="product-summary-panel__eans">
+          <div v-for="ean in product.eans ?? []" :key="ean" class="product-summary-panel__ean-row">
+            <span class="product-summary-panel__ean-code">{{ ean }}</span>
+            <el-button
+              v-if="canEditEans"
+              :icon="Delete"
+              size="small"
+              text
+              type="danger"
+              :disabled="eanBusy"
+              :aria-label="t('products.details.deleteEan', { ean })"
+              @click="emit('delete-ean', ean)"
+            />
+          </div>
+          <span v-if="!product.eans?.length && !showEanInput" class="text-slate-500">—</span>
+          <form v-if="showEanInput" class="product-summary-panel__ean-form" @submit.prevent="submitEan">
+            <el-input
+              v-model="newEan"
+              size="small"
+              maxlength="14"
+              :placeholder="t('products.details.eanPlaceholder')"
+              :disabled="eanBusy"
+              autofocus
+            />
+            <el-button size="small" type="primary" native-type="submit" :loading="eanBusy" :disabled="!canSubmitEan">
+              {{ t('common.actions.add') }}
+            </el-button>
+            <el-button size="small" text :disabled="eanBusy" @click="closeEanInput">
+              {{ t('common.actions.cancel') }}
+            </el-button>
+          </form>
+          <el-button v-else-if="canEditEans" size="small" text type="primary" :disabled="eanBusy" @click="showEanInput = true">
+            {{ t('products.details.addEan') }}
+          </el-button>
+        </dd>
+      </template>
+
       <dt>{{ t('common.labels.producer') }}</dt>
       <dd>{{ product.producerName || '-' }}</dd>
 
@@ -82,8 +121,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { View } from '@element-plus/icons-vue'
+import { computed, ref, watch } from 'vue'
+import { Delete, View } from '@element-plus/icons-vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import type { ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
@@ -100,6 +139,9 @@ const props = defineProps<{
   canDeleteSize: boolean
   canSetWeight: boolean
   canDeleteWeight: boolean
+  canViewEans: boolean
+  canEditEans: boolean
+  eanBusy: boolean
 }>()
 
 const emit = defineEmits<{
@@ -108,9 +150,31 @@ const emit = defineEmits<{
   'select-pair': []
   'clear-pair': []
   'open-pair': [id: number]
+  'add-ean': [ean: string]
+  'delete-ean': [ean: string]
 }>()
 
 const { locale, t } = useI18n()
+const newEan = ref('')
+const showEanInput = ref(false)
+const canSubmitEan = computed(() => {
+  const ean = newEan.value.trim()
+  return Boolean(ean) && !(props.product.eans ?? []).includes(ean) && !props.eanBusy
+})
+
+function submitEan() {
+  if (!canSubmitEan.value) return
+  emit('add-ean', newEan.value.trim())
+}
+
+function closeEanInput() {
+  newEan.value = ''
+  showEanInput.value = false
+}
+
+watch(() => props.product.eans, (eans) => {
+  if (newEan.value && eans?.includes(newEan.value.trim())) closeEanInput()
+})
 const canManageSize = computed(() => props.canSetSize || Boolean(props.productSize && props.canDeleteSize))
 const canManageWeight = computed(() => props.canSetWeight || Boolean(props.productWeight && props.canDeleteWeight))
 const sizeActionText = computed(() => props.canSetSize
@@ -170,6 +234,34 @@ const weightText = computed(() => props.productWeight
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.product-summary-panel__eans {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.product-summary-panel__ean-row,
+.product-summary-panel__ean-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.product-summary-panel__ean-code {
+  font-variant-numeric: tabular-nums;
+}
+
+.product-summary-panel__ean-form {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.product-summary-panel__ean-form .el-input {
+  width: 190px;
+  max-width: 100%;
 }
 
 .product-summary-panel__indicator {

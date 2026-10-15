@@ -9,6 +9,7 @@ export interface ProductModel {
   indicator?: string | null
   images: string[]
   stock: number
+  eans?: string[]
   pair?: ProductModel | null
   contents?: ProductContentModel[]
   crosses?: ProductModel[]
@@ -39,6 +40,7 @@ export interface ProductContentModel {
 
 export interface ProductCharacteristicModel {
   productId: number
+  characteristicId: number
   name: string
   value: string
 }

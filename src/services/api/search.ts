@@ -9,6 +9,7 @@ import {
 } from '@/services/graphql/products.ts'
 import type {
   CandidateMappingStatus,
+  ProductSearchCriteriaInput,
   SearchMatchType as GraphqlSearchMatchType,
 } from '@/graphql/generated/graphql.ts'
 
@@ -21,6 +22,7 @@ export interface SearchProductsRequest {
   page: number
   size: number
   sortBy?: string[]
+  productCriteria?: ProductSearchCriteriaInput | null
 }
 
 export interface SearchProductsResponse {
@@ -57,6 +59,7 @@ export interface SearchCatalogueRequest {
   fields?: CatalogueSearchFieldsRequest
   producerIds?: number[]
   productGroupIds?: number[]
+  productCriteria?: ProductSearchCriteriaInput | null
   candidateMappingStatus?: CandidateMappingStatus
   includeHighlights?: boolean
   page: number
@@ -91,6 +94,7 @@ export interface SearchProductsBySkuRequest {
   sku: string
   producerId?: number
   productGroupIds?: number[]
+  productCriteria?: ProductSearchCriteriaInput | null
   searchMode?: SkuSearchMode
   page: number
   size: number
@@ -116,6 +120,7 @@ export async function searchProducts(req: SearchProductsRequest): Promise<Search
     page: req.page,
     size: clampPageSize(req.size),
     sortBy: req.sortBy,
+    productCriteria: req.productCriteria,
   })
 }
 
@@ -129,6 +134,7 @@ export async function searchProductsBySku(req: SearchProductsBySkuRequest): Prom
     query: req.sku,
     producerId: req.producerId,
     productGroupIds: req.productGroupIds,
+    productCriteria: req.productCriteria,
     page: req.page,
     size: clampPageSize(req.size),
     skuModes: toGraphqlSearchMatchTypes(searchModes),
@@ -147,6 +153,7 @@ export async function searchCatalogue(req: SearchCatalogueRequest): Promise<Sear
     nameModes: toGraphqlSearchMatchTypes(req.fields?.name),
     producerIds: req.producerIds ?? [],
     productGroupIds: req.productGroupIds ?? [],
+    productCriteria: req.productCriteria,
     candidateMappingStatus: req.candidateMappingStatus ?? 'UNMAPPED',
     includeHighlights: req.includeHighlights ?? false,
     page: req.page,

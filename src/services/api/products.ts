@@ -124,13 +124,13 @@ export interface EditProductContentRequest {
 
 export interface AddProductCharacteristicRequest {
   productId: number
-  name: string
+  characteristicId: number
   value: string
 }
 
 export interface EditProductCharacteristicRequest {
   productId: number
-  name: string
+  characteristicId: number
   value: string
 }
 
@@ -227,11 +227,13 @@ export async function getProductById(
   productId: number,
   includeCatalogueCandidate = false,
   crossesPageSize?: number,
+  includeEans = false,
 ): Promise<GetProductByIdResponse> {
   const { product, catalogueCandidate } = await getProductByIdGraphql(
     productId,
     includeCatalogueCandidate,
     crossesPageSize === undefined ? undefined : clampPageSize(crossesPageSize),
+    includeEans,
   )
   if (!product) throw new Error(`Product ${productId} not found`)
   return { product, catalogueCandidate }
@@ -323,11 +325,11 @@ export async function deleteProductContent(productId: number, childProductId: nu
 }
 
 export async function addProductCharacteristic(req: AddProductCharacteristicRequest): Promise<void> {
-  await api.post('/main/products/characteristics/', {
+  await api.put('/main/products/characteristics/', {
     characteristics: [
       {
         productId: req.productId,
-        name: req.name,
+        characteristicId: req.characteristicId,
         value: req.value,
       },
     ],
@@ -335,15 +337,13 @@ export async function addProductCharacteristic(req: AddProductCharacteristicRequ
 }
 
 export async function editProductCharacteristic(req: EditProductCharacteristicRequest): Promise<void> {
-  await api.patch(`/main/products/${req.productId}/characteristics/${encodeURIComponent(req.name)}`, {
-    value: {
-      value: patchField(req.value),
-    },
+  await api.put(`/main/products/${req.productId}/characteristics/${req.characteristicId}`, {
+    value: req.value,
   })
 }
 
-export async function deleteProductCharacteristic(productId: number, name: string): Promise<void> {
-  await api.delete(`/main/products/${productId}/characteristics/${encodeURIComponent(name)}`)
+export async function deleteProductCharacteristic(productId: number, characteristicId: number): Promise<void> {
+  await api.delete(`/main/products/${productId}/characteristics/${characteristicId}`)
 }
 
 export async function createProductReservation(req: CreateProductReservationRequest): Promise<CreateProductReservationResponse> {

@@ -23,7 +23,8 @@ fragment ProductListFields on Product {
 
 fragment ProductDetailsFields on Product {
   ...ProductFields
-  characteristics { name value }
+  eans @include(if: $includeEans)
+  characteristics { characteristic { id name normalizedName } value }
   pair { ...ProductListFields }
   contents { quantity product { ...ProductListFields } }
   crosses(input: $crossesInput) @include(if: $includeCrosses) { ...ProductListFields }
@@ -71,7 +72,7 @@ fragment CatalogueCandidateSearchFields on CatalogueCandidate {
   }
 }
 
-query ProductById($id: Int!, $crossesInput: ProductCrossesInput!, $includeCrosses: Boolean!, $includeCatalogueCandidate: Boolean!) {
+query ProductById($id: Int!, $crossesInput: ProductCrossesInput!, $includeCrosses: Boolean!, $includeCatalogueCandidate: Boolean!, $includeEans: Boolean!) {
   products { byId(id: $id) { ...ProductDetailsFields } }
   catalogueCandidates @include(if: $includeCatalogueCandidate) {
     byProductId(productId: $id) { ...CatalogueCandidateReviewFields }
@@ -119,6 +120,22 @@ query ProductGroupsByIds($ids: [Int!]!) {
   productGroups { byIds(ids: $ids) { id name normalizedName } }
 }
 
+query CharacteristicsSearch($input: SearchCharacteristicsInput!) {
+  characteristics { search(input: $input) { id name normalizedName } }
+}
+
+query CharacteristicsByIds($ids: [Int!]!) {
+  characteristics { byIds(ids: $ids) { id name normalizedName } }
+}
+
+mutation CharacteristicUpsert($input: UpsertCharacteristicInput!) {
+  characteristics { upsert(input: $input) { id name normalizedName } }
+}
+
+mutation CharacteristicDelete($id: Int!) {
+  characteristics { delete(id: $id) }
+}
+
 mutation ProductGroupUpsert($input: UpsertProductGroupInput!) {
   productGroups { upsert(input: $input) { id name normalizedName } }
 }
@@ -129,6 +146,14 @@ mutation ProductPatch($productId: Int!, $input: PatchProductInput!) {
 
 mutation ProductCreate($products: [CreateProductInput!]!) {
   products { create(products: $products) { id sku name } }
+}
+
+mutation ProductEanCreate($input: ProductEanInput!) {
+  productEans { create(input: $input) }
+}
+
+mutation ProductEanDelete($input: ProductEanInput!) {
+  productEans { delete(input: $input) }
 }
 
 query ProducersByIds($ids: [Int!]!) {
