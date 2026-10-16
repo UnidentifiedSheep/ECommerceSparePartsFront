@@ -129,7 +129,7 @@
           <el-empty v-else-if="!isLoading" :description="t('catalogueReview.empty')" :image-size="72" />
 
           <footer class="candidate-list-footer">
-            <ZeroPagination v-model:page="page" v-model:size="size" :has-next="hasNext" :sizes="[10, 20, 30, 50]" />
+            <ZeroPagination v-model:page="page" v-model:size="size" :has-next="hasNext" :show-size-selector="false" />
           </footer>
         </aside>
 
@@ -469,7 +469,7 @@ const selectedCandidate = ref<CatalogueCandidateReviewModel>()
 const selectedFilterProduct = ref<ProductSearchModel>()
 const productSelectorOpen = ref(false)
 const page = ref(queryInteger(route.query.page, 0) ?? 0)
-const size = ref(queryInteger(route.query.size, 20) ?? 20)
+const size = ref(20)
 const hasNext = ref(false)
 const isLoading = ref(false)
 const isDetailsLoading = ref(false)
@@ -593,7 +593,6 @@ function crossCandidateRoute(row: CandidateCrossRow) {
     query: {
       sku: row.sku,
       candidateId: row.candidateId,
-      ...(size.value !== 20 ? { size: String(size.value) } : {}),
     },
   }
 }
@@ -766,7 +765,6 @@ async function syncRoute(candidateId = selectedCandidate.value?.id) {
       ...(filters.productId ? { productId: String(filters.productId) } : {}),
       ...(filters.mappingStatus !== 'ALL' ? { mappingStatus: filters.mappingStatus } : {}),
       ...(page.value ? { page: String(page.value) } : {}),
-      ...(size.value !== 20 ? { size: String(size.value) } : {}),
       ...(candidateId ? { candidateId: String(candidateId) } : {}),
     },
   })
@@ -837,12 +835,6 @@ async function resetFilters() {
 watch(page, () => {
   if (!restoringRouteState) void loadCandidates()
 })
-watch(size, () => {
-  if (restoringRouteState) return
-  if (page.value !== 0) page.value = 0
-  else loadCandidates()
-})
-
 watch(() => route.query.candidateId, async (candidateId) => {
   if (!routeReady || candidateId === selectedCandidate.value?.id) return
 
@@ -853,7 +845,6 @@ watch(() => route.query.candidateId, async (candidateId) => {
 
   restoringRouteState = true
   page.value = queryInteger(route.query.page, 0) ?? 0
-  size.value = queryInteger(route.query.size, 20) ?? 20
   await nextTick()
   restoringRouteState = false
 
@@ -929,7 +920,7 @@ onMounted(async () => {
 .candidate-status--unlinked { background: #fff7ed; color: #b45309; }
 .candidate-list-item__suppliers { display: flex; overflow: hidden; gap: 5px; white-space: nowrap; }
 .candidate-list-footer { border-top: 1px solid var(--app-border); padding: 12px; }
-.candidate-list-footer :deep(.flex) { gap: 6px; }
+.candidate-list-footer :deep(.flex) { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
 .candidate-list-footer :deep(.min-w-24) { min-width: 72px; }
 .candidate-details { min-width: 0; overflow-y: auto; }
 .candidate-details-header { position: sticky; z-index: 2; top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--app-border); background: var(--app-surface); padding: 18px 20px; }

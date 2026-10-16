@@ -4,6 +4,7 @@
     :options="options"
     :loading="loading"
     :placeholder="resolvedPlaceholder"
+    :size="props.size"
     clearable
     collapse-tags
     collapse-tags-tooltip
@@ -28,7 +29,7 @@ import { computed } from 'vue'
 import { useProductGroupSelectOptions } from '@/composables/useProductGroupSelectOptions.ts'
 import { useI18n } from '@/i18n'
 
-const props = defineProps<{ placeholder?: string }>()
+const props = defineProps<{ placeholder?: string; size?: 'small' | 'default' | 'large' }>()
 const groupIds = defineModel<number[]>({ required: true })
 const { t } = useI18n()
 const resolvedPlaceholder = computed(() => props.placeholder ?? t('products.allProductGroups'))

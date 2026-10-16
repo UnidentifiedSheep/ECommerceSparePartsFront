@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-wrap items-center gap-3">
-    <el-select v-model="size" class="page-size-select" :placeholder="t('common.labels.size')">
+    <el-select v-if="showSizeSelector" v-model="size" class="page-size-select" :placeholder="t('common.labels.size')">
       <el-option v-for="option in sizes" :key="option" :label="option" :value="option" />
     </el-select>
 
@@ -21,9 +21,11 @@ withDefaults(
   defineProps<{
     hasNext: boolean
     sizes?: number[]
+    showSizeSelector?: boolean
   }>(),
   {
     sizes: () => [10, 20, 30, 40, 50, 100],
+    showSizeSelector: true,
   },
 )
 </script>

@@ -42,28 +42,26 @@
           <div class="product-filter-heading">
             <h2>{{ t('products.filters') }}</h2>
           </div>
-          <div v-if="canReviewCandidates" class="catalogue-search-toolbar">
-            <fieldset class="catalogue-search-targets">
-              <legend>{{ t('products.searchTargets') }}</legend>
-              <el-checkbox-group v-model="form.targets" @change="applySearchConfiguration">
-                <el-checkbox
-                  v-for="target in targetOptions"
-                  :key="target.value"
-                  :label="target.value"
-                  :disabled="form.targets.length === 1 && form.targets.includes(target.value)"
-                >
-                  {{ target.label }}
-                  <span v-if="form.targets.includes(target.value)" class="catalogue-search-target-count">
-                    {{ targetCount(target.value).toLocaleString(locale) }}
-                  </span>
-                </el-checkbox>
-              </el-checkbox-group>
-            </fieldset>
-
-          </div>
-
-          <div class="catalogue-search-options">
-            <div v-if="canReviewCandidates" class="catalogue-search-matching">
+          <ProductFilterSection v-if="canReviewCandidates" v-model:open="searchSettingsOpen" :title="t('products.searchSettings')">
+            <div class="catalogue-search-toolbar">
+              <fieldset class="catalogue-search-targets">
+                <legend>{{ t('products.searchTargets') }}</legend>
+                <el-checkbox-group v-model="form.targets" @change="applySearchConfiguration">
+                  <el-checkbox
+                    v-for="target in targetOptions"
+                    :key="target.value"
+                    :label="target.value"
+                    :disabled="form.targets.length === 1 && form.targets.includes(target.value)"
+                  >
+                    {{ target.label }}
+                    <span v-if="form.targets.includes(target.value)" class="catalogue-search-target-count">
+                      {{ targetCount(target.value).toLocaleString(locale) }}
+                    </span>
+                  </el-checkbox>
+                </el-checkbox-group>
+              </fieldset>
+            </div>
+            <div class="catalogue-search-matching">
               <div class="catalogue-search-presets">
                 <span>{{ t('products.searchPreset') }}</span>
                 <div role="group" :aria-label="t('products.searchPreset')">
@@ -107,18 +105,21 @@
                 </el-checkbox-group>
               </fieldset>
             </div>
-
+          </ProductFilterSection>
+          <ProductFilterSection v-model:open="catalogueFiltersOpen" :title="t('products.catalogueFilters')">
             <div class="catalogue-search-filters">
               <div class="catalogue-search-producers">
                 <label class="product-field-label">{{ t('common.labels.producer') }}</label>
                 <ProducerMultiSelector
                   v-if="canReviewCandidates"
                   v-model="form.producerIds"
+                  size="small"
                   :placeholder="t('products.allProducers')"
                 />
                 <ProducerSelector
                   v-else
                   :model-value="form.producerIds[0]"
+                  size="small"
                   :placeholder="t('products.allProducers')"
                   @update:model-value="setSingleProducer"
                 />
@@ -128,19 +129,24 @@
                 <ProductGroupMultiSelector
                   :key="productGroupsRevision"
                   v-model="form.productGroupIds"
+                  size="small"
                   :placeholder="t('products.allProductGroups')"
                 />
               </div>
             </div>
-
-            <ProductCriteriaFilters
-              v-if="form.targets.includes('Products') || countProductCriteria(form.criteria) > 0"
-              v-model="form.criteria"
-              :can-view-characteristics="canViewCharacteristics"
-            />
-          </div>
+          </ProductFilterSection>
+          <ProductFilterSection
+            v-if="form.targets.includes('Products') || countProductCriteria(form.criteria) > 0"
+            v-model:open="characteristicsFiltersOpen"
+            :title="t('products.criteria.title')"
+          >
+            <ProductCriteriaFilters v-model="form.criteria" :can-view-characteristics="canViewCharacteristics" />
+          </ProductFilterSection>
 
           <p v-if="searchValidationMessage" class="catalogue-search-validation">{{ searchValidationMessage }}</p>
+        </div>
+        <div v-show="!isMobileViewport || !mobileSearchCollapsed" class="product-filter-footer">
+          <el-button plain @click="resetFilters">{{ t('products.resetFilters') }}</el-button>
         </div>
       </section>
 
@@ -174,15 +180,6 @@
               <el-button type="primary" size="large" :disabled="Boolean(searchValidationMessage)" @click="submitSearch">
                 {{ t('products.find') }}
               </el-button>
-              <el-tooltip :content="t('common.actions.reset')" placement="top">
-                <el-button
-                  :icon="RefreshLeft"
-                  size="large"
-                  plain
-                  :aria-label="t('common.actions.reset')"
-                  @click="resetFilters"
-                />
-              </el-tooltip>
             </div>
           </div>
         </div>
@@ -384,7 +381,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Clock, Money, MoreFilled, Plus, RefreshLeft, Search, View } from '@element-plus/icons-vue'
+import { ArrowDown, Clock, Money, MoreFilled, Plus, Search, View } from '@element-plus/icons-vue'
 import { useDebounceFn, useMediaQuery } from '@vueuse/core'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue'
@@ -394,6 +391,7 @@ import CreateProductsCrossesDialog from '@/components/products/CreateProductsCro
 import ProductGroupsDrawer from '@/components/products/ProductGroupsDrawer.vue'
 import CharacteristicsDrawer from '@/components/products/CharacteristicsDrawer.vue'
 import ProductCriteriaFilters from '@/components/products/ProductCriteriaFilters.vue'
+import ProductFilterSection from '@/components/products/ProductFilterSection.vue'
 import ProductQuickViewDrawer from '@/components/products/ProductQuickViewDrawer.vue'
 import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
@@ -484,6 +482,9 @@ const selectedPriceProduct = ref<ProductSearchModel | null>(null)
 const quickViewOpen = ref(false)
 const selectedQuickProduct = ref<ProductSearchModel | null>(null)
 const mobileSearchCollapsed = ref(false)
+const searchSettingsOpen = ref(true)
+const catalogueFiltersOpen = ref(false)
+const characteristicsFiltersOpen = ref(false)
 const selectedResultKey = ref<string | null>(null)
 const resultsScroll = ref<HTMLElement | null>(null)
 const isMobileViewport = useMediaQuery('(max-width: 760px)')
@@ -1149,9 +1150,22 @@ onMounted(async () => {
 }
 
 .product-search-panel .product-panel__body {
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.product-filter-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 16px;
+  background: #ffffff;
+}
+
+.product-filter-footer :deep(.el-button) {
+  width: 100%;
+  margin: 0;
 }
 
 .product-filter-heading h2 {
@@ -1329,12 +1343,6 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.catalogue-search-toolbar {
-  margin-top: 14px;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 12px;
-}
-
 .catalogue-search-targets {
   min-width: 0;
   margin: 0;
@@ -1376,32 +1384,26 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums;
 }
 
-.catalogue-search-options {
-  display: grid;
-  gap: 12px;
-  margin-top: 10px;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 10px;
-}
-
 .catalogue-search-filters {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+}
+
+.catalogue-search-filters .product-field-label {
+  font-weight: 650;
 }
 
 .catalogue-search-matching {
   display: grid;
   gap: 12px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 12px;
+  margin-top: 14px;
 }
 
 .catalogue-search-option-group {
   min-width: 0;
   margin: 0;
   border: 0;
-  border-top: 1px solid #edf0f2;
-  padding: 10px 0 0;
+  padding: 0;
 }
 
 .catalogue-search-presets {
@@ -1703,19 +1705,14 @@ onMounted(async () => {
     flex: 1;
   }
 
-  .catalogue-search-options {
-    gap: 10px;
-  }
-
   .catalogue-search-filters,
   .catalogue-search-matching {
     grid-template-columns: 1fr;
   }
 
   .catalogue-search-option-group {
-    border-top: 1px solid #eceff2;
-    border-left: 0;
-    padding: 10px 0 0;
+    border: 0;
+    padding: 0;
   }
 
   .products-table--desktop {

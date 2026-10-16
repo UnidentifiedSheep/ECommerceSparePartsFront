@@ -4,6 +4,7 @@
     :options="options"
     :loading="loading"
     :placeholder="resolvedPlaceholder"
+    :size="props.size"
     clearable
     filterable
     remote
@@ -24,7 +25,7 @@ import { computed } from 'vue'
 import { useProducerSelectOptions } from '@/composables/useProducerSelectOptions.ts'
 import { useI18n } from '@/i18n'
 
-const props = defineProps<{ placeholder?: string }>()
+const props = defineProps<{ placeholder?: string; size?: 'small' | 'default' | 'large' }>()
 const producerId = defineModel<number | undefined>()
 const { t } = useI18n()
 const resolvedPlaceholder = computed(() => props.placeholder ?? t('products.selectProducer'))
