@@ -823,6 +823,7 @@ import {
   toSchemaUiFields,
 } from '@/models/schemaModel.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
+import { parseProductEventParts } from '@/models/productEventParts.ts'
 
 interface ServiceCard {
   key: string
@@ -1677,6 +1678,7 @@ function resetInputState() {
 
 function defaultValue(field: JobSchemaField) {
   if (isStructuredSchemaField(field)) return formatStructuredSchemaValue(null)
+  if (field.control === 'EnumSelector' && field.dependsOnEntity === 'ProductEventParts') return 'All'
   if (field.control === 'TextField') return ''
   if (field.control === 'DatePicker') return ''
   if (field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector') return null
@@ -1701,6 +1703,14 @@ function normalizedInputState() {
 }
 
 function serializeInputState(): string | null {
+  const invalidPartsField = schemaFields.value.find((field) => field.control === 'EnumSelector'
+    && field.dependsOnEntity === 'ProductEventParts'
+    && parseProductEventParts(inputState[field.name]).length === 0)
+  if (invalidPartsField) {
+    ElMessage.warning(t('jobs.productEventPartsRequired'))
+    return null
+  }
+
   try {
     return JSON.stringify(normalizedInputState())
   } catch {

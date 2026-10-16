@@ -93,6 +93,18 @@
           @update:model-value="(value: string) => setFieldValue(field.name, value)"
         />
 
+        <el-checkbox-group
+          v-else-if="isProductEventPartsField(field)"
+          :model-value="parseProductEventParts(modelValue[field.name])"
+          :min="1"
+          class="dynamic-schema-flags"
+          @change="(value: ProductEventPart[]) => setFieldValue(field.name, formatProductEventParts(value))"
+        >
+          <el-checkbox v-for="part in productEventParts" :key="part" :value="part">
+            {{ t(`jobs.productEventParts.${part}`) }}
+          </el-checkbox>
+        </el-checkbox-group>
+
         <template v-else-if="isSelectorControl(field)">
           <el-select
             v-if="isSupportedSelector(field)"
@@ -158,6 +170,7 @@ import { InfoFilled } from '@element-plus/icons-vue'
 import { attachSelectDropdownInfiniteScroll } from '@/composables/useSelectInfiniteScroll.ts'
 import { useI18n } from '@/i18n'
 import { isStructuredSchemaField, type SchemaUiField } from '@/models/schemaModel.ts'
+import { formatProductEventParts, parseProductEventParts, productEventParts, type ProductEventPart } from '@/models/productEventParts.ts'
 
 export type FieldValue = string | number | boolean | null
 
@@ -224,6 +237,10 @@ function isSelectorControl(field: DynamicSchemaField) {
   return field.control === 'EntitySelector'
     || field.control === 'EnumSelector'
     || field.control === 'NamedObjectSelector'
+}
+
+function isProductEventPartsField(field: DynamicSchemaField) {
+  return field.control === 'EnumSelector' && (field.dependency?.entityName ?? field.dependsOnEntity) === 'ProductEventParts'
 }
 
 function isRemoteSelector(field: DynamicSchemaField) {
@@ -335,6 +352,17 @@ function handleFileChange(field: DynamicSchemaField, event: Event) {
 .dynamic-schema-field :deep(.el-date-editor),
 .dynamic-schema-field :deep(.el-input-number) {
   width: 100%;
+}
+
+.dynamic-schema-flags {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+
+.dynamic-schema-flags :deep(.el-checkbox) {
+  min-width: 0;
+  margin-right: 0;
 }
 
 .dynamic-schema-label {
