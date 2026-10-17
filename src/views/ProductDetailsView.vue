@@ -73,17 +73,24 @@
             :can-delete-size="canDeleteSize"
             :can-set-weight="canSetWeight"
             :can-delete-weight="canDeleteWeight"
-            :can-view-eans="canViewEans"
-            :can-edit-eans="canEditEans"
-            :ean-busy="eanBusy"
-            @add-ean="addEan"
-            @delete-ean="removeEan"
             @manage-size="sizeDialogOpen = true"
             @manage-weight="weightDialogOpen = true"
             @select-pair="openPairSelector"
             @clear-pair="clearPair"
             @open-pair="openProduct"
-          />
+          >
+            <template #side>
+              <ProductCharacteristicsPanel
+                :characteristics="product.characteristics ?? []"
+                :can-create="canCreateCharacteristics"
+                :can-edit="canEditCharacteristics"
+                :can-delete="canDeleteCharacteristics"
+                @create="openCharacteristicDialog()"
+                @edit="openCharacteristicDialog"
+                @delete="removeCharacteristic"
+              />
+            </template>
+          </ProductSummaryPanel>
         </div>
         <el-empty v-else-if="!isLoading" :description="t('products.details.productNotFound')" />
       </div>
@@ -146,20 +153,13 @@
             />
           </el-tab-pane>
 
-          <el-tab-pane :label="t('products.details.characteristics')" name="characteristics" lazy>
-            <ProductCharacteristicsPanel
-              v-model:page="characteristicsPage"
-              v-model:size="characteristicsSize"
-              :characteristics="characteristics"
-              :loading="isCharacteristicsLoading"
-              :summary="characteristicsSummary"
-              :has-next="characteristicsHasNext"
-              :can-create="canCreateCharacteristics"
-              :can-edit="canEditCharacteristics"
-              :can-delete="canDeleteCharacteristics"
-              @create="openCharacteristicDialog()"
-              @edit="openCharacteristicDialog"
-              @delete="removeCharacteristic"
+          <el-tab-pane v-if="canViewEans" label="EAN" name="eans" lazy>
+            <ProductEansPanel
+              :eans="product.eans ?? []"
+              :can-edit="canEditEans"
+              :busy="eanBusy"
+              @add="addEan"
+              @delete="removeEan"
             />
           </el-tab-pane>
         </el-tabs>
@@ -255,6 +255,7 @@ import ProductContentDialog from '@/components/products/ProductContentDialog.vue
 import ProductContentPanel from '@/components/products/ProductContentPanel.vue'
 import ProductCrossesPanel from '@/components/products/ProductCrossesPanel.vue'
 import ProductEditDialog from '@/components/products/ProductEditDialog.vue'
+import ProductEansPanel from '@/components/products/ProductEansPanel.vue'
 import ProductImageGallery from '@/components/products/ProductImageGallery.vue'
 import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
 import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
@@ -289,7 +290,7 @@ import { groupCatalogueCandidateNames, type CatalogueNameGroup } from '@/utils/c
 import { useMultiSort } from '@/composables/useMultiSort.ts'
 import { createProductEanGraphql, deleteProductEanGraphql } from '@/services/graphql/products.ts'
 
-type ProductTab = 'crosses' | 'storage' | 'content' | 'characteristics'
+type ProductTab = 'crosses' | 'storage' | 'content' | 'eans'
 
 const route = useRoute()
 const router = useRouter()
@@ -304,14 +305,13 @@ const productWeight = ref<ProductWeightModel | null>(null)
 const crosses = ref<ProductModel[]>([])
 const storageContent = ref<StorageContentModel[]>([])
 const productContent = ref<ProductContentModel[]>([])
-const characteristics = ref<ProductCharacteristicModel[]>([])
 const alternativeProductNames = ref<CatalogueNameGroup[]>([])
 const activeTab = ref<ProductTab>('crosses')
 const loadedTabs = ref<Record<ProductTab, boolean>>({
   crosses: false,
   storage: false,
   content: false,
-  characteristics: false,
+  eans: false,
 })
 
 const page = ref(0)
@@ -320,9 +320,6 @@ const hasNext = ref(false)
 const storageContentPage = ref(0)
 const storageContentSize = ref(20)
 const storageContentHasNext = ref(false)
-const characteristicsPage = ref(0)
-const characteristicsSize = ref(10)
-const characteristicsHasNext = ref(false)
 const showZeroStorageContent = ref(false)
 const crossSearch = ref('')
 const { sortBy: crossesSortBy, toggleSort: toggleCrossesSort } = useMultiSort()
@@ -332,7 +329,6 @@ const isLoading = ref(false)
 const isCrossesLoading = ref(false)
 const isStorageContentLoading = ref(false)
 const isProductContentLoading = ref(false)
-const isCharacteristicsLoading = ref(false)
 const isUploadingImages = ref(false)
 const deletingImage = ref<string | null>(null)
 const deletingStorageContentId = ref<number>()
@@ -413,14 +409,6 @@ const contentSummary = computed(() => {
     ? t('products.details.contentPositions', { count: productContent.value.length })
     : t('products.details.noContent')
 })
-const characteristicsSummary = computed(() => {
-  if (isCharacteristicsLoading.value) return t('products.details.loading')
-  const count = product.value?.characteristics?.length ?? 0
-  return count
-    ? t('products.details.characteristicsCount', { count })
-    : t('products.details.noCharacteristics')
-})
-
 function openProduct(id: number) {
   router.push({ name: 'product-details', params: { id } })
 }
@@ -741,24 +729,11 @@ async function loadProductContent() {
   productContent.value = product.value?.contents ?? []
 }
 
-async function loadCharacteristics() {
-  isCharacteristicsLoading.value = true
-  try {
-    const allCharacteristics = product.value?.characteristics ?? []
-    const start = characteristicsPage.value * characteristicsSize.value
-    characteristics.value = allCharacteristics.slice(start, start + characteristicsSize.value)
-    characteristicsHasNext.value = start + characteristicsSize.value < allCharacteristics.length
-  } finally {
-    isCharacteristicsLoading.value = false
-  }
-}
-
 async function ensureTabLoaded(tab: ProductTab, force = false) {
   if (loadedTabs.value[tab] && !force) return
   if (tab === 'crosses') await loadCrosses()
   if (tab === 'storage') await loadStorageContent()
   if (tab === 'content') await loadProductContent()
-  if (tab === 'characteristics') await loadCharacteristics()
   loadedTabs.value[tab] = true
 }
 
@@ -783,7 +758,6 @@ async function refreshProductContent() {
 
 async function refreshCharacteristics() {
   await loadProduct()
-  await ensureTabLoaded('characteristics', true)
 }
 
 async function refreshDetails() {
@@ -805,18 +779,15 @@ function resetPageState() {
   crosses.value = []
   storageContent.value = []
   productContent.value = []
-  characteristics.value = []
   alternativeProductNames.value = []
   page.value = 0
   crossesSortBy.value = []
   storageContentPage.value = 0
   storageSortBy.value = []
-  characteristicsPage.value = 0
   crossSearch.value = ''
   hasNext.value = false
   storageContentHasNext.value = false
-  characteristicsHasNext.value = false
-  loadedTabs.value = { crosses: false, storage: false, content: false, characteristics: false }
+  loadedTabs.value = { crosses: false, storage: false, content: false, eans: false }
 }
 
 async function loadInitialDetails() {
@@ -857,16 +828,6 @@ watch(storageContentSize, async () => {
     return
   }
   if (loadedTabs.value.storage) await ensureTabLoaded('storage', true)
-})
-watch(characteristicsPage, async () => {
-  if (loadedTabs.value.characteristics) await ensureTabLoaded('characteristics', true)
-})
-watch(characteristicsSize, async () => {
-  if (characteristicsPage.value !== 0) {
-    characteristicsPage.value = 0
-    return
-  }
-  if (loadedTabs.value.characteristics) await ensureTabLoaded('characteristics', true)
 })
 watch(showZeroStorageContent, async () => {
   if (storageContentPage.value !== 0) {

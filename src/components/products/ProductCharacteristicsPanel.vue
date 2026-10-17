@@ -1,57 +1,48 @@
 <template>
-  <div class="product-data-panel">
-    <div class="product-data-panel__toolbar">
-      <div class="text-sm text-slate-500">{{ summary }}</div>
-      <el-button v-if="canCreate" :icon="Plus" type="primary" plain @click="emit('create')">
+  <div class="product-characteristics-panel">
+    <div class="product-characteristics-panel__header">
+      <h2>{{ t('products.details.characteristics') }}</h2>
+      <el-button v-if="canCreate" size="small" text type="primary" @click="emit('create')">
         {{ t('common.actions.add') }}
       </el-button>
     </div>
 
-    <el-table v-loading="loading" :data="characteristics" :empty-text="t('products.details.noCharacteristics')">
-      <el-table-column prop="name" :label="t('common.labels.name')" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="value" :label="t('common.labels.value')" min-width="260" show-overflow-tooltip />
-      <el-table-column v-if="canEdit || canDelete" label="" width="96" align="right">
-        <template #default="{ row }">
-          <div class="flex justify-end gap-1">
-            <el-button
-              v-if="canEdit"
-              :icon="Edit"
-              size="small"
-              text
-              :aria-label="t('common.actions.edit')"
-              @click="emit('edit', row)"
-            />
-            <el-button
-              v-if="canDelete"
-              :icon="Delete"
-              size="small"
-              text
-              type="danger"
-              :aria-label="t('common.actions.delete')"
-              @click="emit('delete', row)"
-            />
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div class="product-data-panel__pagination">
-      <ZeroPagination v-model:page="page" v-model:size="size" :has-next="hasNext" :sizes="[10, 20, 50]" />
-    </div>
+    <dl v-if="characteristics.length" class="product-characteristics-panel__list">
+      <div v-for="item in characteristics" :key="item.characteristicId" class="product-characteristics-panel__row">
+        <dt>{{ item.name }}</dt>
+        <dd>{{ item.value }}</dd>
+        <div v-if="canEdit || canDelete" class="product-characteristics-panel__actions">
+          <el-button
+            v-if="canEdit"
+            :icon="Edit"
+            size="small"
+            text
+            :aria-label="`${t('common.actions.edit')}: ${item.name}`"
+            @click="emit('edit', item)"
+          />
+          <el-button
+            v-if="canDelete"
+            :icon="Delete"
+            size="small"
+            text
+            type="danger"
+            :aria-label="`${t('common.actions.delete')}: ${item.name}`"
+            @click="emit('delete', item)"
+          />
+        </div>
+      </div>
+    </dl>
+    <p v-else class="product-characteristics-panel__empty">{{ t('products.details.noCharacteristics') }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Delete, Edit, Plus } from '@element-plus/icons-vue'
-import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import { Delete, Edit } from '@element-plus/icons-vue'
 import type { ProductCharacteristicModel } from '@/models/productModel.ts'
 import { useI18n } from '@/i18n'
 
 defineProps<{
   characteristics: ProductCharacteristicModel[]
-  loading: boolean
-  summary: string
-  hasNext: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -63,31 +54,74 @@ const emit = defineEmits<{
   delete: [item: ProductCharacteristicModel]
 }>()
 
-const page = defineModel<number>('page', { required: true })
-const size = defineModel<number>('size', { required: true })
 const { t } = useI18n()
 </script>
 
 <style scoped>
-.product-data-panel__toolbar {
+.product-characteristics-panel__header {
   display: flex;
-  min-height: 52px;
+  min-height: 24px;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0 12px;
+  gap: 8px;
 }
 
-.product-data-panel__pagination {
+.product-characteristics-panel__header h2 {
+  margin: 0;
+  color: rgb(15 23 42);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.product-characteristics-panel__list {
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 8px 0 0;
+}
+
+.product-characteristics-panel__row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  border-bottom: 1px solid rgb(241 245 249);
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.product-characteristics-panel__row:last-child {
+  border-bottom: 0;
+}
+
+.product-characteristics-panel__row dt,
+.product-characteristics-panel__row dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.product-characteristics-panel__row dt {
+  color: rgb(100 116 139);
+}
+
+.product-characteristics-panel__row dd {
+  margin: 0;
+  color: rgb(15 23 42);
+  font-weight: 500;
+}
+
+.product-characteristics-panel__actions {
   display: flex;
-  justify-content: flex-start;
-  padding-top: 12px;
-  border-top: 1px solid rgb(226 232 240);
+  align-items: center;
 }
 
-:deep(.el-table__header th) {
-  background: rgb(248 250 252);
-  color: rgb(71 85 105);
-  font-weight: 700;
+.product-characteristics-panel__actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.product-characteristics-panel__empty {
+  margin: 10px 0 0;
+  color: rgb(100 116 139);
+  font-size: 13px;
 }
 </style>
