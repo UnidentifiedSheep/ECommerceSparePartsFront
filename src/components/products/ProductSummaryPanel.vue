@@ -1,47 +1,9 @@
 <template>
   <section class="product-summary-panel">
+    <div class="product-summary-panel__main" :class="{ 'product-summary-panel__main--with-eans': canViewEans }">
     <dl class="product-summary-panel__details">
       <dt>{{ t('products.sku') }}</dt>
       <dd><ProductSkuCell :sku="product.sku" :indicator="product.indicator" /></dd>
-
-      <template v-if="canViewEans">
-        <dt>EAN</dt>
-        <dd class="product-summary-panel__eans">
-          <div v-for="ean in product.eans ?? []" :key="ean" class="product-summary-panel__ean-row">
-            <span class="product-summary-panel__ean-code">{{ ean }}</span>
-            <el-button
-              v-if="canEditEans"
-              :icon="Delete"
-              size="small"
-              text
-              type="danger"
-              :disabled="eanBusy"
-              :aria-label="t('products.details.deleteEan', { ean })"
-              @click="emit('delete-ean', ean)"
-            />
-          </div>
-          <span v-if="!product.eans?.length && !showEanInput" class="text-slate-500">—</span>
-          <form v-if="showEanInput" class="product-summary-panel__ean-form" @submit.prevent="submitEan">
-            <el-input
-              v-model="newEan"
-              size="small"
-              maxlength="14"
-              :placeholder="t('products.details.eanPlaceholder')"
-              :disabled="eanBusy"
-              autofocus
-            />
-            <el-button size="small" type="primary" native-type="submit" :loading="eanBusy" :disabled="!canSubmitEan">
-              {{ t('common.actions.add') }}
-            </el-button>
-            <el-button size="small" text :disabled="eanBusy" @click="closeEanInput">
-              {{ t('common.actions.cancel') }}
-            </el-button>
-          </form>
-          <el-button v-else-if="canEditEans" size="small" text type="primary" :disabled="eanBusy" @click="showEanInput = true">
-            {{ t('products.details.addEan') }}
-          </el-button>
-        </dd>
-      </template>
 
       <dt>{{ t('common.labels.producer') }}</dt>
       <dd>{{ product.producerName || '-' }}</dd>
@@ -87,6 +49,59 @@
       <dt>{{ t('products.stock') }}</dt>
       <dd><ProductStockCell :stock="product.stock" /></dd>
     </dl>
+
+    <aside v-if="canViewEans" class="product-summary-panel__ean-section" aria-label="EAN">
+      <div class="product-summary-panel__ean-header">
+        <h2>EAN</h2>
+        <el-button
+          v-if="canEditEans && !showEanInput"
+          size="small"
+          text
+          type="primary"
+          :disabled="eanBusy"
+          @click="showEanInput = true"
+        >
+          {{ t('common.actions.add') }}
+        </el-button>
+      </div>
+
+      <ul v-if="product.eans?.length" class="product-summary-panel__ean-list">
+        <li v-for="ean in product.eans" :key="ean" class="product-summary-panel__ean-row">
+          <span class="product-summary-panel__ean-code">{{ ean }}</span>
+          <el-button
+            v-if="canEditEans"
+            :icon="Delete"
+            size="small"
+            text
+            type="danger"
+            :disabled="eanBusy"
+            :aria-label="t('products.details.deleteEan', { ean })"
+            @click="emit('delete-ean', ean)"
+          />
+        </li>
+      </ul>
+      <p v-else class="product-summary-panel__ean-empty">{{ t('products.details.noEans') }}</p>
+
+      <form v-if="showEanInput" class="product-summary-panel__ean-form" @submit.prevent="submitEan">
+        <el-input
+          v-model="newEan"
+          size="small"
+          maxlength="14"
+          :placeholder="t('products.details.eanPlaceholder')"
+          :disabled="eanBusy"
+          autofocus
+        />
+        <div class="product-summary-panel__ean-form-actions">
+          <el-button size="small" type="primary" native-type="submit" :loading="eanBusy" :disabled="!canSubmitEan">
+            {{ t('common.actions.add') }}
+          </el-button>
+          <el-button size="small" text :disabled="eanBusy" @click="closeEanInput">
+            {{ t('common.actions.cancel') }}
+          </el-button>
+        </div>
+      </form>
+    </aside>
+    </div>
 
     <div class="product-summary-panel__pair">
       <div class="product-summary-panel__pair-header">
@@ -203,11 +218,22 @@ const weightText = computed(() => props.productWeight
 
 <style scoped>
 .product-summary-panel {
+  container-type: inline-size;
   min-width: 0;
   border: 1px solid rgb(226 232 240);
   border-radius: 8px;
   background: white;
   padding: 16px;
+}
+
+.product-summary-panel__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+.product-summary-panel__main--with-eans {
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 280px);
 }
 
 .product-summary-panel__details {
@@ -236,32 +262,72 @@ const weightText = computed(() => props.productWeight
   gap: 8px;
 }
 
-.product-summary-panel__eans {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+.product-summary-panel__ean-section {
+  min-width: 0;
+  border-left: 1px solid rgb(226 232 240);
+  padding-left: 20px;
 }
 
-.product-summary-panel__ean-row,
-.product-summary-panel__ean-form {
+.product-summary-panel__ean-header,
+.product-summary-panel__ean-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.product-summary-panel__ean-header h2 {
+  margin: 0;
+  color: rgb(15 23 42);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.product-summary-panel__ean-list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product-summary-panel__ean-row {
+  min-height: 34px;
+  border-bottom: 1px solid rgb(241 245 249);
+}
+
+.product-summary-panel__ean-row:last-child {
+  border-bottom: 0;
 }
 
 .product-summary-panel__ean-code {
   font-variant-numeric: tabular-nums;
 }
 
+.product-summary-panel__ean-empty {
+  margin: 10px 0 0;
+  color: rgb(100 116 139);
+  font-size: 13px;
+}
+
 .product-summary-panel__ean-form {
-  flex-wrap: wrap;
-  max-width: 100%;
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .product-summary-panel__ean-form .el-input {
-  width: 190px;
-  max-width: 100%;
+  width: 100%;
+}
+
+.product-summary-panel__ean-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.product-summary-panel__ean-form-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .product-summary-panel__indicator {
@@ -290,6 +356,20 @@ const weightText = computed(() => props.productWeight
 .product-summary-panel__pair-product {
   margin-top: 10px;
   padding: 10px 0 0;
+}
+
+@container (max-width: 700px) {
+  .product-summary-panel__main {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .product-summary-panel__ean-section {
+    border-top: 1px solid rgb(226 232 240);
+    border-left: 0;
+    padding-top: 14px;
+    padding-left: 0;
+  }
 }
 
 @media (max-width: 520px) {
