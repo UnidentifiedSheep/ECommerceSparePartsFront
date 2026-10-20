@@ -158,11 +158,6 @@ export interface GetStorageContentResponse {
   contents: StorageContentModel[]
 }
 
-type StorageContentDto = StorageContentModel & {
-  quantity?: number
-  stock?: number
-}
-
 export interface AddStorageContentItemRequest {
   productId: number
   currencyId: number

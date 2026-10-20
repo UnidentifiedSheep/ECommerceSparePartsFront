@@ -66,7 +66,7 @@
 
         <el-input
           v-else-if="field.control === 'TextField'"
-          :model-value="modelValue[field.name] as string | number | undefined"
+          :model-value="textFieldValue(field.name)"
           clearable
           :placeholder="field.description || field.name"
           @update:model-value="(value: string) => setFieldValue(field.name, value)"
@@ -74,7 +74,7 @@
 
         <el-date-picker
           v-else-if="field.control === 'DatePicker'"
-          :model-value="modelValue[field.name] as string | undefined"
+          :model-value="dateFieldValue(field.name)"
           type="date"
           format="DD.MM.YYYY"
           value-format="YYYY-MM-DD"
@@ -130,7 +130,7 @@
           </el-select>
           <el-input
             v-else
-            :model-value="modelValue[field.name] as string | number | undefined"
+            :model-value="textFieldValue(field.name)"
             :placeholder="field.description || field.name"
             @update:model-value="(value: string) => setFieldValue(field.name, value)"
           />
@@ -144,7 +144,7 @@
 
         <el-input-number
           v-else-if="isNumberField(field)"
-          :model-value="modelValue[field.name] as number | undefined"
+          :model-value="numberFieldValue(field.name)"
           class="w-full"
           controls-position="right"
           @update:model-value="(value: number | null) => setFieldValue(field.name, value)"
@@ -152,7 +152,7 @@
 
         <el-input
           v-else
-          :model-value="modelValue[field.name] as string | number | undefined"
+          :model-value="textFieldValue(field.name)"
           :placeholder="field.description || field.name"
           @update:model-value="(value: string) => setFieldValue(field.name, value)"
         />
@@ -176,7 +176,10 @@ export type FieldValue = string | number | boolean | null
 
 export type DynamicSchemaField = SchemaUiField
 
+// Callers provide several unrelated DTO shapes; the form only handles them through callbacks.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SelectorOption = any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type UploadOption = any
 
 const props = withDefaults(defineProps<{
@@ -231,6 +234,21 @@ onBeforeUnmount(() => {
 
 function fieldLabel(field: DynamicSchemaField) {
   return field.label || field.name
+}
+
+function textFieldValue(name: string): string | number | undefined {
+  const value = props.modelValue[name]
+  return typeof value === 'string' || typeof value === 'number' ? value : undefined
+}
+
+function dateFieldValue(name: string): string | undefined {
+  const value = props.modelValue[name]
+  return typeof value === 'string' ? value : undefined
+}
+
+function numberFieldValue(name: string): number | undefined {
+  const value = props.modelValue[name]
+  return typeof value === 'number' ? value : undefined
 }
 
 function isSelectorControl(field: DynamicSchemaField) {

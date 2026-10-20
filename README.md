@@ -41,8 +41,23 @@ npm run dev
 npm run build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Run quality checks
+
+```sh
+npm run check
+```
+
+This runs Oxlint and ESLint, Vue/TypeScript type checking, unit tests, and a production Vite build. Linting does not modify files. To apply automatic lint fixes explicitly, run:
+
+```sh
+npm run lint:fix
+```
+
+Individual checks are also available:
 
 ```sh
 npm run lint
+npm run type-check
+npm run test
+npm run build-only
 ```

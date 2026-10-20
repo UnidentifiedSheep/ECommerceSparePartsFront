@@ -59,7 +59,7 @@
                       <el-icon class="documents-field-help"><InfoFilled /></el-icon>
                     </el-tooltip>
                   </template>
-                  <SaleSelector :model-value="fieldValues[saleField.name] as string | null" @update:model-value="fieldValues[saleField.name] = $event" />
+                  <SaleSelector :model-value="selectedSaleId" @update:model-value="fieldValues[saleField.name] = $event" />
                 </el-form-item>
               </div>
             </div>
@@ -117,6 +117,10 @@ const unsupportedFields = computed(() => schemaFields.value
       && !isSaleDependency(field)))
   .map((field) => field.label || field.name))
 const saleField = computed(() => schemaFields.value.find(isSaleDependency))
+const selectedSaleId = computed(() => {
+  const value = saleField.value ? fieldValues[saleField.value.name] : null
+  return typeof value === 'string' ? value : null
+})
 const formFields = computed<SchemaUiField[]>(() => schemaFields.value.filter((field) => !isSaleDependency(field)).map((field) => ({
   name: field.name,
   type: typeMap[field.type] ?? 'String',

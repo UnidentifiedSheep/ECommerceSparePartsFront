@@ -10,9 +10,14 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "lint": "run-s lint:*",
-    "lint:oxlint": "oxlint . --fix",
-    "lint:eslint": "eslint . --fix --cache"
+    "lint": "run-s lint:oxlint lint:eslint",
+    "lint:oxlint": "oxlint .",
+    "lint:eslint": "eslint .",
+    "lint:fix": "run-s lint:fix:oxlint lint:fix:eslint",
+    "lint:fix:oxlint": "oxlint . --fix",
+    "lint:fix:eslint": "eslint . --fix",
+    "test": "vitest run",
+    "check": "run-s lint type-check test build-only"
   },
   "dependencies": {
     "@apollo/client": "^3.14.1",
@@ -51,6 +56,7 @@
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-vue-devtools": "^8.0.6",
+    "vitest": "^4.1.12",
     "vue-tsc": "^3.2.5"
   },
   "engines": {
