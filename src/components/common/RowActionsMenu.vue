@@ -1,17 +1,17 @@
 <template>
   <el-popover ref="popoverRef" trigger="click" placement="bottom-start" width="auto" :show-arrow="false" :popper-style="{ padding: '4px' }">
-    <div class="purchase-actions-menu">
+    <div class="row-actions-menu">
       <button v-if="canEdit" type="button" :disabled="busy" @click="emitAction('edit')">
         <el-icon><Edit /></el-icon>
         {{ t('common.actions.edit') }}
       </button>
-      <button v-if="canDelete" type="button" :disabled="busy" class="purchase-actions-menu__delete" @click="emitAction('delete')">
+      <button v-if="canDelete" type="button" :disabled="busy" class="row-actions-menu__delete" @click="emitAction('delete')">
         <el-icon><Delete /></el-icon>
         {{ t('common.actions.delete') }}
       </button>
     </div>
     <template #reference>
-      <el-button class="purchase-actions-trigger" :icon="MoreFilled" size="small" plain :aria-label="t('common.labels.actions')" :loading="busy" />
+      <el-button class="row-actions-trigger" :icon="MoreFilled" size="small" plain :aria-label="t('common.labels.actions')" :loading="busy" />
     </template>
   </el-popover>
 </template>
@@ -34,9 +34,9 @@ function emitAction(action: 'edit' | 'delete') {
 </script>
 
 <style scoped>
-.purchase-actions-trigger { width: 30px; height: 30px; padding: 0; }
-.purchase-actions-menu { display: grid; min-width: 170px; }
-.purchase-actions-menu button {
+.row-actions-trigger { width: 30px; height: 30px; padding: 0; }
+.row-actions-menu { display: grid; min-width: 170px; }
+.row-actions-menu button {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -51,7 +51,7 @@ function emitAction(action: 'edit' | 'delete') {
   text-align: left;
   cursor: pointer;
 }
-.purchase-actions-menu button:hover { background: var(--app-surface-muted, #f7f9fa); }
-.purchase-actions-menu button:disabled { opacity: .5; cursor: not-allowed; }
-.purchase-actions-menu__delete:hover { color: var(--el-color-danger); }
+.row-actions-menu button:hover { background: var(--app-surface-muted, #f7f9fa); }
+.row-actions-menu button:disabled { opacity: .5; cursor: not-allowed; }
+.row-actions-menu__delete:hover { color: var(--el-color-danger); }
 </style>

@@ -38,11 +38,17 @@
                     {{ row.description || '—' }}
                   </template>
                 </el-table-column>
-                <el-table-column fixed="right" :label="t('common.labels.actions')" width="92" align="right">
+                <el-table-column fixed="right" width="64" align="center">
+                  <template #header><span class="sr-only">{{ t('common.labels.actions') }}</span></template>
                   <template #default="{ row }">
-                    <div class="producer-actions">
-                      <ActionIconButton :label="t('common.actions.edit')" :icon="Edit" @click="openEditDialog(row)" />
-                      <ActionIconButton :label="t('common.actions.delete')" :icon="Delete" tone="danger" @click="removeProducer(row.id)" />
+                    <div @click.stop>
+                      <RowActionsMenu
+                        :can-edit="true"
+                        :can-delete="true"
+                        :busy="false"
+                        @edit="openEditDialog(row)"
+                        @delete="removeProducer(row.id)"
+                      />
                     </div>
                   </template>
                 </el-table-column>
@@ -235,13 +241,14 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn, useMediaQuery } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
-import { Delete, Edit, Plus, Search } from '@element-plus/icons-vue'
+import { Delete, Plus, Search } from '@element-plus/icons-vue'
 import type {
   ProducerAliasModel,
   ProducerSupplierMappingModel,
   Supplier,
 } from '@/models/producerModel.ts'
 import type { ProducerSearchModel } from '@/models/producerSearchModel.ts'
+import RowActionsMenu from '@/components/common/RowActionsMenu.vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -620,13 +627,6 @@ onMounted(async () => loadProducers(true))
   box-sizing: border-box;
   flex-direction: column;
   padding: 0;
-}
-
-.producer-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
 }
 
 .producer-details-header {
