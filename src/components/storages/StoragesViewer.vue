@@ -18,22 +18,17 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column fixed="right" :label="t('common.labels.actions')" width="92" align="right">
+        <el-table-column v-if="allowEdit || allowDelete" fixed="right" width="64" align="center">
+          <template #header><span class="sr-only">{{ t('common.labels.actions') }}</span></template>
           <template #default="scope">
-            <div class="storage-actions">
-            <ActionIconButton
-              v-show="allowEdit"
-              :label="t('common.actions.edit')"
-              :icon="Edit"
-              @click.prevent="openEditDialog(scope.row)"
-            />
-            <ActionIconButton
-              v-show="allowDelete"
-              :label="t('common.actions.delete')"
-              :icon="Delete"
-              tone="danger"
-              @click.prevent="removeStorage(scope.$index)"
-            />
+            <div @click.stop>
+              <RowActionsMenu
+                :can-edit="allowEdit"
+                :can-delete="allowDelete"
+                :busy="false"
+                @edit="openEditDialog(scope.row)"
+                @delete="removeStorage(scope.$index)"
+              />
             </div>
           </template>
         </el-table-column>
@@ -66,9 +61,9 @@
 import { onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification, type TableInstance } from 'element-plus'
-import { Delete, Edit, Plus } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
 import type { StorageModel } from '@/models/storageModel.ts'
-import ActionIconButton from '@/components/common/ActionIconButton.vue'
+import RowActionsMenu from '@/components/common/RowActionsMenu.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import CreateStorageDialogue from '@/components/storages/CreateStorageDialogue.vue'
 import EditStorageDialog from '@/components/storages/EditStorageDialog.vue'
@@ -167,10 +162,12 @@ watch(() => props.storageType, async () => loadStorages(true))
 </script>
 
 <style scoped>
-.storage-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 </style>

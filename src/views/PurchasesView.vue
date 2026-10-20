@@ -188,7 +188,7 @@
                   <template #header><span class="purchases-visually-hidden">{{ t('common.labels.actions') }}</span></template>
                   <template #default="{ row }">
                     <div @click.stop>
-                      <PurchaseActionsMenu
+                      <RowActionsMenu
                         :can-edit="canEditPurchases"
                         :can-delete="canDeletePurchases"
                         :busy="editPurchaseLoadingId === row.id || deletingPurchaseId === row.id"
@@ -245,7 +245,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import CreatePurchaseDialog from '@/components/purchases/CreatePurchaseDialog.vue'
 import EditPurchaseDialog from '@/components/purchases/EditPurchaseDialog.vue'
 import PurchaseDetails from '@/components/purchases/PurchaseDetails.vue'
-import PurchaseActionsMenu from '@/components/purchases/PurchaseActionsMenu.vue'
+import RowActionsMenu from '@/components/common/RowActionsMenu.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
