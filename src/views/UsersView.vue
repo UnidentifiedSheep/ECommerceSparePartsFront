@@ -69,10 +69,7 @@
           >
             <el-table-column v-for="column in userSearchColumns" :key="column.field" :prop="column.field" :label="t(column.label)" :min-width="column.width">
               <template #header>
-                <div class="users-column-filter">
-                  <label :for="`users-filter-${column.field}`">{{ t(column.label) }}</label>
-                  <el-input :id="`users-filter-${column.field}`" v-model="columnFilters[column.field]" size="small" clearable :placeholder="t('users.filterByField', { field: t(column.label) })" />
-                </div>
+                <UserColumnFilter v-model="columnFilters[column.field]" :label="t(column.label)" />
               </template>
             </el-table-column>
             <el-table-column :label="t('users.lastLogin')" min-width="170">
@@ -691,6 +688,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import { CircleCheck, Edit, Loading, MoreFilled } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import UserColumnFilter from '@/components/users/UserColumnFilter.vue'
 import { buildUserSearch, userSearchFields, type UserSearchFilters } from '@/utils/userSearch.ts'
 import { PhoneType } from '@/enums/phoneType.ts'
 import { ApiError } from '@/models/errorModel.ts'
@@ -1947,9 +1945,6 @@ onMounted(async () => {
   flex: 1;
 }
 
-.users-column-filter { display: grid; gap: 8px; padding: 2px 0; }
-.users-column-filter label { font-size: 12px; font-weight: 600; }
-.users-column-filter :deep(.el-input) { font-weight: 400; }
 .users-search-hint { margin: 6px 0 0; color: var(--app-text-muted); font-size: 12px; line-height: 1.5; }
 .users-contact-filters { margin-top: 14px; border-top: 1px solid var(--app-border); padding-top: 12px; }
 .users-contact-filters summary { width: fit-content; color: var(--app-text-muted); font-size: 13px; cursor: pointer; }
