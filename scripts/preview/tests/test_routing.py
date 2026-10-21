@@ -2,8 +2,11 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import sys
+import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+import urllib.error
 import zipfile
 
 SPEC = importlib.util.spec_from_file_location("route_preview", Path(__file__).parents[1] / "route_preview.py")
@@ -166,6 +169,126 @@ class RoutingTests(unittest.TestCase):
             self.assertIn("preview-router@server.example", args)
             self.assertNotIn("shell", run.call_args.kwargs)
             self.assertEqual(args[-1], "preview-router deploy 42 " + URL + " 1000.1")
+
+
+class PreviewCommentTests(unittest.TestCase):
+    @staticmethod
+    def own_comment(body):
+        return comment(body, id=77, user={"login": "github-actions[bot]", "type": "Bot"})
+
+    def test_creates_only_public_preview_link_without_editing_untrusted_comments(self):
+        api = routing.GitHub("dummy")
+        fake = comment(routing.COMMENT_MARKER + "\nforged", user={"login": "someone", "type": "User"})
+        with patch.object(api, "get", return_value=[comment(), fake, {"user": None}]), patch.object(api, "request") as write:
+            api.publish_preview_comment(42, True, 123)
+        self.assertEqual(write.call_args.args[0], f"/repos/{routing.REPOSITORY}/issues/42/comments")
+        self.assertEqual(write.call_args.kwargs["method"], "POST")
+        body = write.call_args.kwargs["payload"]["body"]
+        self.assertIn("https://pr-42.preview.all-vp-n.ru", body)
+        self.assertIn(f"https://github.com/{routing.REPOSITORY}/actions/runs/123", body)
+        self.assertNotIn(URL, body)
+
+    def test_updates_existing_comment_and_same_run_is_idempotent(self):
+        api = routing.GitHub("dummy")
+        with patch.object(api, "get", return_value=[self.own_comment(routing.COMMENT_MARKER + "\nold")]), patch.object(
+                api, "request") as write:
+            api.publish_preview_comment(42, True, 123)
+        self.assertEqual(write.call_args.args[0], f"/repos/{routing.REPOSITORY}/issues/comments/77")
+        self.assertEqual(write.call_args.kwargs["method"], "PATCH")
+        current = self.own_comment(write.call_args.kwargs["payload"]["body"])
+        with patch.object(api, "get", return_value=[current]), patch.object(api, "request") as write:
+            api.publish_preview_comment(42, True, 123)
+        write.assert_not_called()
+
+    def test_closure_updates_existing_status_without_creating_a_new_comment(self):
+        api = routing.GitHub("dummy")
+        with patch.object(api, "get", return_value=[self.own_comment(routing.COMMENT_MARKER + "\nready")]), patch.object(
+                api, "request") as write:
+            api.publish_preview_comment(42, False, 123)
+        self.assertEqual(write.call_args.kwargs["method"], "PATCH")
+        self.assertIn("Preview удалён", write.call_args.kwargs["payload"]["body"])
+        self.assertNotIn("pr-42.preview", write.call_args.kwargs["payload"]["body"])
+        with patch.object(api, "get", return_value=[]), patch.object(api, "request") as write:
+            api.publish_preview_comment(42, False, 123)
+        write.assert_not_called()
+
+    def test_api_writes_send_json_to_github(self):
+        api = routing.GitHub("dummy")
+        with patch.object(api.opener, "open", return_value=io.BytesIO(b'{}')) as open_request:
+            api.request(f"/repos/{routing.REPOSITORY}/issues/42/comments", method="POST", payload={"body": "ready"})
+        request = open_request.call_args.args[0]
+        self.assertEqual(request.method, "POST")
+        self.assertTrue(request.full_url.startswith("https://api.github.com/repos/"))
+        self.assertEqual(json.loads(request.data), {"body": "ready"})
+        self.assertEqual(request.get_header("Content-type"), "application/json")
+
+    def test_readiness_checks_only_our_https_origin_without_credentials(self):
+        response = Mock(status=200)
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        opener = Mock()
+        opener.open.return_value = response
+        with patch.object(routing.urllib.request, "build_opener", return_value=opener):
+            self.assertEqual(routing.wait_for_preview(42), "https://pr-42.preview.all-vp-n.ru")
+        request = opener.open.call_args.args[0]
+        self.assertEqual(request.full_url, "https://pr-42.preview.all-vp-n.ru")
+        self.assertIsNone(request.get_header("Authorization"))
+        self.assertIsNone(request.get_header("Cookie"))
+
+    def test_redirect_or_tls_failure_never_counts_as_ready(self):
+        for error in [urllib.error.HTTPError("https://pr-42.preview.all-vp-n.ru", 302, "redirect", {}, None),
+                      urllib.error.URLError("certificate verify failed")]:
+            opener = Mock()
+            opener.open.side_effect = error
+            with self.subTest(error=error), patch.object(routing.urllib.request, "build_opener", return_value=opener):
+                with self.assertRaisesRegex(RuntimeError, "did not become ready over HTTPS"):
+                    routing.wait_for_preview(42, timeout=0)
+
+    def run_main(self, api, ssh, readiness):
+        with tempfile.TemporaryDirectory() as directory:
+            event = Path(directory) / "event.json"
+            event.write_text(json.dumps({"workflow_run": {"id": 12}}))
+            with patch.dict(routing.os.environ, {"GITHUB_REPOSITORY": routing.REPOSITORY, "GITHUB_TOKEN": "dummy",
+                                                "GITHUB_EVENT_PATH": str(event), "GITHUB_RUN_ID": "123"}), patch.object(
+                    sys, "argv", ["route_preview.py", "apply"]), patch.object(
+                    routing, "GitHub", return_value=api), patch.object(routing, "ssh_apply", ssh), patch.object(
+                    routing, "wait_for_preview", readiness):
+                routing.main()
+
+    @staticmethod
+    def api_for_deploy():
+        api = Mock(spec=routing.GitHub)
+        api.record.return_value = {"pr": 42}
+        api.reconcile.return_value = ["deploy", "42", URL, "1000.1"]
+        api.get.return_value = pull()
+        return api
+
+    def test_failed_ssh_or_https_does_not_publish_success(self):
+        for failing in ["ssh", "https"]:
+            api = self.api_for_deploy()
+            ssh, ready = Mock(), Mock()
+            (ssh if failing == "ssh" else ready).side_effect = RuntimeError("failed")
+            with self.subTest(failing=failing), self.assertRaises(RuntimeError):
+                self.run_main(api, ssh, ready)
+            api.publish_preview_comment.assert_not_called()
+
+    def test_comment_is_published_after_ssh_and_https_succeed(self):
+        api = self.api_for_deploy()
+        order = []
+        ssh = Mock(side_effect=lambda _: order.append("ssh"))
+        ready = Mock(side_effect=lambda _: order.append("https"))
+        api.publish_preview_comment.side_effect = lambda *args: order.append("comment")
+        self.run_main(api, ssh, ready)
+        self.assertEqual(order, ["ssh", "https", "comment"])
+        api.publish_preview_comment.assert_called_once_with(42, True, "123")
+
+    def test_pr_closed_during_https_wait_removes_route_without_ready_comment(self):
+        api = self.api_for_deploy()
+        api.get.return_value = pull("closed")
+        ssh = Mock()
+        self.run_main(api, ssh, Mock())
+        self.assertEqual([call.args[0][0] for call in ssh.call_args_list], ["deploy", "delete"])
+        api.publish_preview_comment.assert_called_once_with(42, False, "123")
 
 
 if __name__ == "__main__":

@@ -37,6 +37,11 @@ jobs:
     needs: inspect
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+      issues: read
     # Configure this environment to allow deployments ONLY from master.
     # Store the SSH key here, never as a repository-level secret.
     environment: preview-routing
@@ -55,4 +60,5 @@ jobs:
           PREVIEW_SSH_PORT: ${{ vars.PREVIEW_SSH_PORT || '22' }}
           PREVIEW_SSH_KEY: ${{ secrets.PREVIEW_SSH_KEY }}
           PREVIEW_SSH_KNOWN_HOSTS: ${{ secrets.PREVIEW_SSH_KNOWN_HOSTS }}
+          PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN || 'preview.all-vp-n.ru' }}
         run: python3 scripts/preview/route_preview.py apply

@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -22,6 +23,7 @@ GITHUB_APP_ID = 659174
 TIMEWEB_APP_ID = 201903
 EVENT_WORKFLOW = ".github/workflows/preview-events.yml"
 ARTIFACT = "timeweb-preview-event"
+COMMENT_MARKER = "<!-- ecommerce-timeweb-preview-route -->"
 HEADER = ["Превью", "Коммит", "Статус", "Обновлено (UTC)", "Стенд"]
 
 
@@ -95,6 +97,35 @@ def stamp(value):
     return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000)
 
 
+def preview_origin(number):
+    domain = os.environ.get("PREVIEW_DOMAIN", "preview.all-vp-n.ru")
+    return valid_upstream(f"https://pr-{positive_integer(number)}.{domain}")
+
+
+def wait_for_preview(number, timeout=240):
+    url = preview_origin(number)
+    opener = urllib.request.build_opener(NoRedirect)
+    deadline = time.monotonic() + timeout
+    print(f"Waiting for preview HTTPS: {url}", flush=True)
+    while True:
+        try:
+            # This request never carries GitHub, SSH or application credentials.
+            request = urllib.request.Request(url, headers={"User-Agent": "ecommerce-preview-readiness"})
+            with opener.open(request, timeout=10) as response:
+                if 200 <= response.status < 300:
+                    return url
+                last_error = f"HTTP {response.status}"
+        except urllib.error.HTTPError as error:
+            last_error = f"HTTP {error.code}"
+            error.close()
+        except OSError as error:
+            last_error = str(error)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError(f"Preview did not become ready over HTTPS at {url}: {last_error}")
+        time.sleep(min(3, remaining))
+
+
 class GitHub:
     def __init__(self, token):
         if not token:
@@ -102,13 +133,19 @@ class GitHub:
         self.token = token
         self.opener = urllib.request.build_opener(NoRedirect)
 
-    def request(self, path, archive=False):
+    def request(self, path, archive=False, *, method="GET", payload=None):
         if not path.startswith("/") or path.startswith("//"):
             raise ValueError("GitHub API path must be relative.")
-        request = urllib.request.Request("https://api.github.com" + path, headers={
+        if archive and (method != "GET" or payload is not None):
+            raise ValueError("Artifact downloads must be read-only.")
+        headers = {
             "Authorization": "Bearer " + self.token, "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "ecommerce-preview-routing",
-        })
+        }
+        if payload is not None:
+            headers["Content-Type"] = "application/json"
+        request = urllib.request.Request("https://api.github.com" + path, headers=headers, method=method,
+                                        data=json.dumps(payload).encode() if payload is not None else None)
         try:
             response = self.opener.open(request, timeout=20)
         except urllib.error.HTTPError as error:
@@ -132,6 +169,42 @@ class GitHub:
 
     def get(self, path):
         return self.request(f"/repos/{REPOSITORY}" + path)
+
+    def comments(self, number):
+        number = positive_integer(number)
+        comments = []
+        for page in range(1, 6):
+            batch = self.get(f"/issues/{number}/comments?per_page=100&page={page}")
+            comments.extend(batch)
+            if len(batch) < 100:
+                return comments
+        raise ValueError("Too many PR comments to select an authoritative preview update.")
+
+    def publish_preview_comment(self, number, deployed, run_id):
+        number = positive_integer(number)
+        run_id = int(run_id)
+        if run_id <= 0:
+            raise ValueError("Invalid routing workflow run ID.")
+        issue_url = f"https://api.github.com/repos/{REPOSITORY}/issues/{number}"
+        own = [comment for comment in self.comments(number)
+               if (comment.get("user") or {}).get("login") == "github-actions[bot]"
+               and (comment.get("user") or {}).get("type") == "Bot"
+               and comment.get("issue_url") == issue_url
+               and (comment.get("body") or "").startswith(COMMENT_MARKER + "\n")]
+        if len(own) > 1:
+            raise ValueError("Multiple preview status comments found; refusing to create a duplicate.")
+        if not deployed and not own:
+            return
+        status = f"✅ Preview готов: [открыть стенд]({preview_origin(number)})" if deployed else "Preview удалён: PR закрыт."
+        body = (f"{COMMENT_MARKER}\n{status}\n\n"
+                f"[Запуск Actions](https://github.com/{REPOSITORY}/actions/runs/{run_id})")
+        if own and own[0]["body"] == body:
+            return
+        path = f"/repos/{REPOSITORY}/issues"
+        if own:
+            self.request(f"{path}/comments/{int(own[0]['id'])}", method="PATCH", payload={"body": body})
+        else:
+            self.request(f"{path}/{number}/comments", method="POST", payload={"body": body})
 
     def record(self, run):
         if (run.get("repository", {}).get("full_name") != REPOSITORY or run.get("conclusion") != "success"
@@ -179,14 +252,7 @@ class GitHub:
         if event_comment.get("issue_url") != issue_url or not trusted_comment(event_comment):
             return None
         # Read current comment bodies, so a delayed event cannot reinstall an old URL.
-        comments = []
-        for page in range(1, 6):
-            batch = self.get(f"/issues/{number}/comments?per_page=100&page={page}")
-            comments.extend(comment for comment in batch if trusted_comment(comment))
-            if len(batch) < 100:
-                break
-        else:
-            raise ValueError("Too many PR comments to select an authoritative Timeweb update.")
+        comments = [comment for comment in self.comments(number) if trusted_comment(comment)]
         if not comments:
             return None
         latest = max(comments, key=lambda comment: (stamp(comment["updated_at"]), comment["id"]))
@@ -254,6 +320,15 @@ def main():
         print("No ready, verified Timeweb preview to publish.")
         return
     ssh_apply(command)
+    if command[0] == "deploy":
+        wait_for_preview(record["pr"])
+        pull = github.get(f"/pulls/{record['pr']}")
+        if pull["state"] == "closed":
+            command = ["delete", str(record["pr"]), f"{stamp(pull['closed_at'])}.{int(run['id'])}"]
+            ssh_apply(command)
+        elif pull["state"] != "open":
+            raise ValueError("Unexpected PR state after preview readiness check.")
+    github.publish_preview_comment(record["pr"], command[0] == "deploy", os.environ["GITHUB_RUN_ID"])
     print(f"Preview route {command[0]} completed for PR #{record['pr']}.")
 
 
