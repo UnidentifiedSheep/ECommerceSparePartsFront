@@ -1,0 +1,58 @@
+name: Route Timeweb previews
+
+on:
+  workflow_run:
+    workflows: [Timeweb preview events]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  inspect:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.repository.full_name == github.repository &&
+      (github.event.workflow_run.event == 'issue_comment' ||
+       github.event.workflow_run.event == 'pull_request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      pr: ${{ steps.inspect.outputs.pr }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Validate recorder and event identifiers
+        id: inspect
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/preview/route_preview.py inspect
+
+  route:
+    needs: inspect
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Configure this environment to allow deployments ONLY from master.
+    # Store the SSH key here, never as a repository-level secret.
+    environment: preview-routing
+    concurrency:
+      group: preview-routing-${{ github.repository }}-${{ needs.inspect.outputs.pr }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Reconcile current GitHub state through restricted SSH
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PREVIEW_SSH_HOST: ${{ secrets.PREVIEW_SSH_HOST }}
+          PREVIEW_SSH_PORT: ${{ vars.PREVIEW_SSH_PORT || '22' }}
+          PREVIEW_SSH_KEY: ${{ secrets.PREVIEW_SSH_KEY }}
+          PREVIEW_SSH_KNOWN_HOSTS: ${{ secrets.PREVIEW_SSH_KNOWN_HOSTS }}
+        run: python3 scripts/preview/route_preview.py apply
