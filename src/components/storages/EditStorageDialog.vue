@@ -1,6 +1,6 @@
 <template>
-  <el-dialog v-model="isOpen" :title="t('storages.editTitle')" width="520" align-center>
-    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+  <el-dialog :before-close="closeGuard.beforeClose" v-model="isOpen" :title="t('storages.editTitle')" width="520" align-center>
+    <el-form :disabled="isSaving" ref="formRef" :model="form" :rules="rules" label-position="top">
       <el-form-item :label="t('common.labels.code')">
         <el-input :model-value="storage?.code" disabled />
       </el-form-item>
@@ -16,13 +16,14 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
-      <el-button type="primary" @click="submit(formRef)">{{ t('common.actions.save') }}</el-button>
+      <el-button :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
+      <el-button type="primary" :loading="isSaving" @click="submit(formRef)">{{ t('common.actions.save') }}</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus'
 import StorageTypeSelector from '@/components/selectors/StorageTypeSelector.vue'
@@ -49,6 +50,9 @@ const form = reactive({
   type: StorageType.Warehouse,
 })
 
+const isSaving = ref(false)
+const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form }))
+
 const rules = computed<FormRules<typeof form>>(() => ({
   description: [{ max: 256, message: t('storages.validation.descriptionMax'), trigger: 'blur' }],
   location: [{ max: 256, message: t('storages.validation.locationMax'), trigger: 'blur' }],
@@ -62,25 +66,29 @@ watch([() => isOpen.value, () => props.storage], ([open, storage]) => {
 })
 
 async function submit(formEl?: FormInstance) {
-  if (!formEl || !props.storage) return
+  if (isSaving.value) return
+  isSaving.value = true
+  try {
+    if (!formEl || !props.storage) return
 
-  const valid = await formEl.validate().catch(() => false)
-  if (!valid) return
+    const valid = await formEl.validate().catch(() => false)
+    if (!valid) return
 
-  await editStorage({
-    storageCode: props.storage.code,
-    description: form.description,
-    location: form.location,
-    type: form.type,
-  })
+    await editStorage({
+      storageCode: props.storage.code,
+      description: form.description,
+      location: form.location,
+      type: form.type,
+    })
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('storages.updated', { name: props.storage.code }),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('storages.updated', { name: props.storage.code }),
+      type: 'success',
+    })
 
-  emit('updated')
-  isOpen.value = false
+    emit('updated')
+    isOpen.value = false
+  } finally { isSaving.value = false }
 }
 </script>

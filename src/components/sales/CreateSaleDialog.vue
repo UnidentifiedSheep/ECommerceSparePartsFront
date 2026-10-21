@@ -10,6 +10,7 @@
       { 'create-sale-dialog--history-open': historyPanelOpen },
     ]"
     :show-close="false"
+    :before-close="closeGuard.beforeClose"
   >
     <template #header>
       <div class="dialog-heading">
@@ -18,7 +19,7 @@
           <h2>{{ t('sales.createTitle') }}</h2>
           <p>{{ t('sales.createDescription') }}</p>
         </div>
-        <el-button :icon="Close" circle text @click="isOpen = false" />
+        <el-button :icon="Close" :disabled="isSaving" :aria-label="t('common.actions.close')" circle text @click="closeGuard.requestClose" />
       </div>
     </template>
 
@@ -65,7 +66,7 @@
         class="sale-workspace"
         :class="{ 'sale-workspace--history-open': historyPanelOpen }"
       >
-      <el-form label-position="top" class="sale-form">
+      <el-form label-position="top" class="sale-form" :disabled="isSaving">
         <section class="sale-section sale-section--main">
           <div class="section-header">
             <div>
@@ -316,7 +317,7 @@
           <strong>{{ formatCurrency(saleTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
         <div class="footer-actions">
-          <el-button size="large" @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button size="large" :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save()">
             {{ t('sales.create') }}
           </el-button>
@@ -355,6 +356,7 @@ import { getUserDiscount } from '@/services/api/users.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
+import { useDialogGuard } from '@/composables/useDialogGuard.ts'
 
 interface SaleItemForm {
   product?: ProductSearchModel
@@ -474,6 +476,8 @@ const canSave = computed(() => (
     && effectivePriceWithDiscount(item) <= item.price
   ))
 ))
+
+const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form, saleDiscount: saleDiscount.value, items: form.items.map(({ product, count, price, priceWithDiscount, discountMode, comment }) => ({ productId: product?.id, count, price, priceWithDiscount, discountMode, comment })) }))
 
 function resetForm() {
   form.buyer = undefined

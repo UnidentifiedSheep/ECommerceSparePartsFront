@@ -237,6 +237,10 @@
 </template>
 
 <script setup lang="ts">
+import { queryField, useListQueryState } from '@/composables/useListQueryState'
+import { queryText, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
+import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
+
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { useRoute } from 'vue-router'
@@ -311,6 +315,17 @@ const activeFiltersText = computed(() => (
 
 const dateRange = ref<[string, string] | null>(null)
 
+const queryState = useListQueryState({
+  search: queryField(searchTerm, queryText),
+  dates: queryField(dateRange, queryDates),
+  currencies: queryField(currencyIds, queryIds),
+  products: productQueryBinding(selectedProducts),
+  sort: queryField(sortBy, querySort(['dateTime', 'totalSum'])),
+  suppliers: organizationQueryBinding(selectedSuppliers, (item) => item.organization, (organization) => ({ organization })),
+  page: queryField(page, queryPage),
+  size: queryField(limit, querySize),
+}, () => loadPurchases(false))
+
 const loadPurchasesDebounced = useDebounceFn(async () => {
   await loadPurchases(true)
 }, 300)
@@ -384,6 +399,7 @@ async function loadStorages() {
 }
 
 async function loadPurchases(resetPage: boolean) {
+  if (queryState.restoring.value) return
   if (purchasesLoading.value) return
 
   purchasesLoading.value = true
@@ -556,11 +572,12 @@ watch(dateRange, async () => loadPurchases(true), { deep: true })
 watch(selectedSuppliers, async () => loadPurchases(true), { deep: true })
 watch(currencyIds, async () => loadPurchases(true), { deep: true })
 watch(selectedProducts, async () => loadPurchases(true), { deep: true })
-watch(searchTerm, () => loadPurchasesDebounced())
+watch(searchTerm, () => { if (!queryState.restoring.value) loadPurchasesDebounced() })
 watch(() => route.query.purchaseId, async () => selectPurchaseFromRoute())
 
 onMounted(async () => {
-  await Promise.all([loadCurrencies(), loadStorages(), loadPurchases(true)])
+  await queryState.restoreInitial()
+  await Promise.all([loadCurrencies(), loadStorages(), loadPurchases(false)])
   await selectPurchaseFromRoute()
 })
 </script>

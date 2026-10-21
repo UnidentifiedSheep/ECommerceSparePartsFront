@@ -258,6 +258,10 @@
 </template>
 
 <script setup lang="ts">
+import { queryField, useListQueryState } from '@/composables/useListQueryState'
+import { queryText, queryStrings, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
+import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
+
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -342,6 +346,18 @@ const activeFiltersText = computed(() => (
 
 const dateRange = ref<[string, string] | null>(null)
 
+const queryState = useListQueryState({
+  search: queryField(searchTerm, queryText),
+  dates: queryField(dateRange, queryDates),
+  currencies: queryField(currencyIds, queryIds),
+  products: productQueryBinding(selectedProducts),
+  sort: queryField(sortBy, querySort(['dateTime', 'totalSum'])),
+  buyers: organizationQueryBinding(selectedBuyerOrganizations, (item) => item, (organization) => organization),
+  states: queryField(saleStates, (value) => queryStrings(value).filter((item): item is SaleState => ['Draft', 'Completed', 'Deleted'].includes(item))),
+  page: queryField(page, queryPage),
+  size: queryField(limit, querySize),
+}, () => loadSales(false))
+
 const loadSalesDebounced = useDebounceFn(async () => {
   await loadSales(true)
 }, 300)
@@ -424,6 +440,7 @@ async function loadCurrencies() {
 }
 
 async function loadSales(resetPage: boolean) {
+  if (queryState.restoring.value) return
   if (salesLoading.value) return
 
   salesLoading.value = true
@@ -602,7 +619,7 @@ watch(selectedBuyerOrganizations, async () => loadSales(true), { deep: true })
 watch(currencyIds, async () => loadSales(true), { deep: true })
 watch(saleStates, async () => loadSales(true), { deep: true })
 watch(selectedProducts, async () => loadSales(true), { deep: true })
-watch(searchTerm, () => loadSalesDebounced())
+watch(searchTerm, () => { if (!queryState.restoring.value) loadSalesDebounced() })
 watch(() => route.query.saleId, async () => selectSaleFromRoute())
 watch(editSaleDialogOpen, (open) => {
   if (open) return
@@ -611,7 +628,8 @@ watch(editSaleDialogOpen, (open) => {
 })
 
 onMounted(async () => {
-  await Promise.all([loadCurrencies(), loadSales(true)])
+  await queryState.restoreInitial()
+  await Promise.all([loadCurrencies(), loadSales(false)])
   await selectSaleFromRoute()
 })
 </script>

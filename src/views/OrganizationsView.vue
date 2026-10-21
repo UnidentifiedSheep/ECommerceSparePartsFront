@@ -408,6 +408,9 @@
 </template>
 
 <script setup lang="ts">
+import { queryField, useListQueryState } from '@/composables/useListQueryState'
+import { queryText, queryStrings, queryPage, querySize, queryBoolean, querySort } from '@/utils/listQuery'
+
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
@@ -483,6 +486,15 @@ const limit = ref(20)
 const hasNext = ref(false)
 const organizationsLoading = ref(false)
 const { sortBy: organizationsSortBy, toggleSort: toggleOrganizationsSort } = useMultiSort(['name'])
+const queryState = useListQueryState({
+  search: queryField(searchTerm, queryText),
+  types: queryField(typeFilters, (value) => queryStrings(value).filter((item): item is OrganizationType => ['Individual', 'Business', 'System'].includes(item))),
+  hidden: queryField(showHidden, queryBoolean),
+  sort: queryField(organizationsSortBy, querySort(['name', 'type', 'approximateBalance'])),
+  page: queryField(page, queryPage),
+  size: queryField(limit, querySize),
+}, () => loadOrganizations(false))
+
 const detailsLoading = ref(false)
 const detailsTab = ref('members')
 const members = ref<OrganizationMemberModel[]>([])
@@ -651,6 +663,7 @@ function handleCreateSystemNameInput(value: string) {
 }
 
 async function loadOrganizations(reset = false) {
+  if (queryState.restoring.value) return
   const requestId = ++organizationsRequestId
   if (reset) page.value = 0
   organizationsLoading.value = true
@@ -722,7 +735,7 @@ async function saveOrganization() {
       selectedOrganization.value = undefined
       members.value = []
       financialInfo.value = undefined
-      await router.replace({ name: 'organizations' })
+      await router.replace({ name: 'organizations', query: { ...route.query, organizationId: undefined } })
     } else {
       selectedOrganization.value = updated
       organizations.value = orderOrganizations(
@@ -772,7 +785,7 @@ async function toggleOrganizationVisibility(organization: OrganizationModel) {
         selectedOrganization.value = undefined
         members.value = []
         financialInfo.value = undefined
-        await router.replace({ name: 'organizations' })
+        await router.replace({ name: 'organizations', query: { ...route.query, organizationId: undefined } })
       }
     } else {
       organizations.value = orderOrganizations(
@@ -803,7 +816,7 @@ async function selectOrganization(organization?: OrganizationModel) {
   if (!organization) return
 
   if (route.query.organizationId !== organization.id) {
-    await router.replace({ name: 'organizations', query: { organizationId: organization.id } })
+    await router.replace({ name: 'organizations', query: { ...route.query, organizationId: organization.id } })
   }
   await loadOrganizationDetails()
 }
@@ -1029,9 +1042,16 @@ function amountClass(value: number) {
   return { 'amount-negative': value < 0, 'amount-positive': value > 0 }
 }
 
-watch(searchTerm, loadOrganizationsDebounced)
+watch(searchTerm, () => { if (!queryState.restoring.value) loadOrganizationsDebounced() })
 watch(typeFilters, () => loadOrganizations(true), { deep: true })
-watch([page, limit], () => loadOrganizations(false))
+watch([page, limit], ([currentPage, currentLimit], [, previousLimit]) => {
+  if (queryState.restoring.value) return
+  if (currentLimit !== previousLimit && currentPage !== 0) {
+    page.value = 0
+    return
+  }
+  void loadOrganizations(false)
+})
 watch(() => route.query.organizationId, () => selectOrganizationFromRoute())
 watch(
   () => createForm.name,
@@ -1053,7 +1073,8 @@ watch(createDialogOpen, (isOpen) => {
 })
 
 onMounted(async () => {
-  await loadOrganizations(true)
+  await queryState.restoreInitial()
+  await loadOrganizations(false)
   await selectOrganizationFromRoute()
 })
 </script>

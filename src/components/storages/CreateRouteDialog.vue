@@ -1,6 +1,6 @@
 <template>
-  <el-dialog v-model="isOpen" :title="t('storages.routesPanel.createTitle')" width="760">
-    <el-form :model="form" label-position="top">
+  <el-dialog :before-close="closeGuard.beforeClose" v-model="isOpen" :title="t('storages.routesPanel.createTitle')" width="760">
+    <el-form :disabled="isSaving" :model="form" label-position="top">
       <section class="route-dialog-section">
         <div class="section-title">{{ t('storages.routesPanel.direction') }}</div>
         <div class="form-grid">
@@ -75,14 +75,15 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="create">{{ t('common.actions.create') }}</el-button>
+        <el-button :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="isSaving" @click="create">{{ t('common.actions.create') }}</el-button>
       </div>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
@@ -125,6 +126,9 @@ const form = reactive({
   carrier: undefined as UserModel | undefined,
 })
 
+const isSaving = ref(false)
+const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form }))
+
 const routeOptions = computed(() => [
   { value: RouteType.IntraCity, label: routeTypeToText(RouteType.IntraCity) },
   { value: RouteType.InterCity, label: routeTypeToText(RouteType.InterCity) },
@@ -156,29 +160,33 @@ async function loadCurrencies() {
 }
 
 async function create() {
-  await createStorageRoute({
-    storageFrom: form.storageFrom,
-    storageTo: form.storageTo,
-    distance: form.distance,
-    routeType: form.routeType,
-    pricingType: form.pricingType,
-    deliveryTime: form.deliveryTime,
-    priceKg: form.priceKg,
-    priceM3: form.priceM3,
-    currencyId: form.currencyId,
-    pricePerOrder: form.pricePerOrder,
-    minimumPrice: form.minimumPrice || undefined,
-    carrierId: form.carrier?.id,
-  })
+  if (isSaving.value) return
+  isSaving.value = true
+  try {
+    await createStorageRoute({
+      storageFrom: form.storageFrom,
+      storageTo: form.storageTo,
+      distance: form.distance,
+      routeType: form.routeType,
+      pricingType: form.pricingType,
+      deliveryTime: form.deliveryTime,
+      priceKg: form.priceKg,
+      priceM3: form.priceM3,
+      currencyId: form.currencyId,
+      pricePerOrder: form.pricePerOrder,
+      minimumPrice: form.minimumPrice || undefined,
+      carrierId: form.carrier?.id,
+    })
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('storages.routesPanel.created'),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('storages.routesPanel.created'),
+      type: 'success',
+    })
 
-  emit('created')
-  isOpen.value = false
+    emit('created')
+    isOpen.value = false
+  } finally { isSaving.value = false }
 }
 
 onMounted(loadCurrencies)

@@ -9,7 +9,7 @@
       'edit-sale-dialog',
       { 'edit-sale-dialog--history-open': historyPanelOpen },
     ]"
-    :before-close="handleBeforeClose"
+    :before-close="closeGuard.beforeClose"
     :show-close="false"
   >
     <template #header>
@@ -19,7 +19,7 @@
           <h2>{{ t('sales.editTitle', { date: sale ? formatDate(sale.saleDatetime) : '' }) }}</h2>
           <p>{{ t('sales.editDescription') }}</p>
         </div>
-        <el-button :icon="Close" circle text @click="requestClose" />
+        <el-button :icon="Close" circle text :disabled="isSaving" @click="closeGuard.requestClose" />
       </div>
     </template>
 
@@ -51,7 +51,7 @@
 
       </aside>
 
-      <el-form label-position="top" class="sale-form">
+      <el-form :disabled="isSaving" label-position="top" class="sale-form">
         <section class="sale-section sale-section--main">
           <div class="section-header">
             <div>
@@ -320,7 +320,7 @@
           <strong>{{ formatCurrency(saleTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
         <div class="footer-actions">
-          <el-button size="large" @click="requestClose">{{ t('common.actions.cancel') }}</el-button>
+          <el-button size="large" :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save()">
             {{ t('common.actions.save') }}
           </el-button>
@@ -340,6 +340,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, h, reactive, ref, watch } from 'vue'
 import { Close, Delete, MoreFilled, Plus, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
@@ -399,7 +400,6 @@ const storageBatchesOpen = ref(false)
 const storageBatchesProduct = ref<EditSaleProductForm>()
 const historyPanelOpen = ref(false)
 const selectedHistoryItemIndex = ref<number | null>(null)
-const initialFormSnapshot = ref('')
 const isSaving = ref(false)
 const isStockLoading = ref(false)
 const isDiscountLoading = ref(false)
@@ -479,11 +479,7 @@ const canSave = computed(() => (
     && effectivePriceWithDiscount(item) <= item.price
   ))
 ))
-const hasUnsavedChanges = computed(() => (
-  isOpen.value
-  && initialFormSnapshot.value !== ''
-  && formSnapshot() !== initialFormSnapshot.value
-))
+const closeGuard = useDialogGuard(isOpen, isSaving, formSnapshot)
 
 function resetForm() {
   form.currencyId = props.sale?.currency.id ?? resolveDefaultCurrencyId(props.currencies)
@@ -524,7 +520,7 @@ function resetForm() {
   saleDiscount.value = 0
   isDiscountEditing.value = false
   discountDraftPercent.value = undefined
-  initialFormSnapshot.value = formSnapshot()
+  closeGuard.markClean()
   void loadBuyerDiscount()
   void loadCurrentProductStocks()
 }
@@ -767,36 +763,6 @@ function formSnapshot() {
       discountMode: item.discountMode,
       comment: item.comment,
     })),
-  })
-}
-
-async function confirmDiscardChanges() {
-  if (!hasUnsavedChanges.value || isSaving.value) return true
-  try {
-    await ElMessageBox.confirm(
-      t('sales.unsavedChangesMessage'),
-      t('sales.unsavedChangesTitle'),
-      {
-        confirmButtonText: t('sales.discardChanges'),
-        cancelButtonText: t('common.actions.cancel'),
-        type: 'warning',
-      },
-    )
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function requestClose() {
-  if (await confirmDiscardChanges()) {
-    isOpen.value = false
-  }
-}
-
-function handleBeforeClose(done: () => void) {
-  void confirmDiscardChanges().then((confirmed) => {
-    if (confirmed) done()
   })
 }
 

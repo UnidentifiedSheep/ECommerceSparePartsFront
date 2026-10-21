@@ -41,7 +41,7 @@
                 </div>
 
                 <el-tabs v-model="currentTab">
-                  <el-tab-pane name="storage-owners">
+                  <el-tab-pane v-if="canViewOwners" name="storage-owners">
                     <template #label>
                       <span>
                         <el-icon><User /></el-icon>
@@ -50,7 +50,7 @@
                     </template>
                     <StorageOwnersViewer v-model:storage="selectedStorage" />
                   </el-tab-pane>
-                  <el-tab-pane name="storage-routes">
+                  <el-tab-pane v-if="canViewRoutes" name="storage-routes">
                     <template #label>
                       <span>
                         <el-icon><IconRoute /></el-icon>
@@ -75,7 +75,8 @@
 
 <script setup lang="ts">
 import { User } from '@element-plus/icons-vue'
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { usePermissions } from '@/composables/usePermissions.ts'
 import StorageTypeSelector from '@/components/selectors/StorageTypeSelector.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import IconRoute from '@/components/icons/IconRoute.vue'
@@ -87,10 +88,16 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
+const { hasPermission } = usePermissions()
+const canViewOwners = computed(() => hasPermission('USERS_STORAGES_GET'))
+const canViewRoutes = computed(() => hasPermission('STORAGE_ROUTES_GET'))
 const storageType = ref<StorageType | undefined>()
 const searchField = ref<string | undefined>()
 const selectedStorage = ref<StorageModel | undefined>()
 const currentTab = ref('storage-owners')
+watch([canViewOwners, canViewRoutes], () => {
+  currentTab.value = canViewOwners.value ? 'storage-owners' : canViewRoutes.value ? 'storage-routes' : ''
+}, { immediate: true })
 
 function resetFilters() {
   storageType.value = undefined

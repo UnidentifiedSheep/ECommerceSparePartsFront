@@ -28,6 +28,7 @@ export interface GetUsersRequest {
 
 export interface GetUsersResponse {
   users: UserModel[]
+  hasNext: boolean
 }
 
 export interface CreateUserInfoRequest {
@@ -192,14 +193,23 @@ export async function getUsers(req: GetUsersRequest): Promise<GetUsersResponse> 
   appendParam('description', req.description)
   appendParam('similarityLevel', req.similarityLevel)
   appendParam('page', req.page)
-  appendParam('limit', clampPageSize(req.limit))
+  appendParam('size', clampPageSize(req.limit))
   appendParam('searchMethod', req.searchMethod)
 
   const resp = await api.get<{ users: UserModel[] }>('/main/users', {
     params,
   })
+  const size = clampPageSize(req.limit)
+  // The backend Similarity search returns all matches without applying pagination.
+  const start = req.searchMethod === GeneralSearchStrategy.Similarity ? req.page * size : 0
+  const users = req.searchMethod === GeneralSearchStrategy.Similarity
+    ? resp.data.users.slice(start, start + size)
+    : resp.data.users
   return {
-    users: resp.data.users.map(mapUserModel),
+    users: users.map(mapUserModel),
+    hasNext: req.searchMethod === GeneralSearchStrategy.Similarity
+      ? resp.data.users.length > start + size
+      : users.length === size,
   }
 }
 

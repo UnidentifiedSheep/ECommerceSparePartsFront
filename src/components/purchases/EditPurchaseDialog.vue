@@ -5,6 +5,7 @@
     top="4vh"
     class="edit-purchase-dialog"
     :show-close="false"
+    :before-close="closeGuard.beforeClose"
   >
     <template #header>
       <div class="dialog-heading">
@@ -13,7 +14,7 @@
           <h2>{{ t('purchases.editTitle', { date: purchase ? formatDate(purchase.purchaseDatetime) : '' }) }}</h2>
           <p>{{ t('purchases.editDescription') }}</p>
         </div>
-        <el-button :icon="Close" circle text @click="isOpen = false" />
+        <el-button :icon="Close" :disabled="isSaving" :aria-label="t('common.actions.close')" circle text @click="closeGuard.requestClose" />
       </div>
     </template>
 
@@ -56,7 +57,7 @@
         </div>
       </aside>
 
-      <el-form label-position="top" class="purchase-form">
+      <el-form label-position="top" class="purchase-form" :disabled="isSaving">
         <section class="purchase-section purchase-section--main">
           <div class="section-header">
             <div>
@@ -195,7 +196,7 @@
           <strong>{{ formatCurrency(editPurchaseTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
         <div class="footer-actions">
-          <el-button size="large" @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button size="large" :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save">
             {{ t('common.actions.save') }}
           </el-button>
@@ -222,6 +223,7 @@ import { editPurchase } from '@/services/api/purchases.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
+import { useDialogGuard } from '@/composables/useDialogGuard.ts'
 
 interface EditPurchaseProductForm {
   id: number
@@ -324,6 +326,8 @@ const canSave = computed(() => (
   && !isCalculatingLogistics.value
   && !hasSkippedLogistics.value
 ))
+
+const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form, items: form.items.map(({ product, count, price, calculateLogistics, comment }) => ({ productId: product?.id, count, price, calculateLogistics, comment })) }))
 
 function resetForm() {
   form.currencyId = props.purchase?.currency.id ?? resolveDefaultCurrencyId(props.currencies)
@@ -436,7 +440,7 @@ const recalculateLogistics = useDebounceFn(async () => {
 }, 350)
 
 async function save() {
-  if (!canSave.value || !props.purchase || !form.currencyId) return
+  if (isSaving.value || !canSave.value || !props.purchase || !form.currencyId) return
 
   isSaving.value = true
   try {

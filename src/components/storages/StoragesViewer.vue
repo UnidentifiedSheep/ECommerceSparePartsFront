@@ -18,16 +18,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column v-if="allowEdit || allowDelete" fixed="right" width="64" align="center">
+        <el-table-column v-if="canEdit || canDelete" fixed="right" width="64" align="center">
           <template #header><span class="sr-only">{{ t('common.labels.actions') }}</span></template>
           <template #default="scope">
             <div @click.stop>
               <RowActionsMenu
-                :can-edit="allowEdit"
-                :can-delete="allowDelete"
-                :busy="false"
+                :can-edit="canEdit"
+                :can-delete="canDelete"
+                :busy="deletion.isPending(scope.row.code)"
                 @edit="openEditDialog(scope.row)"
-                @delete="removeStorage(scope.$index)"
+                @delete="removeStorage(scope.row)"
               />
             </div>
           </template>
@@ -38,7 +38,7 @@
         <div class="flex justify-between gap-4">
           <ZeroPagination v-model:page="page" v-model:size="limit" :has-next="hasNext" />
 
-          <el-button type="success" plain @click="createDialogOpen = true">
+          <el-button v-if="canCreate" type="success" plain @click="createDialogOpen = true">
             <el-icon size="14">
               <Plus />
             </el-icon>
@@ -58,7 +58,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { usePermissions } from '@/composables/usePermissions.ts'
+import { useConfirmedDelete } from '@/composables/useConfirmedDelete.ts'
 import { useDebounceFn } from '@vueuse/core'
 import { ElNotification, type TableInstance } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -86,6 +88,11 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { hasPermission } = usePermissions()
+const canCreate = computed(() => hasPermission('STORAGES_CREATE'))
+const canEdit = computed(() => props.allowEdit && hasPermission('STORAGES_EDIT'))
+const canDelete = computed(() => props.allowDelete && hasPermission('STORAGES_DELETE'))
+const deletion = useConfirmedDelete()
 const updateDebounce = useDebounceFn(async () => {
   await loadStorages(true)
 }, 300)
@@ -134,24 +141,25 @@ async function loadStorages(resetPages: boolean) {
 }
 
 function openEditDialog(storage: StorageModel) {
+  if (!canEdit.value || deletion.isPending(storage.code)) return
   editingStorage.value = storage
   editDialogOpen.value = true
 }
 
-async function removeStorage(index: number) {
-  const storage = storages.value[index]
-  if (!storage) return
+async function removeStorage(storage: StorageModel) {
+  if (!canDelete.value) return
+  await deletion.remove(storage.code, storage.code, async () => {
+    await deleteStorage({ code: storage.code })
+    storages.value = storages.value.filter((item) => item.code !== storage.code)
 
-  await deleteStorage({ code: storage.code })
-  storages.value.splice(index, 1)
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('storages.removed', { name: storage.code }),
+      type: 'success',
+    })
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('storages.removed', { name: storage.code }),
-    type: 'success',
+    await loadStorages(false)
   })
-
-  await loadStorages(false)
 }
 
 onMounted(async () => loadStorages(true))
