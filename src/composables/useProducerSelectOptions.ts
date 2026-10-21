@@ -14,6 +14,7 @@ export function useProducerSelectOptions(selectedIds: Readonly<Ref<number[]>>) {
   const hasMore = ref(true)
   const nextPage = ref(0)
   const activeQuery = ref('')
+  const searchPending = ref(false)
   const popperClass = `producer-select-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   let requestId = 0
   const { attach, detach } = useSelectInfiniteScroll(popperClass, loadMore)
@@ -45,6 +46,7 @@ export function useProducerSelectOptions(selectedIds: Readonly<Ref<number[]>>) {
       ]
       nextPage.value = page + 1
       hasMore.value = response.producers.length === pageSize
+      searchPending.value = false
       knownNames.value = {
         ...knownNames.value,
         ...Object.fromEntries(response.producers.map((producer) => [producer.id, producer.name])),
@@ -68,8 +70,20 @@ export function useProducerSelectOptions(selectedIds: Readonly<Ref<number[]>>) {
     hasMore.value = true
     loading.value = false
     loadError.value = false
+    searchPending.value = true
     void debouncedLoad()
   }
+
+  function rememberProducer(producer: { id: number; name: string }) {
+    knownNames.value = { ...knownNames.value, [producer.id]: producer.name }
+  }
+
+  const canCreateForQuery = computed(() => {
+    const name = activeQuery.value.trim()
+    return name.length >= 2 && name.length <= 64
+      && !searchPending.value && !loading.value && !loadError.value && !hasMore.value
+      && !Object.values(knownNames.value).some((knownName) => knownName.trim().toLowerCase() === name.toLowerCase())
+  })
 
   async function ensureSelectedNames(ids: number[]) {
     const missing = ids.filter((id) => !knownNames.value[id])
@@ -106,5 +120,8 @@ export function useProducerSelectOptions(selectedIds: Readonly<Ref<number[]>>) {
     popperClass,
     loadMore,
     canRetry: computed(() => loadError.value && producers.value.length > 0),
+    query: computed(() => activeQuery.value),
+    canCreateForQuery,
+    rememberProducer,
   }
 }

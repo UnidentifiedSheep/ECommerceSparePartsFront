@@ -59,7 +59,7 @@
                 <el-input v-model="row.name" :placeholder="t('products.crossesWizard.enterName')" :aria-invalid="Boolean(productError(row, 'name'))" />
               </el-form-item>
               <el-form-item :label="t('common.labels.producer')" required :error="productError(row, 'producerId')">
-                <ProducerSelector v-model="row.producerId" :aria-invalid="Boolean(productError(row, 'producerId'))" />
+                <ProducerSelector v-model="row.producerId" allow-create :aria-invalid="Boolean(productError(row, 'producerId'))" />
               </el-form-item>
             </div>
             <details class="product-draft__details">
