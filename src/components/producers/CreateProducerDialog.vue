@@ -1,6 +1,7 @@
 <template>
   <el-dialog
     v-model="isOpen"
+    :before-close="closeGuard.beforeClose"
     append-to-body
     :title="t('producers.createTitle')"
     width="min(480px, calc(100vw - 24px))"
@@ -21,13 +22,14 @@
       <button type="submit" hidden />
     </el-form>
     <template #footer>
-      <el-button :disabled="saving" @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+      <el-button :disabled="saving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
       <el-button type="primary" :loading="saving" :disabled="!canCreate" @click="save">{{ t('common.actions.create') }}</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, nextTick, ref, watch } from 'vue'
 import { ElNotification, type InputInstance } from 'element-plus'
 import { createProducer } from '@/services/api/producers.ts'
@@ -49,6 +51,8 @@ const attempted = ref(false)
 const saveError = ref('')
 const nameError = computed(() => attempted.value && (name.value.trim().length < 2 || name.value.trim().length > 64)
   ? t('producers.nameLength') : '')
+
+const closeGuard = useDialogGuard(isOpen, saving, () => ({ name: name.value, description: description.value }))
 
 async function save() {
   if (saving.value || !canCreate.value) return

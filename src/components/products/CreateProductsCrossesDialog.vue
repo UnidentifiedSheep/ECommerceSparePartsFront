@@ -1,6 +1,7 @@
 <template>
   <el-dialog
     v-model="isOpen"
+    :before-close="closeGuard.beforeClose"
     :title="t(canCreateProducts && canCreateCrosses ? 'products.crossesWizard.title' : canCreateProducts ? 'products.createProduct' : 'products.addCrosses')"
     width="min(1000px, calc(100vw - 24px))"
     top="5vh"
@@ -128,7 +129,7 @@
     </div>
     <template #footer>
       <div class="creation-footer">
-        <el-button :disabled="isBusy" @click="isOpen = false">{{ t(createdProducts.length ? 'common.actions.close' : 'common.actions.cancel') }}</el-button>
+        <el-button :disabled="isBusy" @click="closeGuard.requestClose">{{ t(createdProducts.length ? 'common.actions.close' : 'common.actions.cancel') }}</el-button>
         <div class="creation-footer__actions">
           <template v-if="activeStep === 0 && canCreateProducts">
             <el-button v-if="canCreateCrosses" :disabled="isBusy" @click="activeStep = 1">{{ t('products.crossesWizard.onlyCrosses') }}</el-button>
@@ -151,6 +152,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, nextTick, ref, watch } from 'vue'
 import { Box, CircleCheck, Close, Delete, Link, Plus, Search } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -253,6 +255,8 @@ function emptyCrossRow(): CrossRow {
     linkageType: 'SingleCross',
   }
 }
+
+const closeGuard = useDialogGuard(isOpen, isBusy, () => ({ products: productRows.value, crosses: crossRows.value }))
 
 function resetForm() {
   activeStep.value = canCreateCrosses.value && (props.initialProductId || !canCreateProducts.value) ? 1 : 0

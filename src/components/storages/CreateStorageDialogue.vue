@@ -1,6 +1,6 @@
 <template>
-  <el-dialog v-model="isOpen" :title="t('storages.createTitle')" width="500" align-center>
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="auto" label-position="top">
+  <el-dialog :before-close="closeGuard.beforeClose" v-model="isOpen" :title="t('storages.createTitle')" width="500" align-center>
+    <el-form :disabled="isSaving" ref="formRef" :model="form" :rules="rules" label-width="auto" label-position="top">
       <el-form-item :label="t('common.labels.code')" prop="code">
         <el-input v-model="form.code" />
       </el-form-item>
@@ -15,13 +15,14 @@
       </el-form-item>
     </el-form>
     <div class="flex justify-center gap-3">
-      <el-button type="primary" @click="onSubmit(formRef)">{{ t('common.actions.create') }}</el-button>
-      <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+      <el-button type="primary" :loading="isSaving" @click="onSubmit(formRef)">{{ t('common.actions.create') }}</el-button>
+      <el-button :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
     </div>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus'
 import StorageTypeSelector from '@/components/selectors/StorageTypeSelector.vue'
@@ -43,6 +44,9 @@ const form = reactive<CreateStorageRequest>({
   type: StorageType.Warehouse,
 })
 
+const isSaving = ref(false)
+const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form }))
+
 const rules = computed<FormRules<CreateStorageRequest>>(() => ({
   code: [
     { required: true, message: t('storages.validation.codeRequired'), trigger: 'blur' },
@@ -53,20 +57,15 @@ const rules = computed<FormRules<CreateStorageRequest>>(() => ({
 }))
 
 async function onSubmit(formEl: FormInstance | undefined) {
-  if (!formEl) return
-
-  await formEl.validate(async (valid) => {
-    if (!valid) return
-
-    const resp = await createStorage(form)
-    ElNotification({
-      title: t('common.labels.success'),
-      message: t('storages.created', { name: resp.code }),
-      type: 'success',
-    })
+  if (!formEl || isSaving.value) return
+  isSaving.value = true
+  try {
+    if (!await formEl.validate().catch(() => false)) return
+    const resp = await createStorage({ ...form })
+    ElNotification({ title: t('common.labels.success'), message: t('storages.created', { name: resp.code }), type: 'success' })
     isOpen.value = false
     emit('created', resp.code)
-  })
+  } finally { isSaving.value = false }
 }
 
 watch(isOpen, (opened) => {

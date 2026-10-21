@@ -1,6 +1,6 @@
 <template>
-  <el-dialog v-model="isOpen" :title="t('storages.routesPanel.editTitle')" width="760">
-    <el-form :model="form" label-position="top">
+  <el-dialog :before-close="closeGuard.beforeClose" v-model="isOpen" :title="t('storages.routesPanel.editTitle')" width="760">
+    <el-form :disabled="isSaving" :model="form" label-position="top">
       <section class="route-dialog-section">
         <div class="section-title">{{ t('storages.routesPanel.routeParameters') }}</div>
         <div class="form-grid">
@@ -62,7 +62,7 @@
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="isSaving" @click="save">{{ t('common.actions.save') }}</el-button>
       </div>
     </template>
@@ -70,6 +70,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import UserSelector from '@/components/selectors/UserSelector.vue'
@@ -110,6 +111,8 @@ const form = reactive({
   carrier: undefined as UserModel | undefined,
 })
 
+const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form, carrier: form.carrier?.id ?? props.route?.carrierId ?? null }))
+
 const routeOptions = computed(() => [
   { value: RouteType.IntraCity, label: routeTypeToText(RouteType.IntraCity) },
   { value: RouteType.InterCity, label: routeTypeToText(RouteType.InterCity) },
@@ -144,12 +147,14 @@ async function fillForm(route: StorageRouteModel) {
       limit: 1,
       searchMethod: GeneralSearchStrategy.General,
     })
-    form.carrier = resp.users[0]
+    if (isOpen.value && props.route?.id === route.id) {
+      form.carrier = resp.users[0]
+    }
   }
 }
 
 async function save() {
-  if (!props.route) return
+  if (!props.route || isSaving.value) return
 
   isSaving.value = true
   try {

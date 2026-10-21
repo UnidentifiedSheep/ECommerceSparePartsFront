@@ -23,16 +23,16 @@
       <span>{{ t('nav.overview') }}</span>
     </el-menu-item>
 
-    <el-sub-menu index="operations">
+    <el-sub-menu v-if="operationsRoutes.some(canOpen)" index="operations">
       <template #title>
         <el-icon><Tickets /></el-icon>
         <span>{{ t('nav.operations') }}</span>
       </template>
 
-      <el-menu-item index="/purchases" @click="openRoute('/purchases')">{{ t('nav.purchases') }}</el-menu-item>
-      <el-menu-item index="/sales" @click="openRoute('/sales')">{{ t('nav.sales') }}</el-menu-item>
-      <el-menu-item index="/reservations" @click="openRoute('/reservations')">{{ t('nav.reservations') }}</el-menu-item>
-      <el-menu-item index="/transactions" @click="openRoute('/transactions')">{{ t('nav.transactions') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/purchases')" index="/purchases" @click="openRoute('/purchases')">{{ t('nav.purchases') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/sales')" index="/sales" @click="openRoute('/sales')">{{ t('nav.sales') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/reservations')" index="/reservations" @click="openRoute('/reservations')">{{ t('nav.reservations') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/transactions')" index="/transactions" @click="openRoute('/transactions')">{{ t('nav.transactions') }}</el-menu-item>
     </el-sub-menu>
 
     <el-sub-menu index="catalog">
@@ -41,7 +41,7 @@
         <span>{{ t('nav.catalog') }}</span>
       </template>
 
-      <el-menu-item index="/products" @click="openRoute('/products')">{{ t('nav.products') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/products')" index="/products" @click="openRoute('/products')">{{ t('nav.products') }}</el-menu-item>
       <el-menu-item
         v-if="canReviewCatalogueCandidates"
         index="/products/enrichment"
@@ -50,32 +50,32 @@
         {{ t('nav.catalogueReview') }}
       </el-menu-item>
       <el-menu-item index="/producers" @click="openRoute('/producers')">{{ t('nav.producers') }}</el-menu-item>
-      <el-menu-item index="/storages" @click="openRoute('/storages')">{{ t('nav.storages') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/storages')" index="/storages" @click="openRoute('/storages')">{{ t('nav.storages') }}</el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu index="admin">
+    <el-sub-menu v-if="adminRoutes.some(canOpen)" index="admin">
       <template #title>
         <el-icon><Key /></el-icon>
         <span>{{ t('nav.admin') }}</span>
       </template>
 
-      <el-menu-item index="/users" @click="openRoute('/users')">{{ t('nav.users') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/users')" index="/users" @click="openRoute('/users')">{{ t('nav.users') }}</el-menu-item>
       <el-menu-item v-if="canViewOrganizations" index="/organizations" @click="openRoute('/organizations')">
         {{ t('nav.organizations') }}
       </el-menu-item>
-      <el-menu-item index="/roles" @click="openRoute('/roles')">{{ t('nav.roles') }}</el-menu-item>
-      <el-menu-item index="/permissions" @click="openRoute('/permissions')">{{ t('nav.permissions') }}</el-menu-item>
-      <el-menu-item index="/currencies" @click="openRoute('/currencies')">{{ t('nav.currencies') }}</el-menu-item>
-      <el-menu-item index="/service-settings" @click="openRoute('/service-settings')">{{ t('nav.serviceSettings') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/roles')" index="/roles" @click="openRoute('/roles')">{{ t('nav.roles') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/permissions')" index="/permissions" @click="openRoute('/permissions')">{{ t('nav.permissions') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/currencies')" index="/currencies" @click="openRoute('/currencies')">{{ t('nav.currencies') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/service-settings')" index="/service-settings" @click="openRoute('/service-settings')">{{ t('nav.serviceSettings') }}</el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu index="pricing">
+    <el-sub-menu v-if="pricingRoutes.some(canOpen)" index="pricing">
       <template #title>
         <el-icon><Money /></el-icon>
         <span>{{ t('nav.pricing') }}</span>
       </template>
 
-      <el-menu-item index="/markups" @click="openRoute('/markups')">{{ t('nav.markup') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/markups')" index="/markups" @click="openRoute('/markups')">{{ t('nav.markup') }}</el-menu-item>
       <el-menu-item
         v-if="canManagePriceAppliers"
         index="/price-appliers"
@@ -85,13 +85,13 @@
       </el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu index="control">
+    <el-sub-menu v-if="controlRoutes.some(canOpen)" index="control">
       <template #title>
         <el-icon><DataAnalysis /></el-icon>
         <span>{{ t('nav.control') }}</span>
       </template>
 
-      <el-menu-item index="/jobs" @click="openRoute('/jobs')">{{ t('nav.jobs') }}</el-menu-item>
+      <el-menu-item v-if="canOpen('/jobs')" index="/jobs" @click="openRoute('/jobs')">{{ t('nav.jobs') }}</el-menu-item>
       <el-menu-item v-if="canViewDocuments" index="/documents" @click="openRoute('/documents')">{{ t('nav.documents') }}</el-menu-item>
     </el-sub-menu>
   </el-menu>
@@ -124,6 +124,30 @@ const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
 const canReviewCatalogueCandidates = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))
 const canViewCharts = computed(() => hasPermission('CHARTS_GET'))
 const canViewDocuments = computed(() => hasPermission('DOCUMENTS_ME', 'DOCUMENTS_ALL'))
+
+const routePermissions: Record<string, string[]> = {
+  '/purchases': ['PURCHASE_GET'],
+  '/sales': ['SALES_GET'],
+  '/reservations': ['ARTICLE_RESERVATIONS_GET_ME', 'ARTICLE_RESERVATIONS_GET_ALL'],
+  '/transactions': ['BALANCES_TRANSACTION_GET_ME', 'BALANCES_TRANSACTION_GET_ALL'],
+  '/products': ['ARTICLES_GET_MAIN', 'ARTICLES_GET_FULL'],
+  '/storages': ['STORAGES_GET'],
+  '/users': ['USERS_GET'],
+  '/roles': ['ROLES_GET'],
+  '/permissions': ['PERMISSIONS_GET'],
+  '/currencies': ['CURRENCIES_GET'],
+  '/service-settings': ['OPTIONS_GET'],
+  '/markups': ['MARKUP_GET'],
+  '/jobs': ['JOBS_GET'],
+  '/organizations': ['ORGANIZATIONS_GET'],
+  '/price-appliers': ['PRICE_APPLIERS_MANAGE'],
+  '/documents': ['DOCUMENTS_ME', 'DOCUMENTS_ALL'],
+}
+function canOpen(path: string) { return hasPermission(...(routePermissions[path] ?? [])) }
+const operationsRoutes = ['/purchases', '/sales', '/reservations', '/transactions']
+const adminRoutes = ['/users', '/organizations', '/roles', '/permissions', '/currencies', '/service-settings']
+const pricingRoutes = ['/markups', '/price-appliers']
+const controlRoutes = ['/jobs', '/documents']
 
 const routeRoots = [
   '/purchases',

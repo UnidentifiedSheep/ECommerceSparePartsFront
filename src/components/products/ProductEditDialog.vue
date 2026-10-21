@@ -1,6 +1,6 @@
 <template>
-  <el-dialog v-model="isOpen" :title="t('products.editTitle')" width="620">
-    <el-form label-position="top">
+  <el-dialog v-model="isOpen" :title="t('products.editTitle')" width="620" :before-close="closeGuard.beforeClose">
+    <el-form label-position="top" :disabled="isSaving">
       <div class="grid grid-cols-[minmax(0,1fr)_220px] gap-3">
         <el-form-item :label="t('products.sku')">
           <el-input v-model="form.sku" />
@@ -57,7 +57,7 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+      <el-button :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
       <el-button type="primary" :loading="isSaving" @click="save">{{ t('common.actions.save') }}</el-button>
     </template>
   </el-dialog>
@@ -71,6 +71,7 @@ import ProductGroupSelector from '@/components/selectors/ProductGroupSelector.vu
 import type { ProductModel } from '@/models/productModel.ts'
 import { editProduct } from '@/services/api/products.ts'
 import { useI18n } from '@/i18n'
+import { useDialogGuard } from '@/composables/useDialogGuard.ts'
 import type { CatalogueNameGroup } from '@/utils/catalogueCandidateNames.ts'
 
 const props = defineProps<{
@@ -100,6 +101,7 @@ const form = reactive<{
   indicator: null,
 })
 const isSaving = ref(false)
+const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form }))
 const selectedAlternativeName = ref<string>()
 const availableAlternativeNames = computed(() => (
   (props.alternativeNames ?? []).filter((option) => (
@@ -122,6 +124,7 @@ function useAlternativeName(name?: string) {
 }
 
 async function save() {
+  if (isSaving.value) return
   const sku = form.sku.trim()
   const name = form.name.trim()
 

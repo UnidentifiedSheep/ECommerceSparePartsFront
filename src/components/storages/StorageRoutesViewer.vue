@@ -5,7 +5,7 @@
         <h2>{{ t('storages.routes') }}</h2>
         <p>{{ toolbarText }}</p>
       </div>
-      <el-button type="primary" @click="createOpen = true">{{ t('storages.routesPanel.add') }}</el-button>
+      <el-button v-if="canCreate" type="primary" @click="createOpen = true">{{ t('storages.routesPanel.add') }}</el-button>
     </div>
 
     <div v-else class="routes-placeholder">
@@ -18,6 +18,9 @@
           v-for="route in routes"
           :key="route.id"
           :route="route"
+          :can-edit="canEdit"
+          :can-delete="canDelete"
+          :busy="deletion.isPending(route.id) || updatingRouteId === route.id"
           @toggle="toggle"
           @edit="openEditDialog"
           @remove="remove"
@@ -38,6 +41,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { usePermissions } from '@/composables/usePermissions.ts'
+import { useConfirmedDelete } from '@/composables/useConfirmedDelete.ts'
 import { ElNotification } from 'element-plus'
 import CreateRouteDialog from '@/components/storages/CreateRouteDialog.vue'
 import EditRouteDialog from '@/components/storages/EditRouteDialog.vue'
@@ -50,6 +55,12 @@ import { deleteStorageRoute, editStorageRoute, getStorageRoutes } from '@/servic
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
+const { hasPermission } = usePermissions()
+const canCreate = computed(() => hasPermission('STORAGE_ROUTES_CREATE'))
+const canEdit = computed(() => hasPermission('STORAGE_ROUTES_EDIT'))
+const canDelete = computed(() => hasPermission('STORAGE_ROUTES_DELETE'))
+const deletion = useConfirmedDelete()
+const updatingRouteId = ref<string>()
 const storage = defineModel<StorageModel | undefined>('storage')
 
 const routes = ref<StorageRouteModel[]>([])
@@ -100,25 +111,33 @@ async function loadNext(reset: boolean) {
 }
 
 async function toggle(route: StorageRouteModel) {
-  await editStorageRoute({
-    id: route.id,
-    isActive: !route.isActive,
-  })
-  route.isActive = !route.isActive
+  if (!canEdit.value || updatingRouteId.value || deletion.isPending(route.id)) return
+  updatingRouteId.value = route.id
+  try {
+    await editStorageRoute({
+      id: route.id,
+      isActive: !route.isActive,
+    })
+    route.isActive = !route.isActive
+  } finally { updatingRouteId.value = undefined }
 }
 
 function openEditDialog(route: StorageRouteModel) {
+  if (!canEdit.value || deletion.isPending(route.id) || updatingRouteId.value === route.id) return
   editingRoute.value = route
   editOpen.value = true
 }
 
 async function remove(route: StorageRouteModel) {
-  await deleteStorageRoute(route.id)
-  routes.value = routes.value.filter((x) => x.id !== route.id)
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('storages.routesPanel.removed'),
-    type: 'success',
+  if (!canDelete.value || updatingRouteId.value === route.id) return
+  await deletion.remove(route.id, `${route.fromStorageCode} → ${route.toStorageCode}`, async () => {
+    await deleteStorageRoute(route.id)
+    routes.value = routes.value.filter((x) => x.id !== route.id)
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('storages.routesPanel.removed'),
+      type: 'success',
+    })
   })
 }
 

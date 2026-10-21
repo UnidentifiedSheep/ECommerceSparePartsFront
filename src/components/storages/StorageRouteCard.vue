@@ -17,11 +17,11 @@
         <el-tag :type="route.isActive ? 'success' : 'info'" effect="light">
           {{ route.isActive ? t('storages.routesPanel.active') : t('storages.routesPanel.inactive') }}
         </el-tag>
-        <el-button size="small" plain @click="$emit('toggle', route)">
+        <el-button v-if="canEdit" size="small" plain :disabled="busy" @click="$emit('toggle', route)">
           {{ route.isActive ? t('storages.routesPanel.disable') : t('storages.routesPanel.enable') }}
         </el-button>
-        <ActionIconButton :label="t('common.actions.edit')" :icon="Edit" @click="$emit('edit', route)" />
-        <ActionIconButton :label="t('common.actions.delete')" :icon="Delete" tone="danger" @click="$emit('remove', route)" />
+        <ActionIconButton v-if="canEdit" :disabled="busy" :label="t('common.actions.edit')" :icon="Edit" @click="$emit('edit', route)" />
+        <ActionIconButton v-if="canDelete" :loading="busy" :label="t('common.actions.delete')" :icon="Delete" tone="danger" @click="$emit('remove', route)" />
       </div>
     </div>
 
@@ -72,6 +72,9 @@ import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   route: StorageRouteModel
+  canEdit?: boolean
+  canDelete?: boolean
+  busy?: boolean
 }>()
 
 const { locale, t } = useI18n()

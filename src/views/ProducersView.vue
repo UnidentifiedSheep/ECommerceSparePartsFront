@@ -2,7 +2,7 @@
   <div class="min-h-[calc(100vh-56px)] bg-slate-50">
     <PageHeader :title="t('producers.title')" :description="t('producers.description')">
       <template #actions>
-        <el-button :icon="Plus" type="primary" @click="openCreateDialog">
+        <el-button v-if="canCreate" :icon="Plus" type="primary" @click="openCreateDialog">
           {{ t('producers.addProducer') }}
         </el-button>
       </template>
@@ -38,14 +38,14 @@
                     {{ row.description || '—' }}
                   </template>
                 </el-table-column>
-                <el-table-column fixed="right" width="64" align="center">
+                <el-table-column v-if="canEdit || canDelete" fixed="right" width="64" align="center">
                   <template #header><span class="sr-only">{{ t('common.labels.actions') }}</span></template>
                   <template #default="{ row }">
                     <div @click.stop>
                       <RowActionsMenu
-                        :can-edit="true"
-                        :can-delete="true"
-                        :busy="false"
+                        :can-edit="canEdit"
+                        :can-delete="canDelete"
+                        :busy="deletion.isPending(String(row.id))"
                         @edit="openEditDialog(row)"
                         @delete="removeProducer(row.id)"
                       />
@@ -83,7 +83,7 @@
                     </div>
 
                     <el-button
-                      v-if="detailsMode === 'aliases'"
+                      v-if="canEdit && detailsMode === 'aliases'"
                       :icon="Plus"
                       size="small"
                       plain
@@ -92,7 +92,7 @@
                       {{ t('producers.addAlias') }}
                     </el-button>
                     <el-button
-                      v-else
+                      v-else-if="canEdit"
                       :icon="Plus"
                       size="small"
                       plain
@@ -106,7 +106,7 @@
                 <div v-loading="detailsLoading" class="producer-details-table">
                   <el-table v-if="detailsMode === 'aliases'" :data="aliases" height="100%">
                     <el-table-column prop="alias" :label="t('producers.alias')" min-width="220" />
-                    <el-table-column width="56" align="center">
+                    <el-table-column v-if="canEdit" width="56" align="center">
                       <template #header>
                         <span class="sr-only">{{ t('common.labels.actions') }}</span>
                       </template>
@@ -115,6 +115,7 @@
                           :label="t('common.actions.delete')"
                           :icon="Delete"
                           tone="danger"
+                          :loading="deletion.isPending(`alias:${selectedProducer?.id}:${row.alias}`)"
                           @click="removeAlias(row.alias)"
                         />
                       </template>
@@ -132,7 +133,7 @@
                       :label="t('producers.supplierProducerName')"
                       min-width="145"
                     />
-                    <el-table-column width="56" align="center">
+                    <el-table-column v-if="canEdit" width="56" align="center">
                       <template #header>
                         <span class="sr-only">{{ t('common.labels.actions') }}</span>
                       </template>
@@ -141,6 +142,7 @@
                           :label="t('common.actions.delete')"
                           :icon="Delete"
                           tone="danger"
+                          :loading="deletion.isPending(`mapping:${row.id}`)"
                           @click="removeSupplierMapping(row.id)"
                         />
                       </template>
@@ -158,8 +160,8 @@
       </div>
     </div>
 
-    <el-dialog v-model="createDialogOpen" :title="t('producers.createTitle')" width="520">
-      <el-form label-position="top">
+    <el-dialog v-model="createDialogOpen" :before-close="createGuard.beforeClose" :title="t('producers.createTitle')" width="520">
+      <el-form :disabled="createSaving" label-position="top">
         <el-form-item :label="t('common.labels.name')">
           <el-input v-model="createForm.name" />
         </el-form-item>
@@ -168,13 +170,13 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="saveCreate">{{ t('common.actions.create') }}</el-button>
+        <el-button :disabled="createSaving" @click="createGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="createSaving" @click="saveCreate">{{ t('common.actions.create') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editDialogOpen" :title="t('producers.editTitle')" width="520">
-      <el-form label-position="top">
+    <el-dialog v-model="editDialogOpen" :before-close="editGuard.beforeClose" :title="t('producers.editTitle')" width="520">
+      <el-form :disabled="editSaving" label-position="top">
         <el-form-item :label="t('common.labels.name')">
           <el-input v-model="editForm.name" />
         </el-form-item>
@@ -183,29 +185,29 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="saveEdit">{{ t('common.actions.save') }}</el-button>
+        <el-button :disabled="editSaving" @click="editGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="editSaving" @click="saveEdit">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="aliasDialogOpen" :title="t('producers.addAliasTitle')" width="520">
-      <el-form label-position="top">
+    <el-dialog v-model="aliasDialogOpen" :before-close="aliasGuard.beforeClose" :title="t('producers.addAliasTitle')" width="520">
+      <el-form :disabled="aliasSaving" label-position="top">
         <el-form-item :label="t('producers.aliasLabel')">
           <el-input v-model="aliasForm.alias" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="aliasDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="saveAlias">{{ t('common.actions.add') }}</el-button>
+        <el-button :disabled="aliasSaving" @click="aliasGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="aliasSaving" @click="saveAlias">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
 
     <el-dialog
-      v-model="supplierMappingDialogOpen"
+      v-model="supplierMappingDialogOpen" :before-close="supplierMappingGuard.beforeClose"
       :title="t('producers.addSupplierReferenceTitle')"
       width="520"
     >
-      <el-form label-position="top">
+      <el-form :disabled="supplierMappingSaving" label-position="top">
         <el-form-item :label="t('producers.supplier')" required>
           <el-select v-model="supplierMappingForm.supplier" class="w-full">
             <el-option
@@ -224,11 +226,11 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="supplierMappingDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button :disabled="supplierMappingSaving" @click="supplierMappingGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
           :disabled="!supplierMappingForm.supplierProducerName.trim()"
-          @click="saveSupplierMapping"
+          :loading="supplierMappingSaving" @click="saveSupplierMapping"
         >
           {{ t('common.actions.add') }}
         </el-button>
@@ -238,7 +240,10 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { usePermissions } from '@/composables/usePermissions.ts'
+import { useConfirmedDelete } from '@/composables/useConfirmedDelete.ts'
 import { useDebounceFn, useMediaQuery } from '@vueuse/core'
 import { ElNotification } from 'element-plus'
 import { Delete, Plus, Search } from '@element-plus/icons-vue'
@@ -267,6 +272,11 @@ import { searchProducers } from '@/services/api/search.ts'
 import { useI18n } from '@/i18n'
 
 const { t } = useI18n()
+const { hasPermission } = usePermissions()
+const canCreate = computed(() => hasPermission('PRODUCERS_CREATE'))
+const canEdit = computed(() => hasPermission('PRODUCERS_EDIT'))
+const canDelete = computed(() => hasPermission('PRODUCERS_DELETE'))
+const deletion = useConfirmedDelete()
 const isMobile = useMediaQuery('(max-width: 640px)')
 const producers = ref<ProducerSearchModel[]>([])
 const selectedProducer = ref<ProducerSearchModel>()
@@ -394,12 +404,14 @@ async function loadCurrentDetails() {
 }
 
 function openCreateDialog() {
+  if (!canCreate.value) return
   createForm.name = ''
   createForm.description = ''
   createDialogOpen.value = true
 }
 
 function openEditDialog(producer: ProducerSearchModel) {
+  if (!canEdit.value || deletion.isPending(String(producer.id))) return
   editForm.id = producer.id
   editForm.name = producer.name
   editForm.description = producer.description ?? ''
@@ -425,140 +437,183 @@ function addProducerToList(producer: ProducerSearchModel) {
   resetDetails()
 }
 
+const createSaving = ref(false)
+const createGuard = useDialogGuard(createDialogOpen, createSaving, () => ({ ...createForm }))
+
 async function saveCreate() {
-  const resp = await createProducer({
-    name: createForm.name,
-    description: createForm.description || null,
-  })
+  if (createSaving.value) return
+  createSaving.value = true
+  try {
+    if (!canCreate.value) return
+    const resp = await createProducer({
+      name: createForm.name,
+      description: createForm.description || null,
+    })
 
-  addProducerToList(resp.producer)
+    addProducerToList(resp.producer)
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('producers.created'),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('producers.created'),
+      type: 'success',
+    })
 
-  createDialogOpen.value = false
+    createDialogOpen.value = false
+  } finally { createSaving.value = false }
 }
 
+const editSaving = ref(false)
+const editGuard = useDialogGuard(editDialogOpen, editSaving, () => ({ ...editForm }))
+
 async function saveEdit() {
-  const resp = await editProducer({
-    id: editForm.id,
-    name: editForm.name,
-    description: editForm.description || null,
-  })
+  if (editSaving.value) return
+  editSaving.value = true
+  try {
+    if (!canEdit.value) return
+    const resp = await editProducer({
+      id: editForm.id,
+      name: editForm.name,
+      description: editForm.description || null,
+    })
 
-  updateProducerInList(resp.producer)
+    updateProducerInList(resp.producer)
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('producers.updated'),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('producers.updated'),
+      type: 'success',
+    })
 
-  editDialogOpen.value = false
+    editDialogOpen.value = false
+  } finally { editSaving.value = false }
 }
 
 async function removeProducer(id: number) {
-  await deleteProducer(id)
+  if (!canDelete.value) return
+  const producer = producers.value.find((item) => item.id === id)
+  if (!producer) return
+  await deletion.remove(String(id), producer.name, async () => {
+    await deleteProducer(id)
 
-  producers.value = producers.value.filter((producer) => producer.id !== id)
+    producers.value = producers.value.filter((producer) => producer.id !== id)
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('producers.deleted'),
-    type: 'success',
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('producers.deleted'),
+      type: 'success',
+    })
+
+    if (selectedProducer.value?.id === id) {
+      selectedProducer.value = undefined
+      resetDetails()
+    }
   })
-
-  if (selectedProducer.value?.id === id) {
-    selectedProducer.value = undefined
-    resetDetails()
-  }
 }
 
+const aliasSaving = ref(false)
+const aliasGuard = useDialogGuard(aliasDialogOpen, aliasSaving, () => ({ ...aliasForm }))
+
 async function saveAlias() {
-  if (!selectedProducer.value) return
+  if (aliasSaving.value) return
+  aliasSaving.value = true
+  try {
+    if (!canEdit.value) return
+    if (!selectedProducer.value) return
 
-  await addProducerAlias({
-    producerId: selectedProducer.value.id,
-    alias: aliasForm.alias,
-  })
+    await addProducerAlias({
+      producerId: selectedProducer.value.id,
+      alias: aliasForm.alias,
+    })
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('producers.aliasAdded'),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('producers.aliasAdded'),
+      type: 'success',
+    })
 
-  aliasDialogOpen.value = false
-  aliases.value.push({
-    producerId: selectedProducer.value.id,
-    alias: aliasForm.alias,
-  })
-  aliasesLoaded.value = true
-  aliasForm.alias = ''
+    aliasDialogOpen.value = false
+    aliases.value.push({
+      producerId: selectedProducer.value.id,
+      alias: aliasForm.alias,
+    })
+    aliasesLoaded.value = true
+    aliasForm.alias = ''
+  } finally { aliasSaving.value = false }
 }
 
 async function removeAlias(alias: string) {
-  if (!selectedProducer.value) return
+  if (!canEdit.value || !selectedProducer.value) return
+  const producerId = selectedProducer.value.id
+  await deletion.remove(`alias:${producerId}:${alias}`, alias, async () => {
+    await deleteProducerAlias({
+      producerId,
+      alias,
+    })
 
-  await deleteProducerAlias({
-    producerId: selectedProducer.value.id,
-    alias,
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('producers.aliasDeleted'),
+      type: 'success',
+    })
+
+    if (selectedProducer.value?.id === producerId) aliases.value = aliases.value.filter((item) => item.alias !== alias)
   })
-
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('producers.aliasDeleted'),
-    type: 'success',
-  })
-
-  aliases.value = aliases.value.filter((item) => item.alias !== alias)
 }
 
 function openSupplierMappingDialog() {
+  if (!canEdit.value) return
   supplierMappingForm.supplier = 'Armtek'
   supplierMappingForm.supplierProducerName = ''
   supplierMappingDialogOpen.value = true
 }
 
+const supplierMappingSaving = ref(false)
+const supplierMappingGuard = useDialogGuard(supplierMappingDialogOpen, supplierMappingSaving, () => ({ ...supplierMappingForm }))
+
 async function saveSupplierMapping() {
-  const producer = selectedProducer.value
-  const supplierProducerName = supplierMappingForm.supplierProducerName.trim()
-  if (!producer || !supplierProducerName) return
+  if (supplierMappingSaving.value) return
+  supplierMappingSaving.value = true
+  try {
+    if (!canEdit.value) return
+    const producer = selectedProducer.value
+    const supplierProducerName = supplierMappingForm.supplierProducerName.trim()
+    if (!producer || !supplierProducerName) return
 
-  const resp = await createProducerSupplierMapping({
-    producerId: producer.id,
-    supplier: supplierMappingForm.supplier,
-    supplierProducerName,
-  })
+    const resp = await createProducerSupplierMapping({
+      producerId: producer.id,
+      supplier: supplierMappingForm.supplier,
+      supplierProducerName,
+    })
 
-  supplierMappings.value = [
-    resp.producerSupplierMapping,
-    ...supplierMappings.value.filter((item) => item.id !== resp.producerSupplierMapping.id),
-  ]
-  supplierMappingsLoaded.value = true
-  supplierMappingDialogOpen.value = false
+    supplierMappings.value = [
+      resp.producerSupplierMapping,
+      ...supplierMappings.value.filter((item) => item.id !== resp.producerSupplierMapping.id),
+    ]
+    supplierMappingsLoaded.value = true
+    supplierMappingDialogOpen.value = false
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('producers.supplierReferenceAdded'),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('producers.supplierReferenceAdded'),
+      type: 'success',
+    })
+  } finally { supplierMappingSaving.value = false }
 }
 
 async function removeSupplierMapping(mappingId: number) {
   const producer = selectedProducer.value
-  if (!producer) return
+  if (!canEdit.value || !producer) return
+  const mapping = supplierMappings.value.find((item) => item.id === mappingId)
+  if (!mapping) return
+  await deletion.remove(`mapping:${mappingId}`, mapping.supplierProducerName, async () => {
+    await deleteProducerSupplierMapping(producer.id, mappingId)
+    if (selectedProducer.value?.id === producer.id) supplierMappings.value = supplierMappings.value.filter((item) => item.id !== mappingId)
 
-  await deleteProducerSupplierMapping(producer.id, mappingId)
-  supplierMappings.value = supplierMappings.value.filter((item) => item.id !== mappingId)
-
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('producers.supplierReferenceDeleted'),
-    type: 'success',
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('producers.supplierReferenceDeleted'),
+      type: 'success',
+    })
   })
 }
 

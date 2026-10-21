@@ -680,6 +680,10 @@
 </template>
 
 <script setup lang="ts">
+import { queryField, useListQueryState } from '@/composables/useListQueryState'
+import { queryText, queryStrings, queryPage, querySize } from '@/utils/listQuery'
+import { toRef } from 'vue'
+
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
@@ -773,6 +777,18 @@ let usersRequestId = 0
 const selectedRoleFilters = ref<string[]>([])
 const page = ref(0)
 const limit = ref(20)
+const queryState = useListQueryState({
+  search: queryField(searchTerm, queryText),
+  surname: queryField(toRef(columnFilters, 'surname'), queryText),
+  name: queryField(toRef(columnFilters, 'name'), queryText),
+  userName: queryField(toRef(columnFilters, 'userName'), queryText),
+  email: queryField(toRef(columnFilters, 'email'), queryText),
+  phone: queryField(toRef(columnFilters, 'phone'), queryText),
+  roles: queryField(selectedRoleFilters, queryStrings),
+  page: queryField(page, queryPage),
+  size: queryField(limit, querySize),
+}, () => loadUsers(false))
+
 const hasNext = ref(false)
 const usersLoading = ref(false)
 const detailsLoading = ref(false)
@@ -1255,6 +1271,7 @@ async function loadEmailOptions() {
 }
 
 async function loadUsers(resetPage: boolean) {
+  if (queryState.restoring.value) return
   const requestId = ++usersRequestId
   usersLoading.value = true
   try {
@@ -1832,7 +1849,7 @@ async function saveDiscount() {
 
 watch(limit, async () => loadUsers(true))
 watch(page, async () => loadUsers(false))
-watch(() => JSON.stringify(userSearch.value.request), () => loadUsersDebounced())
+watch(() => JSON.stringify(userSearch.value.request), () => { if (!queryState.restoring.value) loadUsersDebounced() })
 watch(selectedRoleFilters, async () => loadUsers(true))
 watch(
   [() => createUserForm.name, () => createUserForm.surname],
@@ -1854,7 +1871,8 @@ watch(locale, async () => {
 })
 watch(() => route.query.userId, async () => selectUserFromRoute())
 onMounted(async () => {
-  await Promise.all([loadUsers(true), loadAllStorages(), loadRoles(), loadEmailOptions(), loadPermissionsCatalog()])
+  await queryState.restoreInitial()
+  await Promise.all([loadUsers(false), loadAllStorages(), loadRoles(), loadEmailOptions(), loadPermissionsCatalog()])
   await selectUserFromRoute()
 })
 </script>

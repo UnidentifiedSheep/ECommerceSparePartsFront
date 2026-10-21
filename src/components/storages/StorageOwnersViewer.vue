@@ -6,7 +6,7 @@
       <div class="flex justify-between items-center pb-3" v-if="storage">
         <span class="text-lg font-semibold">{{ t('storages.owners') }}</span>
 
-        <el-button type="primary" @click="OpenAddOwnerDialogue">
+        <el-button v-if="canAdd" type="primary" @click="OpenAddOwnerDialogue">
           {{ t('storages.ownersPanel.add') }}
         </el-button>
       </div>
@@ -40,6 +40,9 @@
 
                 <!-- Right -->
                 <el-button
+                  v-if="canRemove"
+                  :loading="deletion.isPending(owner.id)"
+                  :aria-label="t('common.actions.delete')"
                   type="danger"
                   :icon="Delete"
                   circle
@@ -94,17 +97,23 @@
 
 <script setup lang="ts">
 
-import type {StorageModel} from "@/models/storageModel.ts";
-import {ref, watch} from "vue";
-import type {UserModel} from "@/models/userModel.ts";
-import {getStorageOwners} from "@/services/api/storages.ts";
+import type { StorageModel } from "@/models/storageModel.ts";
+import { computed, ref, watch } from "vue";
+import { usePermissions } from '@/composables/usePermissions.ts'
+import { useConfirmedDelete } from '@/composables/useConfirmedDelete.ts'
+import type { UserModel } from "@/models/userModel.ts";
+import { getStorageOwners } from "@/services/api/storages.ts";
 import UserSelector from "@/components/selectors/UserSelector.vue";
-import {addStorageToUser, removeStorageFromUser} from "@/services/api/users.ts";
-import {ElNotification} from "element-plus";
-import {Delete} from "@element-plus/icons-vue";
+import { addStorageToUser, removeStorageFromUser } from "@/services/api/users.ts";
+import { ElNotification } from "element-plus";
+import { Delete } from "@element-plus/icons-vue";
 import { useI18n } from "@/i18n";
 
 const { t } = useI18n()
+const { hasPermission } = usePermissions()
+const canAdd = computed(() => hasPermission('USERS_STORAGES_ADD'))
+const canRemove = computed(() => hasPermission('USERS_STORAGES_DELETE'))
+const deletion = useConfirmedDelete()
 
 const storage = defineModel<StorageModel | undefined>('storage')
 const owners = ref<UserModel[]>([])
@@ -145,6 +154,7 @@ async function loadOwners(reset: boolean) {
 }
 
 function OpenAddOwnerDialogue() {
+  if (!canAdd.value) return
   if (!storage.value) return
   addOwnerForm.value = {
     storageCode: storage.value.code
@@ -153,6 +163,7 @@ function OpenAddOwnerDialogue() {
 }
 
 async function SaveOwner() {
+  if (!canAdd.value) return
   if (!addOwnerForm.value?.user) return
   if (!addOwnerForm.value?.storageCode) return
 
@@ -175,19 +186,22 @@ async function SaveOwner() {
 }
 
 async function removeOwner(user: UserModel) {
-  if (!storage.value) return
-  await removeStorageFromUser({
-    storageCode: storage.value.code,
-    userId: user.id
-  })
+  if (!canRemove.value || !storage.value) return
+  const code = storage.value.code
+  await deletion.remove(user.id, `${user.surname} ${user.name} (${code})`, async () => {
+    await removeStorageFromUser({
+      storageCode: code,
+      userId: user.id
+    })
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('storages.ownersPanel.detached', { user: `${user.surname} ${user.name}`.trim(), storage: storage.value.code }),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('storages.ownersPanel.detached', { user: `${user.surname} ${user.name}`.trim(), storage: code }),
+      type: 'success',
+    })
 
-  owners.value.splice(owners.value.indexOf(user), 1)
+    if (storage.value?.code === code) owners.value = owners.value.filter((item) => item.id !== user.id)
+  })
 
 }
 

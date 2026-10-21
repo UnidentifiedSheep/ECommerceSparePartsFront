@@ -5,6 +5,7 @@
     top="4vh"
     class="create-purchase-dialog"
     :show-close="false"
+    :before-close="closeGuard.beforeClose"
   >
     <template #header>
       <div class="dialog-heading">
@@ -13,7 +14,7 @@
           <h2>{{ t('purchases.createTitle') }}</h2>
           <p>{{ t('purchases.createDescription') }}</p>
         </div>
-        <el-button :icon="Close" circle text @click="isOpen = false" />
+        <el-button :icon="Close" :disabled="isSaving" :aria-label="t('common.actions.close')" circle text @click="closeGuard.requestClose" />
       </div>
     </template>
 
@@ -56,7 +57,7 @@
         </div>
       </aside>
 
-      <el-form label-position="top" class="purchase-form">
+      <el-form label-position="top" class="purchase-form" :disabled="isSaving">
         <section class="purchase-section purchase-section--main">
           <div class="section-header">
             <div>
@@ -218,7 +219,7 @@
           <strong>{{ formatCurrency(createPurchaseTotal, selectedCurrency?.currencySign) }}</strong>
         </div>
         <div class="footer-actions">
-          <el-button size="large" @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button size="large" :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save">
             {{ t('purchases.create') }}
           </el-button>
@@ -247,6 +248,7 @@ import { createPurchase } from '@/services/api/purchases.ts'
 import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
+import { useDialogGuard } from '@/composables/useDialogGuard.ts'
 
 interface CreatePurchaseItemForm {
   product?: ProductSearchModel
@@ -344,6 +346,8 @@ const canSave = computed(() => (
   && !hasSkippedLogistics.value
 ))
 
+const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form, items: form.items.map(({ product, count, price, calculateLogistics, comment }) => ({ productId: product?.id, count, price, calculateLogistics, comment })) }))
+
 function resetForm() {
   form.supplier = undefined
   form.currencyId = resolveDefaultCurrencyId(props.currencies)
@@ -433,7 +437,7 @@ const recalculateLogistics = useDebounceFn(async () => {
 }, 350)
 
 async function save() {
-  if (!canSave.value || !form.supplier?.member || !form.currencyId || !form.storageCode) return
+  if (isSaving.value || !canSave.value || !form.supplier?.member || !form.currencyId || !form.storageCode) return
 
   isSaving.value = true
   try {
