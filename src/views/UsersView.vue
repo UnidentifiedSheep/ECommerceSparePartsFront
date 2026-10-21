@@ -10,8 +10,9 @@
       <section class="users-panel users-filter-panel">
         <div class="users-filter-toolbar">
           <div class="users-filter-toolbar__search">
-            <label class="users-field-label">{{ t('common.labels.search') }}</label>
-            <el-input v-model="searchTerm" clearable :placeholder="t('users.searchPlaceholder')" />
+            <label for="users-general-search" class="users-field-label">{{ t('common.labels.search') }}</label>
+            <el-input id="users-general-search" v-model="searchTerm" clearable :disabled="userSearch.fieldSearch" :placeholder="t('users.searchPlaceholder')" :aria-describedby="userSearch.fieldSearch ? 'users-search-mode-hint' : undefined" />
+            <p v-if="userSearch.fieldSearch" id="users-search-mode-hint" class="users-search-hint" role="status">{{ t('users.fieldSearchHint') }}</p>
           </div>
           <div class="users-filter-toolbar__roles">
             <label class="users-field-label">{{ t('common.labels.roles') }}</label>
@@ -37,6 +38,15 @@
           </div>
           <el-button class="users-filter-toolbar__action" plain @click="resetFilters">{{ t('users.resetFilters') }}</el-button>
         </div>
+        <details class="users-contact-filters">
+          <summary>{{ t('users.contactFilters') }}<span v-if="contactFiltersCount"> ({{ contactFiltersCount }})</span></summary>
+          <div class="users-contact-filters__fields">
+            <div v-for="field in contactSearchFields" :key="field.field">
+              <label :for="`users-filter-${field.field}`" class="users-field-label">{{ t(field.label) }}</label>
+              <el-input :id="`users-filter-${field.field}`" v-model="columnFilters[field.field]" clearable :placeholder="t('users.filterByField', { field: t(field.label) })" />
+            </div>
+          </div>
+        </details>
       </section>
 
       <div class="users-workspace">
@@ -57,9 +67,14 @@
             highlight-current-row
             @current-change="selectUser"
           >
-            <el-table-column prop="surname" :label="t('common.labels.surname')" min-width="140" />
-            <el-table-column prop="name" :label="t('common.labels.firstName')" min-width="140" />
-            <el-table-column prop="userName" :label="t('common.labels.login')" min-width="180" />
+            <el-table-column v-for="column in userSearchColumns" :key="column.field" :prop="column.field" :label="t(column.label)" :min-width="column.width">
+              <template #header>
+                <div class="users-column-filter">
+                  <label :for="`users-filter-${column.field}`">{{ t(column.label) }}</label>
+                  <el-input :id="`users-filter-${column.field}`" v-model="columnFilters[column.field]" size="small" clearable :placeholder="t('users.filterByField', { field: t(column.label) })" />
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column :label="t('users.lastLogin')" min-width="170">
               <template #default="{ row }">
                 {{ formatDate(row.lastLoginAt) }}
@@ -676,7 +691,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import { CircleCheck, Edit, Loading, MoreFilled } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
-import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
+import { buildUserSearch, userSearchFields, type UserSearchFilters } from '@/utils/userSearch.ts'
 import { PhoneType } from '@/enums/phoneType.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
@@ -744,6 +759,19 @@ const canManageUserRoles = computed(() => hasPermission('USERS_ROLES_CREATE'))
 const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
 const selectedUser = ref<UserModel>()
 const searchTerm = ref<string>()
+const columnFilters = reactive<UserSearchFilters>({ surname: '', name: '', userName: '', email: '', phone: '' })
+const userSearch = computed(() => buildUserSearch(searchTerm.value, columnFilters))
+const userSearchColumns = [
+  { field: 'surname', label: 'common.labels.surname', width: 155 },
+  { field: 'name', label: 'common.labels.firstName', width: 155 },
+  { field: 'userName', label: 'common.labels.login', width: 180 },
+] as const
+const contactSearchFields = [
+  { field: 'email', label: 'users.filterEmail' },
+  { field: 'phone', label: 'users.filterPhone' },
+] as const
+const contactFiltersCount = computed(() => contactSearchFields.filter(({ field }) => columnFilters[field].trim()).length)
+let usersRequestId = 0
 const selectedRoleFilters = ref<string[]>([])
 const page = ref(0)
 const limit = ref(20)
@@ -1091,6 +1119,7 @@ function handleCreateUserNameInput(value: string) {
 
 function resetFilters() {
   searchTerm.value = undefined
+  userSearchFields.forEach((field) => { columnFilters[field] = '' })
   selectedRoleFilters.value = []
 }
 
@@ -1228,8 +1257,7 @@ async function loadEmailOptions() {
 }
 
 async function loadUsers(resetPage: boolean) {
-  if (usersLoading.value) return
-
+  const requestId = ++usersRequestId
   usersLoading.value = true
   try {
     if (resetPage) page.value = 0
@@ -1237,13 +1265,13 @@ async function loadUsers(resetPage: boolean) {
     const resp = await getUsers({
       page: page.value,
       limit: limit.value,
-      searchMethod: GeneralSearchStrategy.General,
-      searchTerm: searchTerm.value,
+      ...userSearch.value.request,
       roles: selectedRoleFilters.value.length > 0 ? selectedRoleFilters.value : undefined,
     })
 
+    if (requestId !== usersRequestId) return
     users.value = resp.users
-    hasNext.value = resp.users.length === limit.value
+    hasNext.value = resp.hasNext
 
     if (selectedUser.value) {
       const nextSelectedUser = resp.users.find((user) => user.id === selectedUser.value?.id)
@@ -1251,7 +1279,7 @@ async function loadUsers(resetPage: boolean) {
       if (!nextSelectedUser) clearDetails()
     }
   } finally {
-    usersLoading.value = false
+    if (requestId === usersRequestId) usersLoading.value = false
   }
 }
 
@@ -1806,7 +1834,7 @@ async function saveDiscount() {
 
 watch(limit, async () => loadUsers(true))
 watch(page, async () => loadUsers(false))
-watch(searchTerm, () => loadUsersDebounced())
+watch(() => JSON.stringify(userSearch.value.request), () => loadUsersDebounced())
 watch(selectedRoleFilters, async () => loadUsers(true))
 watch(
   [() => createUserForm.name, () => createUserForm.surname],
@@ -1918,6 +1946,14 @@ onMounted(async () => {
 .users-table {
   flex: 1;
 }
+
+.users-column-filter { display: grid; gap: 8px; padding: 2px 0; }
+.users-column-filter label { font-size: 12px; font-weight: 600; }
+.users-column-filter :deep(.el-input) { font-weight: 400; }
+.users-search-hint { margin: 6px 0 0; color: var(--app-text-muted); font-size: 12px; line-height: 1.5; }
+.users-contact-filters { margin-top: 14px; border-top: 1px solid var(--app-border); padding-top: 12px; }
+.users-contact-filters summary { width: fit-content; color: var(--app-text-muted); font-size: 13px; cursor: pointer; }
+.users-contact-filters__fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; padding-top: 12px; }
 
 .users-table :deep(.el-table__header th) {
   background: #f8fafc;
