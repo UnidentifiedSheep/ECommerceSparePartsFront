@@ -98,7 +98,7 @@ export async function getOrganizations(req: GetOrganizationsRequest): Promise<Ge
   req.ids?.forEach((id) => params.append('ids', id))
   req.types?.forEach((type) => params.append('types', type))
   params.append('page', String(req.page))
-  params.append('limit', String(clampPageSize(req.limit)))
+  params.append('size', String(clampPageSize(req.limit)))
   req.sortBy?.forEach((sort) => params.append('sortBy', sort))
   if (req.showHidden) params.append('showHidden', 'true')
 
@@ -128,7 +128,7 @@ export async function getOrganizationMembers(
 ): Promise<GetOrganizationMembersResponse> {
   const response = await api.get<{ members: OrganizationMemberDto[] }>(
     `/main/organizations/${req.organizationId}/members`,
-    { params: { page: req.page, limit: clampPageSize(req.limit) } },
+    { params: { page: req.page, size: clampPageSize(req.limit) } },
   )
 
   return {
