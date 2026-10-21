@@ -1031,7 +1031,13 @@ function amountClass(value: number) {
 
 watch(searchTerm, loadOrganizationsDebounced)
 watch(typeFilters, () => loadOrganizations(true), { deep: true })
-watch([page, limit], () => loadOrganizations(false))
+watch([page, limit], ([currentPage, currentLimit], [, previousLimit]) => {
+  if (currentLimit !== previousLimit && currentPage !== 0) {
+    page.value = 0
+    return
+  }
+  void loadOrganizations(false)
+})
 watch(() => route.query.organizationId, () => selectOrganizationFromRoute())
 watch(
   () => createForm.name,
