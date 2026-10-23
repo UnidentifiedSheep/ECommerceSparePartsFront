@@ -9,12 +9,14 @@ import router from './router'
 import ElementPlus, { ElNotification } from 'element-plus'
 import 'element-plus/dist/index.css'
 import './assets/theme.css'
+import { SessionChangedError } from '@/services/auth/types'
 import { ApiError } from '@/models/errorModel.ts'
 import { t } from '@/i18n'
 
 const app = createApp(App)
 
 app.config.errorHandler = (err, _instance, _info) => {
+  if (err instanceof SessionChangedError) return
   console.log(err)
 
   if (err instanceof ApiError) {

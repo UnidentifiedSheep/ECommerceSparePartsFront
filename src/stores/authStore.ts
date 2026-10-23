@@ -1,6 +1,7 @@
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 import { jwtDecode } from 'jwt-decode'
+import type { AuthSession, TokenPair } from '@/services/auth/types'
 
 interface User {
   id: string
@@ -8,10 +9,9 @@ interface User {
   email?: string
   name?: string
   surname?: string
-  roles?: string[]
-  permissions?: string[]
+  roles: string[]
+  permissions: string[]
 }
-
 interface JwtPayload {
   sub?: string
   nameid?: string
@@ -22,105 +22,96 @@ interface JwtPayload {
   role?: string | string[]
   permission?: string | string[]
 }
+export const authStorageKey = 'authSession'
+
+function decodeUser(jwt: string): User | null {
+  try {
+    const payload = jwtDecode<JwtPayload>(jwt)
+    const id = payload.sub ?? payload.nameid
+    if (!id || typeof id !== 'string') return null
+    return {
+      id, userName: payload.unique_name, email: payload.email,
+      name: payload.given_name, surname: payload.family_name,
+      roles: Array.isArray(payload.role) ? payload.role : payload.role ? [payload.role] : [],
+      permissions: Array.isArray(payload.permission) ? payload.permission : payload.permission ? [payload.permission] : [],
+    }
+  } catch { return null }
+}
+
+function validPair(value: unknown): value is TokenPair {
+  if (!value || typeof value !== 'object') return false
+  const pair = value as TokenPair
+  return typeof pair.token === 'string' && !!decodeUser(pair.token)
+    && typeof pair.refreshToken === 'string' && pair.refreshToken.trim().length > 0
+}
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('token'))
-  const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'))
-  const deviceId = ref<string | null>(localStorage.getItem('deviceId'))
-  const user = ref<User | null>(token.value ? decodeUser(token.value) : null)
-  const loading = ref(false)
+  function readSession(): AuthSession | null {
+    try {
+      const raw = localStorage.getItem(authStorageKey)
+      // Migrate once. A stored null is a logout marker, so legacy keys cannot revive it.
+      if (raw !== null) {
+        const parsed: unknown = JSON.parse(raw)
+        return validPair(parsed) && 'id' in parsed && typeof parsed.id === 'string' ? parsed as AuthSession : null
+      }
+      const legacy = { token: localStorage.getItem('token'), refreshToken: localStorage.getItem('refreshToken') }
+      const migrated = validPair(legacy) ? { ...legacy, id: crypto.randomUUID() } : null
+      localStorage.setItem(authStorageKey, JSON.stringify(migrated))
+      return migrated
+    } catch { return null }
+  }
+  const session = shallowRef<AuthSession | null>(readSession())
+  const user = ref<User | null>(session.value ? decodeUser(session.value.token) : null)
+  const token = computed(() => session.value?.token ?? null)
+  const refreshToken = computed(() => session.value?.refreshToken ?? null)
+  const sessionId = computed(() => session.value?.id ?? null)
+  const isAuthenticated = computed(() => !!session.value && !!user.value)
 
-  const isAuthenticated = computed(() => !!token.value)
+  function removeLegacyKeys() {
+    for (const key of ['token', 'refreshToken', 'deviceId']) localStorage.removeItem(key)
+  }
+  removeLegacyKeys()
 
   function syncFromStorage() {
-    token.value = localStorage.getItem('token')
-    refreshToken.value = localStorage.getItem('refreshToken')
-    deviceId.value = localStorage.getItem('deviceId')
-    user.value = token.value ? decodeUser(token.value) : null
+    const stored = readSession()
+    if (JSON.stringify(stored) === JSON.stringify(session.value)) return
+    session.value = stored
+    user.value = stored ? decodeUser(stored.token) : null
   }
-
-  const login = (nToken: string, nRefreshToken: string, nDeviceId: string) => {
-    if (loading.value) return
-    loading.value = true
-    try {
-      user.value = decodeUser(nToken)
-      token.value = nToken
-      refreshToken.value = nRefreshToken
-      deviceId.value = nDeviceId
-
-      localStorage.setItem('token', nToken)
-      localStorage.setItem('refreshToken', nRefreshToken)
-      localStorage.setItem('deviceId', nDeviceId)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const refresh = (nToken: string, nRefreshToken: string) => {
-    if (loading.value) return
-    if (!isAuthenticated.value) throw Error(`to refresh token, firstly login.`)
-    loading.value = true
-    try {
-      token.value = nToken
-      refreshToken.value = nRefreshToken
-      user.value = decodeUser(token.value)
-
-      localStorage.setItem('token', token.value)
-      localStorage.setItem('refreshToken', refreshToken.value)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function decodeUser(jwt: string): User | null {
-    try {
-      const payload = jwtDecode<JwtPayload>(jwt)
-      const roles = Array.isArray(payload.role)
-        ? payload.role
-        : payload.role ? [payload.role] : []
-      const permissions = Array.isArray(payload.permission)
-        ? payload.permission
-        : payload.permission ? [payload.permission] : []
-
-      return {
-        id: payload.sub ?? payload.nameid ?? '',
-        userName: payload.unique_name,
-        email: payload.email,
-        name: payload.given_name,
-        surname: payload.family_name,
-        roles,
-        permissions,
-      }
-    } catch {
-      return null
-    }
-  }
-
-  const logout = () => {
-    token.value = null
-    refreshToken.value = null
-    deviceId.value = null
-    user.value = null
-    localStorage.removeItem('token')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('deviceId')
-  }
-
-  window.addEventListener('storage', (event) => {
-    if (!['token', 'refreshToken', 'deviceId'].includes(event.key ?? '')) return
+  function getSession() {
     syncFromStorage()
-  })
-
-  return {
-    token,
-    refreshToken,
-    deviceId,
-    user,
-    loading,
-    isAuthenticated,
-    login,
-    logout,
-    refresh,
-    syncFromStorage,
+    return session.value
   }
+  function publish(next: AuthSession | null) {
+    // Publish both credentials atomically before notifying local watchers.
+    localStorage.setItem(authStorageKey, JSON.stringify(next))
+    user.value = next ? decodeUser(next.token) : null
+    session.value = next
+    removeLegacyKeys()
+  }
+  function login(nextToken: string, nextRefreshToken: string) {
+    const pair = { token: nextToken, refreshToken: nextRefreshToken }
+    if (!validPair(pair)) throw new Error('Invalid authentication response.')
+    publish({ ...pair, id: crypto.randomUUID() })
+  }
+  function refresh(expected: AuthSession, pair: TokenPair): boolean {
+    const current = getSession()
+    if (!current || current.id !== expected.id || current.refreshToken !== expected.refreshToken) return false
+    if (!validPair(pair)) throw new Error('Invalid authentication response.')
+    publish({ ...pair, id: current.id })
+    return true
+  }
+  function logout(expected?: AuthSession): boolean {
+    const current = getSession()
+    if (expected && (!current || current.id !== expected.id || current.refreshToken !== expected.refreshToken)) return false
+    publish(null)
+    return true
+  }
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === authStorageKey || event.key === null) syncFromStorage()
+  }
+  window.addEventListener('storage', onStorage)
+  onScopeDispose(() => window.removeEventListener('storage', onStorage))
+
+  return { token, refreshToken, sessionId, user, isAuthenticated, getSession, login, logout, refresh, syncFromStorage }
 })

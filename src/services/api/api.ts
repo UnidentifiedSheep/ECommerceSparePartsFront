@@ -1,183 +1,57 @@
-import axios, { AxiosHeaders, type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { ApiError, type ErrorResponse } from '@/models/errorModel.ts'
 import { getAcceptLanguage } from '@/i18n'
+import { refreshAuthSession, requireSameSession } from '@/services/auth/session'
+import { SessionChangedError, type AuthSession } from '@/services/auth/types'
+import { apiBaseUrl } from './config'
 
-export interface RefreshRequest {
-  refreshToken: string
-  deviceId: string
-}
-
-export interface RefreshResponse {
-  token: string
-  refreshToken: string
-}
-
-export function clampPageSize(value: number): number {
-  return Math.min(Math.max(value, 1), 100)
-}
-
-let authStore: ReturnType<typeof useAuthStore> | null = null
-let refreshPromise: Promise<RefreshResponse> | null = null
-const authRefreshLockName = 'ecom-auth-refresh'
-export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
+export { apiBaseUrl } from './config'
 export const analyticsApiPrefix = '/analytics'
+export function clampPageSize(value: number) { return Math.min(Math.max(value, 1), 100) }
 
-function initAuthStore(): ReturnType<typeof useAuthStore> {
-  if (authStore === null) {
-    authStore = useAuthStore()
-  }
-  return authStore
+type AuthRequest = InternalAxiosRequestConfig & { authSession?: AuthSession | null; authRetried?: boolean }
+function publicAuthRequest(config: InternalAxiosRequestConfig) {
+  const path = new URL(config.url ?? '', apiBaseUrl).pathname.replace(/\/$/, '')
+  return /^\/main\/auth\/(login|refresh|register|password\/(recovery|reset)|usernames\/.*\/availability)$/.test(path)
 }
-
-async function refreshAccessToken(req: RefreshRequest): Promise<RefreshResponse> {
-  if (!refreshPromise) {
-    refreshPromise = axios
-      .post<RefreshResponse>(`${api.defaults.baseURL}/main/auth/refresh`, req, {
-        headers: { 'Accept-Language': getAcceptLanguage() },
-      })
-      .then((response) => response.data)
-      .finally(() => {
-        refreshPromise = null
-      })
-  }
-
-  return refreshPromise
-}
-
-function isRefreshRequest(config?: InternalAxiosRequestConfig): boolean {
-  return Boolean(config?.url?.includes('/auth/refresh'))
-}
-
-function markRetried(config: InternalAxiosRequestConfig & { _retry?: boolean }) {
-  config._retry = true
-}
-
-function setAuthHeader(config: InternalAxiosRequestConfig, token: string) {
-  if (!config.headers) {
-    config.headers = new AxiosHeaders()
-  }
-
-  config.headers.set('Authorization', `Bearer ${token}`)
-}
-
-function requestAccessToken(config: InternalAxiosRequestConfig): string | null {
-  const authorization = config.headers?.get?.('Authorization')
-    ?? config.headers?.get?.('authorization')
-    ?? config.headers?.Authorization
-
-  if (typeof authorization !== 'string') return null
-  return authorization.replace(/^Bearer\s+/i, '') || null
-}
-
-async function refreshAccessTokenAcrossTabs(
-  failedAccessToken: string | null,
-): Promise<RefreshResponse> {
-  const refreshOrReuseSession = async (): Promise<RefreshResponse> => {
-    const store = initAuthStore()
-    store.syncFromStorage()
-
-    if (
-      failedAccessToken
-      && store.token
-      && store.token !== failedAccessToken
-      && store.refreshToken
-    ) {
-      return {
-        token: store.token,
-        refreshToken: store.refreshToken,
-      }
-    }
-
-    if (!store.refreshToken || !store.deviceId) {
-      throw new Error('Authentication session is unavailable.')
-    }
-
-    return refreshAccessToken({
-      refreshToken: store.refreshToken,
-      deviceId: store.deviceId,
-    })
-  }
-
-  if (navigator.locks) {
-    return navigator.locks.request(authRefreshLockName, refreshOrReuseSession)
-  }
-
-  return refreshOrReuseSession()
-}
-
-export async function refreshAuthSession(failedAccessToken: string | null): Promise<string> {
-  const store = initAuthStore()
-
-  try {
-    const response = await refreshAccessTokenAcrossTabs(failedAccessToken)
-    store.refresh(response.token, response.refreshToken)
-    api.defaults.headers.common.Authorization = `Bearer ${response.token}`
-    return response.token
-  } catch (refreshError) {
-    store.syncFromStorage()
-    if (failedAccessToken && store.token && store.token !== failedAccessToken) {
-      return store.token
-    }
-
-    store.logout()
-    throw refreshError
-  }
+function assertResponseSession(config?: AuthRequest) {
+  if (config?.authSession) requireSameSession(config.authSession)
 }
 
 const api: AxiosInstance = axios.create({
-  baseURL: apiBaseUrl,
-  timeout: 10000,
-  paramsSerializer: {
-    indexes: null,
-  },
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: apiBaseUrl, timeout: 10000,
+  paramsSerializer: { indexes: null },
+  headers: { 'Content-Type': 'application/json' },
 })
-
-api.interceptors.request.use(
-  (config) => {
-    const store = initAuthStore()
-    config.headers.set('Accept-Language', getAcceptLanguage())
-    if (store.isAuthenticated) {
-      config.headers.Authorization = `Bearer ${store.token}`
+api.interceptors.request.use((config: AuthRequest) => {
+  const store = useAuthStore()
+  // Do not replay a queued/retried operation under a different user's credentials.
+  if (config.authSession) requireSameSession(config.authSession)
+  config.authSession = publicAuthRequest(config) ? null : store.getSession()
+  config.headers.set('Accept-Language', getAcceptLanguage())
+  config.headers.delete('Authorization')
+  if (config.authSession) config.headers.set('Authorization', `Bearer ${config.authSession.token}`)
+  return config
+})
+api.interceptors.response.use((response) => {
+  assertResponseSession(response.config)
+  return response
+}, async (error: AxiosError) => {
+  const original = error.config as AuthRequest | undefined
+  assertResponseSession(original)
+  if (error.response?.status === 401 && original?.authSession) {
+    if (original.authRetried) {
+      // Ignore a late rejection of credentials already replaced by another refresh.
+      useAuthStore().logout(original.authSession)
+    } else {
+      original.authRetried = true
+      await refreshAuthSession(original.authSession)
+      return api(original)
     }
-    return config
-  },
-  (error) => Promise.reject(error),
-)
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
-
-    if (
-      error.response?.status === 401
-      && originalRequest
-      && !originalRequest._retry
-      && !isRefreshRequest(originalRequest)
-    ) {
-      markRetried(originalRequest)
-      const failedAccessToken = requestAccessToken(originalRequest)
-
-      try {
-        const token = await refreshAuthSession(failedAccessToken)
-        setAuthHeader(originalRequest, token)
-
-        return api(originalRequest)
-      } catch (refreshError) {
-        return Promise.reject(refreshError)
-      }
-    }
-
-    if (error.response?.data) {
-      throw new ApiError(error.response.data as ErrorResponse)
-    }
-
-    throw new Error(error.message || 'Unknown API error')
-  },
-)
-
+  }
+  if (error instanceof SessionChangedError) throw error
+  if (error.response?.data) throw new ApiError(error.response.data as ErrorResponse)
+  throw new Error(error.message || 'Unknown API error')
+})
 export default api
