@@ -25,6 +25,13 @@ EVENT_WORKFLOW = ".github/workflows/preview-events.yml"
 ARTIFACT = "timeweb-preview-event"
 COMMENT_MARKER = "<!-- ecommerce-timeweb-preview-route -->"
 HEADER = ["Превью", "Коммит", "Статус", "Обновлено (UTC)", "Стенд"]
+TIMEWEB_SETTLE_SECONDS = 120
+TIMEWEB_DNS_RETRY_SECONDS = 30
+TIMEWEB_DNS_TIMEOUT_SECONDS = 300
+
+
+class PreviewDNSNotReady(RuntimeError):
+    """The restricted router could not yet resolve a verified Timeweb upstream."""
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -290,15 +297,47 @@ def ssh_apply(command):
                 "preview-router@" + host, "preview-router " + " ".join(command)]
         for attempt in range(3):
             try:
-                result = subprocess.run(args, timeout=80, check=False)
+                result = subprocess.run(args, timeout=80, check=False, stdout=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT, text=True)
             except subprocess.TimeoutExpired:
                 if attempt == 2:
                     raise RuntimeError("Preview SSH command timed out.") from None
                 continue
+            if result.stdout:
+                print(result.stdout, end="" if result.stdout.endswith("\n") else "\n", flush=True)
             if result.returncode == 0:
                 return
+            if (command[0] == "deploy" and result.returncode == 1
+                    and re.search(r"\[Errno -(?:2|3)\] (?:Name or service not known|Temporary failure in name resolution)",
+                                  result.stdout or "")):
+                raise PreviewDNSNotReady("Timeweb upstream DNS is not ready on the preview router.")
             if result.returncode != 255 or attempt == 2:
                 raise RuntimeError(f"Restricted preview command exited with status {result.returncode}.")
+
+
+def apply_current_preview(github, record, run_id):
+    command = github.reconcile(record, run_id)
+    if command is None:
+        return None
+    if command[0] == "deploy":
+        print(f"Waiting {TIMEWEB_SETTLE_SECONDS}s for Timeweb preview DNS to settle.", flush=True)
+        time.sleep(TIMEWEB_SETTLE_SECONDS)
+        # A PR may close, or Timeweb may replace its stand, while we wait.
+        command = github.reconcile(record, run_id)
+    deadline = time.monotonic() + TIMEWEB_DNS_TIMEOUT_SECONDS
+    while command is not None:
+        try:
+            ssh_apply(command)
+            return command
+        except PreviewDNSNotReady:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError("Timeweb upstream DNS did not become ready within the retry window.") from None
+            delay = min(TIMEWEB_DNS_RETRY_SECONDS, remaining)
+            print(f"Timeweb upstream DNS is not ready; checking current PR state again in {delay:g}s.", flush=True)
+            time.sleep(delay)
+            command = github.reconcile(record, run_id)
+    return None
 
 
 def main():
@@ -315,11 +354,10 @@ def main():
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
             output.write(f"pr={record['pr']}\n")
         return
-    command = github.reconcile(record, int(run["id"]))
+    command = apply_current_preview(github, record, int(run["id"]))
     if command is None:
         print("No ready, verified Timeweb preview to publish.")
         return
-    ssh_apply(command)
     if command[0] == "deploy":
         wait_for_preview(record["pr"])
         pull = github.get(f"/pulls/{record['pr']}")

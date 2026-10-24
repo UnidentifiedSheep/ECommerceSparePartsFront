@@ -258,6 +258,8 @@
 .sale-amount {
   color: #0f172a;
   font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 :deep(.sale-filters-drawer .el-drawer__header) {
