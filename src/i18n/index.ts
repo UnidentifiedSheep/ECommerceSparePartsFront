@@ -39,6 +39,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
       labels: {
         arrowNavigation: '↑/↓ — выбор записи',
+        transactionNavigation: '↑/↓ — выбор · Enter — детали · Esc — закрыть',
         page: 'Страница {page}',
         size: 'Размер',
         error: 'Ошибка',
@@ -2047,6 +2048,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
       labels: {
         arrowNavigation: '↑/↓ to select a record',
+        transactionNavigation: '↑/↓ to select · Enter for details · Esc to close',
         page: 'Page {page}',
         size: 'Size',
         error: 'Error',
@@ -4055,6 +4057,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
       labels: {
         arrowNavigation: '↑/↓ ile kayıt seçin',
+        transactionNavigation: '↑/↓ ile seçin · Enter ile ayrıntılar · Esc ile kapatın',
         page: 'Sayfa {page}',
         size: 'Boyut',
         error: 'Hata',

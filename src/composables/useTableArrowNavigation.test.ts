@@ -2,13 +2,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 import { useTableArrowNavigation } from './useTableArrowNavigation'
 
-function setup() {
+function setup(extra: {
+  activate?: (row: { id: string }) => unknown
+  onBoundary?: (direction: -1 | 1) => void | Promise<void>
+} = {}) {
   const rows = ref([{ id: 'a' }, { id: 'b' }, { id: 'c' }])
   const selected = ref<{ id: string }>(), busy = ref(false)
   const scrolls = rows.value.map(() => ({ scrollIntoView: vi.fn() }))
   const root = { querySelectorAll: () => scrolls, focus: vi.fn() }
   const select = vi.fn((row: { id: string }) => { selected.value = row })
-  const navigation = useTableArrowNavigation({ rows, selected, busy, select, root: () => root as unknown as HTMLElement })
+  const navigation = useTableArrowNavigation({ rows, selected, busy, select, ...extra, root: () => root as unknown as HTMLElement })
   function key(key: string, options: Partial<KeyboardEvent> = {}, control = false) {
     const event = { key, preventDefault: vi.fn(), target: { closest: () => control ? {} : null }, ...options } as unknown as KeyboardEvent
     navigation.onKeydown(event); return event
@@ -46,6 +49,38 @@ describe('table arrow navigation', () => {
     const table = setup(); table.busy.value = true; table.key('ArrowDown')
     table.busy.value = false; table.rows.value = []; table.key('ArrowDown')
     expect(table.select).not.toHaveBeenCalled()
+  })
+  it('selects without opening details and activates only on Enter', () => {
+    const activate = vi.fn(), table = setup({ activate })
+    table.key('ArrowDown'); table.key('ArrowDown')
+    expect(activate).not.toHaveBeenCalled()
+    const enter = table.key('Enter')
+    expect(enter.preventDefault).toHaveBeenCalledOnce()
+    expect(activate).toHaveBeenCalledWith({ id: 'b' })
+  })
+  it('does not activate without a selection or from an interactive control', () => {
+    const activate = vi.fn(), table = setup({ activate })
+    table.key('Enter'); table.key('ArrowDown'); table.key('Enter', {}, true)
+    expect(activate).not.toHaveBeenCalled()
+  })
+  it('changes page only after another distinct press at a boundary', async () => {
+    const onBoundary = vi.fn(), table = setup({ onBoundary })
+    table.key('ArrowUp') // Initial up selects the last row, without changing page.
+    expect(onBoundary).not.toHaveBeenCalled()
+    table.key('ArrowDown', { repeat: true }); await Promise.resolve()
+    expect(onBoundary).not.toHaveBeenCalled()
+    table.key('ArrowDown'); await Promise.resolve()
+    expect(onBoundary).toHaveBeenCalledOnce(); expect(onBoundary).toHaveBeenCalledWith(1)
+  })
+  it('does not issue duplicate page transitions while the previous one is pending', async () => {
+    let finish!: () => void
+    const onBoundary = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
+    const table = setup({ onBoundary }); table.key('ArrowDown'); table.key('ArrowUp'); table.key('ArrowUp')
+    await Promise.resolve()
+    expect(onBoundary).toHaveBeenCalledOnce(); expect(onBoundary).toHaveBeenCalledWith(-1)
+    finish(); await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    table.key('ArrowUp'); await Promise.resolve(); expect(onBoundary).toHaveBeenCalledTimes(2)
+    finish()
   })
   it('focuses a clicked row without moving the page, preserving control focus', () => {
     const table = setup()

@@ -322,6 +322,7 @@ const tableNavigation = useTableArrowNavigation({
   rows: sales, selected: selectedSale, busy: salesLoading,
   root: () => salesTableRef.value?.$el as HTMLElement | undefined,
   select: (row) => selectSale(row),
+  onBoundary: navigateSalePage,
 })
 const contentLoading = ref(false)
 const isSettingCurrentSale = ref(false)
@@ -450,7 +451,12 @@ async function loadCurrencies() {
   currencies.value = resp.currencies
 }
 
-async function loadSales(resetPage: boolean) {
+async function navigateSalePage(direction: -1 | 1) {
+  if (salesLoading.value || (direction === 1 ? !hasNext.value : page.value === 0)) return
+  await loadSales(false, { page: page.value + direction, direction })
+}
+
+async function loadSales(resetPage: boolean, navigation?: { page: number; direction: -1 | 1 }) {
   if (queryState.restoring.value) return
   if (salesLoading.value) return
 
@@ -461,7 +467,7 @@ async function loadSales(resetPage: boolean) {
     const resp = await getSales({
       rangeStartDate: dateRange.value?.[0],
       rangeEndDate: dateRange.value?.[1],
-      page: page.value,
+      page: navigation?.page ?? page.value,
       limit: limit.value,
       organizationIds: selectedBuyerOrganizations.value.map((buyer) => buyer.id),
       currencyIds: currencyIds.value,
@@ -471,6 +477,13 @@ async function loadSales(resetPage: boolean) {
       searchTerm: searchTerm.value,
     })
 
+    // A full final page may advertise a successor which is actually empty.
+    // Keep the current record and page when there is nothing to select there.
+    if (navigation && resp.sales.length === 0) {
+      if (navigation.direction === 1) hasNext.value = false
+      return
+    }
+    if (navigation) page.value = navigation.page
     sales.value = resp.sales
     hasNext.value = resp.sales.length === limit.value
 
@@ -481,6 +494,14 @@ async function loadSales(resetPage: boolean) {
         ++contentRequestVersion
         saleContent.value = []
         contentLoading.value = false
+      }
+    }
+    if (navigation) {
+      const row = navigation.direction === 1 ? resp.sales[0] : resp.sales[resp.sales.length - 1]
+      if (row) {
+        void selectSale(row)
+        await nextTick()
+        tableNavigation.scrollToSelected()
       }
     }
   } catch (error) {

@@ -297,6 +297,7 @@ const tableNavigation = useTableArrowNavigation({
   rows: purchases, selected: selectedPurchase, busy: purchasesLoading,
   root: () => purchasesTableRef.value?.$el as HTMLElement | undefined,
   select: (row) => selectPurchase(row),
+  onBoundary: navigatePurchasePage,
 })
 const contentLoading = ref(false)
 const isSettingCurrentPurchase = ref(false)
@@ -409,7 +410,12 @@ async function loadStorages() {
   storages.value = resp.storages
 }
 
-async function loadPurchases(resetPage: boolean) {
+async function navigatePurchasePage(direction: -1 | 1) {
+  if (purchasesLoading.value || (direction === 1 ? !hasNext.value : page.value === 0)) return
+  await loadPurchases(false, { page: page.value + direction, direction })
+}
+
+async function loadPurchases(resetPage: boolean, navigation?: { page: number; direction: -1 | 1 }) {
   if (queryState.restoring.value) return
   if (purchasesLoading.value) return
 
@@ -420,7 +426,7 @@ async function loadPurchases(resetPage: boolean) {
     const resp = await getPurchases({
       rangeStartDate: dateRange.value?.[0],
       rangeEndDate: dateRange.value?.[1],
-      page: page.value,
+      page: navigation?.page ?? page.value,
       limit: limit.value,
       supplierOrganizationIds: selectedSuppliers.value.map((supplier) => supplier.organization.id),
       currencyIds: currencyIds.value,
@@ -429,6 +435,13 @@ async function loadPurchases(resetPage: boolean) {
       searchTerm: searchTerm.value,
     })
 
+    // A full final page may advertise a successor which is actually empty.
+    // Keep the current record and page when there is nothing to select there.
+    if (navigation && resp.purchases.length === 0) {
+      if (navigation.direction === 1) hasNext.value = false
+      return
+    }
+    if (navigation) page.value = navigation.page
     purchases.value = resp.purchases
     hasNext.value = resp.purchases.length === limit.value
 
@@ -439,6 +452,14 @@ async function loadPurchases(resetPage: boolean) {
         ++contentRequestVersion
         purchaseContent.value = []
         contentLoading.value = false
+      }
+    }
+    if (navigation) {
+      const row = navigation.direction === 1 ? resp.purchases[0] : resp.purchases[resp.purchases.length - 1]
+      if (row) {
+        void selectPurchase(row)
+        await nextTick()
+        tableNavigation.scrollToSelected()
       }
     }
   } catch (error) {

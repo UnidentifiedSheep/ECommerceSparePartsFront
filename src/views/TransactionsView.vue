@@ -126,7 +126,7 @@
             ref="transactionsTableRef"
             tabindex="0"
             :aria-label="t('transactions.title')"
-            :aria-description="t('common.labels.arrowNavigation')"
+            :aria-description="t('common.labels.transactionNavigation')"
             highlight-current-row
             @keydown="tableNavigation.onKeydown"
             v-loading="isLoading"
@@ -226,7 +226,7 @@
         </div>
 
         <div class="table-footer">
-          <span class="table-shortcuts">{{ t('common.labels.arrowNavigation') }}</span>
+          <span class="table-shortcuts">{{ t('common.labels.transactionNavigation') }}</span>
           <el-button
             v-if="canLoadMore"
             plain
@@ -392,6 +392,7 @@ const tableNavigation = useTableArrowNavigation({
   busy: computed(() => isLoading.value || isLoadingMore.value),
   root: () => transactionsTableRef.value?.$el as HTMLElement | undefined,
   select: selectTransaction,
+  activate: openTransactionDetails,
 })
 const currencies = ref<CurrencyModel[]>([])
 const sender = ref<OrganizationSelection | undefined>()
@@ -648,6 +649,10 @@ function focusTransactionDetails() {
 function selectTransaction(transaction: BalanceTransactionModel) {
   selectedTransaction.value = transaction
   transactionsTableRef.value?.setCurrentRow(transaction)
+}
+
+function openTransactionDetails(transaction: BalanceTransactionModel) {
+  selectTransaction(transaction)
   detailsOpen.value = true
 }
 
