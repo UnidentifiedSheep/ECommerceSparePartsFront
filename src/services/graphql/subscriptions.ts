@@ -1,7 +1,8 @@
 import { watch } from 'vue'
 import { print } from 'graphql'
 import { createClient, type Client } from 'graphql-ws'
-import { jwtDecode } from 'jwt-decode'
+import { tokenExpiresAt, requireSameSession } from '@/services/auth/session'
+import { SessionChangedError, type AuthSession } from '@/services/auth/types'
 import type { TypedDocumentNode } from '@graphql-typed-document-node/core'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { getAcceptLanguage, t } from '@/i18n'
@@ -19,25 +20,23 @@ export function subscribeGraphql<TData, TVariables extends Record<string, unknow
   },
 ) {
   const auth = useAuthStore()
+  const ownerSession = auth.getSession()
   let disposed = false
   let recovering = false
   let connectionVersion = 0
-  let connectionToken: string | null = null
+  let connectionSession: AuthSession | null = null
+  let recoveryVersion = 0
+  let retryTimer: ReturnType<typeof setTimeout> | undefined
+  let failures = 0
   let retriedToken: string | null = null
   let client: Client | undefined
   let unsubscribe: (() => void) | undefined
   let expiryTimer: ReturnType<typeof setTimeout> | undefined
 
-  function tokenExpiresAt(token: string | null) {
-    if (!token) return undefined
-    try {
-      const { exp } = jwtDecode<{ exp?: number }>(token)
-      return exp ? exp * 1000 : undefined
-    } catch { return undefined }
-  }
-
   function stopConnection() {
     connectionVersion += 1
+    if (retryTimer !== undefined) clearTimeout(retryTimer)
+    retryTimer = undefined
     if (expiryTimer !== undefined) clearTimeout(expiryTimer)
     expiryTimer = undefined
     unsubscribe?.()
@@ -47,27 +46,36 @@ export function subscribeGraphql<TData, TVariables extends Record<string, unknow
   }
 
   async function recoverSession(rejected = true) {
-    if (disposed || recovering) return
-    const failedToken = connectionToken
-    const expiry = tokenExpiresAt(failedToken)
-    if (rejected && retriedToken === failedToken && (!expiry || expiry > Date.now())) {
+    if (disposed || recovering || !connectionSession) return
+    const expected = connectionSession
+    const expiry = tokenExpiresAt(expected.token)
+    if (rejected && retriedToken === expected.token && (!expiry || expiry > Date.now())) {
       stopConnection()
       callbacks.disconnected()
-      goToLogin()
+      goToLogin(expected)
       return
     }
     recovering = true
+    const recovery = ++recoveryVersion
     stopConnection()
     callbacks.disconnected()
     try {
-      const token = await refreshGraphqlSession(failedToken)
-      if (disposed) return
-      retriedToken = rejected ? token : null
+      const session = await refreshGraphqlSession(expected)
+      if (disposed || recovery !== recoveryVersion) return
+      requireSameSession(session)
+      retriedToken = rejected ? session.token : null
       recovering = false
       connect()
     } catch (cause) {
-      if (!disposed) callbacks.error(cause instanceof Error ? cause : new Error(t('notifications.connectionError')))
-    } finally { recovering = false }
+      if (disposed || recovery !== recoveryVersion || cause instanceof SessionChangedError) return
+      callbacks.error(cause instanceof Error ? cause : new Error(t('notifications.connectionError')))
+      if (auth.getSession()?.id === expected.id) {
+        retryTimer = setTimeout(() => {
+          retryTimer = undefined
+          connect()
+        }, Math.min(1000 * 2 ** Math.min(failures++, 5), 30000))
+      }
+    } finally { if (recovery === recoveryVersion) recovering = false }
   }
 
   function handleErrors(cause: unknown, terminal: boolean) {
@@ -88,9 +96,9 @@ export function subscribeGraphql<TData, TVariables extends Record<string, unknow
 
   function connect() {
     stopConnection()
-    if (disposed || !auth.token) return
-    connectionToken = auth.token
-    const expiresAt = tokenExpiresAt(connectionToken)
+    connectionSession = auth.getSession()
+    if (disposed || !connectionSession || connectionSession.id !== ownerSession?.id) return
+    const expiresAt = tokenExpiresAt(connectionSession.token)
     if (expiresAt && expiresAt <= Date.now()) {
       void recoverSession(false)
       return
@@ -104,12 +112,13 @@ export function subscribeGraphql<TData, TVariables extends Record<string, unknow
       retryWait: (attempt) => new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** Math.min(attempt, 5), 30000))),
       connectionAckWaitTimeout: 10000,
       keepAlive: 20000,
-      connectionParams: () => ({ authorization: `Bearer ${connectionToken}`, 'Accept-Language': getAcceptLanguage() }),
+      connectionParams: () => ({ authorization: `Bearer ${connectionSession?.token}`, 'Accept-Language': getAcceptLanguage() }),
       on: {
         connected: () => {
           if (!current()) return
+          failures = 0
           callbacks.connected()
-          const expiry = tokenExpiresAt(connectionToken)
+          const expiry = tokenExpiresAt(connectionSession?.token ?? null)
           if (expiryTimer !== undefined) clearTimeout(expiryTimer)
           if (expiry) expiryTimer = setTimeout(() => {
             if (current()) void recoverSession(false)
@@ -141,16 +150,22 @@ export function subscribeGraphql<TData, TVariables extends Record<string, unknow
     })
   }
 
-  const stopTokenWatch = watch(() => auth.token, (token) => {
-    if (disposed || recovering) return
+  const stopTokenWatch = watch(() => [auth.sessionId, auth.token] as const, ([id], previous) => {
+    if (disposed) return
+    if (previous?.[0] !== id) {
+      recoveryVersion++
+      recovering = false
+      retriedToken = null
+    }
+    if (recovering) return
     callbacks.disconnected()
-    if (token) connect()
-    else stopConnection()
-  })
+    connect()
+  }, { flush: 'sync' })
   connect()
 
   return () => {
     disposed = true
+    recoveryVersion++
     stopTokenWatch()
     stopConnection()
   }

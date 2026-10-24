@@ -8,7 +8,6 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string
   refreshToken: string
-  deviceId: string
 }
 
 export interface IsUserNameAvailableResponse {

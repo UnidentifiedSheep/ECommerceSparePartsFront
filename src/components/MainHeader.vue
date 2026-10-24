@@ -191,7 +191,6 @@ function openSettings() {
 
 function logout() {
   authStore.logout()
-  router.push('/auth')
 }
 
 watch(search, () => {

@@ -1,10 +1,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue'
+import { useAuthStore } from '@/stores/authStore'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { useI18n } from '@/i18n'
 
 export function useDialogGuard(open: Ref<boolean | undefined>, busy: Readonly<Ref<boolean>>, snapshot: () => unknown) {
   const { t } = useI18n()
+  const auth = useAuthStore()
   const baseline = ref('')
   const ready = ref(false)
   let confirmation: Promise<boolean> | undefined
@@ -26,7 +28,7 @@ export function useDialogGuard(open: Ref<boolean | undefined>, busy: Readonly<Re
   async function requestClose() { if (await mayClose()) open.value = false }
   function beforeClose(done: () => void) { void mayClose().then((allowed) => { if (allowed) done() }) }
   const router = useRouter()
-  const unregister = router?.beforeEach(async (to, from) => to.path === from.path || !open.value || await mayClose())
+  const unregister = router?.beforeEach(async (to, from) => !auth.isAuthenticated || to.path === from.path || !open.value || await mayClose())
   function beforeUnload(event: BeforeUnloadEvent) {
     if (open.value && (dirty.value || busy.value)) { event.preventDefault(); event.returnValue = '' }
   }

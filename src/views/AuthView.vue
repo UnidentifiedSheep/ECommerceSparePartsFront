@@ -80,7 +80,7 @@ async function handleLogin() {
       login: loginValue.value.trim(),
       password: password.value,
     })
-    authStore.login(resp.token, resp.refreshToken, resp.deviceId)
+    authStore.login(resp.token, resp.refreshToken)
     await router.push('/')
   } catch (error) {
     ElNotification({

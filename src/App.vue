@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
+import { graphqlClient } from '@/services/graphql/client'
 import ru from 'element-plus/es/locale/lang/ru'
 import en from 'element-plus/es/locale/lang/en'
 import tr from 'element-plus/es/locale/lang/tr'
@@ -17,11 +18,20 @@ const authStore = useAuthStore()
 const currencyStore = useCurrencyStore()
 const notificationStore = useNotificationStore()
 const { hasPermission } = usePermissions()
+const router = useRouter()
+watch(() => authStore.sessionId, (sessionId, previous) => {
+  if (previous) {
+    void graphqlClient.clearStore()
+    notificationStore.reset()
+    currencyStore.reset()
+  }
+  if (previous && !sessionId) void router.replace({ name: 'auth' })
+}, { flush: 'sync' })
 
 watch(
-  () => [authStore.user?.id, hasPermission('NOTIFICATIONS_ME')] as const,
-  ([userId, allowed], previous) => {
-    if (previous && userId === previous[0] && allowed === previous[1]) return
+  () => [authStore.sessionId, authStore.user?.id, hasPermission('NOTIFICATIONS_ME')] as const,
+  ([sessionId, userId, allowed], previous) => {
+    if (previous && sessionId === previous[0] && userId === previous[1] && allowed === previous[2]) return
     if (authStore.token && userId && allowed) notificationStore.start(userId)
     else notificationStore.reset()
   },
@@ -29,9 +39,9 @@ watch(
 )
 
 watch(
-  () => authStore.isAuthenticated,
-  (isAuthenticated) => {
-    if (isAuthenticated) void currencyStore.loadBaseCurrency()
+  () => authStore.sessionId,
+  (sessionId) => {
+    if (sessionId) void currencyStore.loadBaseCurrency()
   },
   { immediate: true },
 )

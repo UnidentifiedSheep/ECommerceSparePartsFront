@@ -1,4 +1,5 @@
-import { refreshAuthSession } from '@/services/api/api.ts'
+import { refreshAuthSession } from '@/services/auth/session'
+import type { AuthSession } from '@/services/auth/types'
 import { useAuthStore } from '@/stores/authStore.ts'
 
 export interface GraphqlError {
@@ -26,16 +27,8 @@ export function isGraphqlAuthError(errors: readonly GraphqlError[] | undefined):
   )) ?? false
 }
 
-export function goToLogin() {
-  useAuthStore().logout()
-  void import('@/router').then(({ default: router }) => router.replace({ name: 'auth' }))
+export function goToLogin(expected: AuthSession) {
+  useAuthStore().logout(expected)
 }
 
-export async function refreshGraphqlSession(token: string | null) {
-  try {
-    return await refreshAuthSession(token)
-  } catch (cause) {
-    if (!useAuthStore().token) goToLogin()
-    throw cause
-  }
-}
+export const refreshGraphqlSession = refreshAuthSession
