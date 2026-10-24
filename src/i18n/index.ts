@@ -1168,6 +1168,7 @@ const messages: Record<AppLocale, MessageTree> = {
       loadError: 'Не удалось загрузить данные для дополнения каталога',
     },
     products: {
+      keyboardNavigation: '↑/↓ — выбор · Enter — просмотр, затем карточка · Esc — каталог',
       title: 'Товары',
       alternativeNames: 'Дополнительные названия',
       selectAlternativeName: 'Выберите название из данных поставщиков',
@@ -1278,6 +1279,7 @@ const messages: Record<AppLocale, MessageTree> = {
       crosses: 'Кроссы',
       openProduct: 'Открыть товар',
       quickView: {
+        keyboardNavigation: 'Enter — карточка товара · Esc — каталог',
         totalStock: 'Общий остаток',
         totalStockHint: 'Суммарное количество по всем складам',
         byStorage: 'По складам',
@@ -3177,6 +3179,7 @@ const messages: Record<AppLocale, MessageTree> = {
       loadError: 'Could not load catalog enrichment data',
     },
     products: {
+      keyboardNavigation: '↑/↓ to select · Enter to preview, then open product · Esc for catalogue',
       title: 'Products',
       alternativeNames: 'Alternative names',
       selectAlternativeName: 'Select a name from supplier data',
@@ -3287,6 +3290,7 @@ const messages: Record<AppLocale, MessageTree> = {
       crosses: 'Crosses',
       openProduct: 'Open product',
       quickView: {
+        keyboardNavigation: 'Enter: product page · Esc: catalogue',
         totalStock: 'Total stock',
         totalStockHint: 'Combined quantity across all storages',
         byStorage: 'By storage',
@@ -5186,6 +5190,7 @@ const messages: Record<AppLocale, MessageTree> = {
       loadError: 'Katalog zenginleştirme verileri yüklenemedi',
     },
     products: {
+      keyboardNavigation: '↑/↓ ile seçin · Enter ile önizleme, ardından ürün · Esc ile katalog',
       title: 'Ürünler',
       alternativeNames: 'Ek adlar',
       selectAlternativeName: 'Tedarikçi verilerinden bir ad seçin',
@@ -5296,6 +5301,7 @@ const messages: Record<AppLocale, MessageTree> = {
       crosses: 'Kroslar',
       openProduct: 'Ürünü aç',
       quickView: {
+        keyboardNavigation: 'Enter: ürün sayfası · Esc: katalog',
         totalStock: 'Toplam stok',
         totalStockHint: 'Tüm depolardaki toplam miktar',
         byStorage: 'Depolara göre',
