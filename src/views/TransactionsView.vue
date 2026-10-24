@@ -19,7 +19,7 @@
       <aside class="transactions-filters">
         <div class="filter-title">{{ t('transactions.filters') }}</div>
 
-        <el-form label-position="top">
+        <el-form label-position="top" class="transactions-filter-fields">
           <el-form-item :label="t('transactions.period')">
             <el-date-picker
               v-model="dateRange"
@@ -121,101 +121,112 @@
           </div>
         </div>
 
-        <el-table
-          v-loading="isLoading"
-          :data="transactions"
-          class="transactions-table"
-          row-key="id"
-          @row-click="selectTransaction"
-        >
-          <el-table-column :label="t('common.labels.date')" min-width="170">
-            <template #default="{ row }">
-              {{ formatLocalDateTime(row.transactionDate) }}
-            </template>
-          </el-table-column>
+        <div class="transactions-table-region">
+          <el-table
+            ref="transactionsTableRef"
+            tabindex="0"
+            :aria-label="t('transactions.title')"
+            :aria-description="t('common.labels.arrowNavigation')"
+            highlight-current-row
+            @keydown="tableNavigation.onKeydown"
+            v-loading="isLoading"
+            :data="transactions"
+            class="transactions-table"
+            height="100%"
+            row-key="id"
+            @row-click="handleTransactionRowClick"
+          >
+            <el-table-column :label="t('common.labels.date')" min-width="170">
+              <template #default="{ row }">
+                {{ formatLocalDateTime(row.transactionDate) }}
+              </template>
+            </el-table-column>
 
-          <el-table-column :label="t('transactions.operation')" min-width="160">
-            <template #default="{ row }">
-              <div class="operation-cell">
-                <el-tag :type="transactionTypeTag(row.type)" effect="light">
-                  {{ transactionTypeLabel(row.type) }}
-                </el-tag>
-                <el-tag
-                  v-if="isPurchaseSource(row.sourceType) && !isReversedStatus(row.status)"
-                  :type="transactionSourceTag(row.sourceType)"
-                  effect="plain"
-                  class="source-link"
-                  @click.stop="openPurchaseByTransaction(row)"
+            <el-table-column :label="t('transactions.operation')" min-width="160">
+              <template #default="{ row }">
+                <div class="operation-cell">
+                  <el-tag :type="transactionTypeTag(row.type)" effect="light">
+                    {{ transactionTypeLabel(row.type) }}
+                  </el-tag>
+                  <el-tag
+                    v-if="isPurchaseSource(row.sourceType) && !isReversedStatus(row.status)"
+                    :type="transactionSourceTag(row.sourceType)"
+                    effect="plain"
+                    class="source-link"
+                    @click.stop="openPurchaseByTransaction(row)"
+                  >
+                    {{ transactionSourceLabel(row.sourceType) }}
+                  </el-tag>
+                  <el-tag
+                    v-else-if="isSaleSource(row.sourceType) && !isReversedStatus(row.status)"
+                    :type="transactionSourceTag(row.sourceType)"
+                    effect="plain"
+                    class="source-link"
+                    @click.stop="openSaleByTransaction(row)"
+                  >
+                    {{ transactionSourceLabel(row.sourceType) }}
+                  </el-tag>
+                  <el-tag
+                    v-else
+                    :type="transactionSourceTag(row.sourceType)"
+                    effect="plain"
+                    :class="{ 'source-disabled': isNavigableSource(row.sourceType) && isReversedStatus(row.status) }"
+                  >
+                    {{ transactionSourceLabel(row.sourceType) }}
+                  </el-tag>
+                  <el-tag v-if="isReversedStatus(row.status)" type="danger" effect="light">
+                    {{ t('transactions.reversed') }}
+                  </el-tag>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column :label="t('transactions.sender')" min-width="190">
+              <template #default="{ row }">
+                <OrganizationPartyHoverCard :organization="row.sender" />
+              </template>
+            </el-table-column>
+
+            <el-table-column :label="t('transactions.receiver')" min-width="190">
+              <template #default="{ row }">
+                <OrganizationPartyHoverCard :organization="row.receiver" />
+              </template>
+            </el-table-column>
+
+            <el-table-column :label="t('transactions.amount')" min-width="180" align="right">
+              <template #default="{ row }">
+                <strong
+                  class="transaction-amount"
+                  :class="{
+                    'amount-muted': isReversedStatus(row.status),
+                    'amount-negative': !isReversedStatus(row.status) && isNegativeTransaction(row),
+                    'amount-positive': !isReversedStatus(row.status) && !isNegativeTransaction(row),
+                  }"
                 >
-                  {{ transactionSourceLabel(row.sourceType) }}
-                </el-tag>
-                <el-tag
-                  v-else-if="isSaleSource(row.sourceType) && !isReversedStatus(row.status)"
-                  :type="transactionSourceTag(row.sourceType)"
-                  effect="plain"
-                  class="source-link"
-                  @click.stop="openSaleByTransaction(row)"
+                  {{ formatMoney(row.amount, row.currencyId) }}
+                </strong>
+              </template>
+            </el-table-column>
+
+            <el-table-column v-if="canDeleteTransactions" :label="t('common.labels.actions')" width="120" align="right" fixed="right">
+              <template #default="{ row }">
+                <el-button
+                  v-if="canCancelTransaction(row)"
+                  size="small"
+                  type="danger"
+                  plain
+                  :loading="cancellingTransactionId === row.id"
+                  @click.stop="confirmCancelTransaction(row)"
                 >
-                  {{ transactionSourceLabel(row.sourceType) }}
-                </el-tag>
-                <el-tag
-                  v-else
-                  :type="transactionSourceTag(row.sourceType)"
-                  effect="plain"
-                  :class="{ 'source-disabled': isNavigableSource(row.sourceType) && isReversedStatus(row.status) }"
-                >
-                  {{ transactionSourceLabel(row.sourceType) }}
-                </el-tag>
-                <el-tag v-if="isReversedStatus(row.status)" type="danger" effect="light">
-                  {{ t('transactions.reversed') }}
-                </el-tag>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column :label="t('transactions.sender')" min-width="190">
-            <template #default="{ row }">
-              <OrganizationPartyHoverCard :organization="row.sender" />
-            </template>
-          </el-table-column>
-
-          <el-table-column :label="t('transactions.receiver')" min-width="190">
-            <template #default="{ row }">
-              <OrganizationPartyHoverCard :organization="row.receiver" />
-            </template>
-          </el-table-column>
-
-          <el-table-column :label="t('transactions.amount')" min-width="150" align="right">
-            <template #default="{ row }">
-              <strong
-                :class="{
-                  'amount-muted': isReversedStatus(row.status),
-                  'amount-negative': !isReversedStatus(row.status) && isNegativeTransaction(row),
-                  'amount-positive': !isReversedStatus(row.status) && !isNegativeTransaction(row),
-                }"
-              >
-                {{ formatMoney(row.amount, row.currencyId) }}
-              </strong>
-            </template>
-          </el-table-column>
-
-          <el-table-column v-if="canDeleteTransactions" :label="t('common.labels.actions')" width="120" align="right" fixed="right">
-            <template #default="{ row }">
-              <el-button
-                v-if="canCancelTransaction(row)"
-                size="small"
-                type="danger"
-                plain
-                :loading="cancellingTransactionId === row.id"
-                @click.stop="confirmCancelTransaction(row)"
-              >
-                {{ t('transactions.cancel') }}
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+                  {{ t('transactions.cancel') }}
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
 
         <div class="table-footer">
+          <span class="table-shortcuts">{{ t('common.labels.arrowNavigation') }}</span>
           <el-button
             v-if="canLoadMore"
             plain
@@ -234,8 +245,9 @@
       size="min(420px, 100vw)"
       :with-header="false"
       class="transaction-drawer"
+      @opened="focusTransactionDetails"
     >
-      <div v-if="selectedTransaction" class="transaction-details">
+      <div v-if="selectedTransaction" ref="transactionDetailsRef" class="transaction-details" tabindex="0" @keydown="tableNavigation.onKeydown">
         <header>
           <div>
             <span>{{ transactionTypeLabel(selectedTransaction.type) }}</span>
@@ -331,10 +343,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type TableInstance } from 'element-plus'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import CreateTransactionDialog from '@/components/transactions/CreateTransactionDialog.vue'
@@ -372,6 +385,14 @@ const cancellingTransactionId = ref<string | null>(null)
 const detailsOpen = ref(false)
 const selectedTransaction = ref<BalanceTransactionModel | null>(null)
 const transactions = ref<BalanceTransactionModel[]>([])
+const transactionsTableRef = ref<TableInstance>()
+const transactionDetailsRef = ref<HTMLElement>()
+const tableNavigation = useTableArrowNavigation({
+  rows: transactions, selected: selectedTransaction,
+  busy: computed(() => isLoading.value || isLoadingMore.value),
+  root: () => transactionsTableRef.value?.$el as HTMLElement | undefined,
+  select: selectTransaction,
+})
 const currencies = ref<CurrencyModel[]>([])
 const sender = ref<OrganizationSelection | undefined>()
 const receiver = ref<OrganizationSelection | undefined>()
@@ -448,6 +469,11 @@ async function reloadTransactions() {
     })
 
     transactions.value = response.transactions
+    const current = transactions.value.find((item) => item.id === selectedTransaction.value?.id)
+    selectedTransaction.value = current ?? null
+    if (!current) detailsOpen.value = false
+    await nextTick()
+    transactionsTableRef.value?.setCurrentRow(current)
     canLoadMore.value = response.transactions.length === pageSize
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : t('transactions.loadError'))
@@ -610,8 +636,18 @@ function isSameQuery(currentQuery: Record<string, unknown>, nextQuery: Record<st
   return currentEntries.every(([key, value]) => nextQuery[key] === value)
 }
 
+function handleTransactionRowClick(transaction: BalanceTransactionModel, column: unknown, event: MouseEvent) {
+  tableNavigation.onRowClick(transaction, column, event)
+  selectTransaction(transaction)
+}
+
+function focusTransactionDetails() {
+  transactionDetailsRef.value?.focus({ preventScroll: true })
+}
+
 function selectTransaction(transaction: BalanceTransactionModel) {
   selectedTransaction.value = transaction
+  transactionsTableRef.value?.setCurrentRow(transaction)
   detailsOpen.value = true
 }
 
@@ -930,12 +966,18 @@ watch(() => route.query, async () => {
 
 <style scoped>
 .transactions-page {
-  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 56px);
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
   background: #f5f7fb;
   padding: 24px;
 }
 
 .transactions-header {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -965,6 +1007,9 @@ watch(() => route.query, async () => {
 
 .transactions-layout {
   display: grid;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;
 }
@@ -977,11 +1022,24 @@ watch(() => route.query, async () => {
 }
 
 .transactions-filters {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
   align-self: start;
   padding: 16px;
 }
 
+.transactions-filter-fields {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .filter-title {
+  flex: none;
   margin-bottom: 16px;
   color: #111827;
   font-size: 16px;
@@ -989,6 +1047,7 @@ watch(() => route.query, async () => {
 }
 
 .filter-actions {
+  flex: none;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -1001,6 +1060,8 @@ watch(() => route.query, async () => {
 }
 
 .participants-filter {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1016,6 +1077,7 @@ watch(() => route.query, async () => {
 }
 
 .participant-row {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1065,8 +1127,21 @@ watch(() => route.query, async () => {
 }
 
 .transactions-content {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
   min-width: 0;
   padding: 16px;
+}
+
+.transactions-table-region {
+  min-width: 0;
+  min-height: 0;
+}
+
+.transaction-amount {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .transactions-summary {
@@ -1153,9 +1228,13 @@ watch(() => route.query, async () => {
 
 .table-footer {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding-top: 14px;
 }
+
+.table-shortcuts { color: #64748b; font-size: 12px; }
 
 .transaction-details {
   min-height: 100%;
@@ -1237,11 +1316,18 @@ watch(() => route.query, async () => {
 
 @media (max-width: 980px) {
   .transactions-page {
+    height: auto;
+    min-height: calc(100dvh - 56px);
+    overflow: visible;
     padding: 16px;
   }
 
   .transactions-layout {
     grid-template-columns: 1fr;
+  }
+
+  .transactions-content {
+    height: clamp(420px, 75dvh, 760px);
   }
 
   .transactions-summary {
@@ -1265,7 +1351,8 @@ watch(() => route.query, async () => {
   }
 
   .transactions-header,
-  .filter-actions {
+  .filter-actions,
+  .table-footer {
     align-items: stretch;
     flex-direction: column;
   }

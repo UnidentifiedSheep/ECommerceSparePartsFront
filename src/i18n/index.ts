@@ -38,6 +38,7 @@ const messages: Record<AppLocale, MessageTree> = {
         change: 'Изменить',
       },
       labels: {
+        arrowNavigation: '↑/↓ — выбор записи',
         page: 'Страница {page}',
         size: 'Размер',
         error: 'Ошибка',
@@ -2045,6 +2046,7 @@ const messages: Record<AppLocale, MessageTree> = {
         change: 'Change',
       },
       labels: {
+        arrowNavigation: '↑/↓ to select a record',
         page: 'Page {page}',
         size: 'Size',
         error: 'Error',
@@ -4052,6 +4054,7 @@ const messages: Record<AppLocale, MessageTree> = {
         change: 'Değiştir',
       },
       labels: {
+        arrowNavigation: '↑/↓ ile kayıt seçin',
         page: 'Sayfa {page}',
         size: 'Boyut',
         error: 'Hata',

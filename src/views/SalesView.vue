@@ -165,6 +165,11 @@
           <div class="sales-table-region">
           <el-table
             ref="salesTableRef"
+            tabindex="0"
+            :aria-label="t('sales.title')"
+            :aria-description="t('common.labels.arrowNavigation')"
+            @keydown="tableNavigation.onKeydown"
+            @row-click="tableNavigation.onRowClick"
             v-loading="salesLoading"
             :data="sales"
             class="w-full"
@@ -258,6 +263,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryStrings, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
 import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
@@ -312,6 +318,11 @@ const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
 const salesLoading = ref(false)
+const tableNavigation = useTableArrowNavigation({
+  rows: sales, selected: selectedSale, busy: salesLoading,
+  root: () => salesTableRef.value?.$el as HTMLElement | undefined,
+  select: (row) => selectSale(row),
+})
 const contentLoading = ref(false)
 const isSettingCurrentSale = ref(false)
 const createSaleDialogOpen = ref(false)
@@ -562,6 +573,8 @@ async function selectSale(sale?: SaleModel) {
   isSettingCurrentSale.value = true
   try {
     await nextTick()
+    if (requestVersion !== contentRequestVersion) return
+    isSettingCurrentSale.value = true
     salesTableRef.value?.setCurrentRow(sale)
   } finally {
     isSettingCurrentSale.value = false

@@ -3,7 +3,7 @@
     v-model:visible="open"
     trigger="click"
     placement="bottom-start"
-    :width="440"
+    width="min(440px, calc(100vw - 24px))"
     :disabled="disabled"
     popper-class="organization-selector-popper"
     @show="ensureOrganizations"
@@ -408,10 +408,12 @@ watch(() => props.types, () => void loadOrganizations(true), { deep: true })
 
 <style scoped>
 .organization-selector-trigger {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   width: 100%;
   height: 32px;
   min-height: 32px;
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8px;

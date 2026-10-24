@@ -143,6 +143,11 @@
           <div class="purchases-table-region">
               <el-table
                 ref="purchasesTableRef"
+                tabindex="0"
+                :aria-label="t('purchases.title')"
+                :aria-description="t('common.labels.arrowNavigation')"
+                @keydown="tableNavigation.onKeydown"
+                @row-click="tableNavigation.onRowClick"
                 v-loading="purchasesLoading"
                 :data="purchases"
                 class="w-full"
@@ -237,6 +242,7 @@
 </template>
 
 <script setup lang="ts">
+import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
 import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
@@ -287,6 +293,11 @@ const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
 const purchasesLoading = ref(false)
+const tableNavigation = useTableArrowNavigation({
+  rows: purchases, selected: selectedPurchase, busy: purchasesLoading,
+  root: () => purchasesTableRef.value?.$el as HTMLElement | undefined,
+  select: (row) => selectPurchase(row),
+})
 const contentLoading = ref(false)
 const isSettingCurrentPurchase = ref(false)
 const createPurchaseDialogOpen = ref(false)
@@ -448,6 +459,8 @@ async function selectPurchase(purchase?: PurchaseModel): Promise<boolean> {
   isSettingCurrentPurchase.value = true
   try {
     await nextTick()
+    if (requestVersion !== contentRequestVersion) return false
+    isSettingCurrentPurchase.value = true
     purchasesTableRef.value?.setCurrentRow(purchase)
   } finally {
     isSettingCurrentPurchase.value = false
