@@ -36,7 +36,8 @@ jobs:
   route:
     needs: inspect
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Allow the Timeweb settle period, bounded DNS retries and HTTPS readiness check.
+    timeout-minutes: 20
     permissions:
       contents: read
       actions: read
