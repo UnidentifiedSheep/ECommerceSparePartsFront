@@ -195,7 +195,12 @@
   background: var(--app-primary-soft) !important;
 }
 
-.purchase-amount { color: #0f172a; font-weight: 750; }
+.purchase-amount {
+  color: #0f172a;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .purchases-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 
 @media (max-width: 1280px) {

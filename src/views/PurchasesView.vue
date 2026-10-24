@@ -173,7 +173,7 @@
                     {{ formatDate(row.purchaseDatetime) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="totalSum" width="106" align="right">
+                <el-table-column prop="totalSum" min-width="180" align="right">
                   <template #header><SortableColumnHeader :label="t('purchases.amount')" field="totalSum" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
                   <template #default="{ row }">
                     <span class="purchase-amount">{{ formatCurrency(row.totalSum, row.currency.currencySign) }}</span>
