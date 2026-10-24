@@ -158,7 +158,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
+import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { ArrowDown, ArrowRight, ArrowUp, Money } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
@@ -215,6 +216,8 @@ const isStorageStockLoading = ref(false)
 const isLoading = ref(false)
 let requestId = 0
 let stockRequestId = 0
+const previewDebounce = useSelectionDebounce()
+onScopeDispose(() => { requestId++; stockRequestId++ })
 
 const displayProducerName = computed(() => fullProduct.value?.producerName || props.producerName || '—')
 const displayStock = computed(() => fullProduct.value?.stock ?? props.product?.stock ?? 0)
@@ -281,10 +284,9 @@ async function loadStorageStock() {
 }
 
 async function loadPreview() {
-  if (!props.modelValue || !props.product) return
-
+  previewDebounce.cancel()
   const currentRequestId = ++requestId
-  isLoading.value = true
+  isLoading.value = Boolean(props.modelValue && props.product)
   fullProduct.value = null
   crosses.value = []
   stockRequestId += 1
@@ -293,6 +295,7 @@ async function loadPreview() {
   storageStockLoaded.value = false
   isStorageStockLoading.value = false
 
+  if (!props.modelValue || !props.product || !await previewDebounce.wait() || currentRequestId !== requestId) return
   try {
     const productResponse = await getProductById(props.product.id)
     if (currentRequestId !== requestId) return

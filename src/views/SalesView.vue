@@ -263,12 +263,13 @@
 </template>
 
 <script setup lang="ts">
+import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
 import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryStrings, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
 import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
 
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
@@ -335,6 +336,8 @@ const editingSaleId = ref<string>()
 const saleToEdit = ref<SaleModel>()
 const saleContentToEdit = ref<SaleContentModel[]>([])
 let contentRequestVersion = 0
+const contentDebounce = useSelectionDebounce()
+onScopeDispose(() => { ++contentRequestVersion })
 
 const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(() => [
   { label: t('sales.states.Draft'), value: 'Draft' },
@@ -491,6 +494,7 @@ async function loadSales(resetPage: boolean, navigation?: { page: number; direct
       const nextSelectedSale = resp.sales.find((sale) => sale.id === selectedSale.value?.id)
       selectedSale.value = nextSelectedSale
       if (!nextSelectedSale) {
+        contentDebounce.cancel()
         ++contentRequestVersion
         saleContent.value = []
         contentLoading.value = false
@@ -530,6 +534,7 @@ async function removeSale(sale: SaleModel) {
     ElMessage.success(t('sales.deleted'))
 
     if (selectedSale.value?.id === sale.id) {
+      contentDebounce.cancel()
       ++contentRequestVersion
       selectedSale.value = undefined
       saleContent.value = []
@@ -588,7 +593,8 @@ async function handleCurrentSaleChange(sale?: SaleModel) {
   await selectSale(sale)
 }
 
-async function selectSale(sale?: SaleModel) {
+async function selectSale(sale?: SaleModel, immediate = false) {
+  contentDebounce.cancel()
   const requestVersion = ++contentRequestVersion
   selectedSale.value = sale
   isSettingCurrentSale.value = true
@@ -609,6 +615,8 @@ async function selectSale(sale?: SaleModel) {
 
   contentLoading.value = true
   saleContent.value = []
+  if (!immediate && !await contentDebounce.wait()) return
+  if (requestVersion !== contentRequestVersion) return
   try {
     const resp = await getSaleContent(sale.id)
     if (requestVersion === contentRequestVersion) saleContent.value = resp.contents

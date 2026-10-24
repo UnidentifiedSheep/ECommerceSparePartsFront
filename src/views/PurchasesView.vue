@@ -242,12 +242,13 @@
 </template>
 
 <script setup lang="ts">
+import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
 import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
 import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
 
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
@@ -308,6 +309,8 @@ const deletingPurchaseId = ref<string>()
 const productSelectorOpen = ref(false)
 const filtersDrawerOpen = ref(false)
 let contentRequestVersion = 0
+const contentDebounce = useSelectionDebounce()
+onScopeDispose(() => { ++contentRequestVersion })
 const { hasPermission } = usePermissions()
 const canCreatePurchases = computed(() => hasPermission('PURCHASE_CREATE'))
 const canEditPurchases = computed(() => hasPermission('PURCHASE_EDIT'))
@@ -449,6 +452,7 @@ async function loadPurchases(resetPage: boolean, navigation?: { page: number; di
       const nextSelectedPurchase = resp.purchases.find((purchase) => purchase.id === selectedPurchase.value?.id)
       selectedPurchase.value = nextSelectedPurchase
       if (!nextSelectedPurchase) {
+        contentDebounce.cancel()
         ++contentRequestVersion
         purchaseContent.value = []
         contentLoading.value = false
@@ -474,7 +478,8 @@ async function handleCurrentPurchaseChange(purchase?: PurchaseModel) {
   await selectPurchase(purchase)
 }
 
-async function selectPurchase(purchase?: PurchaseModel): Promise<boolean> {
+async function selectPurchase(purchase?: PurchaseModel, immediate = false): Promise<boolean> {
+  contentDebounce.cancel()
   const requestVersion = ++contentRequestVersion
   selectedPurchase.value = purchase
   isSettingCurrentPurchase.value = true
@@ -495,6 +500,8 @@ async function selectPurchase(purchase?: PurchaseModel): Promise<boolean> {
 
   contentLoading.value = true
   purchaseContent.value = []
+  if (!immediate && !await contentDebounce.wait()) return false
+  if (requestVersion !== contentRequestVersion) return false
   try {
     const resp = await getPurchaseContent(purchase.id)
     if (requestVersion === contentRequestVersion) purchaseContent.value = resp.content
@@ -515,7 +522,7 @@ async function openEditPurchase(purchase: PurchaseModel) {
 
   editPurchaseLoadingId.value = purchase.id
   try {
-    if (await selectPurchase(purchase)) editPurchaseDialogOpen.value = true
+    if (await selectPurchase(purchase, true)) editPurchaseDialogOpen.value = true
   } finally {
     editPurchaseLoadingId.value = undefined
   }
@@ -562,6 +569,7 @@ async function removePurchase(purchase: PurchaseModel) {
     ElMessage.success(t('purchases.removed'))
 
     if (selectedPurchase.value?.id === purchase.id) {
+      contentDebounce.cancel()
       ++contentRequestVersion
       selectedPurchase.value = undefined
       purchaseContent.value = []
