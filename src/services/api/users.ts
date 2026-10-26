@@ -1,14 +1,22 @@
-import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
-import { PhoneType } from '@/enums/phoneType.ts'
-import type { StorageModel } from '@/models/storageModel.ts'
+import { PhoneType } from '@/enums/phoneType'
+import { StorageType } from '@/enums/storageType'
+import type { StorageModel } from '@/models/storageModel'
+import type { OrganizationModel, OrganizationType } from '@/models/organizationModel'
+import type { UserInfoModel, UserModel } from '@/models/userModel'
+import api, { clampPageSize } from './api'
+import { graphqlClient } from '@/services/graphql/client'
+import { mapGqlUser, mapGqlOrganization } from '@/services/graphql/partyMapping'
+import { organizationsInput } from './organizations'
+import { useAuthStore } from '@/stores/authStore'
 import {
-  mapOrganizationListItemModel,
-  type OrganizationListItemDto,
-  type OrganizationModel,
-  type OrganizationType,
-} from '@/models/organizationModel.ts'
-import { mapUserModel, type UserInfoModel, type UserModel } from '@/models/userModel.ts'
-import api, { clampPageSize } from '@/services/api/api.ts'
+  UserPreviewDocument, ListOrganizationsDocument, ListUsersDocument, SearchUsersDocument, UserDetailsDocument, UserStoragesDocument,
+  CreateUserDocument, EditUserInfoDocument, AddUserEmailDocument, RemoveUserEmailDocument,
+  RequestUserEmailVerificationDocument, RequestMyEmailVerificationDocument,
+  MakeUserEmailPrimaryDocument, MakeMyEmailPrimaryDocument,
+  AddUserRolesDocument, RemoveUserRolesDocument, AddUserPermissionsDocument, RemoveUserPermissionsDocument,
+  AddUserStorageDocument, RemoveUserStorageDocument,
+  type GetUsersInput, type EmailType as GqlEmailType, type PhoneType as GqlPhoneType,
+} from '@/graphql/generated/graphql'
 
 export interface GetUsersRequest {
   searchTerm?: string
@@ -20,10 +28,8 @@ export interface GetUsersRequest {
   userName?: string
   roles?: string[]
   description?: string
-  similarityLevel?: number
   page: number
   limit: number
-  searchMethod: GeneralSearchStrategy
 }
 
 export interface GetUsersResponse {
@@ -105,6 +111,7 @@ export interface GetUserFullInfoResponse {
   phones: UserPhoneModel[]
   roles: string[]
   permissions: string[]
+  storages: StorageModel[]
 }
 
 export interface GetUserStoragesResponse {
@@ -124,10 +131,6 @@ export interface GetUserOrganizationsResponse {
   organizations: OrganizationModel[]
 }
 
-export interface GetUserDiscountResponse {
-  discount: number
-}
-
 export interface AddStorageToUserRequest {
   userId: string
   storageCode: string
@@ -136,11 +139,6 @@ export interface AddStorageToUserRequest {
 export interface RemoveStorageFromUserRequest {
   userId: string
   storageCode: string
-}
-
-export interface ChangeUserDiscountRequest {
-  userId: string
-  newDiscountRate: number
 }
 
 export interface AddPermissionToUserRequest {
@@ -166,185 +164,119 @@ export interface AddEmailToUserRequest {
   emailType: EmailType
 }
 
-export interface AddEmailToUserResponse {
-  email: UserEmailModel
-}
-
 export interface RequestUserEmailVerificationRequest {
   userId: string
   email: string
 }
 
 export async function getUsers(req: GetUsersRequest): Promise<GetUsersResponse> {
-  const params = new URLSearchParams()
-  const appendParam = (key: string, value: unknown) => {
-    if (value === undefined || value === null || value === '') return
-    params.append(key, String(value))
-  }
-
-  appendParam('searchTerm', req.searchTerm)
-  appendParam('id', req.id)
-  appendParam('name', req.name)
-  appendParam('surname', req.surname)
-  appendParam('email', req.email)
-  appendParam('phone', req.phone)
-  appendParam('userName', req.userName)
-  req.roles?.forEach((role) => appendParam('roles', role))
-  appendParam('description', req.description)
-  appendParam('similarityLevel', req.similarityLevel)
-  appendParam('page', req.page)
-  appendParam('size', clampPageSize(req.limit))
-  appendParam('searchMethod', req.searchMethod)
-
-  const resp = await api.get<{ users: UserModel[] }>('/main/users', {
-    params,
-  })
-  const size = clampPageSize(req.limit)
-  // The backend Similarity search returns all matches without applying pagination.
-  const start = req.searchMethod === GeneralSearchStrategy.Similarity ? req.page * size : 0
-  const users = req.searchMethod === GeneralSearchStrategy.Similarity
-    ? resp.data.users.slice(start, start + size)
-    : resp.data.users
-  return {
-    users: users.map(mapUserModel),
-    hasNext: req.searchMethod === GeneralSearchStrategy.Similarity
-      ? resp.data.users.length > start + size
-      : users.length === size,
-  }
+  const pagination = { page: req.page, size: clampPageSize(req.limit) }
+  const { searchTerm, id, name, surname, userName, email, phone, description, roles } = req
+  const fields = { id, name, surname, userName, email, phone, description, roles }
+  // Column filters take precedence over the retained general search.
+  const filtered = [fields.id, fields.name, fields.surname, fields.userName, fields.email, fields.phone, fields.description].some(value => value?.trim())
+  const term = searchTerm?.trim()
+  const users = term && !filtered
+    ? (await graphqlClient.query({ query: SearchUsersDocument, variables: { input: { searchTerm: term, roles: req.roles, pagination } }, fetchPolicy: 'no-cache' })).data.users.search
+    : (await graphqlClient.query({ query: ListUsersDocument, variables: { input: { ...fields, pagination } satisfies GetUsersInput }, fetchPolicy: 'no-cache' })).data.users.list
+  return { users: users.map(mapGqlUser), hasNext: users.length === pagination.size }
 }
-
 export async function createUser(req: CreateUserRequest): Promise<CreateUserResponse> {
-  const resp = await api.post<{ user: UserModel }>('/main/users', req)
-
-  return {
-    user: mapUserModel(resp.data.user),
-  }
+  const { data } = await graphqlClient.mutate({ mutation: CreateUserDocument, variables: { input: {
+    ...req,
+    emails: req.emails.map(email => ({ ...email, type: email.type.toUpperCase() as GqlEmailType })),
+    phones: req.phones.map(phone => ({ ...phone, type: phone.type.toUpperCase() as GqlPhoneType })),
+  } } })
+  if (!data) throw new Error('User creation returned no data')
+  return { user: mapGqlUser(data.users.create) }
 }
-
 export async function editUserInfo(req: EditUserInfoRequest): Promise<EditUserInfoResponse> {
-  const resp = await api.put<EditUserInfoResponse>(`/main/users/${req.userId}/info`, {
-    userInfo: req.userInfo,
-  })
-  return resp.data
+  const { data } = await graphqlClient.mutate({ mutation: EditUserInfoDocument, variables: { input: req } })
+  if (!data?.users.editInfo.info) throw new Error('User update returned no profile')
+  return { userInfo: { ...data.users.editInfo.info, description: data.users.editInfo.info.description ?? undefined } }
 }
-
 export async function getEmailOptions(): Promise<GetEmailOptionsResponse> {
-  const resp = await api.get<GetEmailOptionsResponse>('/main/options/emails')
-  return resp.data
+  // Email constraints are not exposed by the GraphQL schema yet.
+  return (await api.get<GetEmailOptionsResponse>('/main/options/emails')).data
 }
-
-export async function getUserFullInfo(userId: string): Promise<GetUserFullInfoResponse> {
-  const resp = await api.get<{
-    user: UserModel
-    emails: UserEmailModel[]
-    phones?: UserPhoneModel[]
-    roles: string[]
-    permissions: string[]
-  }>(`/main/users/${userId}/info`)
-
+export async function getUserFullInfo(userId: string, withStorages = false): Promise<GetUserFullInfoResponse> {
+  const permissions = useAuthStore().user?.permissions ?? []
+  const includeInfo = permissions.some(permission => permission.trim().replace(/[._]/g, '').toUpperCase() === 'USERSINFOGET')
+  const includeStorages = withStorages && permissions.some(permission => permission.trim().replace(/[._]/g, '').toUpperCase() === 'USERSSTORAGESGET')
+  const { data } = await graphqlClient.query({ query: UserDetailsDocument, variables: { id: userId, includeInfo, includeStorages }, fetchPolicy: 'no-cache' })
+  const user = data.users.byId
+  if (!user) throw new Error('User not found')
+  const phoneTypes = { MOBILE: PhoneType.Mobile, WORK: PhoneType.Work, HOME: PhoneType.Home, UNKNOWN: PhoneType.Unknown }
+  const emailTypes = { PERSONAL: 'Personal', WORK: 'Work', UNKNOWN: 'Unknown' }
   return {
-    user: mapUserModel(resp.data.user),
-    emails: resp.data.emails,
-    phones: resp.data.phones ?? [],
-    roles: resp.data.roles,
-    permissions: resp.data.permissions,
+    user: mapGqlUser(user),
+    storages: user.storages?.map(mapGqlStorage) ?? [],
+    emails: user.emails?.map(email => ({ ...email, emailType: emailTypes[email.emailType] })) ?? [],
+    phones: user.phones?.map(phone => ({ ...phone, type: phoneTypes[phone.type] })) ?? [],
+    roles: user.roles?.map(role => role.systemName) ?? [],
+    permissions: user.permissions?.map(permission => permission.systemName) ?? [],
   }
 }
-
-export async function getUserStorages(userId: string, page = 0, limit = 100): Promise<GetUserStoragesResponse> {
-  const resp = await api.get<GetUserStoragesResponse>(`/main/users/${userId}/storages`, {
-    params: { page, limit: clampPageSize(limit) },
-  })
-  return resp.data
+export async function getUserStorages(userId: string): Promise<GetUserStoragesResponse> {
+  const { data } = await graphqlClient.query({ query: UserStoragesDocument, variables: { id: userId }, fetchPolicy: 'no-cache' })
+  if (!data.users.byId) throw new Error('User not found')
+  return { storages: data.users.byId.storages.map(mapGqlStorage) }
 }
-
-export async function getUserOrganizations(
-  userId: string,
-  req: GetUserOrganizationsRequest,
-): Promise<GetUserOrganizationsResponse> {
-  const params = new URLSearchParams()
-  if (req.searchTerm?.trim()) params.append('searchTerm', req.searchTerm.trim())
-  req.ids?.forEach((id) => params.append('ids', id))
-  req.types?.forEach((type) => params.append('types', type))
-  params.append('page', String(req.page))
-  params.append('limit', String(clampPageSize(req.limit)))
-  req.sortBy?.forEach((sort) => params.append('sortBy', sort))
-
-  const response = await api.get<{ organizations: OrganizationListItemDto[] }>(`/main/users/${userId}/organizations`, { params })
-  return {
-    organizations: response.data.organizations.map(mapOrganizationListItemModel),
-  }
+export async function getUserOrganizations(userId: string, req: GetUserOrganizationsRequest): Promise<GetUserOrganizationsResponse> {
+  const input = organizationsInput(req)
+  // The root list supports the same user filter and avoids requiring USERS_GET.
+  const { data } = await graphqlClient.query({ query: ListOrganizationsDocument, variables: { input: { ...input, userId } }, fetchPolicy: 'no-cache' })
+  return { organizations: data.organizations.list.map(mapGqlOrganization) }
 }
-
-export async function getUserDiscount(userId: string): Promise<GetUserDiscountResponse> {
-  const resp = await api.get<GetUserDiscountResponse>(`/main/users/${userId}/discount`)
-  return resp.data
+export async function addPermissionToUser(req: AddPermissionToUserRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: AddUserPermissionsDocument, variables: { input: { userId: req.userId, permissions: [req.permission] } } })
 }
-
-export async function changeUserDiscount(req: ChangeUserDiscountRequest) {
-  await api.patch(`/main/users/${req.userId}/discount`, {
-    newDiscountRate: req.newDiscountRate,
-  })
+export async function removePermissionFromUser(req: AddPermissionToUserRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: RemoveUserPermissionsDocument, variables: { input: { userId: req.userId, permissions: [req.permission] } } })
 }
-
-export async function addPermissionToUser(req: AddPermissionToUserRequest) {
-  await api.post(`/main/users/${req.userId}/permissions/`, {
-    permission: req.permission,
-  })
+export async function addRoleToUser(req: AddRoleToUserRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: AddUserRolesDocument, variables: { input: { userId: req.userId, roles: [req.roleName] } } })
 }
-
-export async function addRoleToUser(req: AddRoleToUserRequest) {
-  await api.post(`/main/users/${req.userId}/roles/`, {
-    role: req.roleName,
-  })
+export async function removeRoleFromUser(req: AddRoleToUserRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: RemoveUserRolesDocument, variables: { input: { userId: req.userId, roles: [req.roleName] } } })
 }
-
-export async function removeRoleFromUser(req: AddRoleToUserRequest) {
-  await api.delete(`/main/users/${req.userId}/roles/${encodeURIComponent(req.roleName)}`)
+export async function removeEmailFromUser(req: RemoveEmailFromUserRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: RemoveUserEmailDocument, variables: { input: req } })
 }
-
-export async function removePermissionFromUser(req: AddPermissionToUserRequest) {
-  await api.delete(`/main/users/${req.userId}/permissions/${encodeURIComponent(req.permission)}`)
+export async function requestUserEmailVerification(req: RequestUserEmailVerificationRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: RequestUserEmailVerificationDocument, variables: { input: req } })
 }
-
-export async function removeEmailFromUser(req: RemoveEmailFromUserRequest) {
-  await api.delete(`/main/users/${req.userId}/emails/${encodeURIComponent(req.email)}`)
+export async function makeUserEmailPrimary(req: RequestUserEmailVerificationRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: MakeUserEmailPrimaryDocument, variables: { input: req } })
 }
-
-export async function addEmailToUser(req: AddEmailToUserRequest): Promise<AddEmailToUserResponse> {
-  const response = await api.post<AddEmailToUserResponse>(`/main/users/${req.userId}/emails`, {
-    email: req.email,
-    emailType: req.emailType,
-  })
-  return response.data
+export async function addStorageToUser(req: AddStorageToUserRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: AddUserStorageDocument, variables: { input: req } })
 }
-
-export async function requestUserEmailVerification(
-  req: RequestUserEmailVerificationRequest,
-): Promise<void> {
-  await api.post(
-    `/main/users/${req.userId}/emails/${encodeURIComponent(req.email)}/verification/request`,
-  )
+export async function removeStorageFromUser(req: RemoveStorageFromUserRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: RemoveUserStorageDocument, variables: { input: req } })
 }
-
+export async function addEmailToUser(req: AddEmailToUserRequest): Promise<void> {
+  await graphqlClient.mutate({ mutation: AddUserEmailDocument, variables: { input: { userId: req.userId, email: req.email, type: req.emailType.toUpperCase() as GqlEmailType } } })
+}
 export async function requestMyEmailVerification(email: string): Promise<void> {
-  await api.post(`/main/users/me/emails/${encodeURIComponent(email)}/verification/request`)
+  await graphqlClient.mutate({ mutation: RequestMyEmailVerificationDocument, variables: { email } })
 }
-
-export async function makeUserEmailPrimary(
-  req: RequestUserEmailVerificationRequest,
-): Promise<void> {
-  await api.put(`/main/users/${req.userId}/emails/${encodeURIComponent(req.email)}/primary`)
-}
-
 export async function makeMyEmailPrimary(email: string): Promise<void> {
-  await api.put(`/main/users/me/emails/${encodeURIComponent(email)}/primary`)
+  await graphqlClient.mutate({ mutation: MakeMyEmailPrimaryDocument, variables: { email } })
 }
 
-export async function addStorageToUser(req: AddStorageToUserRequest) {
-  await api.post(`/main/users/${req.userId}/storages/${req.storageCode}`)
+function mapGqlStorage(storage: { code: string; type: 'WAREHOUSE' | 'SUPPLIER_STORAGE'; location?: string | null; description?: string | null }): StorageModel {
+  return { ...storage, location: storage.location ?? undefined, description: storage.description ?? undefined, type: storage.type === 'WAREHOUSE' ? StorageType.Warehouse : StorageType.SupplierStorage }
 }
 
-export async function removeStorageFromUser(req: RemoveStorageFromUserRequest) {
-  await api.delete(`/main/users/${req.userId}/storages/${req.storageCode}`)
+export async function getUserPreview(userId: string) {
+  const includeRoles = (useAuthStore().user?.permissions ?? []).some(permission => permission.trim().replace(/[._]/g, '').toUpperCase() === 'USERSINFOGET')
+  const { data } = await graphqlClient.query({ query: UserPreviewDocument, variables: { id: userId, includeRoles }, fetchPolicy: 'no-cache' })
+  const user = data.users.byId
+  if (!user) throw new Error('User not found')
+  return {
+    user: mapGqlUser(user),
+    roles: user.roles?.map(role => role.systemName) ?? [],
+    roleLabels: Object.fromEntries(user.roles?.map(role => [role.systemName, role.localizedName || role.systemName]) ?? []),
+  }
 }

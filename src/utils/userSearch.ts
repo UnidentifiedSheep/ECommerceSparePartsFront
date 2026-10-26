@@ -1,4 +1,3 @@
-import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
 
 export const userSearchFields = ['surname', 'name', 'userName', 'email', 'phone'] as const
 export type UserSearchField = typeof userSearchFields[number]
@@ -13,7 +12,7 @@ export function buildUserSearch(searchTerm: string | undefined, filters: UserSea
   return {
     fieldSearch,
     request: fieldSearch
-      ? { searchMethod: GeneralSearchStrategy.Similarity, ...fields }
-      : { searchMethod: GeneralSearchStrategy.General, searchTerm: searchTerm?.trim() || undefined },
+      ? { ...fields }
+      : { searchTerm: searchTerm?.trim() || undefined },
   }
 }

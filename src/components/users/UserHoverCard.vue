@@ -60,8 +60,7 @@
 import { computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UserModel } from '@/models/userModel.ts'
-import { getUserFullInfo } from '@/services/api/users.ts'
-import { getRoles, type RoleModel } from '@/services/api/roles.ts'
+import { getUserPreview } from '@/services/api/users.ts'
 import { useI18n } from '@/i18n'
 
 const props = withDefaults(defineProps<{
@@ -86,8 +85,7 @@ interface UserHoverState {
 
 const userCache = reactive<Record<string, UserHoverState>>({})
 
-let rolesPromise: Promise<RoleModel[]> | undefined
-const rolesBySystemName = new Map<string, RoleModel>()
+const rolesBySystemName = new Map<string, string>()
 
 const targetUserId = computed(() => props.user?.id ?? props.userId)
 const emptyState: UserHoverState = { loading: false, roles: [] }
@@ -114,25 +112,9 @@ const initials = computed(() => {
 const displayRoles = computed(() => (
   state.value.roles.map((role) => {
     const roleInfo = rolesBySystemName.get(role)
-    return roleInfo?.localizedName || roleInfo?.systemName || role
+    return roleInfo || role
   })
 ))
-
-async function loadRolesOnce() {
-  if (rolesBySystemName.size > 0) return
-
-  if (!rolesPromise) {
-    rolesPromise = getRoles({ page: 0, size: 100 })
-      .then((response) => response.roles)
-      .finally(() => {
-        rolesPromise = undefined
-      })
-  }
-
-  const roles = await rolesPromise
-  rolesBySystemName.clear()
-  roles.forEach((role) => rolesBySystemName.set(role.systemName, role))
-}
 
 async function loadUser() {
   const id = targetUserId.value
@@ -149,10 +131,8 @@ async function loadUser() {
 
   currentState.loading = true
   try {
-    const [response] = await Promise.all([
-      getUserFullInfo(id),
-      loadRolesOnce(),
-    ])
+    const response = await getUserPreview(id)
+    Object.entries(response.roleLabels).forEach(([role, label]) => rolesBySystemName.set(role, label))
     currentState.user = response.user
     currentState.roles = response.roles
   } catch (error) {

@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { useFormDisabled, type SelectV2Instance } from 'element-plus'
 import CreateProducerDialog from '@/components/producers/CreateProducerDialog.vue'
@@ -51,7 +51,7 @@ const producerId = defineModel<number | undefined>()
 const { t } = useI18n()
 const resolvedPlaceholder = computed(() => props.placeholder ?? t('products.selectProducer'))
 const selectedIds = computed(() => producerId.value === undefined ? [] : [producerId.value])
-const { options, loading, loadError, search, onVisibleChange, popperClass, loadMore, canRetry, query, canCreateForQuery, rememberProducer } = useProducerSelectOptions(selectedIds)
+const { options, loading, loadError, search, onVisibleChange, popperClass, loadMore, canRetry, query, canCreateForQuery, rememberProducer, autoSelectId } = useProducerSelectOptions(selectedIds)
 const { hasPermission } = usePermissions()
 const canCreate = computed(() => hasPermission('PRODUCERS_CREATE'))
 const isDisabled = useFormDisabled()
@@ -59,6 +59,18 @@ const canOfferCreation = computed(() => props.allowCreate && canCreate.value && 
 const selectRef = ref<SelectV2Instance>()
 const createDialogOpen = ref(false)
 const createName = ref('')
+
+watch(autoSelectId, async (id) => {
+  if (id === undefined || isDisabled.value || createDialogOpen.value) return
+  const hadFocus = selectRef.value?.$el.contains(document.activeElement)
+  producerId.value = id
+  await nextTick()
+  if (hadFocus && producerId.value === id) {
+    selectRef.value?.blur()
+    await nextTick()
+    selectRef.value?.focus()
+  }
+})
 
 function openCreateDialog() {
   if (!canOfferCreation.value) return

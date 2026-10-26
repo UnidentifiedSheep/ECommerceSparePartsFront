@@ -74,7 +74,6 @@ import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import UserSelector from '@/components/selectors/UserSelector.vue'
-import { GeneralSearchStrategy } from '@/enums/generalSearchStrategy.ts'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageRouteModel } from '@/models/storageRouteModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
@@ -145,7 +144,6 @@ async function fillForm(route: StorageRouteModel) {
       id: route.carrierId,
       page: 0,
       limit: 1,
-      searchMethod: GeneralSearchStrategy.General,
     })
     if (isOpen.value && props.route?.id === route.id) {
       form.carrier = resp.users[0]

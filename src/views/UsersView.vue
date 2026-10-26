@@ -11,7 +11,8 @@
         <div class="users-filter-toolbar">
           <div class="users-filter-toolbar__search">
             <label for="users-general-search" class="users-field-label">{{ t('common.labels.search') }}</label>
-            <el-input id="users-general-search" v-model="searchTerm" clearable :disabled="userSearch.fieldSearch" :placeholder="t('users.searchPlaceholder')" :aria-describedby="userSearch.fieldSearch ? 'users-search-mode-hint' : undefined" />
+            <el-input id="users-general-search" v-model="searchTerm"
+              :maxlength="200" clearable :disabled="userSearch.fieldSearch" :placeholder="t('users.searchPlaceholder')" :aria-describedby="userSearch.fieldSearch ? 'users-search-mode-hint' : undefined" />
             <p v-if="userSearch.fieldSearch" id="users-search-mode-hint" class="users-search-hint" role="status">{{ t('users.fieldSearchHint') }}</p>
           </div>
           <div class="users-filter-toolbar__roles">
@@ -62,6 +63,7 @@
             ref="usersTableRef"
             v-loading="usersLoading"
             :data="users"
+            row-key="id"
             class="users-table"
             height="100%"
             highlight-current-row
@@ -115,12 +117,7 @@
             </div>
 
             <div v-loading="detailsLoading" class="users-details-scroll">
-                  <div class="grid grid-cols-2 gap-3 pb-4">
-                    <div class="rounded-lg border border-slate-200 bg-white p-4">
-                      <div class="text-sm font-medium text-slate-600">{{ t('users.discount') }}</div>
-                      <div class="mt-2 text-2xl font-semibold text-slate-900">{{ discountText }}</div>
-                      <el-button class="mt-3" size="small" @click="discountDialogOpen = true">{{ t('common.actions.change') }}</el-button>
-                    </div>
+                  <div class="grid gap-3 pb-4">
                     <div class="rounded-lg border border-slate-200 bg-white p-4">
                       <div class="flex items-center justify-between gap-2">
                         <div class="text-sm font-medium text-slate-600">{{ t('common.labels.roles') }}</div>
@@ -570,18 +567,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="discountDialogOpen" :title="t('users.editDiscount')" width="420">
-      <el-form label-position="top">
-        <el-form-item :label="t('users.newDiscount')">
-          <el-input-number v-model="discountFormValue" :min="0" :max="99" :precision="2" class="w-full" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="discountDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="saveDiscount">{{ t('common.actions.save') }}</el-button>
-      </template>
-    </el-dialog>
-
     <el-dialog v-model="editInfoDialogOpen" :title="t('users.editInfo')" width="560">
       <el-form label-position="top">
         <div class="grid grid-cols-2 gap-4">
@@ -683,8 +668,9 @@
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryStrings, queryPage, querySize } from '@/utils/listQuery'
 import { toRef } from 'vue'
+import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
 
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, reactive, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
@@ -710,15 +696,13 @@ import {
   addPermissionToUser,
   addRoleToUser,
   addStorageToUser,
-  changeUserDiscount,
   createUser,
   editUserInfo,
   getEmailOptions,
-  getUserDiscount,
   getUserFullInfo,
+  getUserStorages,
   getUserOrganizations,
   getUsers,
-  getUserStorages,
   makeUserEmailPrimary,
   removeEmailFromUser,
   requestUserEmailVerification,
@@ -803,7 +787,6 @@ const userOrganizationsPage = ref(0)
 const userOrganizationsHasNext = ref(false)
 const userOrganizationsLoading = ref(false)
 const userOrganizationsError = ref('')
-const userDiscount = ref<number>(0)
 const permissionsCatalog = ref<PermissionModel[]>([])
 const openDetailsSections = ref<string[]>([])
 let permissionsCatalogRequestId = 0
@@ -812,7 +795,6 @@ let rolesRequestId = 0
 const allStorages = ref<StorageModel[]>([])
 const storageDialogOpen = ref(false)
 const storageToAttach = ref<string>()
-const discountDialogOpen = ref(false)
 const editInfoDialogOpen = ref(false)
 const permissionDialogOpen = ref(false)
 const roleDialogOpen = ref(false)
@@ -824,7 +806,6 @@ const permissionAttachLoading = ref(false)
 const roleAttachLoading = ref(false)
 const editInfoSaving = ref(false)
 const removingEmail = ref('')
-const discountFormValue = ref<number>(0)
 const permissionToAttach = ref('')
 const roleToAttach = ref('')
 const createUserDialogOpen = ref(false)
@@ -861,7 +842,6 @@ const editInfoForm = reactive({
   description: '',
 })
 
-const discountText = computed(() => `${(userDiscount.value * 100).toFixed(2)}%`)
 const filledCreateUserEmails = computed(() => (
   createUserForm.emails.filter((email) => email.email.trim() !== '')
 ))
@@ -1291,7 +1271,7 @@ async function loadUsers(resetPage: boolean) {
     if (selectedUser.value) {
       const nextSelectedUser = resp.users.find((user) => user.id === selectedUser.value?.id)
       selectedUser.value = nextSelectedUser
-      if (!nextSelectedUser) clearDetails()
+      if (!nextSelectedUser) void selectUser()
     }
   } finally {
     if (requestId === usersRequestId) usersLoading.value = false
@@ -1299,6 +1279,8 @@ async function loadUsers(resetPage: boolean) {
 }
 
 function clearDetails() {
+  ++userOrganizationsRequestId
+  userOrganizationsLoading.value = false
   userRoles.value = []
   userPermissions.value = []
   userEmails.value = []
@@ -1308,40 +1290,44 @@ function clearDetails() {
   userOrganizationsPage.value = 0
   userOrganizationsHasNext.value = false
   userOrganizationsError.value = ''
-  userDiscount.value = 0
   openDetailsSections.value = []
 }
 
+let detailsRequestId = 0
+let userOrganizationsRequestId = 0
+let settingCurrentUser = false
+const detailsDebounce = useSelectionDebounce()
+onScopeDispose(() => { ++detailsRequestId; ++userOrganizationsRequestId })
+
 async function selectUser(user?: UserModel) {
+  if (settingCurrentUser || (user && user.id === selectedUser.value?.id)) return
+  detailsDebounce.cancel()
+  const requestId = ++detailsRequestId
   selectedUser.value = user
-  await nextTick()
-  usersTableRef.value?.setCurrentRow(user)
-
-  if (!user) {
-    clearDetails()
-    return
-  }
-
-  detailsLoading.value = true
+  clearDetails()
+  settingCurrentUser = true
   try {
-    const [fullInfo, storages, discount] = await Promise.all([
-      getUserFullInfo(user.id),
-      getUserStorages(user.id),
-      getUserDiscount(user.id),
-      loadUserOrganizations(user.id, true),
-    ])
-
+    await nextTick()
+    if (requestId !== detailsRequestId) return
+    usersTableRef.value?.setCurrentRow(user)
+  } finally {
+    settingCurrentUser = false
+  }
+  if (!user) { detailsLoading.value = false; return }
+  detailsLoading.value = true
+  if (!await detailsDebounce.wait() || requestId !== detailsRequestId) return
+  try {
+    const fullInfo = await getUserFullInfo(user.id, true)
+    if (requestId !== detailsRequestId) return
     selectedUser.value = fullInfo.user
     userRoles.value = fullInfo.roles
     userPermissions.value = fullInfo.permissions
     userEmails.value = fullInfo.emails
     userPhones.value = fullInfo.phones
-    userStorages.value = storages.storages
-    userDiscount.value = discount.discount
-    discountFormValue.value = discount.discount * 100
-    openDetailsSections.value = []
+    userStorages.value = fullInfo.storages
+    void loadUserOrganizations(user.id, true)
   } finally {
-    detailsLoading.value = false
+    if (requestId === detailsRequestId) detailsLoading.value = false
   }
 }
 
@@ -1356,6 +1342,7 @@ async function loadUserOrganizations(userId: string, reset: boolean) {
   }
   if (!userOrganizationsHasNext.value) return
 
+  const requestId = ++userOrganizationsRequestId
   userOrganizationsLoading.value = true
   try {
     const response = await getUserOrganizations(userId, {
@@ -1363,15 +1350,17 @@ async function loadUserOrganizations(userId: string, reset: boolean) {
       limit: 10,
       sortBy: ['Name'],
     })
+    if (requestId !== userOrganizationsRequestId || selectedUser.value?.id !== userId) return
     const existingIds = new Set(userOrganizations.value.map((organization) => organization.id))
     userOrganizations.value.push(...response.organizations.filter((organization) => !existingIds.has(organization.id)))
     userOrganizationsHasNext.value = response.organizations.length === 10
     userOrganizationsPage.value += 1
   } catch {
+    if (requestId !== userOrganizationsRequestId || selectedUser.value?.id !== userId) return
     userOrganizationsHasNext.value = false
     userOrganizationsError.value = t('users.organizationsLoadError')
   } finally {
-    userOrganizationsLoading.value = false
+    if (requestId === userOrganizationsRequestId) userOrganizationsLoading.value = false
   }
 }
 
@@ -1387,7 +1376,10 @@ function openOrganization(organizationId: string) {
 async function reloadSelectedUserFullInfo() {
   if (!selectedUser.value) return
 
-  const fullInfo = await getUserFullInfo(selectedUser.value.id)
+  const userId = selectedUser.value.id
+  const requestId = detailsRequestId
+  const fullInfo = await getUserFullInfo(userId)
+  if (requestId !== detailsRequestId || selectedUser.value?.id !== userId) return
   selectedUser.value = fullInfo.user
   users.value = users.value.map((user) => (user.id === fullInfo.user.id ? fullInfo.user : user))
   userRoles.value = fullInfo.roles
@@ -1665,7 +1657,7 @@ async function confirmRemovePermission(permission: string) {
     userId: selectedUser.value.id,
     permission,
   })
-  userPermissions.value = userPermissions.value.filter((item) => item !== permission)
+  await reloadSelectedUserFullInfo()
   ElNotification({
     title: t('common.labels.success'),
     message: t('users.permissionRemoved'),
@@ -1714,15 +1706,12 @@ async function saveUserEmail() {
   const emailType = addEmailForm.emailType
   addingEmail.value = true
   try {
-    const response = await addEmailToUser({
+    await addEmailToUser({
       userId: selectedUser.value.id,
       email,
       emailType,
     })
-    userEmails.value = [
-      ...userEmails.value,
-      response.email,
-    ]
+    await reloadSelectedUserFullInfo()
     addEmailDialogOpen.value = false
     ElNotification({
       title: t('common.labels.success'),
@@ -1829,23 +1818,6 @@ async function detachStorage(storageCode: string) {
   userStorages.value = userStorages.value.filter((storage) => storage.code !== storageCode)
 }
 
-async function saveDiscount() {
-  if (!selectedUser.value) return
-
-  await changeUserDiscount({
-    userId: selectedUser.value.id,
-    newDiscountRate: discountFormValue.value / 100,
-  })
-
-  userDiscount.value = discountFormValue.value / 100
-  discountDialogOpen.value = false
-
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('users.discountUpdated'),
-    type: 'success',
-  })
-}
 
 watch(limit, async () => loadUsers(true))
 watch(page, async () => loadUsers(false))
