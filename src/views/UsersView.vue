@@ -127,7 +127,7 @@
                           plain
                           @click="openAddRoleDialog"
                         >
-                          {{ t('users.addRole') }}
+                          {{ t('users.addRoles') }}
                         </el-button>
                       </div>
                       <div class="mt-2 flex flex-wrap gap-2">
@@ -283,7 +283,7 @@
                             plain
                             @click.stop="openAddPermissionDialog"
                           >
-                            {{ t('users.addPermission') }}
+                            {{ t('users.addPermissions') }}
                           </el-button>
                         </div>
                       </template>
@@ -595,16 +595,19 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="roleDialogOpen" :title="t('users.addRole')" width="560">
+    <el-dialog v-model="roleDialogOpen" :title="t('users.addRoles')" width="560">
       <el-form label-position="top">
         <el-form-item :label="t('common.labels.roles')">
           <el-select
-            v-model="roleToAttach"
+            v-model="rolesToAttach"
+            multiple
+            clearable
+            :disabled="roleAttachLoading"
             filterable
             remote
             reserve-keyword
             class="w-full"
-            :placeholder="t('users.selectRole')"
+            :placeholder="t('users.selectRoles')"
             :loading="rolesLoading"
             :remote-method="searchRoles"
           >
@@ -621,23 +624,26 @@
         <el-button @click="roleDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
-          :disabled="!roleToAttach"
+          :disabled="rolesToAttach.length === 0"
           :loading="roleAttachLoading"
-          @click="attachRole"
+          @click="attachRoles"
         >
           {{ t('common.actions.add') }}
         </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="permissionDialogOpen" :title="t('users.addPermission')" width="560">
+    <el-dialog v-model="permissionDialogOpen" :title="t('users.addPermissions')" width="560">
       <el-form label-position="top">
         <el-form-item :label="t('permissions.title')">
           <el-select
-            v-model="permissionToAttach"
+            v-model="permissionsToAttach"
+            multiple
+            clearable
+            :disabled="permissionAttachLoading"
             filterable
             class="w-full"
-            :placeholder="t('users.selectPermission')"
+            :placeholder="t('users.selectPermissions')"
           >
             <el-option
               v-for="permission in attachablePermissions"
@@ -652,9 +658,9 @@
         <el-button @click="permissionDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
-          :disabled="!permissionToAttach"
+          :disabled="permissionsToAttach.length === 0"
           :loading="permissionAttachLoading"
-          @click="attachPermission"
+          @click="attachPermissions"
         >
           {{ t('common.actions.add') }}
         </el-button>
@@ -693,8 +699,8 @@ import type { PermissionModel } from '@/models/permissionModel.ts'
 import type { UserEmailModel } from '@/services/api/users.ts'
 import {
   addEmailToUser,
-  addPermissionToUser,
-  addRoleToUser,
+  addPermissionsToUser,
+  addRolesToUser,
   addStorageToUser,
   createUser,
   editUserInfo,
@@ -806,8 +812,8 @@ const permissionAttachLoading = ref(false)
 const roleAttachLoading = ref(false)
 const editInfoSaving = ref(false)
 const removingEmail = ref('')
-const permissionToAttach = ref('')
-const roleToAttach = ref('')
+const permissionsToAttach = ref<string[]>([])
+const rolesToAttach = ref<string[]>([])
 const createUserDialogOpen = ref(false)
 const createUserSaving = ref(false)
 const createUserNameStatus = ref<'idle' | 'checking' | 'available' | 'unavailable' | 'error'>('idle')
@@ -1490,12 +1496,12 @@ function openPermission(permission: string) {
 }
 
 function openAddPermissionDialog() {
-  permissionToAttach.value = ''
+  permissionsToAttach.value = []
   permissionDialogOpen.value = true
 }
 
 async function openAddRoleDialog() {
-  roleToAttach.value = ''
+  rolesToAttach.value = []
   roleDialogOpen.value = true
   await loadRoles(undefined, true)
 }
@@ -1563,22 +1569,19 @@ async function saveUserInfo() {
   }
 }
 
-async function attachPermission() {
-  if (!selectedUser.value || !permissionToAttach.value || permissionAttachLoading.value) return
+async function attachPermissions() {
+  if (!selectedUser.value || permissionsToAttach.value.length === 0 || permissionAttachLoading.value) return
 
+  const userId = selectedUser.value.id
+  const permissions = [...permissionsToAttach.value]
   permissionAttachLoading.value = true
   try {
-    await addPermissionToUser({
-      userId: selectedUser.value.id,
-      permission: permissionToAttach.value,
-    })
-    if (!userPermissions.value.includes(permissionToAttach.value)) {
-      userPermissions.value = [...userPermissions.value, permissionToAttach.value]
-    }
+    await addPermissionsToUser({ userId, permissions })
+    if (selectedUser.value?.id === userId) await reloadSelectedUserFullInfo()
     permissionDialogOpen.value = false
     ElNotification({
       title: t('common.labels.success'),
-      message: t('users.permissionAdded'),
+      message: t('users.permissionsAdded'),
       type: 'success',
     })
   } finally {
@@ -1586,20 +1589,19 @@ async function attachPermission() {
   }
 }
 
-async function attachRole() {
-  if (!selectedUser.value || !roleToAttach.value || roleAttachLoading.value) return
+async function attachRoles() {
+  if (!selectedUser.value || rolesToAttach.value.length === 0 || roleAttachLoading.value) return
 
+  const userId = selectedUser.value.id
+  const roles = [...rolesToAttach.value]
   roleAttachLoading.value = true
   try {
-    await addRoleToUser({
-      userId: selectedUser.value.id,
-      roleName: roleToAttach.value,
-    })
-    await reloadSelectedUserFullInfo()
+    await addRolesToUser({ userId, roles })
+    if (selectedUser.value?.id === userId) await reloadSelectedUserFullInfo()
     roleDialogOpen.value = false
     ElNotification({
       title: t('common.labels.success'),
-      message: t('users.roleAdded'),
+      message: t('users.rolesAdded'),
       type: 'success',
     })
   } finally {

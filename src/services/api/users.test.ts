@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { graphqlClient } from '@/services/graphql/client'
-import { getUsers, getUserPreview, getUserFullInfo, createUser, addRoleToUser, removePermissionFromUser, getUserOrganizations, addEmailToUser } from './users'
-import { ListUsersDocument, SearchUsersDocument, AddUserRolesDocument, RemoveUserPermissionsDocument, AddUserEmailDocument } from '@/graphql/generated/graphql'
+import { getUsers, getUserPreview, getUserFullInfo, createUser, addRolesToUser, addPermissionsToUser, removePermissionFromUser, getUserOrganizations, addEmailToUser } from './users'
+import { ListUsersDocument, SearchUsersDocument, AddUserRolesDocument, AddUserPermissionsDocument, RemoveUserPermissionsDocument, AddUserEmailDocument } from '@/graphql/generated/graphql'
 
 const { permissions } = vi.hoisted(() => ({ permissions: { value: [] as string[] } }))
 vi.mock('@/i18n', () => ({ t: (key: string) => key }))
@@ -58,10 +58,12 @@ describe('GraphQL users', () => {
   })
   it('uses array mutations for roles/permissions and type for an added email', async () => {
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: {} } as never)
-    await addRoleToUser({ userId: user.id, roleName: 'ADMIN' })
+    await addRolesToUser({ userId: user.id, roles: ['ADMIN', 'MANAGER'] })
+    await addPermissionsToUser({ userId: user.id, permissions: ['users.get', 'users.info.get'] })
     await removePermissionFromUser({ userId: user.id, permission: 'users.get' })
     await addEmailToUser({ userId: user.id, email: 'a@b.com', emailType: 'Personal' })
-    expect(graphqlClient.mutate).toHaveBeenCalledWith({ mutation: AddUserRolesDocument, variables: { input: { userId: user.id, roles: ['ADMIN'] } } })
+    expect(graphqlClient.mutate).toHaveBeenCalledWith({ mutation: AddUserRolesDocument, variables: { input: { userId: user.id, roles: ['ADMIN', 'MANAGER'] } } })
+    expect(graphqlClient.mutate).toHaveBeenCalledWith({ mutation: AddUserPermissionsDocument, variables: { input: { userId: user.id, permissions: ['users.get', 'users.info.get'] } } })
     expect(graphqlClient.mutate).toHaveBeenCalledWith({ mutation: RemoveUserPermissionsDocument, variables: { input: { userId: user.id, permissions: ['users.get'] } } })
     expect(graphqlClient.mutate).toHaveBeenCalledWith({ mutation: AddUserEmailDocument, variables: { input: { userId: user.id, email: 'a@b.com', type: 'PERSONAL' } } })
   })

@@ -228,14 +228,14 @@ export async function getUserOrganizations(userId: string, req: GetUserOrganizat
   const { data } = await graphqlClient.query({ query: ListOrganizationsDocument, variables: { input: { ...input, userId } }, fetchPolicy: 'no-cache' })
   return { organizations: data.organizations.list.map(mapGqlOrganization) }
 }
-export async function addPermissionToUser(req: AddPermissionToUserRequest): Promise<void> {
-  await graphqlClient.mutate({ mutation: AddUserPermissionsDocument, variables: { input: { userId: req.userId, permissions: [req.permission] } } })
+export async function addPermissionsToUser(req: { userId: string; permissions: string[] }): Promise<void> {
+  await graphqlClient.mutate({ mutation: AddUserPermissionsDocument, variables: { input: { userId: req.userId, permissions: req.permissions } } })
 }
 export async function removePermissionFromUser(req: AddPermissionToUserRequest): Promise<void> {
   await graphqlClient.mutate({ mutation: RemoveUserPermissionsDocument, variables: { input: { userId: req.userId, permissions: [req.permission] } } })
 }
-export async function addRoleToUser(req: AddRoleToUserRequest): Promise<void> {
-  await graphqlClient.mutate({ mutation: AddUserRolesDocument, variables: { input: { userId: req.userId, roles: [req.roleName] } } })
+export async function addRolesToUser(req: { userId: string; roles: string[] }): Promise<void> {
+  await graphqlClient.mutate({ mutation: AddUserRolesDocument, variables: { input: { userId: req.userId, roles: req.roles } } })
 }
 export async function removeRoleFromUser(req: AddRoleToUserRequest): Promise<void> {
   await graphqlClient.mutate({ mutation: RemoveUserRolesDocument, variables: { input: { userId: req.userId, roles: [req.roleName] } } })
