@@ -121,9 +121,9 @@
               </div>
             </el-form-item>
 
-            <el-form-item :label="t('sales.userDiscount')" class="span-3 sale-discount-field">
+            <el-form-item :label="t('sales.saleDiscount')" class="span-3 sale-discount-field">
               <div class="discount-control">
-                <div v-if="!isDiscountLoading" class="discount-editor">
+                <div class="discount-editor">
                   <el-input-number
                     v-if="isDiscountEditing"
                     v-model="discountDraftPercent"
@@ -146,7 +146,7 @@
                   </button>
                   <el-tooltip
                     v-if="isDiscountEditing && hasCustomSaleDiscount"
-                    :content="t('sales.resetUserDiscount')"
+                    :content="t('sales.resetSaleDiscount')"
                     placement="top"
                   >
                     <el-button
@@ -158,13 +158,12 @@
                     />
                   </el-tooltip>
                 </div>
-                <span v-else>{{ t('sales.loading') }}</span>
                 <div class="discount-apply-all">
                   <span>{{ t('sales.forAll') }}</span>
                   <el-switch
-                    v-model="form.applyUserDiscountToAll"
+                    v-model="form.applySaleDiscountToAll"
                     size="small"
-                    :disabled="!form.buyer || isDiscountLoading"
+                    :disabled="!form.buyer"
                   />
                 </div>
               </div>
@@ -274,7 +273,7 @@
                   @change="onItemDiscountModeChange(item)"
                 >
                   <el-radio-button label="Manual">{{ t('sales.manual') }}</el-radio-button>
-                  <el-radio-button label="User" :disabled="!form.buyer || isDiscountLoading">{{ t('sales.useDiscount') }}</el-radio-button>
+                  <el-radio-button label="Sale" :disabled="!form.buyer">{{ t('sales.useDiscount') }}</el-radio-button>
                 </el-radio-group>
                 <span v-if="itemDiscount(item) > 0" class="discount-note">
                   {{ t('sales.discount') }}: {{ formatCurrency(itemDiscount(item), selectedCurrency?.currencySign) }}
@@ -352,7 +351,6 @@ import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import { getProductAvailableStock, getProductsAvailableStock } from '@/services/api/products.ts'
 import { createSale } from '@/services/api/sales.ts'
-import { getUserDiscount } from '@/services/api/users.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
@@ -368,7 +366,7 @@ interface SaleItemForm {
   comment: string
 }
 
-type DiscountMode = 'Manual' | 'User'
+type DiscountMode = 'Manual' | 'Sale'
 
 interface SaleConfirmationData {
   confirmationCode: string
@@ -392,12 +390,9 @@ const historyPanelOpen = ref(false)
 const selectedHistoryItemIndex = ref<number | null>(null)
 const isSaving = ref(false)
 const isStockLoading = ref(false)
-const isDiscountLoading = ref(false)
-const backendUserDiscount = ref(0)
 const saleDiscount = ref(0)
 const isDiscountEditing = ref(false)
 const discountDraftPercent = ref<number>()
-let discountRequestId = 0
 let stockRequestId = 0
 
 const form = reactive({
@@ -408,7 +403,7 @@ const form = reactive({
   comment: '',
   payedSum: undefined as number | undefined,
   forcePayment: false,
-  applyUserDiscountToAll: false,
+  applySaleDiscountToAll: false,
   items: [] as SaleItemForm[],
 })
 
@@ -438,7 +433,7 @@ const saleDiscountText = computed(() => `${(saleDiscount.value * 100).toLocaleSt
   maximumFractionDigits: 2,
 })}%`)
 
-const hasCustomSaleDiscount = computed(() => Math.abs(saleDiscount.value - backendUserDiscount.value) > 0.000001)
+const hasCustomSaleDiscount = computed(() => Math.abs(saleDiscount.value) > 0.000001)
 
 const totalItemCount = computed(() => (
   form.items.reduce((sum, item) => sum + item.count, 0)
@@ -487,11 +482,10 @@ function resetForm() {
   form.comment = ''
   form.payedSum = undefined
   form.forcePayment = false
-  form.applyUserDiscountToAll = false
+  form.applySaleDiscountToAll = false
   form.items = []
   historyPanelOpen.value = true
   selectedHistoryItemIndex.value = null
-  backendUserDiscount.value = 0
   saleDiscount.value = 0
   isDiscountEditing.value = false
   discountDraftPercent.value = undefined
@@ -521,7 +515,7 @@ async function addProduct(product: ProductSearchModel) {
     count: 1,
     price: 0,
     priceWithDiscount: undefined,
-    discountMode: form.applyUserDiscountToAll ? 'User' : 'Manual',
+    discountMode: form.applySaleDiscountToAll ? 'Sale' : 'Manual',
     comment: '',
   })
   selectedHistoryItemIndex.value = form.items.length - 1
@@ -610,7 +604,7 @@ function effectivePriceWithDiscount(item: SaleItemForm) {
   return item.priceWithDiscount ?? item.price
 }
 
-function calculateUserDiscountPrice(price: number) {
+function calculateSaleDiscountPrice(price: number) {
   if (price <= 0) return undefined
   return Math.max(roundMoney(price * (1 - saleDiscount.value)), 0)
 }
@@ -621,8 +615,8 @@ function roundMoney(value: number) {
 
 function applyDiscountModesToItems() {
   form.items.forEach((item) => {
-    if (item.discountMode === 'User') {
-      item.priceWithDiscount = calculateUserDiscountPrice(item.price)
+    if (item.discountMode === 'Sale') {
+      item.priceWithDiscount = calculateSaleDiscountPrice(item.price)
     }
   })
 }
@@ -636,8 +630,8 @@ function fillMissingManualDiscountPrices() {
 }
 
 function onItemDiscountModeChange(item: SaleItemForm) {
-  if (item.discountMode === 'User') {
-    item.priceWithDiscount = calculateUserDiscountPrice(item.price)
+  if (item.discountMode === 'Sale') {
+    item.priceWithDiscount = calculateSaleDiscountPrice(item.price)
     return
   }
 
@@ -660,8 +654,8 @@ function commitSaleDiscount() {
 }
 
 function resetSaleDiscount() {
-  saleDiscount.value = backendUserDiscount.value
-  discountDraftPercent.value = roundMoney(backendUserDiscount.value * 100)
+  saleDiscount.value = 0
+  discountDraftPercent.value = 0
   applyDiscountModesToItems()
 }
 
@@ -814,50 +808,17 @@ watch(isOpen, (open) => {
   selectedHistoryItemIndex.value = null
 })
 
-watch(() => form.buyer?.member?.user.id, async (buyerId) => {
-  const requestId = ++discountRequestId
-  backendUserDiscount.value = 0
-  saleDiscount.value = 0
-  isDiscountEditing.value = false
-  form.applyUserDiscountToAll = false
-  form.items.forEach((item) => {
-    if (item.discountMode === 'User') {
-      item.discountMode = 'Manual'
-    }
-    item.priceWithDiscount = undefined
-  })
-
-  if (!buyerId) return
-
-  isDiscountLoading.value = true
-  try {
-    const resp = await getUserDiscount(buyerId)
-    if (requestId !== discountRequestId) return
-
-    backendUserDiscount.value = resp.discount
-    saleDiscount.value = resp.discount
-  } catch (error) {
-    if (requestId === discountRequestId) {
-      ElMessage.error(error instanceof Error ? error.message : t('sales.loadDiscountError'))
-    }
-  } finally {
-    if (requestId === discountRequestId) {
-      isDiscountLoading.value = false
-    }
-  }
-})
-
-watch(() => form.applyUserDiscountToAll, (enabled) => {
+watch(() => form.applySaleDiscountToAll, (enabled) => {
   if (enabled) {
     form.items.forEach((item) => {
-      item.discountMode = 'User'
+      item.discountMode = 'Sale'
     })
     applyDiscountModesToItems()
     return
   }
 
   form.items.forEach((item) => {
-    if (item.discountMode === 'User') {
+    if (item.discountMode === 'Sale') {
       item.discountMode = 'Manual'
       item.priceWithDiscount = undefined
     }

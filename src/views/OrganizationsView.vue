@@ -439,6 +439,7 @@ import {
   getOrganizationFinancialInfo,
   getOrganizationMembers,
   getOrganizations,
+  getOrganizationById,
   isOrganizationSystemNameAvailable,
   removeOrganizationMember,
   updateOrganization,
@@ -1010,8 +1011,8 @@ async function saveFinancialProfile() {
   if (!selectedOrganization.value || financesSaving.value) return
   financesSaving.value = true
   try {
-    const response = await updateOrganizationFinancialInfo(selectedOrganization.value.id, minimalAllowedBalance.value)
-    if (financialInfo.value) financialInfo.value.financialProfile = response.financialProfile
+    await updateOrganizationFinancialInfo(selectedOrganization.value.id, minimalAllowedBalance.value)
+    await loadFinances()
     ElNotification({ title: t('common.labels.success'), message: t('organizationPage.financesUpdated'), type: 'success' })
   } finally {
     financesSaving.value = false
@@ -1027,8 +1028,7 @@ async function selectOrganizationFromRoute() {
   if (!organizationId || selectedOrganization.value?.id === organizationId) return
   let organization = organizations.value.find((item) => item.id === organizationId)
   if (!organization) {
-    const response = await getOrganizations({ ids: [organizationId], page: 0, limit: 1, showHidden: showHidden.value })
-    organization = response.organizations[0]
+    organization = await getOrganizationById(organizationId)
     if (organization) organizations.value = [organization, ...organizations.value.filter((item) => item.id !== organizationId)]
   }
   if (organization) await selectOrganization(organization)

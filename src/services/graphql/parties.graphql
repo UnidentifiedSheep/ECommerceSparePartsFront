@@ -1,0 +1,65 @@
+fragment UserSummaryFields on User {
+  id userName info { name surname description }
+}
+fragment UserDetailsFields on User {
+  ...UserSummaryFields
+  normalizedUserName createdAt updatedAt twoFactorEnabled lockoutEnd accessFailedCount lastLoginAt
+}
+fragment UserEmailFields on UserEmail {
+  email confirmed emailType isPrimary confirmedAt createdAt updatedAt
+}
+fragment OrganizationFields on Organization {
+  id type name systemName isHidden approximateBalanceInBaseCurrency
+  owner { ...UserSummaryFields }
+}
+fragment OrganizationFinancesFields on OrganizationFinances {
+  financialProfile { minimalAllowedBalance netPositionInBaseCurrency }
+  balances { balance currency { id name shortName code currencySign: sign } }
+}
+query ListUsers($input: GetUsersInput!) { users { list(input: $input) { ...UserDetailsFields } } }
+query SearchUsers($input: SearchUsersInput!) { users { search(input: $input) { ...UserDetailsFields } } }
+query UserDetails($id: UUID!, $includeInfo: Boolean!, $includeStorages: Boolean!) {
+  users { byId(id: $id) {
+    ...UserDetailsFields
+    storages @include(if: $includeStorages) { code type location description }
+    emails @include(if: $includeInfo) { ...UserEmailFields }
+    phones @include(if: $includeInfo) { number type isConfirmed isPrimary }
+    roles @include(if: $includeInfo) { systemName localizedName }
+    permissions @include(if: $includeInfo) { systemName name description }
+  } }
+}
+query UserStorages($id: UUID!) { users { byId(id: $id) { storages { code type location description } } } }
+query ListOrganizations($input: GetOrganizationsInput!) { organizations { list(input: $input) { ...OrganizationFields } } }
+query OrganizationById($id: UUID!) { organizations { byId(id: $id) { ...OrganizationFields } } }
+query OrganizationMembers($id: UUID!, $input: OrganizationMembersInput!) {
+  organizations { byId(id: $id) { members(input: $input) { role user { ...UserSummaryFields } } } }
+}
+query OrganizationFinances($id: UUID!) { organizations { byId(id: $id) { finances { ...OrganizationFinancesFields } } } }
+query OrganizationSystemNameAvailable($systemName: String!) { organizations { isSystemNameAvailable(systemName: $systemName) } }
+mutation CreateUser($input: CreateUserInput!) { users { create(input: $input) { ...UserSummaryFields } } }
+mutation EditUserInfo($input: EditUserInfoInput!) { users { editInfo(input: $input) { id info { name surname description } } } }
+mutation AddUserEmail($input: AddUserEmailInput!) { users { addEmail(input: $input) { id } } }
+mutation RequestUserEmailVerification($input: UserEmailInput!) { users { requestEmailVerification(input: $input) } }
+mutation RequestMyEmailVerification($email: String!) { users { requestMyEmailVerification(email: $email) } }
+mutation MakeMyEmailPrimary($email: String!) { users { makeMyEmailPrimary(email: $email) { id } } }
+mutation RemoveUserEmail($input: UserEmailInput!) { users { removeEmail(input: $input) { id } } }
+mutation MakeUserEmailPrimary($input: UserEmailInput!) { users { makeEmailPrimary(input: $input) { id } } }
+mutation AddUserRoles($input: UserRolesInput!) { users { addRoles(input: $input) { id } } }
+mutation RemoveUserRoles($input: UserRolesInput!) { users { removeRoles(input: $input) { id } } }
+mutation AddUserPermissions($input: UserPermissionsInput!) { users { addPermissions(input: $input) { id } } }
+mutation RemoveUserPermissions($input: UserPermissionsInput!) { users { removePermissions(input: $input) { id } } }
+mutation AddUserStorage($input: UserStorageInput!) { users { addStorage(input: $input) { id } } }
+mutation RemoveUserStorage($input: UserStorageInput!) { users { removeStorage(input: $input) { id } } }
+mutation CreateOrganization($input: CreateOrganizationInput!) { organizations { create(input: $input) { ...OrganizationFields } } }
+mutation UpdateOrganization($input: UpdateOrganizationInput!) { organizations { update(input: $input) { ...OrganizationFields } } }
+mutation AddOrganizationMember($input: OrganizationMemberRoleInput!) { organizations { addMember(input: $input) { id } } }
+mutation ChangeOrganizationMemberRole($input: OrganizationMemberRoleInput!) { organizations { changeMemberRole(input: $input) { id } } }
+mutation RemoveOrganizationMember($input: OrganizationMemberInput!) { organizations { removeMember(input: $input) { id } } }
+mutation UpdateOrganizationFinancialProfile($input: UpdateOrganizationFinancialProfileInput!) { organizations { updateFinancialProfile(input: $input) { id } } }
+
+query UserPreview($id: UUID!, $includeRoles: Boolean!) {
+  users { byId(id: $id) {
+    ...UserSummaryFields
+    roles @include(if: $includeRoles) { systemName localizedName }
+  } }
+}

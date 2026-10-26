@@ -5,6 +5,8 @@
     size="min(480px, 100vw)"
     class="product-quick-view-drawer"
     destroy-on-close
+    @open-auto-focus="focusPreviewAfterTrap"
+    @closed="emit('closed')"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template #header>
@@ -15,7 +17,17 @@
       </div>
     </template>
 
-    <div v-if="product" v-loading="isLoading" class="quick-view-body">
+    <div
+      v-if="product"
+      ref="previewFocus"
+      v-loading="isLoading"
+      class="quick-view-body"
+      tabindex="0"
+      role="region"
+      :aria-label="product.name"
+      :aria-description="t('products.quickView.keyboardNavigation')"
+      @keydown="handlePreviewKeydown"
+    >
       <section class="quick-view-section quick-view-stock">
         <div class="quick-view-stock__summary">
           <div>
@@ -127,6 +139,7 @@
 
     <template #footer>
       <div v-if="product" class="quick-view-footer">
+        <p class="quick-view-keyboard-hint">{{ t('products.quickView.keyboardNavigation') }}</p>
         <el-button
           v-if="canViewPriceOffers"
           :icon="Money"
@@ -145,7 +158,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
+import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { ArrowDown, ArrowRight, ArrowUp, Money } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
@@ -169,7 +183,25 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   'open-product': [productId: number]
   'open-prices': [product: ProductSearchModel]
+  closed: []
 }>()
+
+const previewFocus = ref<HTMLElement>()
+function focusPreview() {
+  if (props.modelValue) previewFocus.value?.focus({ preventScroll: true })
+}
+function focusPreviewAfterTrap() {
+  // Drawer emits this before its own focus trap selects the close button.
+  // Override that default after it runs, without waiting for the opening animation.
+  void nextTick(() => nextTick(focusPreview))
+}
+function handlePreviewKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button, a, input, textarea, select, [contenteditable], [role="combobox"], [role="menu"], [role="listbox"]')) return
+  event.preventDefault()
+  if (!event.repeat && props.product) emit('open-product', props.product.id)
+}
 
 const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
@@ -184,6 +216,8 @@ const isStorageStockLoading = ref(false)
 const isLoading = ref(false)
 let requestId = 0
 let stockRequestId = 0
+const previewDebounce = useSelectionDebounce()
+onScopeDispose(() => { requestId++; stockRequestId++ })
 
 const displayProducerName = computed(() => fullProduct.value?.producerName || props.producerName || '—')
 const displayStock = computed(() => fullProduct.value?.stock ?? props.product?.stock ?? 0)
@@ -250,10 +284,9 @@ async function loadStorageStock() {
 }
 
 async function loadPreview() {
-  if (!props.modelValue || !props.product) return
-
+  previewDebounce.cancel()
   const currentRequestId = ++requestId
-  isLoading.value = true
+  isLoading.value = Boolean(props.modelValue && props.product)
   fullProduct.value = null
   crosses.value = []
   stockRequestId += 1
@@ -262,6 +295,7 @@ async function loadPreview() {
   storageStockLoaded.value = false
   isStorageStockLoading.value = false
 
+  if (!props.modelValue || !props.product || !await previewDebounce.wait() || currentRequestId !== requestId) return
   try {
     const productResponse = await getProductById(props.product.id)
     if (currentRequestId !== requestId) return
@@ -514,8 +548,18 @@ watch(
   display: none;
 }
 
+.quick-view-keyboard-hint {
+  flex-basis: 100%;
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  text-align: right;
+}
+
 .quick-view-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
 }

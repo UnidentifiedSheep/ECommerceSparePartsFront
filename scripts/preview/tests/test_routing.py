@@ -163,12 +163,112 @@ class RoutingTests(unittest.TestCase):
             "PREVIEW_SSH_KEY": "fake private key", "PREVIEW_SSH_KNOWN_HOSTS": "pinned-host-key",
         }), patch.object(routing.subprocess, "run") as run:
             run.return_value.returncode = 0
+            run.return_value.stdout = ""
             routing.ssh_apply(["deploy", "42", URL, "1000.1"])
             args = run.call_args.args[0]
             self.assertIn("StrictHostKeyChecking=yes", args)
             self.assertIn("preview-router@server.example", args)
             self.assertNotIn("shell", run.call_args.kwargs)
             self.assertEqual(args[-1], "preview-router deploy 42 " + URL + " 1000.1")
+
+
+class TimewebReadinessTests(unittest.TestCase):
+    def setUp(self):
+        self.deploy = ["deploy", "42", URL, "1000.1"]
+        self.delete = ["delete", "42", "2000.1"]
+        self.api = Mock(spec=routing.GitHub)
+        self.api.reconcile.return_value = self.deploy
+        self.now = 0
+        self.clock = patch.object(routing.time, "monotonic", side_effect=lambda: self.now)
+        self.sleep_patch = patch.object(routing.time, "sleep", side_effect=self.advance)
+        self.clock.start()
+        self.sleep = self.sleep_patch.start()
+        self.addCleanup(self.clock.stop)
+        self.addCleanup(self.sleep_patch.stop)
+
+    def advance(self, seconds):
+        self.now += seconds
+
+    def apply(self):
+        return routing.apply_current_preview(self.api, {"pr": 42}, 123)
+
+    def test_deploy_waits_two_minutes_then_rechecks_current_state(self):
+        newer = ["deploy", "42", URL2, "2000.1"]
+        self.api.reconcile.side_effect = [self.deploy, newer]
+        with patch.object(routing, "ssh_apply") as ssh:
+            self.assertEqual(self.apply(), newer)
+        self.sleep.assert_called_once_with(120)
+        ssh.assert_called_once_with(newer)
+        self.assertEqual(self.api.reconcile.call_count, 2)
+
+    def test_deletion_is_immediate(self):
+        self.api.reconcile.return_value = self.delete
+        with patch.object(routing, "ssh_apply") as ssh:
+            self.assertEqual(self.apply(), self.delete)
+        self.sleep.assert_not_called()
+        ssh.assert_called_once_with(self.delete)
+
+    def test_closed_pr_during_settle_is_deleted_without_publishing(self):
+        self.api.reconcile.side_effect = [self.deploy, self.delete]
+        with patch.object(routing, "ssh_apply") as ssh:
+            self.assertEqual(self.apply(), self.delete)
+        ssh.assert_called_once_with(self.delete)
+
+    def test_pending_or_removed_comment_during_settle_does_not_deploy(self):
+        self.api.reconcile.side_effect = [self.deploy, None]
+        with patch.object(routing, "ssh_apply") as ssh:
+            self.assertIsNone(self.apply())
+        ssh.assert_not_called()
+
+    def test_dns_retry_uses_the_latest_verified_command(self):
+        newer = ["deploy", "42", URL2, "2000.1"]
+        self.api.reconcile.side_effect = [self.deploy, self.deploy, newer]
+        with patch.object(routing, "ssh_apply", side_effect=[routing.PreviewDNSNotReady(), None]) as ssh:
+            self.assertEqual(self.apply(), newer)
+        self.assertEqual([call.args[0] for call in ssh.call_args_list], [self.deploy, newer])
+        self.assertEqual([call.args[0] for call in self.sleep.call_args_list], [120, 30])
+
+    def test_close_during_dns_retry_deletes_instead_of_reinstalling_route(self):
+        self.api.reconcile.side_effect = [self.deploy, self.deploy, self.delete]
+        with patch.object(routing, "ssh_apply", side_effect=[routing.PreviewDNSNotReady(), None]) as ssh:
+            self.assertEqual(self.apply(), self.delete)
+        self.assertEqual([call.args[0][0] for call in ssh.call_args_list], ["deploy", "delete"])
+
+    def test_dns_retries_are_bounded(self):
+        with patch.object(routing, "ssh_apply", side_effect=routing.PreviewDNSNotReady()) as ssh:
+            with self.assertRaisesRegex(RuntimeError, "DNS did not become ready"):
+                self.apply()
+        self.assertEqual(self.now, 120 + 300)
+        self.assertEqual(ssh.call_count, 11)
+
+    def test_other_ssh_errors_fail_without_dns_retries(self):
+        with patch.object(routing, "ssh_apply", side_effect=RuntimeError("permission denied")) as ssh:
+            with self.assertRaisesRegex(RuntimeError, "permission denied"):
+                self.apply()
+        ssh.assert_called_once()
+        self.sleep.assert_called_once_with(120)
+
+    def test_only_observed_deploy_dns_errors_trigger_retry(self):
+        env = {"PREVIEW_SSH_HOST": "server.example", "PREVIEW_SSH_PORT": "22",
+               "PREVIEW_SSH_KEY": "fake key", "PREVIEW_SSH_KNOWN_HOSTS": "pinned host"}
+        cases = [
+            (self.deploy, 1, "ERROR [Errno -2] Name or service not known", True),
+            (self.deploy, 1, "ERROR [Errno -3] Temporary failure in name resolution", True),
+            (self.deploy, 1, "Upstream resolves to a private address", False),
+            (self.deploy, 2, "[Errno -2] Name or service not known", False),
+            (self.delete, 1, "[Errno -2] Name or service not known", False),
+        ]
+        for command, status, output, retryable in cases:
+            result = Mock(returncode=status, stdout=output)
+            error = routing.PreviewDNSNotReady if retryable else RuntimeError
+            with self.subTest(command=command, output=output), patch.dict(routing.os.environ, env), patch.object(
+                    routing.subprocess, "run", return_value=result) as run:
+                with self.assertRaises(error) as raised:
+                    routing.ssh_apply(command)
+                if not retryable:
+                    self.assertNotIsInstance(raised.exception, routing.PreviewDNSNotReady)
+                run.assert_called_once()
+                self.assertEqual(run.call_args.kwargs["stderr"], routing.subprocess.STDOUT)
 
 
 class PreviewCommentTests(unittest.TestCase):
@@ -252,7 +352,7 @@ class PreviewCommentTests(unittest.TestCase):
                                                 "GITHUB_EVENT_PATH": str(event), "GITHUB_RUN_ID": "123"}), patch.object(
                     sys, "argv", ["route_preview.py", "apply"]), patch.object(
                     routing, "GitHub", return_value=api), patch.object(routing, "ssh_apply", ssh), patch.object(
-                    routing, "wait_for_preview", readiness):
+                    routing, "wait_for_preview", readiness), patch.object(routing.time, "sleep"):
                 routing.main()
 
     @staticmethod

@@ -20,9 +20,8 @@
 </template>
 
 <script setup lang="ts">
-import {GeneralSearchStrategy} from "@/enums/generalSearchStrategy.ts";
 import type {UserModel} from "@/models/userModel.ts";
-import {computed, onMounted, ref, watch} from "vue";
+import {computed, onMounted, onScopeDispose, ref, watch} from "vue";
 import {useDebounceFn} from "@vueuse/core";
 import {useSelectInfiniteScroll} from "@/composables/useSelectInfiniteScroll.ts";
 import {getUsers} from "@/services/api/users.ts";
@@ -45,22 +44,26 @@ const popperClass = `user-selector-${Math.random().toString(36).slice(2)}`
 const { attach: attachScroll, detach: detachScroll } = useSelectInfiniteScroll(popperClass, () => loadNext(false))
 
 function onSearch(query: string) {
-  searchTerm.value = query
+  ++requestId
+  isLoading.value = false
+  searchTerm.value = query.slice(0, 200)
   loadDebounced()
 }
 
 const selectedUser = defineModel<UserModel>('selected-user')
 
 const searchTerm = ref('');
-const strategy = GeneralSearchStrategy.General
 const users = ref<UserModel[]>([])
 
 const page = ref(0)
 const limit = ref(24)
 const hasNextPage = ref(false);
 const isLoading = ref(false);
+let requestId = 0
+let disposed = false
+onScopeDispose(() => { disposed = true; ++requestId })
 async function loadNext(reset: boolean = false) {
-  if (isLoading.value) return
+  if (disposed || (isLoading.value && !reset)) return
   if (reset) {
     hasNextPage.value = true;
     page.value = 0;
@@ -69,16 +72,17 @@ async function loadNext(reset: boolean = false) {
 
   if (!hasNextPage.value) return;
 
+  const currentRequest = ++requestId
   try {
     isLoading.value = true;
     const resp = await getUsers({
-      searchMethod: strategy,
       searchTerm: searchTerm.value,
       page: page.value,
       limit: limit.value,
       roles: props.roles.length > 0 ? props.roles : undefined,
     })
 
+    if (currentRequest !== requestId) return
     const existingIds = new Set(users.value.map((user) => user.id))
     users.value.push(...resp.users.filter((user) => !existingIds.has(user.id)))
     ensureSelectedUser()
@@ -86,7 +90,7 @@ async function loadNext(reset: boolean = false) {
     page.value += 1
   }
   finally {
-    isLoading.value = false;
+    if (currentRequest === requestId) isLoading.value = false;
   }
 }
 

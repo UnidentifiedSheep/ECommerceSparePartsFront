@@ -143,6 +143,11 @@
           <div class="purchases-table-region">
               <el-table
                 ref="purchasesTableRef"
+                tabindex="0"
+                :aria-label="t('purchases.title')"
+                :aria-description="t('common.labels.arrowNavigation')"
+                @keydown="tableNavigation.onKeydown"
+                @row-click="tableNavigation.onRowClick"
                 v-loading="purchasesLoading"
                 :data="purchases"
                 class="w-full"
@@ -173,7 +178,7 @@
                     {{ formatDate(row.purchaseDatetime) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="totalSum" width="106" align="right">
+                <el-table-column prop="totalSum" min-width="180" align="right">
                   <template #header><SortableColumnHeader :label="t('purchases.amount')" field="totalSum" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
                   <template #default="{ row }">
                     <span class="purchase-amount">{{ formatCurrency(row.totalSum, row.currency.currencySign) }}</span>
@@ -237,11 +242,13 @@
 </template>
 
 <script setup lang="ts">
+import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
+import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
 import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
 
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useDebounceFn } from '@vueuse/core'
@@ -287,6 +294,12 @@ const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
 const purchasesLoading = ref(false)
+const tableNavigation = useTableArrowNavigation({
+  rows: purchases, selected: selectedPurchase, busy: purchasesLoading,
+  root: () => purchasesTableRef.value?.$el as HTMLElement | undefined,
+  select: (row) => selectPurchase(row),
+  onBoundary: navigatePurchasePage,
+})
 const contentLoading = ref(false)
 const isSettingCurrentPurchase = ref(false)
 const createPurchaseDialogOpen = ref(false)
@@ -296,6 +309,8 @@ const deletingPurchaseId = ref<string>()
 const productSelectorOpen = ref(false)
 const filtersDrawerOpen = ref(false)
 let contentRequestVersion = 0
+const contentDebounce = useSelectionDebounce()
+onScopeDispose(() => { ++contentRequestVersion })
 const { hasPermission } = usePermissions()
 const canCreatePurchases = computed(() => hasPermission('PURCHASE_CREATE'))
 const canEditPurchases = computed(() => hasPermission('PURCHASE_EDIT'))
@@ -398,7 +413,12 @@ async function loadStorages() {
   storages.value = resp.storages
 }
 
-async function loadPurchases(resetPage: boolean) {
+async function navigatePurchasePage(direction: -1 | 1) {
+  if (purchasesLoading.value || (direction === 1 ? !hasNext.value : page.value === 0)) return
+  await loadPurchases(false, { page: page.value + direction, direction })
+}
+
+async function loadPurchases(resetPage: boolean, navigation?: { page: number; direction: -1 | 1 }) {
   if (queryState.restoring.value) return
   if (purchasesLoading.value) return
 
@@ -409,7 +429,7 @@ async function loadPurchases(resetPage: boolean) {
     const resp = await getPurchases({
       rangeStartDate: dateRange.value?.[0],
       rangeEndDate: dateRange.value?.[1],
-      page: page.value,
+      page: navigation?.page ?? page.value,
       limit: limit.value,
       supplierOrganizationIds: selectedSuppliers.value.map((supplier) => supplier.organization.id),
       currencyIds: currencyIds.value,
@@ -418,6 +438,13 @@ async function loadPurchases(resetPage: boolean) {
       searchTerm: searchTerm.value,
     })
 
+    // A full final page may advertise a successor which is actually empty.
+    // Keep the current record and page when there is nothing to select there.
+    if (navigation && resp.purchases.length === 0) {
+      if (navigation.direction === 1) hasNext.value = false
+      return
+    }
+    if (navigation) page.value = navigation.page
     purchases.value = resp.purchases
     hasNext.value = resp.purchases.length === limit.value
 
@@ -425,9 +452,18 @@ async function loadPurchases(resetPage: boolean) {
       const nextSelectedPurchase = resp.purchases.find((purchase) => purchase.id === selectedPurchase.value?.id)
       selectedPurchase.value = nextSelectedPurchase
       if (!nextSelectedPurchase) {
+        contentDebounce.cancel()
         ++contentRequestVersion
         purchaseContent.value = []
         contentLoading.value = false
+      }
+    }
+    if (navigation) {
+      const row = navigation.direction === 1 ? resp.purchases[0] : resp.purchases[resp.purchases.length - 1]
+      if (row) {
+        void selectPurchase(row)
+        await nextTick()
+        tableNavigation.scrollToSelected()
       }
     }
   } catch (error) {
@@ -442,12 +478,15 @@ async function handleCurrentPurchaseChange(purchase?: PurchaseModel) {
   await selectPurchase(purchase)
 }
 
-async function selectPurchase(purchase?: PurchaseModel): Promise<boolean> {
+async function selectPurchase(purchase?: PurchaseModel, immediate = false): Promise<boolean> {
+  contentDebounce.cancel()
   const requestVersion = ++contentRequestVersion
   selectedPurchase.value = purchase
   isSettingCurrentPurchase.value = true
   try {
     await nextTick()
+    if (requestVersion !== contentRequestVersion) return false
+    isSettingCurrentPurchase.value = true
     purchasesTableRef.value?.setCurrentRow(purchase)
   } finally {
     isSettingCurrentPurchase.value = false
@@ -461,6 +500,8 @@ async function selectPurchase(purchase?: PurchaseModel): Promise<boolean> {
 
   contentLoading.value = true
   purchaseContent.value = []
+  if (!immediate && !await contentDebounce.wait()) return false
+  if (requestVersion !== contentRequestVersion) return false
   try {
     const resp = await getPurchaseContent(purchase.id)
     if (requestVersion === contentRequestVersion) purchaseContent.value = resp.content
@@ -481,7 +522,7 @@ async function openEditPurchase(purchase: PurchaseModel) {
 
   editPurchaseLoadingId.value = purchase.id
   try {
-    if (await selectPurchase(purchase)) editPurchaseDialogOpen.value = true
+    if (await selectPurchase(purchase, true)) editPurchaseDialogOpen.value = true
   } finally {
     editPurchaseLoadingId.value = undefined
   }
@@ -528,6 +569,7 @@ async function removePurchase(purchase: PurchaseModel) {
     ElMessage.success(t('purchases.removed'))
 
     if (selectedPurchase.value?.id === purchase.id) {
+      contentDebounce.cancel()
       ++contentRequestVersion
       selectedPurchase.value = undefined
       purchaseContent.value = []

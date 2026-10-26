@@ -301,8 +301,7 @@ import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
-import { getRoles, type RoleModel } from '@/services/api/roles.ts'
-import { getUserFullInfo } from '@/services/api/users.ts'
+import { getUserPreview } from '@/services/api/users.ts'
 import {
   createProductReservation,
   deleteProductReservation,
@@ -355,8 +354,7 @@ const historyPage = ref(0)
 const historySize = ref(10)
 const historyHasNext = ref(false)
 const isHistoryLoading = ref(false)
-const rolesLoading = ref(false)
-const roleOptions = ref<RoleModel[]>([])
+const roleLabels = reactive<Record<string, string>>({})
 const userTooltipCache = reactive<Record<string, {
   loading: boolean
   user?: UserModel
@@ -422,8 +420,7 @@ function statusTagType(status: ProductReservationStatus) {
 }
 
 function roleDisplayName(role: string) {
-  const roleInfo = roleOptions.value.find((item) => item.systemName === role)
-  return roleInfo?.localizedName || roleInfo?.systemName || role
+  return roleLabels[role] || role
 }
 
 function currencySign(currencyId?: number | null) {
@@ -461,31 +458,14 @@ async function loadUserTooltip(userId: string) {
 
   state.loading = true
   try {
-    const [resp] = await Promise.all([
-      getUserFullInfo(userId),
-      loadRoles(),
-    ])
+    const resp = await getUserPreview(userId)
+    Object.assign(roleLabels, resp.roleLabels)
     state.user = resp.user
     state.roles = resp.roles
   } catch (error) {
     state.error = error instanceof Error ? error.message : t('reservations.loadUserError')
   } finally {
     state.loading = false
-  }
-}
-
-async function loadRoles() {
-  if (rolesLoading.value || roleOptions.value.length > 0) return
-
-  rolesLoading.value = true
-  try {
-    const resp = await getRoles({
-      page: 0,
-      size: 100,
-    })
-    roleOptions.value = resp.roles
-  } finally {
-    rolesLoading.value = false
   }
 }
 

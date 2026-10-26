@@ -165,6 +165,11 @@
           <div class="sales-table-region">
           <el-table
             ref="salesTableRef"
+            tabindex="0"
+            :aria-label="t('sales.title')"
+            :aria-description="t('common.labels.arrowNavigation')"
+            @keydown="tableNavigation.onKeydown"
+            @row-click="tableNavigation.onRowClick"
             v-loading="salesLoading"
             :data="sales"
             class="w-full"
@@ -199,7 +204,7 @@
                 {{ formatDate(row.saleDatetime) }}
               </template>
             </el-table-column>
-            <el-table-column prop="totalSum" width="106" align="right">
+            <el-table-column prop="totalSum" min-width="180" align="right">
               <template #header><SortableColumnHeader :label="t('sales.amount')" field="totalSum" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
               <template #default="{ row }">
                 <span class="sale-amount">{{ formatCurrency(row.totalSum, row.currency.currencySign) }}</span>
@@ -258,11 +263,13 @@
 </template>
 
 <script setup lang="ts">
+import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
+import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryStrings, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
 import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
 
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
 import type { TableInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
@@ -312,6 +319,12 @@ const page = ref(0)
 const limit = ref(20)
 const hasNext = ref(false)
 const salesLoading = ref(false)
+const tableNavigation = useTableArrowNavigation({
+  rows: sales, selected: selectedSale, busy: salesLoading,
+  root: () => salesTableRef.value?.$el as HTMLElement | undefined,
+  select: (row) => selectSale(row),
+  onBoundary: navigateSalePage,
+})
 const contentLoading = ref(false)
 const isSettingCurrentSale = ref(false)
 const createSaleDialogOpen = ref(false)
@@ -323,6 +336,8 @@ const editingSaleId = ref<string>()
 const saleToEdit = ref<SaleModel>()
 const saleContentToEdit = ref<SaleContentModel[]>([])
 let contentRequestVersion = 0
+const contentDebounce = useSelectionDebounce()
+onScopeDispose(() => { ++contentRequestVersion })
 
 const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(() => [
   { label: t('sales.states.Draft'), value: 'Draft' },
@@ -439,7 +454,12 @@ async function loadCurrencies() {
   currencies.value = resp.currencies
 }
 
-async function loadSales(resetPage: boolean) {
+async function navigateSalePage(direction: -1 | 1) {
+  if (salesLoading.value || (direction === 1 ? !hasNext.value : page.value === 0)) return
+  await loadSales(false, { page: page.value + direction, direction })
+}
+
+async function loadSales(resetPage: boolean, navigation?: { page: number; direction: -1 | 1 }) {
   if (queryState.restoring.value) return
   if (salesLoading.value) return
 
@@ -450,7 +470,7 @@ async function loadSales(resetPage: boolean) {
     const resp = await getSales({
       rangeStartDate: dateRange.value?.[0],
       rangeEndDate: dateRange.value?.[1],
-      page: page.value,
+      page: navigation?.page ?? page.value,
       limit: limit.value,
       organizationIds: selectedBuyerOrganizations.value.map((buyer) => buyer.id),
       currencyIds: currencyIds.value,
@@ -460,6 +480,13 @@ async function loadSales(resetPage: boolean) {
       searchTerm: searchTerm.value,
     })
 
+    // A full final page may advertise a successor which is actually empty.
+    // Keep the current record and page when there is nothing to select there.
+    if (navigation && resp.sales.length === 0) {
+      if (navigation.direction === 1) hasNext.value = false
+      return
+    }
+    if (navigation) page.value = navigation.page
     sales.value = resp.sales
     hasNext.value = resp.sales.length === limit.value
 
@@ -467,9 +494,18 @@ async function loadSales(resetPage: boolean) {
       const nextSelectedSale = resp.sales.find((sale) => sale.id === selectedSale.value?.id)
       selectedSale.value = nextSelectedSale
       if (!nextSelectedSale) {
+        contentDebounce.cancel()
         ++contentRequestVersion
         saleContent.value = []
         contentLoading.value = false
+      }
+    }
+    if (navigation) {
+      const row = navigation.direction === 1 ? resp.sales[0] : resp.sales[resp.sales.length - 1]
+      if (row) {
+        void selectSale(row)
+        await nextTick()
+        tableNavigation.scrollToSelected()
       }
     }
   } catch (error) {
@@ -498,6 +534,7 @@ async function removeSale(sale: SaleModel) {
     ElMessage.success(t('sales.deleted'))
 
     if (selectedSale.value?.id === sale.id) {
+      contentDebounce.cancel()
       ++contentRequestVersion
       selectedSale.value = undefined
       saleContent.value = []
@@ -556,12 +593,15 @@ async function handleCurrentSaleChange(sale?: SaleModel) {
   await selectSale(sale)
 }
 
-async function selectSale(sale?: SaleModel) {
+async function selectSale(sale?: SaleModel, immediate = false) {
+  contentDebounce.cancel()
   const requestVersion = ++contentRequestVersion
   selectedSale.value = sale
   isSettingCurrentSale.value = true
   try {
     await nextTick()
+    if (requestVersion !== contentRequestVersion) return
+    isSettingCurrentSale.value = true
     salesTableRef.value?.setCurrentRow(sale)
   } finally {
     isSettingCurrentSale.value = false
@@ -575,6 +615,8 @@ async function selectSale(sale?: SaleModel) {
 
   contentLoading.value = true
   saleContent.value = []
+  if (!immediate && !await contentDebounce.wait()) return
+  if (requestVersion !== contentRequestVersion) return
   try {
     const resp = await getSaleContent(sale.id)
     if (requestVersion === contentRequestVersion) saleContent.value = resp.contents

@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, useId, watch, type Ref } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, useId, watch, type Ref } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { getProducersByIds } from '@/services/api/producers.ts'
 import { searchProducers } from '@/services/api/search.ts'
@@ -17,6 +17,8 @@ export function useProducerSelectOptions(selectedIds: Readonly<Ref<number[]>>) {
   const searchPending = ref(false)
   const popperClass = `producer-select-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   let requestId = 0
+  let disposed = false
+  onScopeDispose(() => { disposed = true; ++requestId; detach() })
   const { attach, detach } = useSelectInfiniteScroll(popperClass, loadMore)
 
   const options = computed(() => {
@@ -27,7 +29,7 @@ export function useProducerSelectOptions(selectedIds: Readonly<Ref<number[]>>) {
   })
 
   async function loadMore() {
-    if (loading.value || !hasMore.value) return
+    if (disposed || loading.value || !hasMore.value) return
     const currentRequest = requestId
     const page = nextPage.value
     loading.value = true
@@ -85,6 +87,15 @@ export function useProducerSelectOptions(selectedIds: Readonly<Ref<number[]>>) {
       && !Object.values(knownNames.value).some((knownName) => knownName.trim().toLowerCase() === name.toLowerCase())
   })
 
+  const autoSelectId = computed(() => {
+    const name = activeQuery.value.toLowerCase()
+    if (!name || searchPending.value || loading.value || loadError.value) return undefined
+    const exact = producers.value.filter(producer => producer.name.trim().toLowerCase() === name)
+    if (exact.length === 1) return exact[0]!.id
+    if (exact.length === 0 && !hasMore.value && producers.value.length === 1) return producers.value[0]!.id
+    return undefined
+  })
+
   async function ensureSelectedNames(ids: number[]) {
     const missing = ids.filter((id) => !knownNames.value[id])
     if (missing.length === 0) return
@@ -123,5 +134,6 @@ export function useProducerSelectOptions(selectedIds: Readonly<Ref<number[]>>) {
     query: computed(() => activeQuery.value),
     canCreateForQuery,
     rememberProducer,
+    autoSelectId,
   }
 }

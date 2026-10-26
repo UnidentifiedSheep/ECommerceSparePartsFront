@@ -214,6 +214,7 @@
           class="catalogue-results-scroll"
           tabindex="0"
           :aria-label="t('products.results')"
+          :aria-description="t('products.keyboardNavigation')"
           @focus="ensureSelectedResult"
           @keydown="handleResultsKeydown"
         >
@@ -297,8 +298,9 @@
             role="button"
             tabindex="0"
             @click="openCatalogueResult(row)"
-            @keydown.enter.prevent="openCatalogueResult(row)"
-            @keydown.space.prevent="openCatalogueResult(row)"
+            @focus="selectedResultKey = row.key"
+            @keydown.enter.self.prevent="openCatalogueResult(row)"
+            @keydown.space.self.prevent="openCatalogueResult(row)"
           >
             <div class="product-mobile-row__header">
               <button class="product-identity" type="button" @click.stop="openCatalogueResult(row)">
@@ -366,6 +368,7 @@
       :product="selectedQuickProduct"
       :producer-name="selectedQuickProduct ? producerName(selectedQuickProduct.producerId) : undefined"
       :can-view-price-offers="canViewPriceOffers"
+      @closed="restoreCatalogueFocus"
       @open-product="openCrosses"
       @open-prices="openPricesFromQuickView"
     />
@@ -703,17 +706,22 @@ function selectResultAt(index: number) {
   if (!row) return
   selectedResultKey.value = row.key
   void nextTick(() => {
-    resultsScroll.value
-      ?.querySelector('.catalogue-result-row--selected, .product-mobile-row--selected')
-      ?.scrollIntoView({ block: 'nearest' })
+    const selected = resultsScroll.value?.querySelector<HTMLElement>(isMobileViewport.value
+      ? '.product-mobile-row--selected' : '.catalogue-result-row--selected')
+    selected?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    if (isMobileViewport.value) selected?.focus({ preventScroll: true })
   })
 }
 
 function handleResultsKeydown(event: KeyboardEvent) {
-  if (event.target !== event.currentTarget || catalogueResults.value.length === 0) return
+  const target = event.target as HTMLElement | null
+  const isResult = event.target === event.currentTarget || target?.matches('.product-mobile-row')
+  if (!isResult || event.defaultPrevented || isLoading.value || event.altKey
+    || catalogueResults.value.length === 0) return
   const currentIndex = Math.max(0, catalogueResults.value.findIndex((row) => row.key === selectedResultKey.value))
 
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return
     event.preventDefault()
     if (event.key === 'Home') selectResultAt(0)
     else if (event.key === 'End') selectResultAt(catalogueResults.value.length - 1)
@@ -726,6 +734,7 @@ function handleResultsKeydown(event: KeyboardEvent) {
 
   if (event.key === 'Enter') {
     event.preventDefault()
+    if (event.repeat) return
     const row = catalogueResults.value[currentIndex]
     if (!row) return
     if (event.ctrlKey || event.metaKey) openCatalogueResultDetails(row)
@@ -738,6 +747,14 @@ function handleResultsKeydown(event: KeyboardEvent) {
     quickViewOpen.value = false
     resultsScroll.value?.focus()
   }
+}
+
+function restoreCatalogueFocus() {
+  // Run after the drawer has restored its own saved focus (which may be a row button).
+  requestAnimationFrame(() => {
+    if (route.name !== 'products' || quickViewOpen.value || priceOffersDialogOpen.value) return
+    resultsScroll.value?.focus({ preventScroll: true })
+  })
 }
 
 function openCandidate(candidate: CatalogueCandidateSearchModel) {
