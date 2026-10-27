@@ -99,7 +99,7 @@
                     {{ selectedUser.description }}
                   </div>
                 </div>
-                <el-dropdown trigger="click" @command="handleUserAction">
+                <el-dropdown v-if="canEditUserInfo" trigger="click" @command="handleUserAction">
                   <el-button :icon="MoreFilled" circle plain />
                   <template #dropdown>
                     <el-dropdown-menu>
@@ -259,7 +259,7 @@
 
                   <div class="flex items-center justify-between">
                     <el-divider content-position="left">{{ t('users.storages') }}</el-divider>
-                    <el-button size="small" type="primary" @click="openAddStorageDialog">{{ t('users.addStorage') }}</el-button>
+                    <el-button v-if="canAddUserStorage" size="small" type="primary" @click="openAddStorageDialog">{{ t('users.addStorage') }}</el-button>
                   </div>
                   <div class="grid gap-3 pb-4">
                     <div v-for="storage in userStorages" :key="storage.code" class="flex items-center justify-between rounded-lg bg-slate-50 p-3">
@@ -267,7 +267,7 @@
                         <div class="font-medium text-slate-900">{{ storage.code }}</div>
                         <div class="text-sm text-slate-500">{{ storage.location || t('users.locationMissing') }}</div>
                       </div>
-                      <el-button size="small" type="danger" plain @click="detachStorage(storage.code)">{{ t('common.actions.delete') }}</el-button>
+                      <el-button v-if="canDeleteUserStorage" size="small" type="danger" plain @click="detachStorage(storage.code)">{{ t('common.actions.delete') }}</el-button>
                     </div>
                     <div v-if="userStorages.length === 0" class="text-sm text-slate-400">{{ t('users.noStorages') }}</div>
                   </div>
@@ -278,6 +278,7 @@
                         <div class="flex w-full items-center justify-between pr-3">
                           <span class="text-sm font-semibold text-slate-900">{{ t('users.permissions') }}</span>
                           <el-button
+                            v-if="canManageUserPermissions"
                             size="small"
                             type="primary"
                             plain
@@ -306,7 +307,7 @@
                             class="cursor-pointer"
                             effect="plain"
                             round
-                            closable
+                            :closable="canManageUserPermissions"
                             :disable-transitions="true"
                             @click="openPermission(permission)"
                             @close="confirmRemovePermission(permission)"
@@ -748,6 +749,9 @@ const canCreateUsers = computed(() => hasPermission('USERS_CREATE'))
 const canEditUserInfo = canCreateUsers
 const canManageUserEmails = computed(() => hasPermission('USERS_MAILS_CREATE'))
 const canManageUserRoles = computed(() => hasPermission('USERS_ROLES_CREATE'))
+const canManageUserPermissions = computed(() => hasPermission('USERS_PERMISSIONS_CREATE'))
+const canAddUserStorage = computed(() => hasPermission('USERS_STORAGES_ADD'))
+const canDeleteUserStorage = computed(() => hasPermission('USERS_STORAGES_DELETE'))
 const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
 const selectedUser = ref<UserModel>()
 const searchTerm = ref<string>()
@@ -1484,6 +1488,7 @@ async function loadPermissionsCatalog() {
 }
 
 function openAddStorageDialog() {
+  if (!canAddUserStorage.value) return
   storageToAttach.value = undefined
   storageDialogOpen.value = true
 }
@@ -1496,11 +1501,13 @@ function openPermission(permission: string) {
 }
 
 function openAddPermissionDialog() {
+  if (!canManageUserPermissions.value) return
   permissionsToAttach.value = []
   permissionDialogOpen.value = true
 }
 
 async function openAddRoleDialog() {
+  if (!canManageUserRoles.value) return
   rolesToAttach.value = []
   roleDialogOpen.value = true
   await loadRoles(undefined, true)
@@ -1570,7 +1577,7 @@ async function saveUserInfo() {
 }
 
 async function attachPermissions() {
-  if (!selectedUser.value || permissionsToAttach.value.length === 0 || permissionAttachLoading.value) return
+  if (!canManageUserPermissions.value || !selectedUser.value || permissionsToAttach.value.length === 0 || permissionAttachLoading.value) return
 
   const userId = selectedUser.value.id
   const permissions = [...permissionsToAttach.value]
@@ -1590,7 +1597,7 @@ async function attachPermissions() {
 }
 
 async function attachRoles() {
-  if (!selectedUser.value || rolesToAttach.value.length === 0 || roleAttachLoading.value) return
+  if (!canManageUserRoles.value || !selectedUser.value || rolesToAttach.value.length === 0 || roleAttachLoading.value) return
 
   const userId = selectedUser.value.id
   const roles = [...rolesToAttach.value]
@@ -1639,7 +1646,7 @@ async function confirmRemoveRole(role: string) {
 }
 
 async function confirmRemovePermission(permission: string) {
-  if (!selectedUser.value) return
+  if (!canManageUserPermissions.value || !selectedUser.value) return
 
   try {
     await ElMessageBox.confirm(
@@ -1786,7 +1793,7 @@ async function setUserPrimaryEmail(email: string) {
 }
 
 async function attachStorage() {
-  if (!selectedUser.value || !storageToAttach.value) return
+  if (!canAddUserStorage.value || !selectedUser.value || !storageToAttach.value) return
 
   await addStorageToUser({
     userId: selectedUser.value.id,
@@ -1804,7 +1811,7 @@ async function attachStorage() {
 }
 
 async function detachStorage(storageCode: string) {
-  if (!selectedUser.value) return
+  if (!canDeleteUserStorage.value || !selectedUser.value) return
 
   await removeStorageFromUser({
     userId: selectedUser.value.id,

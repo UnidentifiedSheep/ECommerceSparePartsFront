@@ -5,7 +5,7 @@
         <h1 class="text-2xl font-semibold text-slate-900">{{ t('roles.title') }}</h1>
         <p class="text-sm text-slate-500">{{ t('roles.description') }}</p>
       </div>
-      <el-button type="primary" @click="openCreateDialog">{{ t('roles.create') }}</el-button>
+      <el-button v-if="canEditRoles" type="primary" @click="openCreateDialog">{{ t('roles.create') }}</el-button>
     </div>
 
     <div class="p-4">
@@ -51,9 +51,9 @@
           <el-table-column :label="t('common.labels.actions')" width="260" align="right" fixed="right">
             <template #default="{ row }">
               <div class="flex justify-end gap-2">
-                <el-button size="small" @click="openEditDialog(row)">{{ t('common.actions.edit') }}</el-button>
+                <el-button v-if="canEditRoles" size="small" @click="openEditDialog(row)">{{ t('common.actions.edit') }}</el-button>
                 <el-button size="small" type="primary" plain @click="openPermissionDialog(row)">
-                  {{ t('roles.addPermission') }}
+                  {{ t(canManageRolePermissions ? 'roles.addPermission' : 'permissions.title') }}
                 </el-button>
               </div>
             </template>
@@ -102,7 +102,7 @@
           </div>
         </section>
 
-        <el-form label-position="top">
+        <el-form v-if="canManageRolePermissions" label-position="top">
         <el-form-item :label="t('permissions.title')">
           <el-select
             v-model="permissionToAdd"
@@ -122,8 +122,8 @@
         </el-form>
       </div>
       <template #footer>
-        <el-button @click="permissionDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" :disabled="!permissionToAdd || roleDetailsLoading" :loading="isAddingPermission" @click="addPermission">
+        <el-button @click="permissionDialogOpen = false">{{ t(canManageRolePermissions ? 'common.actions.cancel' : 'common.actions.close') }}</el-button>
+        <el-button v-if="canManageRolePermissions" type="primary" :disabled="!permissionToAdd || roleDetailsLoading" :loading="isAddingPermission" @click="addPermission">
           {{ t('common.actions.add') }}
         </el-button>
       </template>
@@ -145,10 +145,14 @@ import {
   upsertRole,
 } from '@/services/api/roles.ts'
 import { useI18n } from '@/i18n'
+import { usePermissions } from '@/composables/usePermissions'
 
 type RoleDialogMode = 'create' | 'edit'
 
 const { locale, t } = useI18n()
+const { hasPermission } = usePermissions()
+const canEditRoles = computed(() => hasPermission('ROLES_CREATE'))
+const canManageRolePermissions = computed(() => hasPermission('ROLES_PERMISSIONS_CREATE'))
 const roles = ref<RoleModel[]>([])
 const permissions = ref<PermissionModel[]>([])
 const searchTerm = ref('')
@@ -178,18 +182,22 @@ const roleForm = reactive({
 const roleDialogTitle = computed(() => (
   roleDialogMode.value === 'create' ? t('roles.createTitle') : t('roles.editTitle')
 ))
-const permissionDialogTitle = computed(() => (
-  selectedRole.value
+const permissionDialogTitle = computed(() => {
+  if (!canManageRolePermissions.value) {
+    return `${t('permissions.title')}: ${selectedRole.value?.localizedName || selectedRole.value?.systemName || ''}`
+  }
+  return selectedRole.value
     ? t('roles.addPermissionTitle', { role: selectedRole.value.localizedName || selectedRole.value.systemName })
     : t('roles.addPermission')
-))
-const canSaveRole = computed(() => roleForm.name.trim() !== '')
+})
+const canSaveRole = computed(() => canEditRoles.value && roleForm.name.trim() !== '')
 const rolePermissionNames = computed(() => new Set(rolePermissions.value.map((permission) => permission.systemName)))
 const availablePermissions = computed(() => (
   permissions.value.filter((permission) => !rolePermissionNames.value.has(permission.systemName))
 ))
 
 function openCreateDialog() {
+  if (!canEditRoles.value) return
   roleDialogMode.value = 'create'
   roleForm.name = ''
   roleForm.description = ''
@@ -197,6 +205,7 @@ function openCreateDialog() {
 }
 
 function openEditDialog(role: RoleModel) {
+  if (!canEditRoles.value) return
   roleDialogMode.value = 'edit'
   roleForm.name = role.systemName
   roleForm.description = role.description ?? ''
@@ -235,6 +244,7 @@ async function loadRolesPage(resetPage = false) {
 }
 
 async function loadPermissions() {
+  if (!canManageRolePermissions.value) return
   const requestId = ++permissionsRequestId
   permissionsLoading.value = true
   try {
@@ -285,7 +295,7 @@ async function saveRole() {
 }
 
 async function addPermission() {
-  if (!selectedRole.value || !permissionToAdd.value || isAddingPermission.value) return
+  if (!canManageRolePermissions.value || !selectedRole.value || !permissionToAdd.value || isAddingPermission.value) return
 
   isAddingPermission.value = true
   try {
