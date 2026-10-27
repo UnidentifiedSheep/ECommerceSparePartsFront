@@ -12,6 +12,7 @@
       <span
         class="position-comment-trigger"
         tabindex="0"
+        title=""
         :aria-label="t('common.labels.comment')"
         @click.stop
         @keydown.esc.stop.prevent="visible = false"
