@@ -2,26 +2,22 @@
   <el-popover
     v-if="comment?.trim()"
     v-model:visible="visible"
-    trigger="click"
-    role="dialog"
+    :trigger="['hover', 'focus']"
+    role="tooltip"
     placement="bottom-start"
     width="min(360px, calc(100vw - 24px))"
-    :title="t('common.labels.comment')"
     @keydown.esc.stop.prevent="visible = false"
   >
     <template #reference>
-      <el-button
+      <span
         class="position-comment-trigger"
-        :icon="ChatLineSquare"
-        type="primary"
-        text
-        size="small"
+        tabindex="0"
         :aria-label="t('common.labels.comment')"
-        :aria-expanded="visible"
-        :title="t('common.labels.comment')"
         @click.stop
         @keydown.esc.stop.prevent="visible = false"
-      />
+      >
+        <el-icon aria-hidden="true"><ChatLineSquare /></el-icon>
+      </span>
     </template>
     <div class="position-comment-text">{{ comment }}</div>
   </el-popover>
@@ -41,11 +37,21 @@ watch(() => props.comment, () => { visible.value = false })
 
 <style scoped>
 .position-comment-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
   width: 24px;
   height: 24px;
   margin-left: 0;
   padding: 0;
+  color: var(--el-color-primary);
+  cursor: help;
+}
+.position-comment-trigger:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 1px;
+  border-radius: var(--el-border-radius-small);
 }
 .position-comment-trigger :deep(.el-icon) { font-size: 16px; }
 .position-comment-text {
