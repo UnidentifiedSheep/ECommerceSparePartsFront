@@ -62,14 +62,6 @@
           </el-radio-group>
           <div class="sale-history__filter-row">
             <el-checkbox v-model="showCrosses" @change="refresh">{{ t('sales.history.showCrosses') }}</el-checkbox>
-            <el-select v-model="sortBy" size="small" class="sale-history__sort" :aria-label="t('sales.history.sort')" @change="refresh">
-              <el-option
-                v-for="option in sortOptions"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value"
-              />
-            </el-select>
           </div>
         </div>
 
@@ -89,12 +81,16 @@
           </div>
 
           <div v-else class="sale-history__list">
-            <div class="sale-history__columns" aria-hidden="true">
-              <span>{{ t(showCrosses ? 'common.labels.product' : 'common.labels.date') }}</span>
-              <span :title="t('common.labels.count')">{{ t('sales.history.quantityColumn') }}</span>
-              <span :title="t('sales.history.averageBuyPrice')">{{ t('sales.history.buyPriceColumn') }}</span>
-              <span>{{ t('sales.history.discount') }}</span>
-              <span>{{ t('common.labels.price') }}</span>
+            <div class="sale-history__columns" role="group" :aria-label="t('sales.history.sort')">
+              <div class="sale-history__entry-head">
+                <SortableColumnHeader :label="t('common.labels.price')" field="price" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
+                <SortableColumnHeader :label="t('common.labels.date')" field="saleDate" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
+              </div>
+              <div class="sale-history__details">
+                <SortableColumnHeader :label="t('common.labels.count')" field="quantity" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
+                <SortableColumnHeader :label="t('sales.history.buyPriceColumn')" field="averageBuyPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
+                <SortableColumnHeader :label="t('sales.history.discount')" field="discount" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
+              </div>
             </div>
             <button
               v-for="entry in history"
@@ -107,20 +103,23 @@
               :title="entryTitle(entry)"
               @click="applyPrice(entry)"
             >
+              <span class="sale-history__entry-head">
+                <strong class="sale-history__price">{{ formatMoney(entry.price, entry.currency?.currencySign) }}</strong>
+                <time :datetime="entry.saleDate">{{ formatDate(entry.saleDate) }}</time>
+              </span>
               <span class="sale-history__identity">
-                <strong v-if="showCrosses && entry.product" class="sale-history__entry-product" :class="{ 'is-cross': entry.productId !== product.id }">
+                <span v-if="entry.product" class="sale-history__entry-product" :class="{ 'is-match': matchesSku(entry) }" :title="matchesSku(entry) ? t('sales.history.sameSku') : entry.product.name">
                   {{ entry.product.sku }}<span v-if="entry.product.producerName"> · {{ entry.product.producerName }}</span>
-                </strong>
-                <time v-else :datetime="entry.saleDate">{{ formatDate(entry.saleDate) }}</time>
-                <span class="sale-history__entry-meta">
-                  <time v-if="showCrosses" :datetime="entry.saleDate">{{ formatDate(entry.saleDate) }}</time>
-                  <span v-if="entry.organization && !effectiveOrganizationId" :class="{ 'is-current': entry.organization.id === preferredOrganizationId }">{{ showCrosses ? ' · ' : '' }}{{ entry.organization.name }}</span>
+                </span>
+                <span v-if="entry.organization" class="sale-history__organization" :class="{ 'is-match': matchesOrganization(entry) }" :title="entry.organization.name">
+                  {{ entry.organization.name }}
                 </span>
               </span>
-              <span class="sale-history__value sale-history__count"><span class="sr-only">{{ t('common.labels.count') }}: </span>{{ entry.quantity.toLocaleString(locale) }}</span>
-              <span class="sale-history__value" :title="formatMoney(entry.averageBuyPrice, entry.currency?.currencySign)"><span class="sr-only">{{ t('sales.history.averageBuyPrice') }}: </span>{{ formatMoney(entry.averageBuyPrice, entry.currency?.currencySign) }}</span>
-              <span class="sale-history__value"><span class="sr-only">{{ t('sales.history.discount') }}: </span>{{ formatPercent(entry.discount) }}</span>
-              <strong class="sale-history__value sale-history__price" :title="formatMoney(entry.price, entry.currency?.currencySign)"><span class="sr-only">{{ t('common.labels.price') }}: </span>{{ formatMoney(entry.price, entry.currency?.currencySign) }}</strong>
+              <span class="sale-history__details">
+                <span><span class="sr-only">{{ t('common.labels.count') }}: </span>{{ entry.quantity.toLocaleString(locale) }}</span>
+                <span :title="t('sales.history.averageBuyPrice')"><span class="sr-only">{{ t('sales.history.averageBuyPrice') }}: </span>{{ formatMoney(entry.averageBuyPrice, entry.currency?.currencySign) }}</span>
+                <span><span class="sr-only">{{ t('sales.history.discount') }}: </span>{{ formatPercent(entry.discount) }}</span>
+              </span>
             </button>
             <div v-if="isLoadingMore" class="sale-history__loading-more" role="status">{{ t('sales.history.loading') }}</div>
           </div>
@@ -145,6 +144,8 @@ import {
   getProductSaleHistory,
   type ProductSaleHistoryModel,
 } from '@/services/api/sales.ts'
+import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
+import { useMultiSort } from '@/composables/useMultiSort'
 import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
 import { useI18n } from '@/i18n'
 
@@ -178,21 +179,25 @@ const onlyThisOrganization = ref(false)
 const effectiveOrganizationId = computed(() => props.organizationId || (onlyThisOrganization.value ? props.preferredOrganizationId : undefined))
 const page = ref(0)
 const pageSize = 10
-const sortBy = ref('saleDate_desc')
+const { sortBy, toggleSort } = useMultiSort(['-saleDate'])
 const historyDebounce = useSelectionDebounce()
 let requestId = 0
 onScopeDispose(() => { ++requestId })
 
-const sortOptions = computed(() => [
-  { value: 'saleDate_desc', label: t('sales.history.sortNewest') },
-  { value: 'saleDate_asc', label: t('sales.history.sortOldest') },
-  { value: 'price_desc', label: t('sales.history.sortPriceDesc') },
-  { value: 'price_asc', label: t('sales.history.sortPriceAsc') },
-  { value: 'averageBuyPrice_desc', label: t('sales.history.sortBuyPriceDesc') },
-  { value: 'averageBuyPrice_asc', label: t('sales.history.sortBuyPriceAsc') },
-  { value: 'discount_desc', label: t('sales.history.sortDiscountDesc') },
-  { value: 'discount_asc', label: t('sales.history.sortDiscountAsc') },
-])
+function sortHistory(field: string, event: MouseEvent) {
+  toggleSort(field, event)
+  refresh()
+}
+
+function matchesSku(entry: ProductSaleHistoryModel) {
+  const sku = props.product?.sku.trim().toUpperCase()
+  return Boolean(sku && entry.product?.sku.trim().toUpperCase() === sku)
+}
+
+function matchesOrganization(entry: ProductSaleHistoryModel) {
+  const organizationId = props.organizationId || props.preferredOrganizationId
+  return Boolean(organizationId && entry.organization?.id === organizationId)
+}
 
 async function load(reset: boolean) {
   if (!props.product || !isOpen.value) return
@@ -224,7 +229,7 @@ async function load(reset: boolean) {
       currencyId: props.currencyId,
       page: page.value,
       size: pageSize,
-      sortBy: [sortBy.value],
+      sortBy: sortBy.value,
     })
     if (currentRequestId !== requestId) return
 
@@ -286,6 +291,7 @@ function formatDate(value: string) {
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat(locale.value, {
     dateStyle: 'short',
+    timeStyle: 'short',
   }).format(date)
 }
 
@@ -420,39 +426,29 @@ watch(
 }
 .sale-history__filter-row { display: flex; align-items: center; gap: 12px; }
 .sale-history__filter-row :deep(.el-checkbox) { flex: 0 0 auto; height: 28px; margin: 0; }
-.sale-history__sort { flex: 1; min-width: 0; }
 .sale-history__results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.sale-history__list { min-width: 360px; }
-.sale-history__columns,
-.sale-history__entry {
-  display: grid;
-  grid-template-columns: minmax(90px, 1fr) 30px 80px 38px 86px;
-  align-items: center;
-  gap: 4px;
-  padding-right: 10px;
-  padding-left: 10px;
-}
+.sale-history__list { min-width: 0; }
 .sale-history__columns {
   position: sticky;
   top: 0;
   z-index: 1;
-  min-height: 30px;
+  display: grid;
+  gap: 8px;
+  padding: 8px 12px;
   background: var(--app-bg-soft);
   color: var(--app-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
-.sale-history__columns > span { text-align: right; }
-.sale-history__columns > span:first-child { text-align: left; }
-.sale-history__columns > span:nth-child(2) { text-align: center; }
 .sale-history__entry {
+  display: grid;
   width: 100%;
-  min-height: 44px;
+  min-height: 76px;
+  gap: 3px;
   border: 0;
   border-bottom: 1px solid var(--app-border);
   border-radius: 0;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  padding: 6px 12px;
   background: var(--app-surface);
   color: var(--app-text);
   font: inherit;
@@ -467,23 +463,18 @@ watch(
   outline-offset: -2px;
 }
 .sale-history__entry:disabled { cursor: default; }
-.sale-history__identity { display: grid; min-width: 0; gap: 2px; font-size: 12px; line-height: 1.3; }
-.sale-history__identity > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sale-history__entry-product { font-weight: 600; }
-.sale-history__entry-product.is-cross,
-.sale-history__entry-meta .is-current { color: var(--app-primary); }
-.sale-history__entry-meta { color: var(--app-text-muted); font-size: 11px; }
-.sale-history__value {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sale-history__count { text-align: center; }
-.sale-history__price { font-weight: 700; }
+.sale-history__entry-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; line-height: 1.3; }
+.sale-history__price { font-size: 14px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sale-history__entry-head time { color: var(--app-text-muted); font-size: 12px; white-space: nowrap; }
+.sale-history__identity { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-width: 0; align-items: baseline; gap: 8px; font-size: 12px; line-height: 1.4; }
+.sale-history__identity > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 4px; border-radius: 3px; }
+.sale-history__entry-product { min-width: 0; font-weight: 600; }
+.sale-history__organization { min-width: 0; color: var(--app-text-muted); text-align: right; }
+.sale-history__entry-product.is-match { background: var(--app-primary-soft); color: var(--app-primary); box-shadow: inset 0 0 0 1px var(--app-border-strong); }
+.sale-history__organization.is-match { background: #fffbeb; color: #92400e; }
+.sale-history__details { display: grid; grid-template-columns: 70px minmax(0, 1fr) 70px; align-items: baseline; gap: 8px; color: var(--app-text-muted); font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.sale-history__details > :nth-child(2) { justify-self: center; white-space: nowrap; }
+.sale-history__details > :last-child { justify-self: end; white-space: nowrap; }
 .sale-history__loading-more { padding: 10px; color: var(--app-text-muted); font-size: 12px; text-align: center; }
 .sale-history__state { display: grid; place-items: center; gap: 12px; min-height: 150px; padding: 24px 16px; color: var(--app-text-muted); font-size: 13px; text-align: center; }
 .sale-history__state--error { color: var(--el-color-danger); }
