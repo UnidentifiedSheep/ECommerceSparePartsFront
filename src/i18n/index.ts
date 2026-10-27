@@ -1793,6 +1793,8 @@ const messages: Record<AppLocale, MessageTree> = {
       history: {
         title: 'История продаж',
         allBuyers: 'Все покупатели',
+        buyPriceColumn: 'Закупка',
+        quantityColumn: 'Кол.',
         thisBuyer: 'Этот покупатель',
         sort: 'Сортировка истории продаж',
         applyPrice: 'Применить цену {price}',
@@ -3813,6 +3815,8 @@ const messages: Record<AppLocale, MessageTree> = {
       history: {
         title: 'Sale history',
         allBuyers: 'All buyers',
+        buyPriceColumn: 'Purchase',
+        quantityColumn: 'Qty',
         thisBuyer: 'This buyer',
         sort: 'Sale history sort order',
         applyPrice: 'Apply price {price}',
@@ -5833,6 +5837,8 @@ const messages: Record<AppLocale, MessageTree> = {
       history: {
         title: 'Satış geçmişi',
         allBuyers: 'Tüm alıcılar',
+        buyPriceColumn: 'Alış',
+        quantityColumn: 'Adet',
         thisBuyer: 'Bu alıcı',
         sort: 'Satış geçmişi sıralaması',
         applyPrice: '{price} fiyatını uygula',
