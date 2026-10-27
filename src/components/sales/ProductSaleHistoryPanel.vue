@@ -53,6 +53,11 @@
           <span>{{ currencySign || t('sales.history.anyCurrency') }}</span>
         </div>
 
+        <div class="sale-history__filters">
+          <el-checkbox v-model="showCrosses" @change="refresh">{{ t('sales.history.showCrosses') }}</el-checkbox>
+          <el-checkbox v-if="preferredOrganizationId && !organizationId" v-model="onlyThisOrganization" @change="refresh">{{ t('sales.history.onlyThisOrganization') }}</el-checkbox>
+        </div>
+
         <el-select v-model="sortBy" class="sale-history__sort" :teleported="false" @change="refresh">
           <el-option
             v-for="option in sortOptions"
@@ -77,14 +82,18 @@
 
         <div v-else class="sale-history__list">
           <article v-for="entry in history" :key="entry.saleContentId" class="sale-history__entry">
+            <div v-if="entry.product" class="sale-history__entry-product">
+              <div><strong>{{ entry.product.sku }}</strong><el-tag v-if="entry.productId !== product.id" size="small" type="info">{{ t('sales.history.cross') }}</el-tag></div>
+              <span>{{ entry.product.producerName }} · {{ entry.product.name }}</span>
+            </div>
             <div class="sale-history__entry-head">
-              <strong>{{ formatMoney(entry.price) }}</strong>
+              <strong>{{ formatMoney(entry.price, entry.currency?.currencySign) }}</strong>
               <time :datetime="entry.saleDate">{{ formatDate(entry.saleDate) }}</time>
             </div>
             <dl>
               <div>
                 <dt>{{ t('sales.history.averageBuyPrice') }}</dt>
-                <dd>{{ formatMoney(entry.averageBuyPrice) }}</dd>
+                <dd>{{ formatMoney(entry.averageBuyPrice, entry.currency?.currencySign) }}</dd>
               </div>
               <div>
                 <dt>{{ t('common.labels.count') }}</dt>
@@ -99,6 +108,7 @@
                 <dd>{{ entry.storageCode }}</dd>
               </div>
             </dl>
+            <div v-if="entry.organization" class="sale-history__organization" :class="{ 'is-current': entry.organization.id === (organizationId || preferredOrganizationId) }">{{ entry.organization.name }}</div>
             <div class="sale-history__meta">
               <span>#{{ entry.saleContentId }}</span>
               <span v-if="entry.whoCreated">{{ shortId(entry.whoCreated) }}</span>
@@ -122,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { ArrowLeft, ArrowRight, Refresh } from '@element-plus/icons-vue'
 import { useZIndex } from 'element-plus'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
@@ -130,6 +140,7 @@ import {
   getProductSaleHistory,
   type ProductSaleHistoryModel,
 } from '@/services/api/sales.ts'
+import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
 import { useI18n } from '@/i18n'
 
 const props = defineProps<{
@@ -150,10 +161,14 @@ const isLoading = ref(false)
 const isLoadingMore = ref(false)
 const errorMessage = ref('')
 const hasNext = ref(false)
+const showCrosses = ref(false)
+const onlyThisOrganization = ref(false)
 const page = ref(0)
 const pageSize = 10
 const sortBy = ref('saleDate_desc')
+const historyDebounce = useSelectionDebounce()
 let requestId = 0
+onScopeDispose(() => { ++requestId })
 
 const sortOptions = computed(() => [
   { value: 'saleDate_desc', label: t('sales.history.sortNewest') },
@@ -169,21 +184,27 @@ const sortOptions = computed(() => [
 async function load(reset: boolean) {
   if (!props.product || !isOpen.value) return
 
+  if (!reset && (isLoading.value || isLoadingMore.value || !hasNext.value)) return
   const currentRequestId = ++requestId
   if (reset) {
     page.value = 0
     history.value = []
     errorMessage.value = ''
     isLoading.value = true
+    isLoadingMore.value = false
+    hasNext.value = false
   } else {
     isLoadingMore.value = true
   }
 
+  if (reset && !await historyDebounce.wait()) return
+  if (currentRequestId !== requestId) return
   try {
     const response = await getProductSaleHistory({
       productId: props.product.id,
       storageCode: props.storageCode,
-      organizationId: props.organizationId,
+      organizationId: props.organizationId || (onlyThisOrganization.value ? props.preferredOrganizationId : undefined),
+      showCrosses: showCrosses.value,
       preferredOrganizationId: props.preferredOrganizationId,
       currencyId: props.currencyId,
       page: page.value,
@@ -192,9 +213,8 @@ async function load(reset: boolean) {
     })
     if (currentRequestId !== requestId) return
 
-    history.value = reset
-      ? response.history
-      : [...history.value, ...response.history]
+    const existing = new Set(history.value.map(entry => entry.saleContentId))
+    history.value = reset ? response.history : [...history.value, ...response.history.filter(entry => !existing.has(entry.saleContentId))]
     hasNext.value = response.history.length === pageSize
     page.value += 1
   } catch (error) {
@@ -215,15 +235,15 @@ function refresh() {
 }
 
 function loadMore() {
-  if (!isLoadingMore.value && hasNext.value) void load(false)
+  if (!isLoading.value && !isLoadingMore.value && hasNext.value) void load(false)
 }
 
-function formatMoney(value: number) {
+function formatMoney(value: number, currencySign?: string) {
   const formatted = value.toLocaleString(locale.value, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })
-  return `${formatted} ${props.currencySign ?? ''}`.trim()
+  return `${formatted} ${currencySign ?? props.currencySign ?? ''}`.trim()
 }
 
 function formatPercent(value: number) {
@@ -259,8 +279,11 @@ watch(
     if (open && props.product) {
       panelZIndex.value = nextZIndex()
       refresh()
-    } else if (!props.product) {
+    } else {
+      historyDebounce.cancel()
       requestId += 1
+      isLoading.value = false
+      isLoadingMore.value = false
       history.value = []
       hasNext.value = false
       errorMessage.value = ''
@@ -283,7 +306,7 @@ watch(
 }
 
 .sale-history--open {
-  width: 360px;
+  width: 400px;
   height: min(884px, 90vh);
   border-left-color: #94a3b8;
   border-radius: 0 8px 8px 0;
@@ -401,6 +424,13 @@ watch(
   padding: 11px;
 }
 
+.sale-history__filters { display: flex; flex-wrap: wrap; gap: 0 12px; margin-top: 8px; }
+.sale-history__filters :deep(.el-checkbox) { margin-right: 0; height: auto; min-height: 28px; }
+.sale-history__entry-product { display: grid; gap: 4px; margin-bottom: 10px; }
+.sale-history__entry-product > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sale-history__entry-product > span { font-size: 12px; color: #64748b; overflow-wrap: anywhere; }
+.sale-history__organization { margin-top: 9px; font-size: 12px; color: #64748b; overflow-wrap: anywhere; }
+.sale-history__organization.is-current { color: var(--app-primary); font-weight: 600; }
 .sale-history__entry-head {
   display: flex;
   align-items: baseline;
@@ -480,7 +510,7 @@ watch(
 
   .sale-history--open {
     top: 12px;
-    width: min(360px, calc(100vw - 24px));
+    width: min(400px, calc(100vw - 24px));
     height: calc(100dvh - 24px);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgb(15 23 42 / 12%);

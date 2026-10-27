@@ -2,7 +2,7 @@
   <el-dialog
     v-model="isOpen"
     :width="historyPanelOpen
-      ? 'min(1320px, calc(100vw - 392px))'
+      ? 'min(1320px, calc(100vw - 432px))'
       : 'min(1320px, calc(100vw - 32px))'"
     top="5vh"
     :class="[

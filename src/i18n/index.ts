@@ -1792,6 +1792,9 @@ const messages: Record<AppLocale, MessageTree> = {
       loadStorageBatchesError: 'Не удалось загрузить партии склада',
       history: {
         title: 'История продаж',
+        showCrosses: 'С кроссами',
+        onlyThisOrganization: 'Только эта организация',
+        cross: 'Кросс',
         open: 'Открыть историю продаж',
         close: 'Закрыть историю продаж',
         show: 'История',
@@ -3802,6 +3805,9 @@ const messages: Record<AppLocale, MessageTree> = {
       loadStorageBatchesError: 'Could not load storage batches',
       history: {
         title: 'Sale history',
+        showCrosses: 'Include crosses',
+        onlyThisOrganization: 'This organization only',
+        cross: 'Cross',
         open: 'Open sale history',
         close: 'Close sale history',
         show: 'History',
@@ -5812,6 +5818,9 @@ const messages: Record<AppLocale, MessageTree> = {
       loadStorageBatchesError: 'Depo partileri yüklenemedi',
       history: {
         title: 'Satış geçmişi',
+        showCrosses: 'Çapraz ürünleri dahil et',
+        onlyThisOrganization: 'Yalnızca bu kuruluş',
+        cross: 'Çapraz ürün',
         open: 'Satış geçmişini aç',
         close: 'Satış geçmişini kapat',
         show: 'Geçmiş',

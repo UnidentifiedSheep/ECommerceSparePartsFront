@@ -12,7 +12,7 @@ export interface PurchaseModel {
   comment?: string | null
   storageCode: string
   purchaseDatetime: string
-  transactionId: string
+  transactionId?: string
   totalSum: number
   logistics?: PurchaseLogisticModel | null
 }
