@@ -10,7 +10,7 @@ export interface SaleModel {
   organization: OrganizationModel
   comment?: string | null
   saleDatetime: string
-  transactionId: string
+  transactionId?: string
   totalSum: number
   storageCode: string
   state: SaleState

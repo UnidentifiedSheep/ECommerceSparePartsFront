@@ -58,7 +58,7 @@
 
     <template #footer>
       <el-button :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
-      <el-button type="primary" :loading="isSaving" @click="save">{{ t('common.actions.save') }}</el-button>
+      <el-button type="primary" :loading="isSaving" :disabled="!hasChanges" @click="save">{{ t('common.actions.save') }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -72,6 +72,7 @@ import type { ProductModel } from '@/models/productModel.ts'
 import { editProduct } from '@/services/api/products.ts'
 import { useI18n } from '@/i18n'
 import { useDialogGuard } from '@/composables/useDialogGuard.ts'
+import { buildProductEditPatch, normalizeProductEdit, type ProductEditValues } from '@/utils/productEditPatch'
 import type { CatalogueNameGroup } from '@/utils/catalogueCandidateNames.ts'
 
 const props = defineProps<{
@@ -100,6 +101,9 @@ const form = reactive<{
   description: '',
   indicator: null,
 })
+const initialValues = ref<ProductEditValues>({ ...form })
+const patch = computed(() => buildProductEditPatch(props.product.id, initialValues.value, form))
+const hasChanges = computed(() => Object.keys(patch.value).length > 1)
 const isSaving = ref(false)
 const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form }))
 const selectedAlternativeName = ref<string>()
@@ -117,6 +121,7 @@ function resetForm() {
   form.description = props.product.description ?? ''
   form.indicator = props.product.indicator ?? null
   selectedAlternativeName.value = undefined
+  initialValues.value = normalizeProductEdit(form)
 }
 
 function useAlternativeName(name?: string) {
@@ -124,11 +129,11 @@ function useAlternativeName(name?: string) {
 }
 
 async function save() {
-  if (isSaving.value) return
+  if (isSaving.value || !hasChanges.value) return
   const sku = form.sku.trim()
   const name = form.name.trim()
 
-  if (sku.length < 3 || !name || !form.producerId) {
+  if ((patch.value.sku !== undefined && sku.length < 3) || (patch.value.name !== undefined && !name) || (form.producerId !== initialValues.value.producerId && !form.producerId)) {
     ElNotification({
       title: t('products.checkProductTitle'),
       message: t('products.checkProductMessage'),
@@ -139,15 +144,7 @@ async function save() {
 
   isSaving.value = true
   try {
-    await editProduct({
-      id: props.product.id,
-      sku,
-      name,
-      producerId: form.producerId,
-      groupId: form.groupId ?? null,
-      description: form.description.trim() || null,
-      indicator: form.indicator,
-    })
+    await editProduct(patch.value)
 
     ElNotification({
       title: t('products.productUpdatedTitle'),
@@ -164,7 +161,7 @@ async function save() {
 
 watch(isOpen, (open) => {
   if (open) resetForm()
-})
+}, { immediate: true })
 </script>
 
 <style scoped>

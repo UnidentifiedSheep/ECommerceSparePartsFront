@@ -1,47 +1,11 @@
-import type { CurrencyModel } from '@/models/currencyModel.ts'
-import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
-import { mapUserModel, type UserModel } from '@/models/userModel.ts'
-import api, { clampPageSize } from '@/services/api/api.ts'
-import { toUtcDateTimeString } from '@/utils/dateTime.ts'
-import {
-  mapOrganizationModel,
-  type OrganizationDto,
-} from '@/models/organizationModel.ts'
-
-interface PurchaseDto {
-  id: string
-  supplier: UserModel
-  supplierOrganization: OrganizationDto
-  currency: CurrencyModel
-  comment?: string | null
-  storageCode: string
-  purchaseDatetime: string
-  transactionId: string
-  totalSum: number
-  logistics?: PurchaseModel['logistics']
-}
-
-interface PurchaseContentDto {
-  id: number
-  count: number
-  price: number
-  totalSum: number
-  comment?: string | null
-  product?: {
-    id?: number
-    sku?: string
-    articleNumber?: string
-    producerName?: string
-    name?: string
-  }
-  article?: {
-    id?: number
-    articleNumber?: string
-    producerName?: string
-    name?: string
-  }
-  logistics?: PurchaseContentModel['logistics']
-}
+import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel'
+import { clampPageSize } from './api'
+import { toUtcDateTimeString } from '@/utils/dateTime'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import { mapPurchase, mapPurchaseContent } from '@/services/graphql/operationMapping'
+import { gqlSort } from '@/services/graphql/partyMapping'
+import { ListPurchasesDocument, PurchaseByIdDocument, PurchaseByTransactionDocument, PurchaseContentsDocument, CreatePurchaseDocument, UpdatePurchaseDocument, DeletePurchaseDocument } from '@/graphql/generated/graphql'
 
 export interface GetPurchasesRequest {
   rangeStartDate?: string
@@ -106,85 +70,39 @@ export interface CreatePurchaseResponse {
   purchase: PurchaseModel
 }
 
-function mapPurchaseModel(dto: PurchaseDto): PurchaseModel {
-  return {
-    ...dto,
-    supplier: mapUserModel(dto.supplier),
-    supplierOrganization: mapOrganizationModel(dto.supplierOrganization),
-  }
-}
-
 export async function getPurchases(req: GetPurchasesRequest): Promise<GetPurchasesResponse> {
-  const params = new URLSearchParams()
-  const appendParam = (key: string, value: unknown) => {
-    if (value === undefined || value === null || value === '') return
-    params.append(key, String(value))
-  }
-
-  if (req.rangeStartDate) appendParam('rangeStartDate', toUtcDateTimeString(req.rangeStartDate))
-  if (req.rangeEndDate) appendParam('rangeEndDate', toUtcDateTimeString(req.rangeEndDate))
-  appendParam('page', req.page)
-  appendParam('limit', clampPageSize(req.limit))
-  req.supplierOrganizationIds?.forEach((id) => appendParam('supplierOrganizationIds', id))
-  req.currencyIds?.forEach((id) => appendParam('currencyIds', id))
-  req.productIds?.forEach((id) => appendParam('productIds', id))
-  req.sortBy?.forEach((sort) => appendParam('sortBy', sort))
-  appendParam('searchTerm', req.searchTerm)
-
-  const resp = await api.get<{ purchases: PurchaseDto[] }>('/main/purchases', {
-    params,
-  })
-  return {
-    purchases: resp.data.purchases.map(mapPurchaseModel),
-  }
+  const { page, limit, rangeStartDate, rangeEndDate, sortBy, ...filters } = req
+  const { data } = await operationRequest(graphqlClient.query({ query: ListPurchasesDocument, variables: { input: {
+    ...filters, pagination: { page, size: clampPageSize(limit) }, sortBy: gqlSort(sortBy),
+    rangeStartDate: rangeStartDate ? toUtcDateTimeString(rangeStartDate) : undefined,
+    rangeEndDate: rangeEndDate ? toUtcDateTimeString(rangeEndDate) : undefined,
+  } }, fetchPolicy: 'no-cache' }))
+  return { purchases: data.purchases.list.map(mapPurchase) }
 }
-
 export async function getPurchase(id: string): Promise<GetPurchaseResponse> {
-  const resp = await api.get<{ purchase: PurchaseDto }>(`/main/purchases/${id}`)
-  return {
-    purchase: mapPurchaseModel(resp.data.purchase),
-  }
+  const { data } = await operationRequest(graphqlClient.query({ query: PurchaseByIdDocument, variables: { id }, fetchPolicy: 'no-cache' }))
+  if (!data.purchases.byId) throw new Error('Purchase not found')
+  return { purchase: mapPurchase(data.purchases.byId) }
 }
-
 export async function getPurchaseByTransactionId(transactionId: string): Promise<GetPurchaseResponse> {
-  const resp = await api.get<{ purchase: PurchaseDto }>(`/main/transactions/${transactionId}/purchase`)
-  return {
-    purchase: mapPurchaseModel(resp.data.purchase),
-  }
+  const { data } = await operationRequest(graphqlClient.query({ query: PurchaseByTransactionDocument, variables: { transactionId }, fetchPolicy: 'no-cache' }))
+  return { purchase: mapPurchase(data.purchases.byTransactionId) }
 }
-
 export async function getPurchaseContent(id: string): Promise<GetPurchaseContentResponse> {
-  const resp = await api.get<{ content: PurchaseContentDto[] }>(`/main/purchases/${id}/contents`)
-  return {
-    content: resp.data.content.map((item) => ({
-      ...item,
-      product: item.product ?? {
-        id: item.article?.id,
-        sku: item.article?.articleNumber,
-        producerName: item.article?.producerName,
-        name: item.article?.name,
-      },
-    })),
-  }
+  const { data } = await operationRequest(graphqlClient.query({ query: PurchaseContentsDocument, variables: { id }, fetchPolicy: 'no-cache' }))
+  if (!data.purchases.byId) throw new Error('Purchase not found')
+  return { content: data.purchases.byId.contents.map(mapPurchaseContent) }
 }
-
-export async function deletePurchase(id: string) {
-  await api.delete(`/main/purchases/${id}`)
+export async function deletePurchase(id: string): Promise<void> {
+  await operationRequest(graphqlClient.mutate({ mutation: DeletePurchaseDocument, variables: { input: { purchaseId: id } } }))
 }
-
 export async function createPurchase(req: CreatePurchaseRequest): Promise<CreatePurchaseResponse> {
-  const resp = await api.post<{ purchase: PurchaseDto }>('/main/purchases', {
-    ...req,
-    purchaseDate: toUtcDateTimeString(req.purchaseDate),
-  })
-  return {
-    purchase: mapPurchaseModel(resp.data.purchase),
-  }
+  const { purchaseContent, ...fields } = req
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreatePurchaseDocument, variables: { input: { ...fields, contents: purchaseContent, purchaseDate: toUtcDateTimeString(req.purchaseDate) } } }))
+  if (!data) throw new Error('Purchase creation returned no data')
+  return { purchase: mapPurchase(data.purchases.create) }
 }
-
-export async function editPurchase(id: string, req: EditPurchaseRequest) {
-  await api.put(`/main/purchases/${id}`, {
-    ...req,
-    purchaseDateTime: toUtcDateTimeString(req.purchaseDateTime),
-  })
+export async function editPurchase(id: string, req: EditPurchaseRequest): Promise<void> {
+  const { content, ...fields } = req
+  await operationRequest(graphqlClient.mutate({ mutation: UpdatePurchaseDocument, variables: { input: { ...fields, purchaseId: id, contents: content, purchaseDateTime: toUtcDateTimeString(req.purchaseDateTime) } } }))
 }

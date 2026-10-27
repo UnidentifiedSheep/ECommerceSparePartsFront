@@ -1,9 +1,10 @@
-import api, { clampPageSize } from '@/services/api/api.ts'
-import {
-  mapOrganizationModel,
-  type OrganizationDto,
-  type OrganizationModel,
-} from '@/models/organizationModel.ts'
+import { clampPageSize } from './api'
+import type { OrganizationModel } from '@/models/organizationModel'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import { mapTransaction } from '@/services/graphql/operationMapping'
+import { ListTransactionsDocument, CreateTransactionDocument, ReverseTransactionDocument } from '@/graphql/generated/graphql'
+import { toUtcDateTimeString } from '@/utils/dateTime'
 
 export type TransactionType = 'Transfer' | 'Refund' | 'Fee' | 'Adjustment' | number
 export type TransactionStatus =
@@ -48,11 +49,6 @@ export interface GetBalanceTransactionsResponse {
   transactions: BalanceTransactionModel[]
 }
 
-interface BalanceTransactionDto extends Omit<BalanceTransactionModel, 'sender' | 'receiver'> {
-  sender: OrganizationDto
-  receiver: OrganizationDto
-}
-
 export type SystemTransactionDirection = 'UserToSystem' | 'SystemToUser'
 
 export interface CreateSystemBalanceTransactionRequest {
@@ -64,39 +60,21 @@ export interface CreateSystemBalanceTransactionRequest {
   forcePayment?: boolean
 }
 
-export async function getBalanceTransactions(
-  req: GetBalanceTransactionsRequest,
-): Promise<GetBalanceTransactionsResponse> {
-  const resp = await api.get<{ transactions: BalanceTransactionDto[] }>('/main/transactions', {
-    params: {
-      rangeStart: req.rangeStart || undefined,
-      rangeEnd: req.rangeEnd || undefined,
-      currencyId: req.currencyId || undefined,
-      senderId: req.senderId || undefined,
-      receiverId: req.receiverId || undefined,
-      logicalOperator: req.logicalOperator,
-      skipReversed: req.skipReversed,
-      cursorId: req.cursorId || undefined,
-      cursorDate: req.cursorDate || undefined,
-      size: clampPageSize(req.size),
-    },
-  })
-
-  return {
-    transactions: resp.data.transactions.map((transaction) => ({
-      ...transaction,
-      sender: mapOrganizationModel(transaction.sender),
-      receiver: mapOrganizationModel(transaction.receiver),
-    })),
-  }
+export async function getBalanceTransactions(req: GetBalanceTransactionsRequest): Promise<GetBalanceTransactionsResponse> {
+  const { data } = await operationRequest(graphqlClient.query({ query: ListTransactionsDocument, variables: { input: {
+    rangeStart: req.rangeStart ? toUtcDateTimeString(req.rangeStart) : undefined,
+    rangeEnd: req.rangeEnd ? toUtcDateTimeString(req.rangeEnd) : undefined,
+    currencyId: req.currencyId, senderId: req.senderId, receiverId: req.receiverId,
+    logicalOperation: req.logicalOperator === 'Or' ? 'OR' : 'AND', skipReversed: req.skipReversed,
+    cursor: { size: clampPageSize(req.size), value: req.cursorId && req.cursorDate ? { id: req.cursorId, transactionDate: toUtcDateTimeString(req.cursorDate) } : null },
+  } }, fetchPolicy: 'no-cache' }))
+  return { transactions: data.transactions.list.map(mapTransaction) }
 }
-
 export async function createSystemBalanceTransaction(req: CreateSystemBalanceTransactionRequest): Promise<void> {
-  await api.post('/main/transactions', req)
+  await operationRequest(graphqlClient.mutate({ mutation: CreateTransactionDocument, variables: { input: {
+    ...req, direction: req.direction === 'UserToSystem' ? 'USER_TO_SYSTEM' : 'SYSTEM_TO_USER', transactionDateTime: toUtcDateTimeString(req.transactionDateTime),
+  } } }))
 }
-
 export async function deleteBalanceTransaction(id: string, forcePayment = false): Promise<void> {
-  await api.delete(`/main/transactions/${id}`, {
-    params: forcePayment ? { forcePayment } : undefined,
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: ReverseTransactionDocument, variables: { input: { transactionId: id, forcePayment } } }))
 }

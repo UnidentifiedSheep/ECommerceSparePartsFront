@@ -1,0 +1,52 @@
+fragment OperationCurrency on Currency { id name shortName code currencySign: sign }
+fragment OperationUser on User { id userName info { name surname description } }
+fragment OperationOrganization on Organization {
+  id type name systemName isHidden approximateBalanceInBaseCurrency owner { ...OperationUser }
+}
+fragment SaleFields on Sale {
+  id buyer { ...OperationUser } organization { ...OperationOrganization }
+  comment saleDatetime totalSum rowVersion state storage { code } currency { ...OperationCurrency }
+}
+fragment SaleContentFields on SaleContent {
+  id count price totalSum comment discount
+  product { id sku name producer { name } }
+  details { id saleContentId storageContentId buyPrice count purchaseDatetime currency { ...OperationCurrency } }
+}
+fragment PurchaseFields on Purchase {
+  id supplier { ...OperationUser } supplierOrganization { ...OperationOrganization }
+  comment purchaseDatetime totalSum storage { code } currency { ...OperationCurrency }
+  logistics { routeId pricingModel routeType priceKg pricePerM3 pricePerOrder minimumPrice minimumPriceApplied currency { ...OperationCurrency } }
+}
+fragment PurchaseContentFields on PurchaseContent {
+  id count price totalSum comment product { id sku name producer { name } }
+  logistics { weightKg areaM3 price }
+}
+fragment TransactionFields on Transaction {
+  id amount transactionDate type sourceType isCompleted isReversed reversedAt
+  sender { ...OperationOrganization } receiver { ...OperationOrganization } currency { ...OperationCurrency }
+}
+query ListSales($input: GetSalesInput!) { sales { list(input: $input) { ...SaleFields } } }
+query SaleById($id: UUID!) { sales { byId(id: $id) { ...SaleFields } } }
+query SaleByTransaction($transactionId: UUID!) { sales { byTransactionId(transactionId: $transactionId) { ...SaleFields } } }
+query SaleContents($id: UUID!) { sales { byId(id: $id) { id contents { ...SaleContentFields } } } }
+query ListPurchases($input: GetPurchasesInput!) { purchases { list(input: $input) { ...PurchaseFields } } }
+query PurchaseById($id: UUID!) { purchases { byId(id: $id) { ...PurchaseFields } } }
+query PurchaseByTransaction($transactionId: UUID!) { purchases { byTransactionId(transactionId: $transactionId) { ...PurchaseFields } } }
+query PurchaseContents($id: UUID!) { purchases { byId(id: $id) { id contents { ...PurchaseContentFields } } } }
+query ListTransactions($input: GetTransactionsInput!) { transactions { list(input: $input) { ...TransactionFields } } }
+query ProductSalesHistory($id: Int!, $input: ProductSaleHistoryInput!) {
+  products { byId(id: $id) { id saleHistory(input: $input) {
+    saleContentId quantity discount price averageBuyPrice saleDate
+    product { id sku name producer { id name } }
+    organization { id name systemName } storage { code } currency { ...OperationCurrency }
+    createdBy { id }
+  } } }
+}
+mutation CreateSale($input: CreateSaleInput!) { sales { create(input: $input) { ...SaleFields } } }
+mutation UpdateSale($input: UpdateSaleInput!) { sales { update(input: $input) { id } } }
+mutation DeleteSale($input: DeleteSaleInput!) { sales { delete(input: $input) } }
+mutation CreatePurchase($input: CreatePurchaseInput!) { purchases { create(input: $input) { ...PurchaseFields } } }
+mutation UpdatePurchase($input: UpdatePurchaseInput!) { purchases { update(input: $input) { id } } }
+mutation DeletePurchase($input: DeletePurchaseInput!) { purchases { delete(input: $input) } }
+mutation CreateTransaction($input: CreateTransactionInput!) { transactions { create(input: $input) { id } } }
+mutation ReverseTransaction($input: ReverseTransactionInput!) { transactions { reverse(input: $input) { id } } }

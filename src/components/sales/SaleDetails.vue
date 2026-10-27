@@ -16,7 +16,7 @@
         </div>
         <div v-loading="loading" class="content-list">
           <article v-for="row in content" :key="row.id" class="content-row">
-            <div class="product-cell" :title="[row.product.sku, row.product.producerName, row.product.name, row.comment].filter(Boolean).join(' · ')">
+            <div class="product-cell" :title="[row.product.sku, row.product.producerName, row.product.name].filter(Boolean).join(' · ')">
               <div class="product-heading">
                 <RouterLink v-if="row.product.id" :to="{ name: 'product-details', params: { id: row.product.id } }" class="product-link">
                   {{ row.product.sku || row.product.name || t('sales.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
@@ -24,6 +24,7 @@
                 <strong v-else class="product-link">
                   {{ row.product.sku || row.product.name || t('sales.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
                 </strong>
+                <PositionCommentPopover :comment="row.comment" />
               </div>
               <span v-if="row.product.name && row.product.name !== row.product.sku" class="product-meta">{{ row.product.name }}</span>
             </div>
@@ -47,6 +48,7 @@
 <script setup lang="ts">
 import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
 import { useI18n } from '@/i18n'
+import PositionCommentPopover from '@/components/common/PositionCommentPopover.vue'
 
 const { locale, t } = useI18n()
 
@@ -138,12 +140,17 @@ function formatPercent(value: number) {
 .product-cell { min-width: 0; }
 
 .product-heading {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 
 .product-link {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--app-text);
   font-size: 13px;
   font-weight: 700;

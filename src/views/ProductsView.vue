@@ -189,7 +189,7 @@
             <p>{{ resultTitle }}</p>
           </div>
           <div class="product-results-aside">
-            <div class="product-results-meta">
+            <div v-if="!loadError && !isLoading" class="product-results-meta">
               {{ t(hasExactTotal ? 'products.foundCount' : 'products.shownCount', { count: totalResults.toLocaleString(locale) }) }}
             </div>
             <div class="product-results-tools">
@@ -218,6 +218,8 @@
           @focus="ensureSelectedResult"
           @keydown="handleResultsKeydown"
         >
+        <DataLoadError v-if="loadError" :error="loadError" @retry="loadProducts" />
+        <template v-else>
         <el-table
           :data="catalogueResults"
           :row-class-name="catalogueResultRowClass"
@@ -351,10 +353,10 @@
             :image-size="64"
           />
         </div>
-
+        </template>
         </div>
 
-        <footer class="product-results-footer">
+        <footer v-if="!loadError" class="product-results-footer">
           <ZeroPagination v-model:page="page" v-model:size="size" :has-next="hasNext" />
         </footer>
       </section>
@@ -390,6 +392,8 @@ import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import DataLoadError from '@/components/common/DataLoadError.vue'
+import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
 import ProductGroupsDrawer from '@/components/products/ProductGroupsDrawer.vue'
 import CharacteristicsDrawer from '@/components/products/CharacteristicsDrawer.vue'
@@ -474,6 +478,7 @@ const productSortBy = ref<string[]>([])
 const candidateSortBy = ref<string[]>([])
 const hasNext = ref(false)
 const isLoading = ref(false)
+const loadError = ref<DataLoadErrorKind | null>(null)
 const producerNames = ref<Record<number, string>>({})
 const createDialogOpen = ref(false)
 const groupsDrawerOpen = ref(false)
@@ -716,7 +721,7 @@ function selectResultAt(index: number) {
 function handleResultsKeydown(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
   const isResult = event.target === event.currentTarget || target?.matches('.product-mobile-row')
-  if (!isResult || event.defaultPrevented || isLoading.value || event.altKey
+  if (!isResult || event.defaultPrevented || isLoading.value || loadError.value || event.altKey
     || catalogueResults.value.length === 0) return
   const currentIndex = Math.max(0, catalogueResults.value.findIndex((row) => row.key === selectedResultKey.value))
 
@@ -963,6 +968,7 @@ async function toggleSort(field: string, event: MouseEvent) {
 async function loadProducts() {
   const currentRequestId = ++productsRequestId
   isLoading.value = true
+  loadError.value = null
   try {
     const query = form.query.trim()
     const productCriteria = toProductCriteriaInput(form.criteria)
@@ -1033,6 +1039,8 @@ async function loadProducts() {
     candidatesTotal.value = 0
     hasNext.value = resp.products.length === size.value
     loadProducerNames(resp.products)
+  } catch (error) {
+    if (currentRequestId === productsRequestId) loadError.value = classifyDataLoadError(error)
   } finally {
     if (currentRequestId === productsRequestId) {
       isLoading.value = false

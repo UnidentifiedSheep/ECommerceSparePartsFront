@@ -2,7 +2,7 @@
   <el-dialog
     v-model="isOpen"
     :width="historyPanelOpen
-      ? 'min(1320px, calc(100vw - 392px))'
+      ? 'min(1320px, calc(100vw - 432px))'
       : 'min(1320px, calc(100vw - 32px))'"
     top="5vh"
     :class="[
@@ -305,6 +305,10 @@
         :preferred-organization-id="form.buyer?.organization.id"
         :currency-id="form.currencyId"
         :currency-sign="selectedCurrency?.currencySign"
+        :selected-price="selectedHistoryItem?.price"
+        :selection-key="selectedHistoryItemIndex ?? undefined"
+        :disabled="isSaving"
+        @apply-price="applyHistoryPrice"
       />
       </div>
     </div>
@@ -350,7 +354,7 @@ import type { SaleModel } from '@/models/saleModel.ts'
 import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { ApiError } from '@/models/errorModel.ts'
 import { getProductAvailableStock, getProductsAvailableStock } from '@/services/api/products.ts'
-import { createSale } from '@/services/api/sales.ts'
+import { createSale, type ProductSaleHistoryModel } from '@/services/api/sales.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
@@ -588,6 +592,15 @@ function removeItem(index: number) {
 
 function selectHistoryItem(index: number) {
   selectedHistoryItemIndex.value = index
+}
+
+function applyHistoryPrice(entry: ProductSaleHistoryModel) {
+  const item = selectedHistoryItem.value
+  if (!item || isSaving.value || entry.currencyId !== form.currencyId) return
+  item.price = entry.price
+  item.priceWithDiscount = item.discountMode === 'Sale'
+    ? calculateSaleDiscountPrice(item.price)
+    : undefined
 }
 
 function openStorageBatches(item: SaleItemForm) {

@@ -43,11 +43,12 @@
         </template>
 
         <template v-else>
-          <div class="main-header__search-heading">{{ t('headerSearch.results') }}</div>
+          <div class="main-header__search-heading">{{ t(searchLoading || searchError ? 'common.labels.search' : 'headerSearch.results') }}</div>
           <div v-if="searchLoading" class="main-header__search-empty">
             <el-icon class="is-loading"><Loading /></el-icon>
             {{ t('headerSearch.searching') }}
           </div>
+          <DataLoadError v-else-if="searchError" :error="searchError" @retry="retrySearch" />
           <div v-else-if="searchResults.length" class="main-header__search-list" role="listbox">
             <button
               v-for="product in searchResults"
@@ -106,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight, Clock, Loading, Menu, Search, Setting, User } from '@element-plus/icons-vue'
 import { onClickOutside, useDebounceFn } from '@vueuse/core'
@@ -115,6 +116,8 @@ import NotificationMenu from '@/components/notifications/NotificationMenu.vue'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import IconExit from '@/components/icons/IconExit.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
+import DataLoadError from '@/components/common/DataLoadError.vue'
+import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import { useI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/authStore.ts'
 import { useProductSearchHistory } from '@/composables/useProductSearchHistory.ts'
@@ -130,6 +133,7 @@ const search = ref('')
 const searchRoot = ref<HTMLElement>()
 const searchOpen = ref(false)
 const searchLoading = ref(false)
+const searchError = ref<DataLoadErrorKind | null>(null)
 const searchResults = ref<ProductSearchModel[]>([])
 const authStore = useAuthStore()
 const { hasPermission } = usePermissions()
@@ -138,22 +142,26 @@ const { searchHistory, rememberSearch } = useProductSearchHistory()
 const normalizedSearch = computed(() => search.value.trim())
 let searchRequestId = 0
 let suppressNextSearchWatch = false
-const loadSearchResults = useDebounceFn(async () => {
-  const query = normalizedSearch.value
-  if (!query) return
-
-  const requestId = ++searchRequestId
-  searchLoading.value = true
+async function loadSearchResults(query: string, requestId: number) {
+  if (!query || requestId !== searchRequestId) return
   try {
     const resp = await searchProductsGraphql({ query, page: 0, size: 6 })
     if (requestId !== searchRequestId) return
     searchResults.value = resp.products
-  } catch {
-    if (requestId === searchRequestId) searchResults.value = []
+  } catch (error) {
+    if (requestId === searchRequestId) searchError.value = classifyDataLoadError(error)
   } finally {
     if (requestId === searchRequestId) searchLoading.value = false
   }
-}, 300)
+}
+const debouncedSearch = useDebounceFn(loadSearchResults, 300)
+
+function retrySearch() {
+  if (searchLoading.value || !normalizedSearch.value) return
+  searchError.value = null
+  searchLoading.value = true
+  void loadSearchResults(normalizedSearch.value, ++searchRequestId)
+}
 
 function openProductSearch(value = search.value) {
   const query = value.trim()
@@ -194,6 +202,10 @@ function logout() {
 }
 
 watch(search, () => {
+  const requestId = ++searchRequestId
+  searchResults.value = []
+  searchError.value = null
+  searchLoading.value = false
   if (suppressNextSearchWatch) {
     suppressNextSearchWatch = false
     return
@@ -201,15 +213,14 @@ watch(search, () => {
 
   searchOpen.value = true
   if (!normalizedSearch.value) {
-    searchRequestId += 1
-    searchResults.value = []
-    searchLoading.value = false
     return
   }
-  void loadSearchResults()
+  searchLoading.value = true
+  void debouncedSearch(normalizedSearch.value, requestId)
 })
 
 onClickOutside(searchRoot, closeSearch)
+onBeforeUnmount(() => { searchRequestId += 1 })
 </script>
 
 <style scoped>
