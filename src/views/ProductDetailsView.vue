@@ -99,10 +99,9 @@
         <el-tabs v-model="activeTab" class="product-tabs">
           <el-tab-pane :label="t('products.details.productCrosses')" name="crosses" lazy>
             <ProductCrossesPanel
-              v-model:search="crossSearch"
               v-model:page="page"
               v-model:size="size"
-              :crosses="filteredCrosses"
+              :crosses="crosses"
               :loading="isCrossesLoading"
               :summary="crossesSummary"
               :sort-by="crossesSortBy"
@@ -294,7 +293,7 @@ type ProductTab = 'crosses' | 'storage' | 'content' | 'eans'
 
 const route = useRoute()
 const router = useRouter()
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const { hasPermission } = usePermissions()
 
 const product = ref<ProductModel>()
@@ -321,7 +320,6 @@ const storageContentPage = ref(0)
 const storageContentSize = ref(20)
 const storageContentHasNext = ref(false)
 const showZeroStorageContent = ref(false)
-const crossSearch = ref('')
 const { sortBy: crossesSortBy, toggleSort: toggleCrossesSort } = useMultiSort()
 const { sortBy: storageSortBy, toggleSort: toggleStorageSort } = useMultiSort()
 
@@ -381,18 +379,8 @@ const productId = computed(() => Number(route.params.id))
 const productLabel = computed(() => product.value ? `${product.value.sku} - ${product.value.name}` : '')
 const productImages = computed(() => product.value?.images.filter(Boolean) ?? [])
 const productHeader = computed(() => product.value?.name ?? t('products.details.productHeader', { id: String(route.params.id) }))
-const filteredCrosses = computed(() => {
-  const query = crossSearch.value.trim().toLocaleLowerCase(locale.value)
-  if (!query) return crosses.value
-  return crosses.value.filter((item) => [item.sku, item.name, item.producerName, item.description]
-    .filter(Boolean)
-    .some((value) => value?.toLocaleLowerCase(locale.value).includes(query)))
-})
 const crossesSummary = computed(() => {
   if (isCrossesLoading.value) return t('products.details.loading')
-  if (crossSearch.value.trim()) {
-    return t('products.details.foundOf', { shown: filteredCrosses.value.length, total: crosses.value.length })
-  }
   return crosses.value.length
     ? t('products.details.positionsOnPage', { count: crosses.value.length })
     : t('products.details.noLinkedPositions')
@@ -784,7 +772,6 @@ function resetPageState() {
   crossesSortBy.value = []
   storageContentPage.value = 0
   storageSortBy.value = []
-  crossSearch.value = ''
   hasNext.value = false
   storageContentHasNext.value = false
   loadedTabs.value = { crosses: false, storage: false, content: false, eans: false }

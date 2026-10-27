@@ -2,17 +2,9 @@
   <div class="product-data-panel">
     <div class="product-data-panel__toolbar">
       <div class="text-sm text-slate-500">{{ summary }}</div>
-      <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-        <el-input
-          v-model="search"
-          clearable
-          :placeholder="t('products.details.crossSearchPlaceholder')"
-          class="min-w-64 flex-1 sm:w-80"
-        />
-        <el-button v-if="canCreate" :icon="Plus" type="primary" plain @click="emit('create')">
-          {{ t('products.addCrosses') }}
-        </el-button>
-      </div>
+      <el-button v-if="canCreate" :icon="Plus" type="primary" plain @click="emit('create')">
+        {{ t('products.addCrosses') }}
+      </el-button>
     </div>
 
     <el-table
@@ -81,7 +73,6 @@ const emit = defineEmits<{
   'sort-toggle': [field: string, event: MouseEvent]
 }>()
 
-const search = defineModel<string>('search', { required: true })
 const page = defineModel<number>('page', { required: true })
 const size = defineModel<number>('size', { required: true })
 const { t } = useI18n()
