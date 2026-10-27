@@ -1283,6 +1283,11 @@ const messages: Record<AppLocale, MessageTree> = {
       weight: 'Вес',
       volume: 'Объём',
       crosses: 'Кроссы',
+      crossPicker: {
+        open: 'Кроссы товара {sku}',
+        title: 'Кроссы: {sku}',
+        back: 'К результатам поиска',
+      },
       openProduct: 'Открыть товар',
       quickView: {
         keyboardNavigation: 'Enter — карточка товара · Esc — каталог',
@@ -3312,6 +3317,11 @@ const messages: Record<AppLocale, MessageTree> = {
       weight: 'Weight',
       volume: 'Volume',
       crosses: 'Crosses',
+      crossPicker: {
+        open: 'Crosses for {sku}',
+        title: 'Crosses: {sku}',
+        back: 'Back to search results',
+      },
       openProduct: 'Open product',
       quickView: {
         keyboardNavigation: 'Enter: product page · Esc: catalogue',
@@ -5341,6 +5351,11 @@ const messages: Record<AppLocale, MessageTree> = {
       weight: 'Ağırlık',
       volume: 'Hacim',
       crosses: 'Kroslar',
+      crossPicker: {
+        open: '{sku} ürününün krosları',
+        title: 'Kroslar: {sku}',
+        back: 'Arama sonuçlarına dön',
+      },
       openProduct: 'Ürünü aç',
       quickView: {
         keyboardNavigation: 'Enter: ürün sayfası · Esc: katalog',

@@ -4,9 +4,17 @@
     append-to-body
     :title="t('products.selectorTitle')"
     width="min(1040px, calc(100vw - 24px))"
+    top="min(8vh, 64px)"
     class="product-selector-dialog"
   >
-    <div class="product-selector-layout">
+    <ProductCrossPicker
+      v-if="isOpen && crossProduct"
+      :key="crossProduct.id"
+      :product="crossProduct"
+      @back="closeCrosses"
+      @select="selectProduct"
+    />
+    <div v-show="!crossProduct" ref="selectorLayout" class="product-selector-layout">
       <form class="product-selector-search" @submit.prevent="loadProducts(true)">
         <div class="product-selector-field product-selector-field--query">
           <label>{{ t('common.labels.search') }}</label>
@@ -167,9 +175,12 @@
             <ProductStockCell :stock="row.stock" />
           </template>
         </el-table-column>
-        <el-table-column fixed="right" label="" width="96" align="right">
+        <el-table-column fixed="right" label="" width="180" align="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" plain @click.stop="selectProduct(row)">{{ t('products.pick') }}</el-button>
+            <div class="product-selector-row-actions" @click.stop @dblclick.stop>
+              <el-button size="small" plain :data-crosses-for="row.id" :aria-label="t('products.crossPicker.open', { sku: row.sku })" @click="openCrosses(row)">{{ t('products.crosses') }}</el-button>
+              <el-button size="small" type="primary" plain @click="selectProduct(row)">{{ t('products.pick') }}</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -180,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ArrowDown, RefreshLeft, Search } from '@element-plus/icons-vue'
 import { useDebounceFn } from '@vueuse/core'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
@@ -191,6 +202,7 @@ import ProducerMultiSelector from '@/components/selectors/ProducerMultiSelector.
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import ProductGroupMultiSelector from '@/components/selectors/ProductGroupMultiSelector.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import ProductCrossPicker from '@/components/selectors/ProductCrossPicker.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { nextSortValues } from '@/composables/useMultiSort.ts'
@@ -232,6 +244,8 @@ const hasNext = ref(false)
 const isLoading = ref(false)
 const searchSettingsOpen = ref(false)
 const selectedProductId = ref<number>()
+const crossProduct = ref<ProductSearchModel | null>(null)
+const selectorLayout = ref<HTMLElement>()
 let productsRequestId = 0
 let isResetting = false
 let searchPreferences = loadProductSearchPreferences(productDialogSearchPreferencesKey)
@@ -281,7 +295,8 @@ const searchValidationMessage = computed(() => {
   return ''
 })
 
-const searchProductsDebounced = useDebounceFn(async () => {
+const searchProductsDebounced = useDebounceFn(async (requestId: number) => {
+  if (requestId !== productsRequestId) return
   if (!searchValidationMessage.value) await loadProducts(true)
 }, 350)
 
@@ -311,6 +326,19 @@ function setSingleProducer(producerId?: number) {
 function selectProduct(product: ProductSearchModel) {
   emit('select', product)
   isOpen.value = false
+}
+
+function openCrosses(product: ProductSearchModel) {
+  productsRequestId += 1
+  isLoading.value = false
+  crossProduct.value = product
+}
+
+async function closeCrosses() {
+  const productId = crossProduct.value?.id
+  crossProduct.value = null
+  await nextTick()
+  selectorLayout.value?.querySelector<HTMLButtonElement>(`[data-crosses-for="${productId}"]`)?.focus()
 }
 
 function productRowClass({ row }: { row: ProductSearchModel }) {
@@ -365,6 +393,7 @@ function resetSelectorState() {
   total.value = 0
   hasExactTotal.value = false
   products.value = []
+  crossProduct.value = null
   selectedProductId.value = undefined
   searchSettingsOpen.value = false
   searchPreferences = loadProductSearchPreferences(productDialogSearchPreferencesKey)
@@ -391,7 +420,7 @@ async function resetFilters() {
 }
 
 async function loadProducts(resetPage: boolean) {
-  if (!isOpen.value || searchValidationMessage.value) return
+  if (!isOpen.value || crossProduct.value || searchValidationMessage.value) return
   if (resetPage) page.value = 0
 
   const requestId = ++productsRequestId
@@ -463,7 +492,12 @@ function loadProducerNames(items: ProductSearchModel[]) {
 }
 
 watch(isOpen, async (open) => {
-  if (!open) return
+  if (!open) {
+    productsRequestId += 1
+    crossProduct.value = null
+    isLoading.value = false
+    return
+  }
   resetSelectorState()
   await loadProducts(true)
 })
@@ -480,8 +514,12 @@ watch(productGroupIds, async () => {
   if (!isResetting) await loadProducts(true)
 }, { deep: true })
 watch(query, () => {
-  if (!isResetting) searchProductsDebounced()
+  if (isResetting) return
+  isLoading.value = false
+  void searchProductsDebounced(++productsRequestId)
 })
+
+onBeforeUnmount(() => { productsRequestId += 1 })
 
 onMounted(async () => {
   if (isOpen.value) await loadProducts(true)
@@ -714,6 +752,9 @@ onMounted(async () => {
 .product-selector-results {
   width: 100%;
 }
+
+.product-selector-row-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.product-selector-row-actions .el-button + .el-button { margin-left: 0; }
 
 .product-selector-results :deep(.el-table__header th) {
   background: #f6f7f8;
