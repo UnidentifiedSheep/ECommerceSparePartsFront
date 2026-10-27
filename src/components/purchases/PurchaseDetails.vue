@@ -34,7 +34,7 @@
 
         <div v-loading="loading" class="content-list">
           <article v-for="row in content" :key="row.id" class="content-row">
-            <div class="product-cell" :title="[row.product.sku, row.product.producerName, row.product.name, row.comment].filter(Boolean).join(' · ')">
+            <div class="product-cell" :title="[row.product.sku, row.product.producerName, row.product.name].filter(Boolean).join(' · ')">
               <div class="product-heading">
                 <RouterLink v-if="row.product.id" :to="{ name: 'product-details', params: { id: row.product.id } }" class="product-link">
                   {{ row.product.sku || row.product.name || t('purchases.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
@@ -42,9 +42,9 @@
                 <strong v-else class="product-link">
                   {{ row.product.sku || row.product.name || t('purchases.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
                 </strong>
+                <PositionCommentPopover :comment="row.comment" />
               </div>
               <span v-if="row.product.name && row.product.name !== row.product.sku" class="product-meta">{{ row.product.name }}</span>
-              <span v-if="row.comment" class="product-comment">{{ row.comment }}</span>
             </div>
             <span class="content-value content-value--count">{{ row.count.toLocaleString(locale) }}</span>
             <span class="content-value" :title="formatCurrency(row.price, purchase.currency.currencySign)">{{ formatCurrency(row.price, purchase.currency.currencySign) }}</span>
@@ -106,6 +106,7 @@ import type { RouteType } from '@/enums/routeType.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
+import PositionCommentPopover from '@/components/common/PositionCommentPopover.vue'
 
 const { locale, t } = useI18n()
 
@@ -164,12 +165,10 @@ function routeTypeLabel(type: RouteType) {
 .content-columns span:nth-child(2) { text-align: center; }
 .content-row { min-height: 66px; border-bottom: 1px solid var(--app-border); padding-top: 9px; padding-bottom: 9px; }
 .product-cell { min-width: 0; }
-.product-heading { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.product-link { color: var(--app-text); font-size: 13px; font-weight: 700; line-height: 1.3; text-decoration: none; }
+.product-heading { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.product-link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-text); font-size: 13px; font-weight: 700; line-height: 1.3; text-decoration: none; }
 a.product-link:hover { color: var(--app-primary); text-decoration: underline; }
-.product-meta,
-.product-comment { display: -webkit-box; overflow: hidden; margin-top: 3px; color: #475569; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.product-comment { color: var(--app-text-muted); }
+.product-meta { display: -webkit-box; overflow: hidden; margin-top: 3px; color: #475569; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .content-value { min-width: 0; overflow: hidden; color: var(--app-text); font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 500; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .content-value--count { text-align: center; }
 .content-value--total { font-weight: 700; }
