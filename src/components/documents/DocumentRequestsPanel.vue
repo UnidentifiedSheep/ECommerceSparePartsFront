@@ -13,9 +13,9 @@
       </div>
     </div>
 
-    <el-alert v-if="error" type="error" :title="error" show-icon :closable="false" class="document-requests__error" />
+    <DataLoadError v-if="error" :error="error" @retry="loadRequests(retryReset)" />
 
-    <div class="document-requests__table">
+    <div v-if="!error || (!retryReset && error !== 'forbidden')" class="document-requests__table">
       <div class="document-requests__header">
         <SortableColumnHeader :label="t('documents.documentColumn')" field="documentSystemName" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSort" />
         <SortableColumnHeader :label="t('documents.createdAt')" field="createdAt" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSort" />
@@ -23,7 +23,7 @@
         <span>{{ t('documents.actions') }}</span>
       </div>
       <div v-loading="loading && !requests.length" class="document-requests__rows">
-        <el-empty v-if="!loading && !requests.length" :description="t('documents.historyEmpty')" />
+        <el-empty v-if="!error && !loading && !requests.length" :description="t('documents.historyEmpty')" />
         <div v-for="request in requests" :key="request.requestId" class="document-requests__row">
           <strong>{{ documentName(request.documentSystemName) }}</strong>
           <time :datetime="request.createdAt">{{ formatDate(request.createdAt) }}</time>
@@ -35,7 +35,7 @@
       </div>
     </div>
 
-    <div class="document-requests__footer">
+    <div v-if="!error" class="document-requests__footer">
       <span>{{ t('documents.loadedCount', { count: requests.length }) }}</span>
       <el-button v-if="hasMore" plain :loading="loading" @click="loadRequests(false)">{{ t('common.actions.loadMore') }}</el-button>
     </div>
@@ -47,6 +47,8 @@ import { onMounted, ref, watch } from 'vue'
 import { useI18n } from '@/i18n'
 import { useMultiSort, sortField } from '@/composables/useMultiSort.ts'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
+import DataLoadError from '@/components/common/DataLoadError.vue'
+import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import { searchDocuments, type DocumentDefinition, type DocumentRequest } from '@/services/graphql/documents.ts'
 
 const props = defineProps<{ definitions: DocumentDefinition[]; newRequest?: DocumentRequest | null }>()
@@ -56,7 +58,8 @@ const documentSystemName = ref('')
 const requests = ref<DocumentRequest[]>(props.newRequest ? [props.newRequest] : [])
 const loading = ref(false)
 const hasMore = ref(false)
-const error = ref('')
+const error = ref<DataLoadErrorKind | null>(null)
+const retryReset = ref(true)
 const page = ref(0)
 const pageSize = 20
 let requestVersion = 0
@@ -79,7 +82,7 @@ async function loadRequests(reset: boolean) {
   const version = ++requestVersion
   const nextPage = reset ? 0 : page.value + 1
   loading.value = true
-  error.value = ''
+  error.value = null
   try {
     const result = await searchDocuments({
       documentSystemName: documentSystemName.value || undefined,
@@ -98,7 +101,10 @@ async function loadRequests(reset: boolean) {
     page.value = nextPage
     hasMore.value = result.length === pageSize
   } catch (cause) {
-    if (version === requestVersion) error.value = cause instanceof Error ? cause.message : t('documents.historyLoadError')
+    if (version === requestVersion) {
+      error.value = classifyDataLoadError(cause)
+      retryReset.value = reset
+    }
   } finally {
     if (version === requestVersion) loading.value = false
   }
@@ -115,7 +121,6 @@ watch(documentSystemName, () => { void loadRequests(true) })
 .document-requests__toolbar p { margin: 3px 0 0; color: var(--app-text-muted); font-size: 13px; }
 .document-requests__filters { display: flex; align-items: center; gap: 8px; }
 .document-requests__filters .el-select { width: 220px; }
-.document-requests__error { margin: 12px 20px 0; width: auto; }
 .document-requests__table { display: grid; flex: 1; min-height: 0; grid-template-rows: auto minmax(0, 1fr); }
 .document-requests__header, .document-requests__row { display: grid; grid-template-columns: minmax(200px, 2fr) minmax(170px, 1.3fr) minmax(120px, 1fr) 120px; align-items: center; gap: 16px; padding: 12px 20px; }
 .document-requests__header { border-bottom: 1px solid var(--app-border); background: var(--app-bg-soft); color: var(--app-text-muted); font-size: 13px; font-weight: 650; }

@@ -29,10 +29,12 @@
             </el-radio-button>
           </el-radio-group>
 
-          <span class="rules-count">{{ t('priceAppliers.rulesCount', { count: currentCards.length }) }}</span>
+          <span v-if="!loadError && !isLoading" class="rules-count">{{ t('priceAppliers.rulesCount', { count: currentCards.length }) }}</span>
         </div>
 
         <div v-loading="isLoading" class="rules-body">
+          <DataLoadError v-if="loadError" :error="loadError" @retry="loadAppliers" />
+          <template v-else>
           <div class="queue-note">
             <el-icon><Rank /></el-icon>
             <span>{{ t('priceAppliers.orderHint') }}</span>
@@ -127,6 +129,7 @@
           </ol>
 
           <el-empty v-else-if="!isLoading" :description="t('priceAppliers.empty')" />
+          </template>
         </div>
       </section>
     </main>
@@ -146,6 +149,8 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, ArrowUp, Delete, Edit, Lock, Rank } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import DataLoadError from '@/components/common/DataLoadError.vue'
+import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import PriceApplierEditorDialog from '@/components/pricing/PriceApplierEditorDialog.vue'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
@@ -174,6 +179,7 @@ const savedDisplayOrder = ref<Record<PriceOfferSourceType, string[]>>({
 })
 const activeUsage = ref<PriceOfferSourceType>(PriceOfferSourceType.Supplier)
 const isLoading = ref(false)
+const loadError = ref<DataLoadErrorKind | null>(null)
 const isSaving = ref(false)
 const isSavingSystemName = ref<string | null>(null)
 const isDeletingSystemName = ref<string | null>(null)
@@ -200,13 +206,15 @@ const suggestedOrders = computed<Record<PriceOfferSourceType, number>>(() => ({
 onMounted(loadAppliers)
 
 async function loadAppliers() {
+  if (isLoading.value) return
   isLoading.value = true
+  loadError.value = null
   try {
     const responses = await Promise.all(usages.map((usage) => getPriceAppliers(usage)))
     appliers.value = mergeAppliers(responses.flat())
     syncDisplayOrders()
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : t('priceAppliers.loadError'))
+    loadError.value = classifyDataLoadError(error)
   } finally {
     isLoading.value = false
   }

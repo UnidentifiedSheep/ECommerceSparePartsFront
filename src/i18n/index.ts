@@ -16,6 +16,13 @@ const messages: Record<AppLocale, MessageTree> = {
       subtitle: 'Панель администратора',
     },
     common: {
+      loadError: {
+        forbiddenTitle: 'Нет доступа к данным',
+        forbiddenDescription: 'Для просмотра нужны дополнительные права. Обратитесь к администратору.',
+        failedTitle: 'Не удалось загрузить данные',
+        failedDescription: 'Повторите попытку. Если ошибка сохраняется, обратитесь к администратору.',
+        retry: 'Повторить',
+      },
       actions: {
         refresh: 'Обновить',
         refreshList: 'Обновить список',
@@ -2038,6 +2045,13 @@ const messages: Record<AppLocale, MessageTree> = {
       subtitle: 'Admin panel',
     },
     common: {
+      loadError: {
+        forbiddenTitle: 'Access denied',
+        forbiddenDescription: 'You need additional permissions to view this data. Contact your administrator.',
+        failedTitle: 'Could not load data',
+        failedDescription: 'Try again. If the error persists, contact your administrator.',
+        retry: 'Retry',
+      },
       actions: {
         refresh: 'Refresh',
         refreshList: 'Refresh list',
@@ -4060,6 +4074,13 @@ const messages: Record<AppLocale, MessageTree> = {
       subtitle: 'Yönetim paneli',
     },
     common: {
+      loadError: {
+        forbiddenTitle: 'Erişim izni yok',
+        forbiddenDescription: 'Bu verileri görüntülemek için ek izinler gerekiyor. Yöneticinize başvurun.',
+        failedTitle: 'Veriler yüklenemedi',
+        failedDescription: 'Tekrar deneyin. Hata devam ederse yöneticinize başvurun.',
+        retry: 'Tekrar dene',
+      },
       actions: {
         refresh: 'Yenile',
         refreshList: 'Listeyi yenile',

@@ -23,7 +23,12 @@ const documentRequestTypes: Record<DocumentType, string> = {
 }
 
 export async function getAvailableDocuments(): Promise<DocumentDefinition[]> {
-  const result = await graphqlClient.query({ query: AvailableDocumentsDocument, fetchPolicy: 'no-cache' })
+  const result = await graphqlClient.query({
+    query: AvailableDocumentsDocument,
+    fetchPolicy: 'no-cache',
+    // The same query can run again with a different Accept-Language while still in flight.
+    context: { queryDeduplication: false },
+  })
   return result.data.documents.available
 }
 

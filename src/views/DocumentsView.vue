@@ -9,8 +9,9 @@
       <button type="button" role="tab" :aria-selected="activeTab === 'history'" :class="{ 'documents-tabs__active': activeTab === 'history' }" @click="activeTab = 'history'">{{ t('documents.history') }}</button>
     </div>
 
-    <el-alert v-if="loadError && activeTab === 'create'" type="error" :title="loadError" show-icon :closable="false" class="documents-alert" />
-    <div v-if="activeTab === 'create'" v-loading="loading" class="documents-layout">
+    <template v-if="activeTab === 'create'">
+    <DataLoadError v-if="loadError" class="documents-load-error" :error="loadError" @retry="loadDefinitions(true)" />
+    <div v-else v-loading="loading" class="documents-layout">
       <section class="documents-list" :aria-label="t('documents.available')">
         <div class="documents-section-title">{{ t('documents.available') }}</div>
         <div class="documents-list__items">
@@ -71,6 +72,7 @@
         <el-empty v-else :description="t('documents.choose')" />
       </section>
     </div>
+    </template>
     <DocumentRequestsPanel v-else :definitions="definitions" :new-request="latestRequest" />
   </div>
 </template>
@@ -81,6 +83,8 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import DataLoadError from '@/components/common/DataLoadError.vue'
+import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import DynamicSchemaForm from '@/components/schema/DynamicSchemaForm.vue'
 import DocumentRequestsPanel from '@/components/documents/DocumentRequestsPanel.vue'
 import SaleSelector from '@/components/selectors/SaleSelector.vue'
@@ -99,7 +103,8 @@ const documentType = ref<string>('')
 const fieldValues = reactive<Record<string, FieldValue>>({})
 const loading = ref(false)
 const generating = ref(false)
-const loadError = ref('')
+const loadError = ref<DataLoadErrorKind | null>(null)
+let definitionsRequestId = 0
 
 const controlMap: Record<string, SchemaInputControl> = {
   UPLOAD_FILE: 'UploadFile', TEXT_FIELD: 'TextField', DATE_PICKER: 'DatePicker',
@@ -149,10 +154,13 @@ function selectDefinition(definition: DocumentDefinition) {
   }
 }
 async function loadDefinitions(preserveForm = false) {
+  const requestId = ++definitionsRequestId
   loading.value = true
-  loadError.value = ''
+  loadError.value = null
   try {
-    definitions.value = await getAvailableDocuments()
+    const response = await getAvailableDocuments()
+    if (requestId !== definitionsRequestId) return
+    definitions.value = response
     const current = definitions.value.find((item) => item.systemName === selected.value?.systemName)
       ?? definitions.value.find((item) => item.systemName === route.query.systemName)
       ?? (typeof route.query.saleId === 'string'
@@ -165,8 +173,10 @@ async function loadDefinitions(preserveForm = false) {
     }
     else selected.value = null
   } catch (error) {
-    loadError.value = error instanceof Error ? error.message : t('documents.loadError')
-  } finally { loading.value = false }
+    if (requestId === definitionsRequestId) loadError.value = classifyDataLoadError(error)
+  } finally {
+    if (requestId === definitionsRequestId) loading.value = false
+  }
 }
 async function generate() {
   if (!selected.value || !documentType.value || unsupportedFields.value.length) return
@@ -228,6 +238,7 @@ onMounted(() => { void loadDefinitions() })
 .documents-field-help { margin-left: 4px; color: var(--el-text-color-secondary); vertical-align: middle; }
 .documents-form__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--app-border); background: var(--app-surface); padding: 12px 24px; }
 .documents-alert { margin: 16px 24px 0; }
+.documents-load-error { margin: 16px 24px; }
 .documents-form__fields .documents-alert { margin: 0 0 16px; }
 @media (max-width: 760px) {
   .documents-page { height: auto; min-height: calc(100dvh - 56px); overflow: visible; }
