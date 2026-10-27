@@ -4,6 +4,7 @@
     class="sale-history"
     :class="{ 'sale-history--open': isOpen }"
     :style="{ zIndex: panelZIndex }"
+    :aria-label="t('sales.history.title')"
   >
     <button
       v-if="!isOpen"
@@ -24,8 +25,8 @@
         <div class="min-w-0">
           <div class="sale-history__title">{{ t('sales.history.title') }}</div>
           <div v-if="product" class="sale-history__product">
-            <strong>{{ product.name }}</strong>
-            <span>{{ product.sku }} · ID {{ product.id }}</span>
+            <strong :title="product.name">{{ product.name }}</strong>
+            <span>{{ product.sku }}</span>
           </div>
           <div v-else class="sale-history__hint">{{ t('sales.history.selectPosition') }}</div>
         </div>
@@ -48,83 +49,89 @@
       </header>
 
       <template v-if="product">
-        <div class="sale-history__context">
-          <span>{{ storageCode || t('sales.history.anyStorage') }}</span>
-          <span>{{ currencySign || t('sales.history.anyCurrency') }}</span>
-        </div>
-
         <div class="sale-history__filters">
-          <el-checkbox v-model="showCrosses" @change="refresh">{{ t('sales.history.showCrosses') }}</el-checkbox>
-          <el-checkbox v-if="preferredOrganizationId && !organizationId" v-model="onlyThisOrganization" @change="refresh">{{ t('sales.history.onlyThisOrganization') }}</el-checkbox>
+          <el-radio-group
+            v-if="preferredOrganizationId && !organizationId"
+            v-model="onlyThisOrganization"
+            size="small"
+            :aria-label="t('sales.buyer')"
+            @change="refresh"
+          >
+            <el-radio-button :value="false">{{ t('sales.history.allBuyers') }}</el-radio-button>
+            <el-radio-button :value="true">{{ t('sales.history.thisBuyer') }}</el-radio-button>
+          </el-radio-group>
+          <div class="sale-history__filter-row">
+            <el-checkbox v-model="showCrosses" @change="refresh">{{ t('sales.history.showCrosses') }}</el-checkbox>
+            <el-select v-model="sortBy" size="small" class="sale-history__sort" :aria-label="t('sales.history.sort')" @change="refresh">
+              <el-option
+                v-for="option in sortOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </div>
         </div>
 
-        <el-select v-model="sortBy" class="sale-history__sort" :teleported="false" @change="refresh">
-          <el-option
-            v-for="option in sortOptions"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
+        <div class="sale-history__results" :aria-busy="isLoading || isLoadingMore">
+          <div v-if="errorMessage" class="sale-history__state sale-history__state--error">
+            <span>{{ errorMessage }}</span>
+            <el-button size="small" plain @click="refresh">{{ t('common.actions.refresh') }}</el-button>
+          </div>
 
-        <div v-if="errorMessage" class="sale-history__state sale-history__state--error">
-          <span>{{ errorMessage }}</span>
-          <el-button size="small" plain @click="refresh">{{ t('common.actions.refresh') }}</el-button>
+          <div v-else-if="isLoading && history.length === 0" class="sale-history__state">
+            <el-skeleton :rows="5" animated />
+            <span class="sr-only" role="status">{{ t('sales.history.loading') }}</span>
+          </div>
+
+          <div v-else-if="history.length === 0" class="sale-history__state">
+            {{ t('sales.history.empty') }}
+          </div>
+
+          <div v-else class="sale-history__list">
+            <button
+              v-for="entry in history"
+              :key="entry.saleContentId"
+              type="button"
+              class="sale-history__entry"
+              :class="{ 'is-applied': appliedEntryId === entry.saleContentId && selectedPrice === entry.price }"
+              :disabled="!canApplyPrice(entry)"
+              :aria-pressed="appliedEntryId === entry.saleContentId && selectedPrice === entry.price"
+              :title="canApplyPrice(entry) ? t('sales.history.applyPrice', { price: formatMoney(entry.price, entry.currency?.currencySign) }) : t('sales.history.priceUnavailable')"
+              @click="applyPrice(entry)"
+            >
+              <span v-if="entry.product && entry.productId !== product.id" class="sale-history__entry-product" :title="entry.product.name">
+                <el-tag size="small" type="info">{{ t('sales.history.cross') }}</el-tag>
+                <strong>{{ entry.product.sku }}</strong>
+                <span>{{ entry.product.producerName }}</span>
+              </span>
+              <span class="sale-history__entry-head">
+                <strong>{{ formatMoney(entry.price, entry.currency?.currencySign) }}</strong>
+                <time :datetime="entry.saleDate">{{ formatDate(entry.saleDate) }}</time>
+              </span>
+              <span v-if="entry.organization && !effectiveOrganizationId" class="sale-history__organization" :class="{ 'is-current': entry.organization.id === preferredOrganizationId }" :title="entry.organization.name">{{ entry.organization.name }}</span>
+              <span class="sale-history__details">
+                <span>{{ t('common.labels.count') }}: <b>{{ entry.quantity.toLocaleString(locale) }}</b></span>
+                <span>{{ t('sales.history.averageBuyPrice') }}: <b>{{ formatMoney(entry.averageBuyPrice, entry.currency?.currencySign) }}</b></span>
+                <span v-if="entry.discount">{{ t('sales.history.discount') }}: <b>{{ formatPercent(entry.discount) }}</b></span>
+                <span v-if="entry.storageCode !== storageCode">{{ entry.storageCode }}</span>
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div v-else-if="isLoading && history.length === 0" class="sale-history__state">
-          {{ t('sales.history.loading') }}
-        </div>
-
-        <div v-else-if="history.length === 0" class="sale-history__state">
-          {{ t('sales.history.empty') }}
-        </div>
-
-        <div v-else class="sale-history__list">
-          <article v-for="entry in history" :key="entry.saleContentId" class="sale-history__entry">
-            <div v-if="entry.product" class="sale-history__entry-product">
-              <div><strong>{{ entry.product.sku }}</strong><el-tag v-if="entry.productId !== product.id" size="small" type="info">{{ t('sales.history.cross') }}</el-tag></div>
-              <span>{{ entry.product.producerName }} · {{ entry.product.name }}</span>
-            </div>
-            <div class="sale-history__entry-head">
-              <strong>{{ formatMoney(entry.price, entry.currency?.currencySign) }}</strong>
-              <time :datetime="entry.saleDate">{{ formatDate(entry.saleDate) }}</time>
-            </div>
-            <dl>
-              <div>
-                <dt>{{ t('sales.history.averageBuyPrice') }}</dt>
-                <dd>{{ formatMoney(entry.averageBuyPrice, entry.currency?.currencySign) }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('common.labels.count') }}</dt>
-                <dd>{{ entry.quantity.toLocaleString(locale) }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('sales.history.discount') }}</dt>
-                <dd>{{ formatPercent(entry.discount) }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('common.labels.storage') }}</dt>
-                <dd>{{ entry.storageCode }}</dd>
-              </div>
-            </dl>
-            <div v-if="entry.organization" class="sale-history__organization" :class="{ 'is-current': entry.organization.id === (organizationId || preferredOrganizationId) }">{{ entry.organization.name }}</div>
-            <div class="sale-history__meta">
-              <span>#{{ entry.saleContentId }}</span>
-              <span v-if="entry.whoCreated">{{ shortId(entry.whoCreated) }}</span>
-            </div>
-          </article>
-        </div>
-
-        <el-button
-          v-if="hasNext"
-          class="sale-history__more"
-          plain
-          :loading="isLoadingMore"
-          @click="loadMore"
-        >
-          {{ t('common.actions.loadMore') }}
-        </el-button>
+        <footer class="sale-history__footer">
+          <span class="sale-history__hint" role="status">{{ hasAppliedPrice ? t('sales.history.priceApplied') : t('sales.history.applyHint') }}</span>
+          <el-button
+            v-if="hasNext"
+            class="sale-history__more"
+            plain
+            :loading="isLoadingMore"
+            @click="loadMore"
+          >
+            {{ t('common.actions.loadMore') }}
+          </el-button>
+        </footer>
       </template>
     </div>
   </aside>
@@ -150,19 +157,26 @@ const props = defineProps<{
   preferredOrganizationId?: string
   currencyId?: number
   currencySign?: string
+  selectedPrice?: number
+  selectionKey?: number
+  disabled?: boolean
 }>()
 
+const emit = defineEmits<{ 'apply-price': [entry: ProductSaleHistoryModel] }>()
+const appliedEntryId = ref<number>()
 const isOpen = defineModel<boolean>({ required: true })
 const { locale, t } = useI18n()
 const { nextZIndex } = useZIndex()
 const panelZIndex = ref(nextZIndex())
 const history = ref<ProductSaleHistoryModel[]>([])
+const hasAppliedPrice = computed(() => appliedEntryId.value !== undefined && history.value.some(entry => entry.saleContentId === appliedEntryId.value && entry.price === props.selectedPrice))
 const isLoading = ref(false)
 const isLoadingMore = ref(false)
 const errorMessage = ref('')
 const hasNext = ref(false)
 const showCrosses = ref(false)
 const onlyThisOrganization = ref(false)
+const effectiveOrganizationId = computed(() => props.organizationId || (onlyThisOrganization.value ? props.preferredOrganizationId : undefined))
 const page = ref(0)
 const pageSize = 10
 const sortBy = ref('saleDate_desc')
@@ -187,6 +201,7 @@ async function load(reset: boolean) {
   if (!reset && (isLoading.value || isLoadingMore.value || !hasNext.value)) return
   const currentRequestId = ++requestId
   if (reset) {
+    appliedEntryId.value = undefined
     page.value = 0
     history.value = []
     errorMessage.value = ''
@@ -203,7 +218,7 @@ async function load(reset: boolean) {
     const response = await getProductSaleHistory({
       productId: props.product.id,
       storageCode: props.storageCode,
-      organizationId: props.organizationId || (onlyThisOrganization.value ? props.preferredOrganizationId : undefined),
+      organizationId: effectiveOrganizationId.value,
       showCrosses: showCrosses.value,
       preferredOrganizationId: props.preferredOrganizationId,
       currencyId: props.currencyId,
@@ -262,8 +277,14 @@ function formatDate(value: string) {
   }).format(date)
 }
 
-function shortId(value: string) {
-  return value.length > 12 ? `${value.slice(0, 8)}…` : value
+function canApplyPrice(entry: ProductSaleHistoryModel) {
+  return !props.disabled && props.currencyId === entry.currencyId && Number.isFinite(entry.price) && entry.price >= 0
+}
+
+function applyPrice(entry: ProductSaleHistoryModel) {
+  if (!canApplyPrice(entry)) return
+  appliedEntryId.value = entry.saleContentId
+  emit('apply-price', entry)
 }
 
 watch(
@@ -274,6 +295,7 @@ watch(
     props.organizationId,
     props.preferredOrganizationId,
     props.currencyId,
+    props.selectionKey,
   ],
   ([open]) => {
     if (open && props.product) {
@@ -300,18 +322,16 @@ watch(
   right: max(16px, calc((100vw - 1680px) / 2));
   width: 108px;
   height: 38px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--app-surface);
+  color: var(--app-text);
 }
-
 .sale-history--open {
   width: 400px;
   height: min(884px, 90vh);
-  border-left-color: #94a3b8;
   border-radius: 0 8px 8px 0;
 }
-
 .sale-history__toggle {
   display: flex;
   width: 100%;
@@ -322,192 +342,101 @@ watch(
   border: 0;
   border-radius: inherit;
   background: transparent;
-  color: #334155;
+  color: inherit;
   cursor: pointer;
+  font: inherit;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
-
-.sale-history__toggle:hover {
-  background: #f8fafc;
-}
-
+.sale-history__toggle:hover { background: var(--app-surface-tinted); }
 .sale-history__content {
   display: flex;
   min-width: 0;
   height: 100%;
-  max-height: 100%;
   flex-direction: column;
-  padding: 16px;
 }
-
 .sale-history__header {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  padding: 16px 16px 12px;
 }
-
 .sale-history__header-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 2px;
 }
-
-.sale-history__header-actions :deep(.el-button + .el-button) {
-  margin-left: 0;
-}
-
-.sale-history__header-actions :deep(.el-button.is-text) {
-  padding-right: 4px;
-  padding-left: 6px;
-  color: #475569;
-}
-
-.sale-history__title {
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 700;
-}
-
+.sale-history__header-actions :deep(.el-button + .el-button) { margin-left: 0; }
+.sale-history__header-actions :deep(.el-button.is-text) { padding: 6px 4px; }
+.sale-history__title { font-size: 15px; font-weight: 700; }
 .sale-history__product {
   display: grid;
   gap: 2px;
   margin-top: 6px;
+  font-size: 12px;
 }
-
 .sale-history__product strong {
   overflow: hidden;
-  color: #1e293b;
-  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
-
 .sale-history__product span,
-.sale-history__hint {
-  color: #64748b;
-  font-size: 12px;
-}
-
-.sale-history__context {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.sale-history__context span + span::before {
-  margin-right: 8px;
-  content: "·";
-}
-
-.sale-history__sort {
-  width: 100%;
-  margin-top: 10px;
-}
-
-.sale-history__list {
+.sale-history__hint { color: var(--app-text-muted); font-size: 12px; }
+.sale-history__filters {
   display: grid;
+  flex: 0 0 auto;
   gap: 8px;
-  min-height: 0;
-  margin-top: 12px;
-  overflow-y: auto;
-  padding-right: 3px;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--app-border);
 }
-
+.sale-history__filter-row { display: flex; align-items: center; gap: 12px; }
+.sale-history__filter-row :deep(.el-checkbox) { flex: 0 0 auto; height: 28px; margin: 0; }
+.sale-history__sort { flex: 1; min-width: 0; }
+.sale-history__results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sale-history__list { display: grid; }
 .sale-history__entry {
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  padding: 11px;
-}
-
-.sale-history__filters { display: flex; flex-wrap: wrap; gap: 0 12px; margin-top: 8px; }
-.sale-history__filters :deep(.el-checkbox) { margin-right: 0; height: auto; min-height: 28px; }
-.sale-history__entry-product { display: grid; gap: 4px; margin-bottom: 10px; }
-.sale-history__entry-product > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.sale-history__entry-product > span { font-size: 12px; color: #64748b; overflow-wrap: anywhere; }
-.sale-history__organization { margin-top: 9px; font-size: 12px; color: #64748b; overflow-wrap: anywhere; }
-.sale-history__organization.is-current { color: var(--app-primary); font-weight: 600; }
-.sale-history__entry-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.sale-history__entry-head strong {
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.sale-history__entry-head time {
-  color: #64748b;
-  font-size: 11px;
-}
-
-.sale-history__entry dl {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 12px;
-  margin: 10px 0 0;
-}
-
-.sale-history__entry dl div {
-  min-width: 0;
-}
-
-.sale-history__entry dt {
-  color: #64748b;
-  font-size: 10px;
-}
-
-.sale-history__entry dd {
-  margin: 2px 0 0;
-  overflow: hidden;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sale-history__meta {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 9px;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 7px;
-  color: #94a3b8;
-  font-size: 10px;
-}
-
-.sale-history__state {
-  display: grid;
-  place-items: center;
-  gap: 10px;
-  min-height: 150px;
-  color: #64748b;
-  font-size: 13px;
-  text-align: center;
-}
-
-.sale-history__state--error {
-  color: #b91c1c;
-}
-
-.sale-history__more {
   width: 100%;
-  margin-top: 10px;
+  min-width: 0;
+  gap: 4px;
+  border: 0;
+  border-bottom: 1px solid var(--app-border);
+  border-radius: 0;
+  padding: 12px 16px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-
+.sale-history__entry:hover:not(:disabled),
+.sale-history__entry.is-applied { background: var(--app-primary-soft); }
+.sale-history__entry:focus-visible,
+.sale-history__toggle:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: -2px;
+}
+.sale-history__entry:disabled { cursor: default; }
+.sale-history__entry-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sale-history__entry-head strong { font-size: 14px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sale-history__entry-head time { color: var(--app-text-muted); font-size: 12px; text-align: right; }
+.sale-history__entry-product { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; overflow-wrap: anywhere; }
+.sale-history__entry-product > span:last-child { color: var(--app-text-muted); }
+.sale-history__organization { overflow: hidden; color: var(--app-text-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.sale-history__organization.is-current { color: var(--app-primary); font-weight: 500; }
+.sale-history__details { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--app-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sale-history__details > span { white-space: nowrap; }
+.sale-history__details b { font-weight: 500; }
+.sale-history__state { display: grid; place-items: center; gap: 12px; min-height: 150px; padding: 24px 16px; color: var(--app-text-muted); font-size: 13px; text-align: center; }
+.sale-history__state--error { color: var(--el-color-danger); }
+.sale-history__footer { display: grid; flex: 0 0 auto; gap: 8px; border-top: 1px solid var(--app-border); padding: 12px 16px; }
+.sale-history__more { width: 100%; }
 @media (max-width: 1180px) {
-  .sale-history {
-    right: 12px;
-  }
-
+  .sale-history { right: 12px; }
   .sale-history--open {
     top: 12px;
     width: min(400px, calc(100vw - 24px));
