@@ -82,37 +82,37 @@
               </div>
             </div>
 
-            <DataLoadError v-if="rangesError" :error="rangesError" @retry="loadRanges" />
-            <el-table
-              v-else
-              v-loading="isLoadingRanges"
-              :data="selectedGroupRanges"
-              border
-              class="ranges-table"
-              :empty-text="t('markups.noRanges')"
-            >
-              <el-table-column :label="t('markups.range')" min-width="220">
-                <template #default="{ row }: { row: MarkupRangeModel }">
-                  {{ formatMoney(row.rangeStart, selectedGroup.currencyId) }} - {{ formatMoney(row.rangeEnd, selectedGroup.currencyId) }}
-                </template>
-              </el-table-column>
-              <el-table-column :label="t('markups.from')" min-width="130" align="right">
-                <template #default="{ row }: { row: MarkupRangeModel }">
-                  {{ formatMoney(row.rangeStart, selectedGroup.currencyId) }}
-                </template>
-              </el-table-column>
-              <el-table-column :label="t('markups.to')" min-width="130" align="right">
-                <template #default="{ row }: { row: MarkupRangeModel }">
-                  {{ formatMoney(row.rangeEnd, selectedGroup.currencyId) }}
-                </template>
-              </el-table-column>
-              <el-table-column :label="t('markups.markup')" width="140" align="right">
-                <template #default="{ row }: { row: MarkupRangeModel }">
-                  <strong>{{ formatPercent(row.markup) }}</strong>
-                </template>
-              </el-table-column>
-            </el-table>
-            <ZeroPagination v-model:page="rangesPage" v-model:size="rangesSize" :has-next="rangesHasNext" />
+            <div class="ranges-table-container">
+              <DataLoadError v-if="rangesError" :error="rangesError" @retry="loadRanges" />
+              <el-table
+                v-else
+                v-loading="isLoadingRanges"
+                :data="selectedGroupRanges"
+                height="100%"
+                border
+                class="ranges-table"
+                :empty-text="t('markups.noRanges')"
+              >
+                <el-table-column :label="t('markups.from')" min-width="130" align="right">
+                  <template #default="{ row }: { row: MarkupRangeModel }">
+                    {{ formatMoney(row.rangeStart, selectedGroup.currencyId) }}
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('markups.to')" min-width="130" align="right">
+                  <template #default="{ row }: { row: MarkupRangeModel }">
+                    {{ formatMoney(row.rangeEnd, selectedGroup.currencyId) }}
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('markups.markup')" width="140" align="right">
+                  <template #default="{ row }: { row: MarkupRangeModel }">
+                    <strong>{{ formatPercent(row.markup) }}</strong>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+            <div class="ranges-pagination">
+              <ZeroPagination v-model:page="rangesPage" v-model:size="rangesSize" :has-next="rangesHasNext" />
+            </div>
           </template>
 
           <el-empty v-else :description="t('markups.selectToView')" />
@@ -536,6 +536,7 @@ const draftGuard = useDialogGuard(drawerOpen, isSaving, () => form)
 }
 
 .markups-workspace {
+  --markups-panel-height: 720px;
   display: grid;
   grid-template-columns: minmax(360px, 0.85fr) minmax(0, 1.15fr);
   gap: 16px;
@@ -543,6 +544,9 @@ const draftGuard = useDialogGuard(drawerOpen, isSaving, () => form)
 
 .markups-list-panel,
 .markups-details-panel {
+  height: var(--markups-panel-height);
+  min-height: 0;
+  overflow: hidden;
   border: 1px solid var(--app-border);
   border-radius: 8px;
   background: var(--app-surface);
@@ -551,7 +555,6 @@ const draftGuard = useDialogGuard(drawerOpen, isSaving, () => form)
 .markups-list-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  height: 720px;
   overflow: hidden;
 }
 
@@ -561,6 +564,25 @@ const draftGuard = useDialogGuard(drawerOpen, isSaving, () => form)
   flex-direction: column;
   gap: 14px;
   padding: 16px;
+}
+
+.details-header,
+.details-summary,
+.ranges-pagination {
+  flex-shrink: 0;
+}
+
+.ranges-table-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ranges-pagination {
+  margin: 0 -16px -16px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--app-border);
+  background: var(--app-surface-tinted);
 }
 
 .panel-heading {
@@ -752,15 +774,34 @@ const draftGuard = useDialogGuard(drawerOpen, isSaving, () => form)
   }
 
   .markups-workspace {
+    --markups-panel-height: 520px;
     grid-template-columns: 1fr;
-  }
-
-  .markups-list-panel {
-    height: 520px;
   }
 
   .details-summary {
     grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .details-summary > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    min-width: 0;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .details-summary span {
+    flex-shrink: 0;
+  }
+
+  .details-summary strong {
+    min-width: 0;
+    overflow-wrap: break-word;
+    text-align: right;
   }
 
   .markup-range-row {
