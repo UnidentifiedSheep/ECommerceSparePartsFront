@@ -23,6 +23,7 @@ fragment ProductListFields on Product {
 
 fragment ProductDetailsFields on Product {
   ...ProductFields
+  rowVersion
   eans @include(if: $includeEans)
   characteristics { characteristic { id name normalizedName } value }
   pair { ...ProductListFields }
@@ -142,6 +143,10 @@ mutation ProductGroupUpsert($input: UpsertProductGroupInput!) {
 
 mutation ProductPatch($productId: Int!, $input: PatchProductInput!) {
   products { patch(productId: $productId, input: $input) { id } }
+}
+
+mutation ProductDelete($input: DeleteProductInput!) {
+  products { delete(input: $input) }
 }
 
 mutation ProductCreate($products: [CreateProductInput!]!) {

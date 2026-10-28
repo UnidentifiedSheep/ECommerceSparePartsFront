@@ -30,8 +30,8 @@
           >
             {{ t('catalogueReview.productCandidates') }}
           </el-button>
-          <el-dropdown trigger="click" @command="handleProductAction">
-            <el-button :icon="MoreFilled" circle plain :aria-label="t('common.labels.actions')" />
+          <el-dropdown trigger="click" :disabled="isLoading || isDeletingProduct" @command="handleProductAction">
+            <el-button :icon="MoreFilled" :disabled="isLoading || isDeletingProduct" :loading="isDeletingProduct" circle plain :aria-label="t('common.labels.actions')" />
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="refresh" :icon="Refresh">{{ t('common.actions.refresh') }}</el-dropdown-item>
@@ -44,6 +44,9 @@
                 <el-dropdown-item v-if="product && canViewProductReservations" command="reservations" :icon="View">
                   {{ t('users.viewReservations') }}
                 </el-dropdown-item>
+                <el-dropdown-item v-if="product && canDeleteProduct" command="delete" :icon="Delete" divided class="text-red-600" :disabled="product.rowVersion === undefined">
+                  {{ t('common.actions.delete') }}
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -52,7 +55,7 @@
     </header>
 
     <main class="flex flex-col gap-4 p-4">
-      <div v-loading="isLoading">
+      <div v-loading="isLoading || isDeletingProduct">
         <div v-if="product" class="grid items-start gap-4 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">
           <ProductImageGallery
             :images="productImages"
@@ -243,7 +246,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Edit, Money, MoreFilled, Plus, Refresh, View } from '@element-plus/icons-vue'
+import { ArrowLeft, Delete, Edit, Money, MoreFilled, Plus, Refresh, View } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import AddProductStorageContentDialog from '@/components/products/AddProductStorageContentDialog.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
@@ -274,6 +277,7 @@ import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateModel.ts'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
 import {
+  deleteProduct,
   deleteProductCharacteristic,
   deleteProductContent,
   deleteProductImage,
@@ -284,6 +288,7 @@ import {
 } from '@/services/api/products.ts'
 import { deleteStorageContent, getStorageContent } from '@/services/api/storages.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { useConfirmedDelete } from '@/composables/useConfirmedDelete'
 import { useI18n } from '@/i18n'
 import { groupCatalogueCandidateNames, type CatalogueNameGroup } from '@/utils/catalogueCandidateNames.ts'
 import { useMultiSort } from '@/composables/useMultiSort.ts'
@@ -348,6 +353,7 @@ const editingContentItem = ref<ProductContentModel>()
 const editingCharacteristic = ref<ProductCharacteristicModel>()
 
 const canEditProduct = computed(() => hasPermission('ARTICLES_EDIT'))
+const canDeleteProduct = computed(() => hasPermission('ARTICLES_DELETE'))
 const canViewEans = computed(() => hasPermission('ARTICLE_EANS_GET'))
 const canEditEans = computed(() => canViewEans.value && hasPermission('ARTICLE_EANS_EDIT'))
 const canCreateCrosses = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
@@ -376,6 +382,8 @@ const canManageSize = computed(() => canSetSize.value || Boolean(productSize.val
 const canManageWeight = computed(() => canSetWeight.value || Boolean(productWeight.value && canDeleteWeight.value))
 
 const productId = computed(() => Number(route.params.id))
+const deletion = useConfirmedDelete()
+const isDeletingProduct = computed(() => deletion.isPending(String(productId.value)))
 const productLabel = computed(() => product.value ? `${product.value.sku} - ${product.value.name}` : '')
 const productImages = computed(() => product.value?.images.filter(Boolean) ?? [])
 const productHeader = computed(() => product.value?.name ?? t('products.details.productHeader', { id: String(route.params.id) }))
@@ -452,10 +460,30 @@ async function clearPair() {
 }
 
 async function handleProductAction(command: string) {
+  if (isDeletingProduct.value) return
   if (command === 'refresh') await refreshDetails()
   if (command === 'edit') editDialogOpen.value = true
   if (command === 'crosses') crossDialogOpen.value = true
   if (command === 'reservations') reservationsDialogOpen.value = true
+  if (command === 'delete') await removeProduct()
+}
+
+async function removeProduct() {
+  const target = product.value
+  if (!target || !canDeleteProduct.value || isLoading.value || target.rowVersion === undefined) return
+  const rowVersion = target.rowVersion
+  try {
+    await deletion.remove(String(target.id), `${target.sku} — ${target.name}`, async () => {
+      if (!canDeleteProduct.value || productId.value !== target.id) return
+      await deleteProduct(target.id, rowVersion)
+      ElNotification({ title: t('products.productDeleted'), type: 'success' })
+      if (route.name === 'product-details' && productId.value === target.id) {
+        await router.replace({ name: 'products' })
+      }
+    })
+  } catch (error) {
+    ElNotification({ title: t('products.productDeleteError'), message: error instanceof Error ? error.message : undefined, type: 'error' })
+  }
 }
 
 async function uploadImages(files: File[]) {

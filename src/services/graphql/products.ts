@@ -10,6 +10,7 @@ import type { CatalogueCandidateSearchModel } from '@/services/api/search.ts'
 import type { CatalogueCandidateReviewModel, SupplierProductModel } from '@/models/catalogueCandidateModel.ts'
 import type { ProducerModel, Supplier } from '@/models/producerModel.ts'
 import { graphqlClient } from './client.ts'
+import { operationRequest } from './operationErrors'
 import {
   CandidateToCatalogueDocument,
   CatalogueCandidateByIdDocument,
@@ -26,6 +27,7 @@ import {
   CharacteristicDeleteDocument,
   ProductGroupUpsertDocument,
   ProductPatchDocument,
+  ProductDeleteDocument,
   ProductCreateDocument,
   ProductEanCreateDocument,
   ProductEanDeleteDocument,
@@ -112,6 +114,7 @@ function mapProduct(product: GqlProduct): ProductModel {
     stock: product.stock ?? 0,
   }
   if ('pair' in product) mapped.pair = product.pair ? mapProduct(product.pair) : null
+  if ('rowVersion' in product) mapped.rowVersion = product.rowVersion
   if ('contents' in product) {
     mapped.contents = product.contents.map((item) => ({ quantity: item.quantity, product: mapProduct(item.product) }))
   }
@@ -279,6 +282,16 @@ export async function getProductByIdGraphql(
       ? mapCatalogueCandidate(response.data.catalogueCandidates.byProductId)
       : null,
   }
+}
+
+export async function deleteProductGraphql(productId: number, rowVersion: number): Promise<void> {
+  const { data } = await operationRequest(graphqlClient.mutate({
+    mutation: ProductDeleteDocument,
+    variables: { input: { productId, rowVersion } },
+  }))
+  if (data?.products.delete !== true) throw new Error('Product deletion was not confirmed')
+  graphqlClient.cache.evict({ id: graphqlClient.cache.identify({ __typename: 'Product', id: productId }) })
+  graphqlClient.cache.gc()
 }
 
 export async function getCatalogueCandidatesForReviewGraphql(options: {
