@@ -33,7 +33,7 @@ const mobileMenuOpen = ref(false)
 <style scoped>
 .app-shell {
   display: grid;
-  grid-template-columns: 252px minmax(0, 1fr);
+  grid-template-columns: max(252px, 15.75rem) minmax(0, 1fr);
   min-height: 100vh;
   background: var(--app-bg);
 }

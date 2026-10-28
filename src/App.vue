@@ -10,11 +10,13 @@ import { useAuthStore } from '@/stores/authStore.ts'
 import { useCurrencyStore } from '@/stores/currencyStore.ts'
 import { useNotificationStore } from '@/stores/notificationStore.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
+import { useAppearanceStore } from '@/stores/appearanceStore'
 
 const { locale } = useI18n()
 const elementLocales = { ru, en, tr }
 const elementLocale = computed(() => elementLocales[locale.value])
 const authStore = useAuthStore()
+useAppearanceStore()
 const currencyStore = useCurrencyStore()
 const notificationStore = useNotificationStore()
 const { hasPermission } = usePermissions()

@@ -1,9 +1,9 @@
 <template>
   <el-menu
     :default-active="activeMenuIndex"
-    background-color="#fbfdfb"
+    background-color="var(--app-surface-tinted)"
     text-color="#334155"
-    active-text-color="#047857"
+    active-text-color="var(--app-primary)"
     class="main-nav"
   >
     <div class="main-nav__brand">
@@ -23,7 +23,7 @@
       <span>{{ t('nav.overview') }}</span>
     </el-menu-item>
 
-    <el-sub-menu v-if="operationsRoutes.some(canOpen)" index="operations">
+    <el-sub-menu v-if="operationsRoutes.some(canOpen)" index="operations" class="main-nav__operations">
       <template #title>
         <el-icon><Tickets /></el-icon>
         <span>{{ t('nav.operations') }}</span>
@@ -35,7 +35,7 @@
       <el-menu-item v-if="canOpen('/transactions')" index="/transactions" @click="openRoute('/transactions')">{{ t('nav.transactions') }}</el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu index="catalog">
+    <el-sub-menu index="catalog" class="main-nav__catalog">
       <template #title>
         <el-icon><IconRoute /></el-icon>
         <span>{{ t('nav.catalog') }}</span>
@@ -53,7 +53,7 @@
       <el-menu-item v-if="canOpen('/storages')" index="/storages" @click="openRoute('/storages')">{{ t('nav.storages') }}</el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu v-if="adminRoutes.some(canOpen)" index="admin">
+    <el-sub-menu v-if="adminRoutes.some(canOpen)" index="admin" class="main-nav__admin">
       <template #title>
         <el-icon><Key /></el-icon>
         <span>{{ t('nav.admin') }}</span>
@@ -69,7 +69,7 @@
       <el-menu-item v-if="canOpen('/service-settings')" index="/service-settings" @click="openRoute('/service-settings')">{{ t('nav.serviceSettings') }}</el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu v-if="pricingRoutes.some(canOpen)" index="pricing">
+    <el-sub-menu v-if="pricingRoutes.some(canOpen)" index="pricing" class="main-nav__pricing">
       <template #title>
         <el-icon><Money /></el-icon>
         <span>{{ t('nav.pricing') }}</span>
@@ -85,7 +85,7 @@
       </el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu v-if="controlRoutes.some(canOpen)" index="control">
+    <el-sub-menu v-if="controlRoutes.some(canOpen)" index="control" class="main-nav__control">
       <template #title>
         <el-icon><DataAnalysis /></el-icon>
         <span>{{ t('nav.control') }}</span>
@@ -222,7 +222,7 @@ function openRoute(path: string) {
 
 .main-nav__close:hover {
   border-color: var(--app-border);
-  background: #eef6f1;
+  background: var(--app-primary-soft);
   color: #0f172a;
 }
 
@@ -244,13 +244,13 @@ function openRoute(path: string) {
 
 :deep(.el-sub-menu__title:hover),
 :deep(.el-menu-item:hover) {
-  background: #eef6f1;
+  background: var(--app-primary-soft);
   color: #0f172a;
 }
 
 :deep(.el-menu-item.is-active) {
   background: var(--app-primary-soft);
-  color: #047857;
+  color: var(--app-primary);
 }
 
 :deep(.el-sub-menu .el-menu-item) {
@@ -262,4 +262,10 @@ function openRoute(path: string) {
 :deep(.el-icon) {
   color: inherit;
 }
+.main-nav__operations { --section-color: var(--app-section-operations); }
+.main-nav__catalog { --section-color: var(--app-section-catalog); }
+.main-nav__admin { --section-color: var(--app-section-admin); }
+.main-nav__pricing { --section-color: var(--app-section-pricing); }
+.main-nav__control { --section-color: var(--app-section-control); }
+:deep(.el-sub-menu__title > .el-icon:first-child) { color: var(--section-color, var(--app-primary)); background: color-mix(in srgb, var(--section-color, var(--app-primary)), white 90%); border-radius: 5px; width: 26px; height: 26px; padding: 4px; }
 </style>

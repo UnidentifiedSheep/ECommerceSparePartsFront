@@ -280,6 +280,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Настройки',
+      appearance: {
+        title: 'Внешний вид', hint: 'Настройте интерфейс так, чтобы вам было удобно работать.',
+        fontSize: 'Размер текста', fontHint: '100% — стандартный размер. Изменение применяется сразу, в том числе в таблицах и окнах.',
+        accent: 'Цветовой акцент', emerald: 'Изумрудный', sapphire: 'Сапфировый', amethyst: 'Аметистовый',
+        savedHint: 'Изменения сохраняются автоматически для вашей учётной записи в этом браузере.',
+        storageError: 'Изменения применены, но сохранить их в браузере не удалось.', reset: 'Вернуть стандартный вид',
+      },
       description: 'Локальные настройки работы и безопасности аккаунта.',
       operations: 'Операции',
       operationsHint: 'Значения, которые автоматически подставляются в новые документы.',
@@ -2314,6 +2321,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Settings',
+      appearance: {
+        title: 'Appearance', hint: 'Adjust the interface to work comfortably.',
+        fontSize: 'Text size', fontHint: '100% is the default size. Changes apply immediately, including tables and dialogs.',
+        accent: 'Accent color', emerald: 'Emerald', sapphire: 'Sapphire', amethyst: 'Amethyst',
+        savedHint: 'Changes are saved automatically for your account in this browser.',
+        storageError: 'Changes were applied but could not be saved in this browser.', reset: 'Restore default appearance',
+      },
       description: 'Local workflow and account security settings.',
       operations: 'Operations',
       operationsHint: 'Values automatically selected in new documents.',
@@ -4348,6 +4362,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Ayarlar',
+      appearance: {
+        title: 'Görünüm', hint: 'Rahat çalışmak için arayüzü kendinize göre ayarlayın.',
+        fontSize: 'Metin boyutu', fontHint: '%100 varsayılan boyuttur. Değişiklikler tablolara ve pencerelere hemen uygulanır.',
+        accent: 'Vurgu rengi', emerald: 'Zümrüt', sapphire: 'Safir', amethyst: 'Ametist',
+        savedHint: 'Değişiklikler bu tarayıcıda hesabınız için otomatik olarak kaydedilir.',
+        storageError: 'Değişiklikler uygulandı ancak bu tarayıcıda kaydedilemedi.', reset: 'Varsayılan görünüme dön',
+      },
       description: 'Yerel iş akışı ve hesap güvenliği ayarları.',
       operations: 'İşlemler',
       operationsHint: 'Yeni belgelerde otomatik olarak seçilen değerler.',
