@@ -45,6 +45,16 @@ watch([visible, mobile], async () => { await nextTick(); measure() }, { immediat
 .pinned-navigation__link:focus-visible, .pinned-navigation__settings:focus-visible { outline: 2px solid var(--pin-color); outline-offset: -3px; }
 .pinned-navigation__settings { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 38px; border-radius: 6px; color: var(--pin-color); }
 .pinned-navigation__settings:hover { background: var(--app-surface); }
+@media (min-width: 901px) {
+  .pinned-navigation { gap: 4px; padding: 3px 12px; background: color-mix(in srgb, var(--pin-bg) 30%, var(--app-surface)); }
+  .pinned-navigation__links { gap: 4px; }
+  .pinned-navigation__link { gap: 6px; min-height: 28px; max-width: 180px; padding: 4px 8px; border-color: transparent; border-radius: 4px; background: transparent; color: var(--el-text-color-regular); font-size: 13px; line-height: 1.2; }
+  .pinned-navigation__link > .el-icon { color: var(--pin-color); font-size: 14px; }
+  .pinned-navigation__link:hover { filter: none; border-color: var(--app-border); background: var(--app-surface); }
+  .pinned-navigation__link--active { border-color: var(--app-border); background: var(--app-surface); color: var(--app-text); }
+  .pinned-navigation__link--active::after { right: 6px; bottom: 0; left: 6px; height: 2px; }
+  .pinned-navigation__settings { width: 28px; height: 28px; color: var(--el-text-color-regular); }
+}
 @media (max-width: 900px) {
   .pinned-navigation { position: fixed; z-index: 40; right: 0; bottom: 0; left: 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--app-border-strong); border-bottom: 0; }
 }
