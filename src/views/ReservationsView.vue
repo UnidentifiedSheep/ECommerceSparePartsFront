@@ -140,7 +140,7 @@ function resetFilters() {
 
 <style scoped>
 .reservations-page {
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - var(--app-viewport-offset, 56px));
   background: #f7f7f8;
 }
 

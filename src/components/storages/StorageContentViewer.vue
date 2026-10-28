@@ -41,7 +41,7 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="createOpen" :title="t('storages.contentPanel.addTitle')" width="560">
+    <el-dialog v-model="createOpen" :before-close="draftGuard0.beforeClose" :title="t('storages.contentPanel.addTitle')" width="560">
       <el-form label-position="top">
         <el-form-item label="Product ID">
           <el-input-number v-model="createForm.productId" :min="1" class="w-full" />
@@ -72,12 +72,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="createItem">{{ t('common.actions.add') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="savingContent" @click="createItem">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editOpen" :title="t('storages.contentPanel.editTitle')" width="560">
+    <el-dialog v-model="editOpen" :before-close="draftGuard1.beforeClose" :title="t('storages.contentPanel.editTitle')" width="560">
       <el-form label-position="top">
         <el-form-item label="Product ID">
           <el-input :model-value="editingItem?.productId" disabled />
@@ -108,15 +108,16 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="saveEdit">{{ t('common.actions.save') }}</el-button>
+        <el-button @click="draftGuard1.requestClose">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="savingContent" @click="saveEdit">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { useDialogGuard } from '@/composables/useDialogGuard'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import { Delete, Edit } from '@element-plus/icons-vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
@@ -214,51 +215,59 @@ function openEditDialog(item: StorageContentModel) {
 }
 
 async function createItem() {
-  if (!storage.value) return
+  if (savingContent.value) return
+  savingContent.value = true
+  try {
+    if (!storage.value) return
 
-  await addStorageContent({
-    storageCode: storage.value.code,
-    storageContent: [
-      {
-        productId: createForm.productId,
-        count: createForm.count,
-        buyPrice: createForm.buyPrice,
-        currencyId: createForm.currencyId,
-        purchaseDate: createForm.purchaseDate,
-      },
-    ],
-  })
+    await addStorageContent({
+      storageCode: storage.value.code,
+      storageContent: [
+        {
+          productId: createForm.productId,
+          count: createForm.count,
+          buyPrice: createForm.buyPrice,
+          currencyId: createForm.currencyId,
+          purchaseDate: createForm.purchaseDate,
+        },
+      ],
+    })
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('storages.contentPanel.added'),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('storages.contentPanel.added'),
+      type: 'success',
+    })
 
-  createOpen.value = false
-  await loadContent()
+    createOpen.value = false
+    await loadContent()
+  } finally { savingContent.value = false }
 }
 
 async function saveEdit() {
-  if (!editingItem.value) return
+  if (savingContent.value) return
+  savingContent.value = true
+  try {
+    if (!editingItem.value) return
 
-  await editStorageContent({
-    id: editingItem.value.id,
-    rowVersion: editingItem.value.rowVersion,
-    count: editForm.count,
-    buyPrice: editForm.buyPrice,
-    currencyId: editForm.currencyId,
-    purchaseDatetime: editForm.purchaseDatetime,
-  })
+    await editStorageContent({
+      id: editingItem.value.id,
+      rowVersion: editingItem.value.rowVersion,
+      count: editForm.count,
+      buyPrice: editForm.buyPrice,
+      currencyId: editForm.currencyId,
+      purchaseDatetime: editForm.purchaseDatetime,
+    })
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('storages.contentPanel.updated'),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('storages.contentPanel.updated'),
+      type: 'success',
+    })
 
-  editOpen.value = false
-  await loadContent()
+    editOpen.value = false
+    await loadContent()
+  } finally { savingContent.value = false }
 }
 
 async function removeItem(item: StorageContentModel) {
@@ -276,6 +285,10 @@ async function removeItem(item: StorageContentModel) {
 watch(storage, loadContent, { immediate: true })
 watch(showZeroContent, loadContent)
 onMounted(loadCurrencies)
+
+const savingContent = ref(false)
+const draftGuard0 = useDialogGuard(createOpen, computed(() => savingContent.value), () => createForm)
+const draftGuard1 = useDialogGuard(editOpen, computed(() => savingContent.value), () => editForm)
 </script>
 
 <style scoped>

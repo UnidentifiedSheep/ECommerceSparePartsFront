@@ -1,6 +1,6 @@
 <template>
   <el-dialog
-    v-model="dialogOpen"
+    v-model="dialogOpen" :before-close="draftGuard0.beforeClose"
     :title="t('transactions.createTitle')"
     width="640"
     destroy-on-close
@@ -89,7 +89,7 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="dialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+      <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
       <el-button type="primary" :loading="isSubmitting" @click="submit">
         {{ t('common.actions.create') }}
       </el-button>
@@ -98,6 +98,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
@@ -298,6 +299,8 @@ function financeAmountClass(value: number) {
     'finance-positive': value > 0,
   }
 }
+
+const draftGuard0 = useDialogGuard(dialogOpen, computed(() => isSubmitting.value), () => form)
 </script>
 
 <style scoped>

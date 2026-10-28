@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="isOpen" :title="dialogTitle" width="520">
+  <el-dialog v-model="isOpen" :before-close="draftGuard0.beforeClose" :title="dialogTitle" width="520">
     <el-form label-position="top">
       <el-form-item :label="t('common.labels.product')">
         <div class="flex w-full gap-2">
@@ -13,7 +13,7 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+      <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
       <el-button type="primary" :loading="saving" @click="save">{{ t('common.actions.save') }}</el-button>
     </template>
   </el-dialog>
@@ -22,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
@@ -103,4 +104,6 @@ watch(isOpen, (open) => {
   selectedProduct.value = null
   count.value = props.item?.quantity ?? 1
 })
+
+const draftGuard0 = useDialogGuard(isOpen, computed(() => saving.value), () => [selectedProduct.value?.id, count.value])
 </script>

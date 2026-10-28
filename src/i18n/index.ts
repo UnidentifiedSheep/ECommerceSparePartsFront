@@ -11,6 +11,15 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
+    pinnedNavigation: {
+      title: 'Быстрая навигация', hint: 'Закрепляйте разделы звёздочкой в меню или добавляйте их здесь. Меняйте порядок, подписи и цвета.',
+      pin: 'Закрепить: {name}', unpin: 'Открепить: {name}', configure: 'Настроить быструю навигацию',
+      show: 'Показывать панель', showLabels: 'Показывать подписи', barColor: 'Цвет панели', choose: 'Добавить раздел',
+      empty: 'Пока нет закреплённых разделов. Добавьте те, которыми пользуетесь чаще всего.',
+      label: 'Своя подпись', color: 'Цвет кнопки', buttonColor: 'Цвет кнопки: {name}',
+      up: 'Выше: {name}', down: 'Ниже: {name}', orderUpdated: 'Порядок закреплённых разделов обновлён.',
+      colors: { theme: 'Цвет темы', emerald: 'Изумрудный', sapphire: 'Сапфировый', amethyst: 'Аметистовый', amber: 'Янтарный', rose: 'Розовый', teal: 'Бирюзовый' },
+    },
     app: {
       name: 'SpareParts Admin',
       subtitle: 'Панель администратора',
@@ -280,6 +289,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Настройки',
+      appearance: {
+        title: 'Внешний вид', hint: 'Настройте интерфейс так, чтобы вам было удобно работать.',
+        fontSize: 'Размер текста', fontHint: '100% — стандартный размер. Изменение применяется сразу, в том числе в таблицах и окнах.',
+        accent: 'Цветовой акцент', emerald: 'Изумрудный', sapphire: 'Сапфировый', amethyst: 'Аметистовый',
+        savedHint: 'Изменения сохраняются автоматически для вашей учётной записи в этом браузере.',
+        storageError: 'Изменения применены, но сохранить их в браузере не удалось.', reset: 'Вернуть стандартный вид',
+      },
       description: 'Локальные настройки работы и безопасности аккаунта.',
       operations: 'Операции',
       operationsHint: 'Значения, которые автоматически подставляются в новые документы.',
@@ -1283,6 +1299,11 @@ const messages: Record<AppLocale, MessageTree> = {
       weight: 'Вес',
       volume: 'Объём',
       crosses: 'Кроссы',
+      crossPicker: {
+        open: 'Кроссы товара {sku}',
+        title: 'Кроссы: {sku}',
+        back: 'К результатам поиска',
+      },
       openProduct: 'Открыть товар',
       quickView: {
         keyboardNavigation: 'Enter — карточка товара · Esc — каталог',
@@ -2040,6 +2061,15 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   en: {
+    pinnedNavigation: {
+      title: 'Quick navigation', hint: 'Pin sections using the star in the menu or add them here. Adjust their order, labels and colors.',
+      pin: 'Pin: {name}', unpin: 'Unpin: {name}', configure: 'Configure quick navigation',
+      show: 'Show navigation bar', showLabels: 'Show labels', barColor: 'Bar color', choose: 'Add a section',
+      empty: 'No pinned sections yet. Add the ones you use most often.',
+      label: 'Custom label', color: 'Button color', buttonColor: 'Button color: {name}',
+      up: 'Move up: {name}', down: 'Move down: {name}', orderUpdated: 'Pinned sections reordered.',
+      colors: { theme: 'Theme color', emerald: 'Emerald', sapphire: 'Sapphire', amethyst: 'Amethyst', amber: 'Amber', rose: 'Rose', teal: 'Teal' },
+    },
     app: {
       name: 'SpareParts Admin',
       subtitle: 'Admin panel',
@@ -2309,6 +2339,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Settings',
+      appearance: {
+        title: 'Appearance', hint: 'Adjust the interface to work comfortably.',
+        fontSize: 'Text size', fontHint: '100% is the default size. Changes apply immediately, including tables and dialogs.',
+        accent: 'Accent color', emerald: 'Emerald', sapphire: 'Sapphire', amethyst: 'Amethyst',
+        savedHint: 'Changes are saved automatically for your account in this browser.',
+        storageError: 'Changes were applied but could not be saved in this browser.', reset: 'Restore default appearance',
+      },
       description: 'Local workflow and account security settings.',
       operations: 'Operations',
       operationsHint: 'Values automatically selected in new documents.',
@@ -3312,6 +3349,11 @@ const messages: Record<AppLocale, MessageTree> = {
       weight: 'Weight',
       volume: 'Volume',
       crosses: 'Crosses',
+      crossPicker: {
+        open: 'Crosses for {sku}',
+        title: 'Crosses: {sku}',
+        back: 'Back to search results',
+      },
       openProduct: 'Open product',
       quickView: {
         keyboardNavigation: 'Enter: product page · Esc: catalogue',
@@ -4069,6 +4111,15 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   tr: {
+    pinnedNavigation: {
+      title: 'Hızlı gezinme', hint: 'Menüdeki yıldızla bölümleri sabitleyin veya buradan ekleyin. Sırayı, etiketleri ve renkleri ayarlayın.',
+      pin: 'Sabitle: {name}', unpin: 'Sabitlemeyi kaldır: {name}', configure: 'Hızlı gezinmeyi ayarla',
+      show: 'Gezinme çubuğunu göster', showLabels: 'Etiketleri göster', barColor: 'Çubuk rengi', choose: 'Bölüm ekle',
+      empty: 'Henüz sabitlenmiş bölüm yok. En sık kullandıklarınızı ekleyin.',
+      label: 'Özel etiket', color: 'Düğme rengi', buttonColor: 'Düğme rengi: {name}',
+      up: 'Yukarı taşı: {name}', down: 'Aşağı taşı: {name}', orderUpdated: 'Sabitlenmiş bölümler yeniden sıralandı.',
+      colors: { theme: 'Tema rengi', emerald: 'Zümrüt', sapphire: 'Safir', amethyst: 'Ametist', amber: 'Kehribar', rose: 'Pembe', teal: 'Turkuaz' },
+    },
     app: {
       name: 'SpareParts Admin',
       subtitle: 'Yönetim paneli',
@@ -4338,6 +4389,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Ayarlar',
+      appearance: {
+        title: 'Görünüm', hint: 'Rahat çalışmak için arayüzü kendinize göre ayarlayın.',
+        fontSize: 'Metin boyutu', fontHint: '%100 varsayılan boyuttur. Değişiklikler tablolara ve pencerelere hemen uygulanır.',
+        accent: 'Vurgu rengi', emerald: 'Zümrüt', sapphire: 'Safir', amethyst: 'Ametist',
+        savedHint: 'Değişiklikler bu tarayıcıda hesabınız için otomatik olarak kaydedilir.',
+        storageError: 'Değişiklikler uygulandı ancak bu tarayıcıda kaydedilemedi.', reset: 'Varsayılan görünüme dön',
+      },
       description: 'Yerel iş akışı ve hesap güvenliği ayarları.',
       operations: 'İşlemler',
       operationsHint: 'Yeni belgelerde otomatik olarak seçilen değerler.',
@@ -5341,6 +5399,11 @@ const messages: Record<AppLocale, MessageTree> = {
       weight: 'Ağırlık',
       volume: 'Hacim',
       crosses: 'Kroslar',
+      crossPicker: {
+        open: '{sku} ürününün krosları',
+        title: 'Kroslar: {sku}',
+        back: 'Arama sonuçlarına dön',
+      },
       openProduct: 'Ürünü aç',
       quickView: {
         keyboardNavigation: 'Enter: ürün sayfası · Esc: katalog',

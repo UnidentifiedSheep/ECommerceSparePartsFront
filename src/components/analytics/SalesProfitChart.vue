@@ -19,6 +19,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts, EChartsOption } from 'echarts'
 import type { SalesProfitDataPoint } from '@/services/api/analytics.ts'
 import type { TimeSeriesGranularity } from '@/utils/timeSeries.ts'
+import { useAppearanceStore } from '@/stores/appearanceStore'
 
 use([
   BarChart,
@@ -68,6 +69,8 @@ const emit = defineEmits<{
 }>()
 
 const chartElement = ref<HTMLDivElement>()
+const appearanceStore = useAppearanceStore()
+const fontScale = computed(() => appearanceStore.appearance.fontScale / 100)
 let chart: ECharts | undefined
 let resizeObserver: ResizeObserver | undefined
 const showDataZoom = computed(() => props.points.length >= 30 || props.hasMore)
@@ -76,6 +79,7 @@ let zoomEndIndex = 29
 let applyingOption = false
 
 const option = computed<EChartsOption>(() => ({
+  textStyle: { fontSize: 12 * fontScale.value },
   animationDuration: 220,
   color: ['#047857', '#64748b', '#d97706'],
   grid: {
@@ -90,14 +94,14 @@ const option = computed<EChartsOption>(() => ({
     right: 8,
     itemWidth: 16,
     itemHeight: 8,
-    textStyle: { color: '#475569', fontSize: 12 },
+    textStyle: { color: '#475569', fontSize: 12 * fontScale.value },
   },
   tooltip: {
     trigger: 'axis',
     borderColor: '#d7dee8',
     borderWidth: 1,
     backgroundColor: '#ffffff',
-    textStyle: { color: '#0f172a', fontSize: 12 },
+    textStyle: { color: '#0f172a', fontSize: 12 * fontScale.value },
     formatter: (rawParams: unknown) => formatTooltip(rawParams),
   },
   xAxis: {
@@ -106,12 +110,13 @@ const option = computed<EChartsOption>(() => ({
     data: props.points.map((point) => formatPeriod(point.periodStart)),
     axisLine: { lineStyle: { color: '#d7dee8' } },
     axisTick: { show: false },
-    axisLabel: { color: '#64748b', hideOverlap: true, fontSize: 11 },
+    axisLabel: { color: '#64748b', hideOverlap: true, fontSize: 11 * fontScale.value },
   },
   yAxis: {
     type: 'value',
     axisLabel: {
       color: '#64748b',
+      fontSize: 12 * fontScale.value,
       formatter: (value: number) => compactAmount(value),
     },
     splitLine: { lineStyle: { color: '#edf0f4' } },
@@ -119,7 +124,7 @@ const option = computed<EChartsOption>(() => ({
   dataZoom: showDataZoom.value
     ? [
         { type: 'inside', startValue: zoomStartIndex, endValue: Math.min(zoomEndIndex, props.points.length - 1) },
-        { type: 'slider', startValue: zoomStartIndex, endValue: Math.min(zoomEndIndex, props.points.length - 1), height: 18, bottom: 8 },
+        { type: 'slider', startValue: zoomStartIndex, endValue: Math.min(zoomEndIndex, props.points.length - 1), height: 18, bottom: 8, textStyle: { fontSize: 12 * fontScale.value } },
       ]
     : [],
   series: [

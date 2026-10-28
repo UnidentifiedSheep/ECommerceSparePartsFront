@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[calc(100vh-56px)] bg-slate-50">
+  <div class="min-h-[calc(100vh-var(--app-viewport-offset,56px))] bg-slate-50">
     <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
       <div>
         <h1 class="text-2xl font-semibold text-slate-900">{{ t('roles.title') }}</h1>
@@ -66,7 +66,7 @@
       </el-card>
     </div>
 
-    <el-dialog v-model="roleDialogOpen" :title="roleDialogTitle" width="520">
+    <el-dialog v-model="roleDialogOpen" :before-close="draftGuard0.beforeClose" :title="roleDialogTitle" width="520">
       <el-form label-position="top">
         <el-form-item :label="t('roles.name')">
           <el-input v-model="roleForm.name" :disabled="roleDialogMode === 'edit'" />
@@ -76,14 +76,14 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="roleDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :disabled="!canSaveRole" :loading="isSavingRole" @click="saveRole">
           {{ t('common.actions.save') }}
         </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="permissionDialogOpen" :title="permissionDialogTitle" width="560">
+    <el-dialog v-model="permissionDialogOpen" :before-close="draftGuard1.beforeClose" :title="permissionDialogTitle" width="560">
       <div v-loading="roleDetailsLoading" class="grid gap-4">
         <section>
           <div class="mb-2 text-sm font-semibold text-slate-900">{{ t('roles.currentPermissions') }}</div>
@@ -122,7 +122,7 @@
         </el-form>
       </div>
       <template #footer>
-        <el-button @click="permissionDialogOpen = false">{{ t(canManageRolePermissions ? 'common.actions.cancel' : 'common.actions.close') }}</el-button>
+        <el-button @click="draftGuard1.requestClose">{{ t(canManageRolePermissions ? 'common.actions.cancel' : 'common.actions.close') }}</el-button>
         <el-button v-if="canManageRolePermissions" type="primary" :disabled="!permissionToAdd || roleDetailsLoading" :loading="isAddingPermission" @click="addPermission">
           {{ t('common.actions.add') }}
         </el-button>
@@ -132,6 +132,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
@@ -334,4 +335,7 @@ onMounted(async () => {
     loadPermissions(),
   ])
 })
+
+const draftGuard0 = useDialogGuard(roleDialogOpen, computed(() => isSavingRole.value), () => roleForm)
+const draftGuard1 = useDialogGuard(permissionDialogOpen, computed(() => isAddingPermission.value), () => permissionToAdd.value)
 </script>

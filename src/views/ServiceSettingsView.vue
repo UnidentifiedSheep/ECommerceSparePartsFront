@@ -799,7 +799,7 @@ onMounted(loadServices)
 
 <style scoped>
 .service-settings-page {
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - var(--app-viewport-offset, 56px));
   background: #f7f8fa;
 }
 

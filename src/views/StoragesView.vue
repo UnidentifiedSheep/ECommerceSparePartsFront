@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[calc(100vh-56px)] bg-slate-50">
+  <div class="min-h-[calc(100vh-var(--app-viewport-offset,56px))] bg-slate-50">
     <PageHeader :title="t('storages.title')" :description="t('storages.description')" />
 
     <div class="p-4">

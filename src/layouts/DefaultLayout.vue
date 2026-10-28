@@ -1,18 +1,21 @@
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :style="{ '--app-viewport-offset': `${topbarHeight + dockHeight}px`, '--app-dock-height': `${dockHeight}px` }">
     <aside class="app-shell__sidebar">
       <MainNavigation />
     </aside>
 
     <div class="app-shell__main">
-      <MainHeader @open-menu="mobileMenuOpen = true" />
+      <div ref="topbar" class="app-shell__topbar">
+        <MainHeader @open-menu="mobileMenuOpen = true" />
+        <PinnedNavigation @dock-resize="dockHeight = $event" />
+      </div>
       <RouterView />
     </div>
 
     <el-drawer
       v-model="mobileMenuOpen"
       direction="ltr"
-      size="min(260px, 88vw)"
+      size="min(max(260px, 16.25rem), 88vw)"
       :with-header="false"
       class="main-nav-drawer"
     >
@@ -26,14 +29,20 @@ import { ref } from 'vue'
 import { RouterView } from 'vue-router'
 import MainHeader from '@/components/MainHeader.vue'
 import MainNavigation from '@/components/MainNavigation.vue'
+import PinnedNavigation from '@/components/PinnedNavigation.vue'
+import { useResizeObserver } from '@vueuse/core'
 
 const mobileMenuOpen = ref(false)
+const topbar = ref<HTMLElement>()
+const topbarHeight = ref(56)
+const dockHeight = ref(0)
+useResizeObserver(topbar, entries => { const entry = entries[0]; if (entry) topbarHeight.value = entry.contentRect.height })
 </script>
 
 <style scoped>
 .app-shell {
   display: grid;
-  grid-template-columns: 252px minmax(0, 1fr);
+  grid-template-columns: max(252px, 15.75rem) minmax(0, 1fr);
   min-height: 100vh;
   background: var(--app-bg);
 }
@@ -47,7 +56,9 @@ const mobileMenuOpen = ref(false)
 .app-shell__main {
   min-width: 0;
   background: var(--app-bg);
+  padding-bottom: var(--app-dock-height, 0px);
 }
+.app-shell__topbar { position: sticky; z-index: 25; top: 0; }
 
 :deep(.main-nav-drawer .el-drawer__body) {
   padding: 0;

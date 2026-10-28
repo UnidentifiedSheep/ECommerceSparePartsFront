@@ -864,7 +864,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.catalogue-review-page { display: flex; height: calc(100dvh - 56px); min-height: 0; flex-direction: column; overflow: hidden; background: var(--app-bg); }
+.catalogue-review-page { display: flex; height: calc(100dvh - var(--app-viewport-offset, 56px)); min-height: 0; flex-direction: column; overflow: hidden; background: var(--app-bg); }
 .catalogue-review-content { display: grid; min-height: 0; flex: 1; grid-template-rows: auto minmax(0, 1fr); gap: 12px; overflow: hidden; padding: 16px 24px 24px; }
 .catalogue-review-filters {
   display: grid;
@@ -1000,7 +1000,7 @@ onMounted(async () => {
   .candidate-details-navigation { justify-content: space-between; }
 }
 @media (max-width: 720px) {
-  .catalogue-review-page { height: auto; min-height: calc(100dvh - 56px); overflow: visible; }
+  .catalogue-review-page { height: auto; min-height: calc(100dvh - var(--app-viewport-offset, 56px)); overflow: visible; }
   .catalogue-review-content { grid-template-rows: auto auto; overflow: visible; padding: 14px 16px 18px; }
   .catalogue-review-filters { grid-template-columns: 1fr; }
   .catalogue-review-workspace { display: block; height: auto; overflow: visible; }

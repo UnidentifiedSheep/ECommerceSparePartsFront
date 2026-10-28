@@ -228,7 +228,7 @@ onBeforeUnmount(() => { searchRequestId += 1 })
   position: relative;
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(260px, 480px) minmax(180px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 480px) minmax(180px, 1fr);
   align-items: center;
   gap: 16px;
   width: 100%;

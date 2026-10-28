@@ -1,6 +1,6 @@
 <template>
   <el-drawer
-    v-model="isOpen"
+    v-model="isOpen" :before-close="draftGuard.beforeClose"
     :title="t('productGroups.title')"
     direction="rtl"
     size="min(540px, 100vw)"
@@ -24,7 +24,7 @@
       <form v-if="formOpen && canEdit" class="product-groups-manager__form" @submit.prevent="saveGroup">
         <div class="product-groups-manager__form-heading">
           <strong>{{ editingGroup ? t('productGroups.edit') : t('productGroups.create') }}</strong>
-          <el-button text size="small" @click="closeForm">{{ t('common.actions.cancel') }}</el-button>
+          <el-button text size="small" @click="draftGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
         </div>
         <label class="product-groups-manager__field">
           <span>{{ t('common.labels.name') }}</span>
@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { Edit, Plus, Search } from '@element-plus/icons-vue'
@@ -133,13 +134,15 @@ const debouncedSearch = useDebounceFn(() => {
   else void loadGroups()
 }, 300)
 
-function openCreateForm() {
+async function openCreateForm() {
+  if (formOpen.value) { await draftGuard.requestClose(); if (formOpen.value) return }
   editingGroup.value = null
   groupName.value = ''
   formOpen.value = true
 }
 
-function openEditForm(group: ProductGroup) {
+async function openEditForm(group: ProductGroup) {
+  if (formOpen.value) { await draftGuard.requestClose(); if (formOpen.value) return }
   editingGroup.value = group
   groupName.value = group.name
   formOpen.value = true
@@ -185,6 +188,8 @@ watch(pageSize, () => {
   if (page.value !== 0) page.value = 0
   else void loadGroups()
 })
+const draftOpen = computed({ get: () => isOpen.value && formOpen.value, set: value => { if (!value) closeForm() } })
+const draftGuard = useDialogGuard(draftOpen, saving, () => groupName.value)
 </script>
 
 <style>

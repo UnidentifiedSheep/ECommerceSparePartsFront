@@ -1,6 +1,6 @@
 <template>
   <el-dialog
-    v-model="visible"
+    v-model="visible" :before-close="draftGuard0.beforeClose"
     class="price-applier-editor"
     :title="isEditing ? t('priceAppliers.editRule') : t('priceAppliers.createRule')"
     width="min(1040px, calc(100vw - 24px))"
@@ -52,7 +52,7 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="visible = false">{{ t('common.actions.cancel') }}</el-button>
+      <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
       <el-button type="primary" :loading="isSaving" @click="save">
         {{ t('common.actions.save') }}
       </el-button>
@@ -61,6 +61,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from '@/i18n'
@@ -174,6 +175,8 @@ async function save() {
     isSaving.value = false
   }
 }
+
+const draftGuard0 = useDialogGuard(visible, computed(() => isSaving.value), () => [form, dslLogic.value])
 </script>
 
 <style scoped>

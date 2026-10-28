@@ -76,6 +76,8 @@ label {
   font-weight: var(--font-weight-semibold);
 }
 
+html { font-size: calc(100% * var(--app-font-scale, 1)); }
+
 body {
   min-height: 100vh;
   color: var(--color-text);

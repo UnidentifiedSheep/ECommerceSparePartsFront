@@ -973,7 +973,7 @@ watch(() => route.query, async () => {
 .transactions-page {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 56px);
+  height: calc(100dvh - var(--app-viewport-offset, 56px));
   min-height: 0;
   box-sizing: border-box;
   overflow: hidden;
@@ -1322,7 +1322,7 @@ watch(() => route.query, async () => {
 @media (max-width: 980px) {
   .transactions-page {
     height: auto;
-    min-height: calc(100dvh - 56px);
+    min-height: calc(100dvh - var(--app-viewport-offset, 56px));
     overflow: visible;
     padding: 16px;
   }

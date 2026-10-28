@@ -1,0 +1,49 @@
+:root {
+  --app-section-operations: #047857;
+  --app-section-catalog: #0369a1;
+  --app-section-admin: #7e22ce;
+  --app-section-pricing: #b45309;
+  --app-section-control: #0e7490;
+  --el-color-success: #15803d;
+  --el-color-warning: #a16207;
+  --el-color-danger: #be123c;
+  --el-color-info: #475569;
+  --app-header-bg: #f4faf7;
+  --app-topbar-bg: #f1f8f5;
+}
+:root[data-accent='sapphire'] {
+  --app-primary: #1d4ed8;
+  --app-primary-soft: #eff6ff;
+  --app-bg: #f2f6fc;
+  --app-bg-soft: #f6f8fe;
+  --app-surface-tinted: #f8faff;
+  --app-topbar-bg: #eff5ff;
+  --app-header-bg: #f3f7ff;
+  --app-border: #d5e0f3;
+  --app-border-strong: #b3c7e8;
+}
+:root[data-accent='amethyst'] {
+  --app-primary: #7e22ce;
+  --app-primary-soft: #faf5ff;
+  --app-bg: #f7f3fc;
+  --app-bg-soft: #faf7fd;
+  --app-surface-tinted: #fcfaff;
+  --app-topbar-bg: #f6efff;
+  --app-header-bg: #fbf6ff;
+  --app-border: #e4d9ef;
+  --app-border-strong: #d1bde6;
+}
+:root[data-accent] {
+  --el-color-primary-dark-2: color-mix(in srgb, var(--app-primary), black 18%);
+  --el-color-primary-light-3: color-mix(in srgb, var(--app-primary), white 30%);
+  --el-color-primary-light-5: color-mix(in srgb, var(--app-primary), white 50%);
+  --el-color-primary-light-7: color-mix(in srgb, var(--app-primary), white 70%);
+  --el-color-primary-light-8: color-mix(in srgb, var(--app-primary), white 80%);
+  --el-color-primary-light-9: var(--app-primary-soft);
+}
+.el-table {
+  --el-table-header-bg-color: var(--app-topbar-bg);
+  --el-table-row-hover-bg-color: var(--app-primary-soft);
+  --el-table-current-row-bg-color: var(--app-primary-soft);
+}
+::selection { background: var(--app-primary-soft); color: var(--app-primary); }

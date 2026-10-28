@@ -123,7 +123,7 @@ function goBack() {
 <style scoped>
 .not-found-page {
   display: grid;
-  min-height: calc(100dvh - 56px);
+  min-height: calc(100dvh - var(--app-viewport-offset, 56px));
   place-items: center;
   background: #f6f8f7;
   padding: 32px 24px;

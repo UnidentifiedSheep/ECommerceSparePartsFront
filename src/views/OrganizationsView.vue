@@ -276,7 +276,7 @@
       </section>
     </div>
 
-    <el-dialog v-model="createDialogOpen" :title="t('organizationPage.createTitle')" width="520">
+    <el-dialog v-model="createDialogOpen" :before-close="draftGuard0.beforeClose" :title="t('organizationPage.createTitle')" width="520">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-position="top">
         <el-form-item :label="t('organizationPage.owner')" prop="owner">
           <UserSelector
@@ -324,7 +324,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
           :loading="creating"
@@ -336,7 +336,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="addMemberDialogOpen" :title="t('organizationPage.addMemberTitle')" width="500">
+    <el-dialog v-model="addMemberDialogOpen" :before-close="draftGuard1.beforeClose" :title="t('organizationPage.addMemberTitle')" width="500">
       <el-form label-position="top">
         <el-form-item :label="t('common.labels.user')">
           <UserSelector
@@ -357,14 +357,14 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="addMemberDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard1.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :disabled="!memberForm.user" :loading="addingMember" @click="submitAddMember">
           {{ t('common.actions.add') }}
         </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editDialogOpen" :title="t('organizationPage.editTitle')" width="480">
+    <el-dialog v-model="editDialogOpen" :before-close="draftGuard2.beforeClose" :title="t('organizationPage.editTitle')" width="480">
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-position="top">
         <el-form-item :label="t('common.labels.name')" prop="name">
           <el-input v-model="editForm.name" :placeholder="t('organizationPage.namePlaceholder')" />
@@ -383,7 +383,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard2.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="organizationSaving" @click="saveOrganization">
           {{ t('common.actions.save') }}
         </el-button>
@@ -408,6 +408,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryStrings, queryPage, querySize, queryBoolean, querySort } from '@/utils/listQuery'
 
@@ -1077,10 +1078,14 @@ onMounted(async () => {
   await loadOrganizations(false)
   await selectOrganizationFromRoute()
 })
+
+const draftGuard0 = useDialogGuard(createDialogOpen, computed(() => creating.value), () => createForm)
+const draftGuard1 = useDialogGuard(addMemberDialogOpen, computed(() => addingMember.value), () => memberForm)
+const draftGuard2 = useDialogGuard(editDialogOpen, computed(() => organizationSaving.value), () => editForm)
 </script>
 
 <style scoped>
-.organizations-page { min-height: calc(100vh - 56px); background: #f8fafc; }
+.organizations-page { min-height: calc(100vh - var(--app-viewport-offset, 56px)); background: #f8fafc; }
 .organizations-layout { display: grid; grid-template-columns: minmax(360px, 0.75fr) minmax(520px, 1.25fr); gap: 16px; padding: 16px; }
 .organizations-panel { min-width: 0; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
 .organizations-list-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: calc(100vh - 120px); min-height: 620px; padding: 16px; }

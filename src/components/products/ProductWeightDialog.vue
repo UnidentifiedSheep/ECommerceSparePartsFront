@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="isOpen" :title="productWeight ? t('products.editWeight') : t('products.setWeight')" width="440">
+  <el-dialog v-model="isOpen" :before-close="draftGuard0.beforeClose" :title="productWeight ? t('products.editWeight') : t('products.setWeight')" width="440">
     <el-form label-position="top">
       <el-form-item :label="t('products.weight')">
         <el-input-number v-model="form.weight" :min="0.01" :precision="2" :controls="false" class="w-full" />
@@ -17,7 +17,7 @@
         <el-button v-if="productWeight && canDelete" type="danger" plain :loading="isDeleting" @click="remove">{{ t('common.actions.delete') }}</el-button>
         <span v-else />
         <div class="flex gap-2">
-          <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button v-if="canSave" type="primary" :loading="isSaving" @click="save">{{ t('common.actions.save') }}</el-button>
         </div>
       </div>
@@ -26,7 +26,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { useDialogGuard } from '@/composables/useDialogGuard'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import type { ProductWeightModel } from '@/models/productModel.ts'
 import { deleteProductWeight, setProductWeight, type WeightUnit } from '@/services/api/products.ts'
@@ -119,4 +120,6 @@ async function remove() {
 watch(isOpen, (open) => {
   if (open) resetForm()
 })
+
+const draftGuard0 = useDialogGuard(isOpen, computed(() => isSaving.value || isDeleting.value), () => form)
 </script>

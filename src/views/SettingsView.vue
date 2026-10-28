@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[calc(100vh-56px)] bg-slate-50">
+  <div class="min-h-[calc(100vh-var(--app-viewport-offset,56px))] bg-slate-50">
     <PageHeader :title="t('settings.title')" :description="t('settings.description')" />
 
     <div class="settings-layout">
@@ -18,6 +18,8 @@
       </aside>
 
       <main class="settings-content">
+        <section v-if="activeTab === 'pinned'" class="settings-panel"><PinnedNavigationSettings /></section>
+        <section v-if="activeTab === 'appearance'" class="settings-panel"><AppearanceSettings /></section>
         <section v-if="activeTab === 'notifications' && hasPermission('NOTIFICATIONS_ME')" class="settings-panel">
           <NotificationPreferences />
         </section>
@@ -105,7 +107,7 @@
       </main>
     </div>
 
-    <el-dialog v-model="passwordDialogOpen" :title="t('settings.changePassword')" width="460">
+    <el-dialog v-model="passwordDialogOpen" :before-close="draftGuard0.beforeClose" :title="t('settings.changePassword')" width="460">
       <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-position="top">
         <el-form-item :label="t('settings.previousPassword')" prop="previousPassword">
           <el-input v-model="passwordForm.previousPassword" type="password" show-password autocomplete="current-password" />
@@ -119,7 +121,7 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="passwordDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="isChangingPassword" @click="savePassword">
           {{ t('common.actions.save') }}
         </el-button>
@@ -129,12 +131,15 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Coin, Lock, Bell } from '@element-plus/icons-vue'
+import { Coin, Lock, Bell, Brush, Star } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import NotificationPreferences from '@/components/notifications/NotificationPreferences.vue'
+import AppearanceSettings from '@/components/common/AppearanceSettings.vue'
+import PinnedNavigationSettings from '@/components/common/PinnedNavigationSettings.vue'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { changePassword } from '@/services/api/authApi.ts'
 import { makeMyEmailPrimary, requestMyEmailVerification } from '@/services/api/users.ts'
@@ -168,6 +173,8 @@ const canMakeEmailPrimary = computed(() => (
 ))
 const activeTab = ref('operations')
 const settingsSections = computed(() => [
+  { name: 'pinned', label: t('pinnedNavigation.title'), icon: Star },
+  { name: 'appearance', label: t('settings.appearance.title'), icon: Brush },
   {
     name: 'operations',
     label: t('settings.operations'),
@@ -303,6 +310,8 @@ async function makeEmailPrimary() {
 }
 
 onMounted(loadCurrencies)
+
+const draftGuard0 = useDialogGuard(passwordDialogOpen, computed(() => isChangingPassword.value), () => passwordForm)
 </script>
 
 <style scoped>
@@ -345,9 +354,9 @@ onMounted(loadCurrencies)
 }
 
 .settings-nav-item--active {
-  background: #e2e8f0;
-  color: #0f172a;
-  box-shadow: inset 3px 0 0 #047857;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  box-shadow: inset 0 -2px 0 var(--app-primary);
 }
 
 .settings-content {
@@ -403,7 +412,7 @@ onMounted(loadCurrencies)
   }
 
   .settings-nav-item--active {
-    box-shadow: inset 0 -3px 0 #047857;
+    box-shadow: inset 0 -2px 0 var(--app-primary);
   }
 
   .settings-panel {
