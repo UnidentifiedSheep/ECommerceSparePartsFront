@@ -105,7 +105,8 @@
       />
 
       <div v-loading="isLoading" class="price-offers-list">
-        <div v-if="offers.length > 0" class="price-offers-table">
+        <DataLoadError v-if="loadError" :error="loadError" @retry="prepareContextAndLoadOffers" />
+        <div v-else-if="offers.length > 0" class="price-offers-table">
           <div class="price-offers-table__header">
             <div></div>
             <HeaderTooltip :short-label="t('priceOffers.supplier')" :full-label="t('priceOffers.supplier')" />
@@ -177,7 +178,7 @@
         </div>
 
         <el-empty
-          v-if="canLoadOffers && !isLoading && offers.length === 0"
+          v-if="canLoadOffers && !loadError && !isLoading && offers.length === 0"
           :description="t('priceOffers.empty')"
           :image-size="72"
         />
@@ -203,6 +204,8 @@ import { computed, defineComponent, h, ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElTooltip } from 'element-plus'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
+import DataLoadError from '@/components/common/DataLoadError.vue'
+import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import {
   PriceOfferSource,
@@ -271,6 +274,7 @@ const page = ref(0)
 const size = ref(10)
 const hasNext = ref(false)
 const isLoading = ref(false)
+const loadError = ref<DataLoadErrorKind | null>(null)
 const isCurrenciesLoading = ref(false)
 const isStoragesLoading = ref(false)
 let isPreparingContext = false
@@ -392,25 +396,31 @@ async function reloadOffers() {
 
 async function prepareContextAndLoadOffers() {
   isPreparingContext = true
+  loadError.value = null
   try {
     selectedCurrencyId.value = props.currencyId ?? selectedCurrencyId.value
     selectedStorageCode.value = props.storageCode ?? selectedStorageCode.value
     await loadDictionaries()
+  } catch (error) {
+    loadError.value = classifyDataLoadError(error)
+    return
   } finally {
     isPreparingContext = false
   }
 
-  await loadOffers()
+  if (props.modelValue) await loadOffers()
 }
 
 async function loadOffers() {
+  const currentRequestId = ++requestId
+  loadError.value = null
   if (!canLoadOffers.value) {
+    isLoading.value = false
     offers.value = []
     hasNext.value = false
     return
   }
 
-  const currentRequestId = ++requestId
   isLoading.value = true
   try {
     const resp = await getPriceOffersForProduct({
@@ -426,6 +436,8 @@ async function loadOffers() {
     if (currentRequestId !== requestId) return
     offers.value = resp.priceOptions
     hasNext.value = resp.priceOptions.length === size.value
+  } catch (error) {
+    if (currentRequestId === requestId) loadError.value = classifyDataLoadError(error)
   } finally {
     if (currentRequestId === requestId) {
       isLoading.value = false
@@ -436,7 +448,7 @@ async function loadOffers() {
 watch(
   () => props.modelValue,
   async (isOpen) => {
-    if (!isOpen) return
+    if (!isOpen) { requestId++; isLoading.value = false; return }
 
     await prepareContextAndLoadOffers()
   },

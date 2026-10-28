@@ -16,6 +16,7 @@ import {
   getProductAvailableStockGraphql,
   getProductsAvailableStockGraphql,
   getProductByIdGraphql,
+  deleteProductGraphql,
   getCatalogueCandidatesForReviewGraphql,
   getCatalogueCandidateByIdGraphql,
   candidateToCatalogueGraphql,
@@ -379,6 +380,10 @@ export async function getProductReservationHistory(
 export async function createProducts(req: CreateProductsRequest): Promise<CreateProductsResponse> {
   const products = await createProductsGraphql(req.newProducts)
   return { products }
+}
+
+export async function deleteProduct(productId: number, rowVersion: number): Promise<void> {
+  await deleteProductGraphql(productId, rowVersion)
 }
 
 export async function createProductCrosses(req: CreateProductCrossesRequest): Promise<void> {

@@ -297,7 +297,7 @@ async function loadPreview() {
 
   if (!props.modelValue || !props.product || !await previewDebounce.wait() || currentRequestId !== requestId) return
   try {
-    const productResponse = await getProductById(props.product.id)
+    const productResponse = await getProductById(props.product.id, false, canViewCrosses.value ? 5 : undefined)
     if (currentRequestId !== requestId) return
 
     fullProduct.value = productResponse.product

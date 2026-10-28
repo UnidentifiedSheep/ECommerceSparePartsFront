@@ -1,6 +1,9 @@
 <template>
   <el-menu
+    ref="menu"
     :default-active="activeMenuIndex"
+    @open="openedGroups.add($event)"
+    @close="openedGroups.delete($event)"
     background-color="var(--app-surface-tinted)"
     text-color="#334155"
     active-text-color="var(--app-primary)"
@@ -93,7 +96,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import type { MenuInstance } from 'element-plus'
 import PinMenuButton from '@/components/common/PinMenuButton.vue'
 import { navigationEntries, canAccessNavigation, activeNavigationPath } from '@/utils/navigation'
 import { useRoute, useRouter } from 'vue-router'
@@ -132,6 +136,20 @@ const pricingRoutes = ['/markups', '/price-appliers']
 const controlRoutes = ['/jobs', '/documents']
 
 const activeMenuIndex = computed(() => activeNavigationPath(route.path) ?? route.path)
+const menu = ref<MenuInstance>()
+const openedGroups = new Set<string>()
+
+watch(activeMenuIndex, async () => {
+  // Element Plus opens the active item's ancestors during its update. Restore
+  // the user's group choices after that update, before the next browser paint.
+  const previouslyOpened = new Set(openedGroups)
+  await nextTick()
+  for (const group of openedGroups) {
+    if (!previouslyOpened.has(group)) menu.value?.close(group)
+  }
+  openedGroups.clear()
+  previouslyOpened.forEach(group => openedGroups.add(group))
+})
 
 function openRoute(path: string) {
   emit('close')

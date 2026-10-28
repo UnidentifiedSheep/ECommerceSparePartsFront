@@ -100,6 +100,9 @@ export function normalizeObjectSchema(schema: ObjectSchema): ObjectSchema {
 }
 
 export function isStructuredSchemaField(field: SchemaField): boolean {
+  // Backend scalar wrappers (for example TimeSpan) may be described as Object
+  // while explicitly using a text input and having no nested object schema.
+  if (field.type === 'Object' && field.control === 'TextField' && !field.nestedSchema) return false
   return field.type === 'Array' || field.type === 'Object'
 }
 

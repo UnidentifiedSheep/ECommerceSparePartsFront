@@ -9,6 +9,7 @@ export interface ProductModel {
   indicator?: string | null
   images: string[]
   stock: number
+  rowVersion?: number
   eans?: string[]
   pair?: ProductModel | null
   contents?: ProductContentModel[]
