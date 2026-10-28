@@ -18,7 +18,7 @@ const config: CodegenConfig = {
           UnsignedInt: 'number',
           UUID: 'string',
           DateTime: 'string',
-          TimeSpan: 'string',
+          Duration: 'string',
         },
       },
     },
