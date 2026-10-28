@@ -1,0 +1,81 @@
+fragment MarkupGroupFields on MarkupGroup {
+  id
+  name
+  currency { id }
+  sourceMessageId
+}
+
+fragment MarkupRangeFields on MarkupRange {
+  id
+  rangeStart
+  rangeEnd
+  markup
+}
+
+fragment PriceApplierFields on PriceApplier {
+  systemName
+  name
+  isDynamic
+  dslLogic
+  states { priceApplierSystemName usage order enabled }
+}
+
+query MarkupGroups($input: SearchMarkupGroupsInput!) {
+  markupGroups { search(input: $input) { ...MarkupGroupFields } }
+}
+
+query MarkupGroupRanges($id: Int!, $pagination: PaginationInput!) {
+  markupGroups { byId(id: $id) { id ranges(pagination: $pagination) { ...MarkupRangeFields } } }
+}
+
+mutation MarkupGroupUpsert($input: UpsertMarkupGroupInput!) {
+  markupGroups { upsert(input: $input) { ...MarkupGroupFields } }
+}
+
+query PriceAppliers($usage: PriceOfferSourceType!) {
+  priceAppliers { list(usage: $usage) { ...PriceApplierFields } }
+}
+
+mutation PriceApplierUpsert($input: UpsertPriceApplierInput!) {
+  priceAppliers { upsert(input: $input) { ...PriceApplierFields } }
+}
+
+mutation PriceApplierDelete($systemName: String!) {
+  priceAppliers { delete(systemName: $systemName) }
+}
+
+query ProductPriceOffers($id: Int!, $input: ProductOffersInput!) {
+  products {
+    byId(id: $id) {
+      id
+      offers(input: $input) {
+        priceOfferId
+        score
+        currency { id }
+        sellPrice
+        markup
+        forStorage
+        deliveryTime
+        guaranteedDeliveryTime
+        deliveryProbability
+        offer {
+          id
+          product { id }
+          currency { id }
+          offerForStorage
+          purchasePrice
+          source
+          availableQuantity
+          minimumPurchaseQuantity
+          quantityCoefficient
+          daysToRefund
+          deliveryDate
+          guaranteedDeliveryDate
+          deliveryProbability
+          orderTill
+          expiresAt
+        }
+      }
+    }
+  }
+}
