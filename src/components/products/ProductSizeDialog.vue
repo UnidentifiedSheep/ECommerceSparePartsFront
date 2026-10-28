@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="isOpen" :title="productSize ? t('products.editSize') : t('products.setSize')" width="520">
+  <el-dialog v-model="isOpen" :before-close="draftGuard0.beforeClose" :title="productSize ? t('products.editSize') : t('products.setSize')" width="520">
     <el-form label-position="top">
       <div class="grid grid-cols-3 gap-3">
         <el-form-item :label="t('products.length')">
@@ -25,7 +25,7 @@
         <el-button v-if="productSize && canDelete" type="danger" plain :loading="isDeleting" @click="remove">{{ t('common.actions.delete') }}</el-button>
         <span v-else />
         <div class="flex gap-2">
-          <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button v-if="canSave" type="primary" :loading="isSaving" @click="save">{{ t('common.actions.save') }}</el-button>
         </div>
       </div>
@@ -34,7 +34,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { useDialogGuard } from '@/composables/useDialogGuard'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import type { ProductSizeModel } from '@/models/productModel.ts'
 import { deleteProductSize, setProductSize, type DimensionUnit } from '@/services/api/products.ts'
@@ -133,4 +134,6 @@ async function remove() {
 watch(isOpen, (open) => {
   if (open) resetForm()
 })
+
+const draftGuard0 = useDialogGuard(isOpen, computed(() => isSaving.value || isDeleting.value), () => form)
 </script>

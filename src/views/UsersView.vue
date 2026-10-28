@@ -329,7 +329,7 @@
       </div>
     </div>
 
-    <el-dialog v-model="createUserDialogOpen" :title="t('users.createUser')" width="860" class="create-user-dialog">
+    <el-dialog v-model="createUserDialogOpen" :before-close="draftGuard0.beforeClose" :title="t('users.createUser')" width="860" class="create-user-dialog">
       <el-form label-position="top">
         <div class="grid grid-cols-2 gap-4">
           <el-form-item :label="t('common.labels.firstName')">
@@ -504,7 +504,7 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="createUserDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
           :loading="createUserSaving"
@@ -516,7 +516,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="addEmailDialogOpen" :title="t('users.addEmailToUser')" width="480">
+    <el-dialog v-model="addEmailDialogOpen" :before-close="draftGuard1.beforeClose" :title="t('users.addEmailToUser')" width="480">
       <el-form label-position="top" @submit.prevent>
         <el-form-item :label="t('users.emailAddress')" :error="addEmailErrorMessage">
           <el-input
@@ -537,7 +537,7 @@
         <div class="text-xs text-slate-500">{{ t('users.addEmailHint') }}</div>
       </el-form>
       <template #footer>
-        <el-button @click="addEmailDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard1.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
           :disabled="!canSaveUserEmail"
@@ -549,7 +549,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="storageDialogOpen" :title="t('users.addStorageToUser')" width="520">
+    <el-dialog v-model="storageDialogOpen" :before-close="draftGuard2.beforeClose" :title="t('users.addStorageToUser')" width="520">
       <el-form label-position="top">
         <el-form-item :label="t('common.labels.storage')">
           <el-select v-model="storageToAttach" filterable class="w-full" :placeholder="t('users.selectStorage')">
@@ -563,12 +563,12 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="storageDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" @click="attachStorage">{{ t('common.actions.add') }}</el-button>
+        <el-button @click="draftGuard2.requestClose">{{ t('common.actions.cancel') }}</el-button>
+        <el-button type="primary" :loading="storageAttachLoading" @click="attachStorage">{{ t('common.actions.add') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editInfoDialogOpen" :title="t('users.editInfo')" width="560">
+    <el-dialog v-model="editInfoDialogOpen" :before-close="draftGuard3.beforeClose" :title="t('users.editInfo')" width="560">
       <el-form label-position="top">
         <div class="grid grid-cols-2 gap-4">
           <el-form-item :label="t('common.labels.firstName')" required>
@@ -584,7 +584,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editInfoDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard3.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
           :disabled="!canSaveEditInfo"
@@ -596,7 +596,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="roleDialogOpen" :title="t('users.addRoles')" width="560">
+    <el-dialog v-model="roleDialogOpen" :before-close="draftGuard4.beforeClose" :title="t('users.addRoles')" width="560">
       <el-form label-position="top">
         <el-form-item :label="t('common.labels.roles')">
           <el-select
@@ -622,7 +622,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="roleDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard4.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
           :disabled="rolesToAttach.length === 0"
@@ -634,7 +634,7 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="permissionDialogOpen" :title="t('users.addPermissions')" width="560">
+    <el-dialog v-model="permissionDialogOpen" :before-close="draftGuard5.beforeClose" :title="t('users.addPermissions')" width="560">
       <el-form label-position="top">
         <el-form-item :label="t('permissions.title')">
           <el-select
@@ -656,7 +656,7 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="permissionDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard5.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button
           type="primary"
           :disabled="permissionsToAttach.length === 0"
@@ -672,6 +672,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryStrings, queryPage, querySize } from '@/utils/listQuery'
 import { toRef } from 'vue'
@@ -1793,21 +1794,25 @@ async function setUserPrimaryEmail(email: string) {
 }
 
 async function attachStorage() {
-  if (!canAddUserStorage.value || !selectedUser.value || !storageToAttach.value) return
+  if (storageAttachLoading.value) return
+  storageAttachLoading.value = true
+  try {
+    if (!canAddUserStorage.value || !selectedUser.value || !storageToAttach.value) return
 
-  await addStorageToUser({
-    userId: selectedUser.value.id,
-    storageCode: storageToAttach.value,
-  })
+    await addStorageToUser({
+      userId: selectedUser.value.id,
+      storageCode: storageToAttach.value,
+    })
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('users.storageAttached'),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('users.storageAttached'),
+      type: 'success',
+    })
 
-  storageDialogOpen.value = false
-  userStorages.value = (await getUserStorages(selectedUser.value.id)).storages
+    storageDialogOpen.value = false
+    userStorages.value = (await getUserStorages(selectedUser.value.id)).storages
+  } finally { storageAttachLoading.value = false }
 }
 
 async function detachStorage(storageCode: string) {
@@ -1856,6 +1861,14 @@ onMounted(async () => {
   await Promise.all([loadUsers(false), loadAllStorages(), loadRoles(), loadEmailOptions(), loadPermissionsCatalog()])
   await selectUserFromRoute()
 })
+
+const storageAttachLoading = ref(false)
+const draftGuard0 = useDialogGuard(createUserDialogOpen, computed(() => createUserSaving.value), () => createUserForm)
+const draftGuard1 = useDialogGuard(addEmailDialogOpen, computed(() => addingEmail.value), () => addEmailForm)
+const draftGuard2 = useDialogGuard(storageDialogOpen, computed(() => storageAttachLoading.value), () => storageToAttach.value)
+const draftGuard3 = useDialogGuard(editInfoDialogOpen, computed(() => editInfoSaving.value), () => editInfoForm)
+const draftGuard4 = useDialogGuard(roleDialogOpen, computed(() => roleAttachLoading.value), () => rolesToAttach.value)
+const draftGuard5 = useDialogGuard(permissionDialogOpen, computed(() => permissionAttachLoading.value), () => permissionsToAttach.value)
 </script>
 
 <style scoped>

@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="isOpen" :title="t('products.details.editStockTitle')" width="520">
+  <el-dialog v-model="isOpen" :before-close="draftGuard0.beforeClose" :title="t('products.details.editStockTitle')" width="520">
     <el-form label-position="top">
       <el-form-item :label="t('common.labels.storage')">
         <el-input :model-value="item.storageCode" disabled />
@@ -28,14 +28,15 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+      <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
       <el-button type="primary" :loading="saving" @click="save">{{ t('common.actions.save') }}</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { useDialogGuard } from '@/composables/useDialogGuard'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
@@ -106,4 +107,6 @@ watch(
   },
   { immediate: true },
 )
+
+const draftGuard0 = useDialogGuard(isOpen, computed(() => saving.value), () => form)
 </script>

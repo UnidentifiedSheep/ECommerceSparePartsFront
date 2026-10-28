@@ -114,7 +114,7 @@
       </section>
     </div>
 
-    <el-dialog v-model="createDialogOpen" :title="t('currencies.createTitle')" width="480">
+    <el-dialog v-model="createDialogOpen" :before-close="draftGuard0.beforeClose" :title="t('currencies.createTitle')" width="480">
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-position="top">
         <el-form-item :label="t('common.labels.name')" prop="name">
           <el-input v-model="createForm.name" :placeholder="t('currencies.namePlaceholder')" />
@@ -136,7 +136,7 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="createDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="isCreating" @click="submitCreate">{{ t('common.actions.create') }}</el-button>
       </template>
     </el-dialog>
@@ -144,6 +144,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus'
@@ -343,6 +344,8 @@ async function submitUpdateRates() {
 watch(historyLimit, async () => loadCurrencyHistory(true))
 watch(historyPage, async () => loadCurrencyHistory(false))
 onMounted(async () => loadCurrencies())
+
+const draftGuard0 = useDialogGuard(createDialogOpen, computed(() => isCreating.value), () => createForm)
 </script>
 
 <style scoped>

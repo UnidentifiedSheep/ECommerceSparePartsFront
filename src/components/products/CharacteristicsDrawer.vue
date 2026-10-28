@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="isOpen" :title="t('products.characteristicsManager.title')" direction="rtl" size="min(540px, 100vw)" :lock-scroll="false">
+  <el-drawer v-model="isOpen" :before-close="draftGuard.beforeClose" :title="t('products.characteristicsManager.title')" direction="rtl" size="min(540px, 100vw)" :lock-scroll="false">
     <div class="characteristics-manager">
       <div class="characteristics-manager__toolbar">
         <el-input
@@ -22,7 +22,7 @@
           <el-button type="primary" native-type="submit" :loading="saving" :disabled="!canSave">
             {{ t('common.actions.save') }}
           </el-button>
-          <el-button @click="formOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button @click="draftGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
         </div>
       </form>
 
@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { Delete, Edit, Plus, Search } from '@element-plus/icons-vue'
@@ -96,16 +97,23 @@ watch(searchTerm, () => {
 watch([page, size], () => { void load() })
 watch(isOpen, (open) => {
   if (open) void load()
-  else requestId += 1
+  else {
+    requestId += 1
+    formOpen.value = false
+    editing.value = null
+    name.value = ''
+  }
 })
 
-function openCreate() {
+async function openCreate() {
+  if (formOpen.value) { await draftGuard.requestClose(); if (formOpen.value) return }
   editing.value = null
   name.value = ''
   formOpen.value = true
 }
 
-function openEdit(item: Characteristic) {
+async function openEdit(item: Characteristic) {
+  if (formOpen.value) { await draftGuard.requestClose(); if (formOpen.value) return }
   editing.value = item
   name.value = item.name
   formOpen.value = true
@@ -144,6 +152,8 @@ async function remove(item: Characteristic) {
     ElNotification({ title: t('products.characteristicsManager.deleteError'), message: error instanceof Error ? error.message : undefined, type: 'error' })
   }
 }
+const draftOpen = computed({ get: () => isOpen.value && formOpen.value, set: value => { if (!value) formOpen.value = false } })
+const draftGuard = useDialogGuard(draftOpen, saving, () => name.value)
 </script>
 
 <style scoped>

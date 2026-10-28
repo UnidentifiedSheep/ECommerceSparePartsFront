@@ -105,7 +105,7 @@
       </main>
     </div>
 
-    <el-dialog v-model="passwordDialogOpen" :title="t('settings.changePassword')" width="460">
+    <el-dialog v-model="passwordDialogOpen" :before-close="draftGuard0.beforeClose" :title="t('settings.changePassword')" width="460">
       <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-position="top">
         <el-form-item :label="t('settings.previousPassword')" prop="previousPassword">
           <el-input v-model="passwordForm.previousPassword" type="password" show-password autocomplete="current-password" />
@@ -119,7 +119,7 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="passwordDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="isChangingPassword" @click="savePassword">
           {{ t('common.actions.save') }}
         </el-button>
@@ -129,6 +129,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Coin, Lock, Bell } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
@@ -303,6 +304,8 @@ async function makeEmailPrimary() {
 }
 
 onMounted(loadCurrencies)
+
+const draftGuard0 = useDialogGuard(passwordDialogOpen, computed(() => isChangingPassword.value), () => passwordForm)
 </script>
 
 <style scoped>

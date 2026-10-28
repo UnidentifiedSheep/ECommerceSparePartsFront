@@ -54,7 +54,7 @@
     </div>
 
     <el-dialog
-      v-model="dialogOpen"
+      v-model="dialogOpen" :before-close="draftGuard0.beforeClose"
       :title="editingGroup ? t('productGroups.edit') : t('productGroups.create')"
       width="440"
       @closed="resetDialog"
@@ -74,7 +74,7 @@
         </p>
       </el-form>
       <template #footer>
-        <el-button @click="dialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="saving" :disabled="!canSave" @click="saveGroup">
           {{ t('common.actions.save') }}
         </el-button>
@@ -84,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
@@ -186,6 +187,8 @@ async function saveGroup() {
 watch(searchTerm, () => { void debouncedSearch() })
 watch([page, pageSize], () => { void loadGroups() })
 onMounted(() => { void loadGroups() })
+
+const draftGuard0 = useDialogGuard(dialogOpen, computed(() => saving.value), () => groupName.value)
 </script>
 
 <style scoped>

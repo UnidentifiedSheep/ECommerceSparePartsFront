@@ -74,7 +74,7 @@
 
     </div>
 
-    <el-dialog v-model="addOwnerDialogueOpen" :title="t('storages.ownersPanel.addTitle')" width="500">
+    <el-dialog v-model="addOwnerDialogueOpen" :before-close="draftGuard0.beforeClose" :title="t('storages.ownersPanel.addTitle')" width="500">
       <el-form :model="addOwnerForm">
         <el-form-item :label="t('common.labels.storage')">
           <el-input v-model="addOwnerForm!.storageCode" readonly />
@@ -85,8 +85,8 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="addOwnerDialogueOpen = false">{{ t('common.actions.cancel') }}</el-button>
-          <el-button type="primary" @click="SaveOwner">
+          <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
+          <el-button type="primary" :loading="savingOwner" @click="SaveOwner">
             {{ t('common.actions.save') }}
           </el-button>
         </div>
@@ -96,9 +96,10 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 
 import type { StorageModel } from "@/models/storageModel.ts";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch } from 'vue';
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useConfirmedDelete } from '@/composables/useConfirmedDelete.ts'
 import type { UserModel } from "@/models/userModel.ts";
@@ -163,26 +164,30 @@ function OpenAddOwnerDialogue() {
 }
 
 async function SaveOwner() {
-  if (!canAdd.value) return
-  if (!addOwnerForm.value?.user) return
-  if (!addOwnerForm.value?.storageCode) return
+  if (savingOwner.value) return
+  savingOwner.value = true
+  try {
+    if (!canAdd.value) return
+    if (!addOwnerForm.value?.user) return
+    if (!addOwnerForm.value?.storageCode) return
 
-  const user = addOwnerForm.value.user;
-  const storageCode = addOwnerForm.value.storageCode
+    const user = addOwnerForm.value.user;
+    const storageCode = addOwnerForm.value.storageCode
 
-  await addStorageToUser({
-    userId: user.id,
-    storageCode: storageCode
-  })
-  owners.value.push(user)
+    await addStorageToUser({
+      userId: user.id,
+      storageCode: storageCode
+    })
+    owners.value.push(user)
 
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('storages.ownersPanel.attached', { user: `${user.surname} ${user.name}`.trim(), storage: storageCode }),
-    type: 'success',
-  })
+    ElNotification({
+      title: t('common.labels.success'),
+      message: t('storages.ownersPanel.attached', { user: `${user.surname} ${user.name}`.trim(), storage: storageCode }),
+      type: 'success',
+    })
 
-  addOwnerDialogueOpen.value = false
+    addOwnerDialogueOpen.value = false
+  } finally { savingOwner.value = false }
 }
 
 async function removeOwner(user: UserModel) {
@@ -221,6 +226,9 @@ watch(storage, async (newValue) => {
 
   await loadOwners(true)
 }, { immediate: true })
+
+const savingOwner = ref(false)
+const draftGuard0 = useDialogGuard(addOwnerDialogueOpen, computed(() => savingOwner.value), () => addOwnerForm.value)
 </script>
 
 <style scoped>

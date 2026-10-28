@@ -117,7 +117,7 @@
     </main>
 
     <el-drawer
-      v-model="drawerOpen"
+      v-model="drawerOpen" :before-close="draftGuard.beforeClose"
       direction="rtl"
       size="min(620px, 100vw)"
       :title="drawerTitle"
@@ -196,7 +196,7 @@
         </div>
 
         <div class="markup-drawer__footer">
-          <el-button @click="drawerOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button @click="draftGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button type="primary" :loading="isSaving" @click="saveGroup">
             {{ t('common.actions.save') }}
           </el-button>
@@ -207,6 +207,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete, Edit } from '@element-plus/icons-vue'
@@ -438,6 +439,7 @@ function formatPercent(value: number) {
     maximumFractionDigits: 2,
   }).format(value)
 }
+const draftGuard = useDialogGuard(drawerOpen, isSaving, () => form)
 </script>
 
 <style scoped>

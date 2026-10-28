@@ -485,7 +485,7 @@
     </el-drawer>
 
     <el-drawer
-      v-model="drawerOpen"
+      v-model="drawerOpen" :before-close="draftGuard0.beforeClose"
       direction="rtl"
       size="520px"
       :with-header="false"
@@ -497,7 +497,7 @@
             <span>{{ serviceLabel(selectedJob.serviceKey) }}</span>
             <h2>{{ drawerTitle }}</h2>
           </div>
-          <el-button text @click="drawerOpen = false">{{ t('common.actions.close') }}</el-button>
+          <el-button text @click="draftGuard0.requestClose">{{ t('common.actions.close') }}</el-button>
         </header>
 
         <div class="job-drawer-body">
@@ -729,7 +729,7 @@
         </div>
 
         <footer class="job-drawer-footer">
-          <el-button @click="drawerOpen = false">{{ t('common.actions.cancel') }}</el-button>
+          <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
           <el-button
             type="primary"
             :loading="drawerMode === 'run' ? isCreatingJob : isSavingSchedule"
@@ -770,6 +770,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { HubConnection } from '@microsoft/signalr'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
@@ -2189,6 +2190,8 @@ function serviceErrorText(service: ServiceCard) {
   return t('common.messages.serviceUnavailable')
 }
 
+
+const draftGuard0 = useDialogGuard(drawerOpen, computed(() => isCreatingJob.value || isSavingSchedule.value), () => [scheduleForm, inputState, maxAttempts.value, cronBuilder])
 </script>
 
 <style scoped>

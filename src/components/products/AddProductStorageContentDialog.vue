@@ -1,6 +1,7 @@
 <template>
-  <el-dialog v-model="isOpen" :title="t('products.details.addStockTitle')" width="520">
-    <el-form label-position="top">
+  <el-dialog v-model="isOpen" :before-close="draftGuard0.beforeClose" :title="t('products.details.addStockTitle')" width="520">
+    <el-skeleton v-if="loadingStorages || loadingCurrencies" :rows="3" />
+    <el-form v-else label-position="top">
       <el-form-item :label="t('common.labels.product')">
         <el-input :model-value="productLabel" disabled />
       </el-form-item>
@@ -56,14 +57,15 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="isOpen = false">{{ t('common.actions.cancel') }}</el-button>
+      <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
       <el-button type="primary" :loading="saving" @click="save">{{ t('common.actions.add') }}</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { useDialogGuard } from '@/composables/useDialogGuard'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
@@ -157,5 +159,8 @@ watch(isOpen, async (open) => {
   if (!open) return
   reset()
   await loadOptions()
+  if (isOpen.value) draftGuard0.markClean()
 })
+
+const draftGuard0 = useDialogGuard(isOpen, computed(() => saving.value || loadingStorages.value || loadingCurrencies.value), () => form)
 </script>

@@ -99,7 +99,7 @@
       />
     </div>
 
-    <el-dialog v-model="createDialogOpen" :title="t('reservations.create')" width="560">
+    <el-dialog v-model="createDialogOpen" :before-close="draftGuard0.beforeClose" :title="t('reservations.create')" width="560">
       <el-form label-position="top">
         <el-form-item v-if="!fixedOrganizationId" :label="t('organizations.organization')">
           <OrganizationSelector
@@ -157,14 +157,14 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="createDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :disabled="!canSaveCreate" :loading="isSaving" @click="saveCreate">
           {{ t('common.actions.create') }}
         </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editDialogOpen" :title="t('reservations.edit')" width="480">
+    <el-dialog v-model="editDialogOpen" :before-close="draftGuard1.beforeClose" :title="t('reservations.edit')" width="480">
       <el-form label-position="top">
         <el-form-item :label="t('reservations.proposedPrice')">
           <el-input-number v-model="editForm.proposedPrice" :min="0" :precision="2" :controls="false" class="w-full" />
@@ -185,7 +185,7 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="editDialogOpen = false">{{ t('common.actions.cancel') }}</el-button>
+        <el-button @click="draftGuard1.requestClose">{{ t('common.actions.cancel') }}</el-button>
         <el-button type="primary" :loading="isSaving" @click="saveEdit">{{ t('common.actions.save') }}</el-button>
       </template>
     </el-dialog>
@@ -280,6 +280,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Clock, Delete, Edit, Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -655,6 +656,9 @@ watch(historySize, async () => {
 })
 
 onMounted(async () => loadReservations())
+
+const draftGuard0 = useDialogGuard(createDialogOpen, computed(() => isSaving.value), () => createForm)
+const draftGuard1 = useDialogGuard(editDialogOpen, computed(() => isSaving.value), () => editForm)
 </script>
 
 <style scoped>
