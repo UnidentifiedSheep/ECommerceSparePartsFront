@@ -11,6 +11,15 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
+    pinnedNavigation: {
+      title: 'Быстрая навигация', hint: 'Закрепляйте разделы звёздочкой в меню или добавляйте их здесь. Меняйте порядок, подписи и цвета.',
+      pin: 'Закрепить: {name}', unpin: 'Открепить: {name}', configure: 'Настроить быструю навигацию',
+      show: 'Показывать панель', showLabels: 'Показывать подписи', barColor: 'Цвет панели', choose: 'Добавить раздел',
+      empty: 'Пока нет закреплённых разделов. Добавьте те, которыми пользуетесь чаще всего.',
+      label: 'Своя подпись', color: 'Цвет кнопки', buttonColor: 'Цвет кнопки: {name}',
+      up: 'Выше: {name}', down: 'Ниже: {name}', orderUpdated: 'Порядок закреплённых разделов обновлён.',
+      colors: { theme: 'Цвет темы', emerald: 'Изумрудный', sapphire: 'Сапфировый', amethyst: 'Аметистовый', amber: 'Янтарный', rose: 'Розовый', teal: 'Бирюзовый' },
+    },
     app: {
       name: 'SpareParts Admin',
       subtitle: 'Панель администратора',
@@ -2052,6 +2061,15 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   en: {
+    pinnedNavigation: {
+      title: 'Quick navigation', hint: 'Pin sections using the star in the menu or add them here. Adjust their order, labels and colors.',
+      pin: 'Pin: {name}', unpin: 'Unpin: {name}', configure: 'Configure quick navigation',
+      show: 'Show navigation bar', showLabels: 'Show labels', barColor: 'Bar color', choose: 'Add a section',
+      empty: 'No pinned sections yet. Add the ones you use most often.',
+      label: 'Custom label', color: 'Button color', buttonColor: 'Button color: {name}',
+      up: 'Move up: {name}', down: 'Move down: {name}', orderUpdated: 'Pinned sections reordered.',
+      colors: { theme: 'Theme color', emerald: 'Emerald', sapphire: 'Sapphire', amethyst: 'Amethyst', amber: 'Amber', rose: 'Rose', teal: 'Teal' },
+    },
     app: {
       name: 'SpareParts Admin',
       subtitle: 'Admin panel',
@@ -4093,6 +4111,15 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   tr: {
+    pinnedNavigation: {
+      title: 'Hızlı gezinme', hint: 'Menüdeki yıldızla bölümleri sabitleyin veya buradan ekleyin. Sırayı, etiketleri ve renkleri ayarlayın.',
+      pin: 'Sabitle: {name}', unpin: 'Sabitlemeyi kaldır: {name}', configure: 'Hızlı gezinmeyi ayarla',
+      show: 'Gezinme çubuğunu göster', showLabels: 'Etiketleri göster', barColor: 'Çubuk rengi', choose: 'Bölüm ekle',
+      empty: 'Henüz sabitlenmiş bölüm yok. En sık kullandıklarınızı ekleyin.',
+      label: 'Özel etiket', color: 'Düğme rengi', buttonColor: 'Düğme rengi: {name}',
+      up: 'Yukarı taşı: {name}', down: 'Aşağı taşı: {name}', orderUpdated: 'Sabitlenmiş bölümler yeniden sıralandı.',
+      colors: { theme: 'Tema rengi', emerald: 'Zümrüt', sapphire: 'Safir', amethyst: 'Ametist', amber: 'Kehribar', rose: 'Pembe', teal: 'Turkuaz' },
+    },
     app: {
       name: 'SpareParts Admin',
       subtitle: 'Yönetim paneli',

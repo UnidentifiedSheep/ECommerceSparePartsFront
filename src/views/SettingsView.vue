@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[calc(100vh-56px)] bg-slate-50">
+  <div class="min-h-[calc(100vh-var(--app-viewport-offset,56px))] bg-slate-50">
     <PageHeader :title="t('settings.title')" :description="t('settings.description')" />
 
     <div class="settings-layout">
@@ -18,6 +18,7 @@
       </aside>
 
       <main class="settings-content">
+        <section v-if="activeTab === 'pinned'" class="settings-panel"><PinnedNavigationSettings /></section>
         <section v-if="activeTab === 'appearance'" class="settings-panel"><AppearanceSettings /></section>
         <section v-if="activeTab === 'notifications' && hasPermission('NOTIFICATIONS_ME')" class="settings-panel">
           <NotificationPreferences />
@@ -132,12 +133,13 @@
 <script setup lang="ts">
 import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Coin, Lock, Bell, Brush } from '@element-plus/icons-vue'
+import { Coin, Lock, Bell, Brush, Star } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import NotificationPreferences from '@/components/notifications/NotificationPreferences.vue'
 import AppearanceSettings from '@/components/common/AppearanceSettings.vue'
+import PinnedNavigationSettings from '@/components/common/PinnedNavigationSettings.vue'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { changePassword } from '@/services/api/authApi.ts'
 import { makeMyEmailPrimary, requestMyEmailVerification } from '@/services/api/users.ts'
@@ -171,6 +173,7 @@ const canMakeEmailPrimary = computed(() => (
 ))
 const activeTab = ref('operations')
 const settingsSections = computed(() => [
+  { name: 'pinned', label: t('pinnedNavigation.title'), icon: Star },
   { name: 'appearance', label: t('settings.appearance.title'), icon: Brush },
   {
     name: 'operations',

@@ -1085,7 +1085,7 @@ const draftGuard2 = useDialogGuard(editDialogOpen, computed(() => organizationSa
 </script>
 
 <style scoped>
-.organizations-page { min-height: calc(100vh - 56px); background: #f8fafc; }
+.organizations-page { min-height: calc(100vh - var(--app-viewport-offset, 56px)); background: #f8fafc; }
 .organizations-layout { display: grid; grid-template-columns: minmax(360px, 0.75fr) minmax(520px, 1.25fr); gap: 16px; padding: 16px; }
 .organizations-panel { min-width: 0; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
 .organizations-list-panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: calc(100vh - 120px); min-height: 620px; padding: 16px; }

@@ -429,7 +429,7 @@ onMounted(async () => {
 
 <style scoped>
 .home-page {
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - var(--app-viewport-offset, 56px));
   background: var(--app-bg);
 }
 

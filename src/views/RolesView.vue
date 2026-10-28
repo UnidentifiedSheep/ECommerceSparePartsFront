@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[calc(100vh-56px)] bg-slate-50">
+  <div class="min-h-[calc(100vh-var(--app-viewport-offset,56px))] bg-slate-50">
     <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4">
       <div>
         <h1 class="text-2xl font-semibold text-slate-900">{{ t('roles.title') }}</h1>

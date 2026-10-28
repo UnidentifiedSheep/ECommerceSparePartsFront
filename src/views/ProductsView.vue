@@ -1141,7 +1141,7 @@ onMounted(async () => {
 <style scoped>
 .product-page {
   display: flex;
-  height: calc(100dvh - 56px);
+  height: calc(100dvh - var(--app-viewport-offset, 56px));
   min-height: 560px;
   flex-direction: column;
   overflow: hidden;
@@ -1654,9 +1654,16 @@ onMounted(async () => {
 }
 
 @media (max-width: 760px) {
+  .product-page {
+    height: auto;
+    min-height: calc(100dvh - var(--app-viewport-offset, 56px));
+    overflow: visible;
+  }
+
   .product-content {
+    flex: none;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
     gap: 10px;
     padding: 12px;
   }
@@ -1722,6 +1729,12 @@ onMounted(async () => {
     padding: 12px;
   }
 
+  .catalogue-results-scroll {
+    flex: 0 1 auto;
+    min-height: 120px;
+    max-height: 60dvh;
+  }
+
   .catalogue-search-primary {
     grid-template-columns: 1fr;
   }
@@ -1749,13 +1762,13 @@ onMounted(async () => {
   }
 
   .product-results-footer :deep(.flex) {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
   }
 
   .product-results-footer :deep(.page-size-select) {
-    width: 60px;
-    flex-basis: 60px;
+    width: 4.5rem;
+    flex-basis: 4.5rem;
   }
 
   .product-results-footer :deep(.min-w-24) {

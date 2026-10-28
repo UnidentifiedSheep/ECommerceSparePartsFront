@@ -209,7 +209,7 @@ onMounted(() => { void loadDefinitions() })
 </script>
 
 <style scoped>
-.documents-page { display: flex; height: calc(100dvh - 56px); min-height: 0; flex-direction: column; overflow: hidden; }
+.documents-page { display: flex; height: calc(100dvh - var(--app-viewport-offset, 56px)); min-height: 0; flex-direction: column; overflow: hidden; }
 .documents-page > :deep(.page-header) { flex: 0 0 auto; }
 .documents-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--app-border); background: var(--app-surface); padding: 0 24px; }
 .documents-tabs button { height: 43px; border: 0; border-bottom: 2px solid transparent; background: transparent; padding: 0 2px; color: var(--app-text-muted); font: inherit; font-size: 14px; cursor: pointer; }
@@ -241,7 +241,7 @@ onMounted(() => { void loadDefinitions() })
 .documents-load-error { margin: 16px 24px; }
 .documents-form__fields .documents-alert { margin: 0 0 16px; }
 @media (max-width: 760px) {
-  .documents-page { height: auto; min-height: calc(100dvh - 56px); overflow: visible; }
+  .documents-page { height: auto; min-height: calc(100dvh - var(--app-viewport-offset, 56px)); overflow: visible; }
   .documents-tabs { padding: 0 16px; }
   .documents-layout { display: flex; min-height: 0; flex-direction: column; overflow: visible; margin: 14px 16px 18px; }
   .documents-list { min-height: 0; border-right: 0; border-bottom: 1px solid var(--app-border); }

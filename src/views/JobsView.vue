@@ -2198,7 +2198,7 @@ const draftGuard0 = useDialogGuard(drawerOpen, computed(() => isCreatingJob.valu
 .jobs-page {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - var(--app-viewport-offset, 56px));
   background: #f7f8fa;
 }
 

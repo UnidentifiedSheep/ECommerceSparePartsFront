@@ -1873,7 +1873,7 @@ const draftGuard5 = useDialogGuard(permissionDialogOpen, computed(() => permissi
 
 <style scoped>
 .users-page {
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - var(--app-viewport-offset, 56px));
   background: #f7f8fa;
 }
 

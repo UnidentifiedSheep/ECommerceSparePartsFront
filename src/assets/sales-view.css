@@ -1,6 +1,6 @@
 .sales-page {
   display: flex;
-  height: calc(100dvh - 56px);
+  height: calc(100dvh - var(--app-viewport-offset, 56px));
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
@@ -275,7 +275,7 @@
 @media (max-width: 1280px) {
   .sales-page {
     height: auto;
-    min-height: calc(100dvh - 56px);
+    min-height: calc(100dvh - var(--app-viewport-offset, 56px));
     overflow: visible;
   }
 

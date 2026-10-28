@@ -192,7 +192,7 @@ const draftGuard0 = useDialogGuard(dialogOpen, computed(() => saving.value), () 
 </script>
 
 <style scoped>
-.product-groups-page { min-height: calc(100vh - 56px); background: #f8faf9; }
+.product-groups-page { min-height: calc(100vh - var(--app-viewport-offset, 56px)); background: #f8faf9; }
 .product-groups-page__content { padding: 16px; }
 .product-groups-card { max-width: 1100px; }
 .product-groups-toolbar { display: flex; align-items: center; gap: 10px; padding-bottom: 16px; }

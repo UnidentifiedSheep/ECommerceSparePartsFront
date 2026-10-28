@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-[calc(100vh-56px)] bg-slate-50">
+  <div class="min-h-[calc(100vh-var(--app-viewport-offset,56px))] bg-slate-50">
     <header class="border-b border-slate-200 bg-white">
       <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div class="min-w-0">
