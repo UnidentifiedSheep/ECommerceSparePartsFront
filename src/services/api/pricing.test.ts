@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { print } from 'graphql'
 import { graphqlClient } from '@/services/graphql/client'
 import { ApiError } from '@/models/errorModel'
-import { getMarkupGroups, getMarkupGroupRanges, getAllMarkupGroupRanges, upsertMarkupGroup } from './markups'
+import { getMarkupGroups, getMarkupGroupRanges, getAllMarkupGroupRanges, upsertMarkupGroup, deleteMarkupGroup } from './markups'
 import { getPriceAppliers, upsertPriceApplier, deletePriceApplier } from './priceAppliers'
 import { getPriceOffersForProduct } from './priceOffers'
 
@@ -68,6 +68,14 @@ describe('Pricing GraphQL contracts', () => {
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: { priceAppliers: { delete: true } } } as never)
     await deletePriceApplier('rule/one')
     expect(vi.mocked(graphqlClient.mutate).mock.calls[0]![0].variables).toEqual({ systemName: 'rule/one' })
+  })
+
+  it('deletes groups by ID and preserves the localized last-group restriction', async () => {
+    vi.mocked(graphqlClient.mutate).mockResolvedValueOnce({ data: { markupGroups: { delete: true } } } as never)
+      .mockRejectedValueOnce({ graphQLErrors: [{ message: 'Нельзя удалить последнюю группу наценок.', extensions: { status: 409 } }] })
+    await deleteMarkupGroup(7)
+    expect(vi.mocked(graphqlClient.mutate).mock.calls[0]![0].variables).toEqual({ id: 7 })
+    await expect(deleteMarkupGroup(8)).rejects.toMatchObject({ status: 409, message: 'Нельзя удалить последнюю группу наценок.' })
   })
 
   it('loads product offers with server paging, source enums and ordered sort keys; maps currencies and dates', async () => {

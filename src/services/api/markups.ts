@@ -1,7 +1,7 @@
 import { clampPageSize } from '@/services/api/api.ts'
 import { graphqlClient } from '@/services/graphql/client'
 import { operationRequest } from '@/services/graphql/operationErrors'
-import { MarkupGroupsDocument, MarkupGroupRangesDocument, MarkupGroupUpsertDocument, type MarkupGroupFieldsFragment } from '@/graphql/generated/graphql'
+import { MarkupGroupsDocument, MarkupGroupRangesDocument, MarkupGroupUpsertDocument, MarkupGroupDeleteDocument, type MarkupGroupFieldsFragment } from '@/graphql/generated/graphql'
 
 export interface MarkupRangeModel {
   id: number
@@ -75,6 +75,11 @@ export async function upsertMarkupGroup(group: UpsertMarkupGroupModel): Promise<
   }))
   if (!data?.markupGroups.upsert) throw new Error('Markup group not returned')
   return mapGroup(data.markupGroups.upsert)
+}
+
+export async function deleteMarkupGroup(id: number): Promise<void> {
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: MarkupGroupDeleteDocument, variables: { id } }))
+  if (data?.markupGroups.delete !== true) throw new Error('Markup group deletion was not confirmed')
 }
 
 function mapGroup(group: MarkupGroupFieldsFragment): MarkupGroupModel {

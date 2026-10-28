@@ -32,6 +32,10 @@ mutation MarkupGroupUpsert($input: UpsertMarkupGroupInput!) {
   markupGroups { upsert(input: $input) { ...MarkupGroupFields } }
 }
 
+mutation MarkupGroupDelete($id: Int!) {
+  markupGroups { delete(id: $id) }
+}
+
 query PriceAppliers($usage: PriceOfferSourceType!) {
   priceAppliers { list(usage: $usage) { ...PriceApplierFields } }
 }
