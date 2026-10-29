@@ -1460,6 +1460,9 @@ const messages: Record<AppLocale, MessageTree> = {
       details: {
         selectCharacteristic: 'Выберите характеристику',
         images: 'Изображения',
+        viewProductImages: 'Открыть изображения товара {sku}',
+        quantityInKit: 'В комплекте',
+        contentLoadError: 'Не удалось обновить состав комплекта',
         addEan: 'Добавить EAN',
         eansCount: 'EAN: {count}',
         noEans: 'Коды не добавлены',
@@ -3514,6 +3517,9 @@ const messages: Record<AppLocale, MessageTree> = {
       details: {
         selectCharacteristic: 'Select a characteristic',
         images: 'Images',
+        viewProductImages: 'View images of product {sku}',
+        quantityInKit: 'In kit',
+        contentLoadError: 'Could not refresh kit content',
         addEan: 'Add EAN',
         eansCount: 'EAN: {count}',
         noEans: 'No codes added',
@@ -5568,6 +5574,9 @@ const messages: Record<AppLocale, MessageTree> = {
       details: {
         selectCharacteristic: 'Bir özellik seçin',
         images: 'Görseller',
+        viewProductImages: '{sku} ürününün görsellerini aç',
+        quantityInKit: 'Sette',
+        contentLoadError: 'Set içeriği güncellenemedi',
         addEan: 'EAN ekle',
         eansCount: 'EAN: {count}',
         noEans: 'Kod eklenmedi',

@@ -27,7 +27,7 @@ fragment ProductDetailsFields on Product {
   eans @include(if: $includeEans)
   characteristics { characteristic { id name normalizedName } value }
   pair { ...ProductListFields }
-  contents { quantity product { ...ProductListFields } }
+  contents { quantity product { ...ProductListFields images } }
   crosses(input: $crossesInput) @include(if: $includeCrosses) { ...ProductListFields }
 }
 
@@ -219,7 +219,7 @@ query ProductPair($id: Int!) {
 }
 
 query ProductContents($id: Int!) {
-  products { byId(id: $id) { id contents { quantity product { ...ProductListFields } } } }
+  products { byId(id: $id) { id contents { quantity product { ...ProductListFields images } } } }
 }
 
 query ProductCrosses($id: Int!, $input: ProductCrossesInput!) {
