@@ -33,8 +33,11 @@
         <template #header><SortableColumnHeader :label="t('common.labels.producer')" field="producerName" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" /></template>
       </el-table-column>
       <el-table-column prop="stock" min-width="120" align="right">
-        <template #header><SortableColumnHeader :label="t('products.stock')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" /></template>
-        <template #default="{ row }"><ProductStockCell :stock="row.stock" /></template>
+        <template #header>
+          <span v-if="storageCode">{{ t('sales.available') }} · {{ storageCode }}</span>
+          <SortableColumnHeader v-else :label="t('products.stock')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
+        </template>
+        <template #default="{ row }"><ProductStockCell :stock="storageCode ? row.availableStock ?? 0 : row.stock" /></template>
       </el-table-column>
       <el-table-column fixed="right" label="" width="104" align="right">
         <template #default="{ row }">
@@ -56,11 +59,12 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import DataLoadError from '@/components/common/DataLoadError.vue'
 import { nextSortValues } from '@/composables/useMultiSort'
 import { getProductCrosses } from '@/services/api/products'
+import { loadSelectionStock } from '@/services/productSelection'
 import type { ProductSearchModel } from '@/models/productSearchModel'
 import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import { useI18n } from '@/i18n'
 
-const props = defineProps<{ product: ProductSearchModel }>()
+const props = defineProps<{ product: ProductSearchModel; storageCode?: string }>()
 const emit = defineEmits<{ back: []; select: [product: ProductSearchModel] }>()
 const { locale, t } = useI18n()
 const pickerRoot = ref<HTMLElement>()
@@ -99,9 +103,12 @@ async function loadCrosses() {
       sortBy: [...sortBy.value, 'id'],
     })
     if (currentRequestId !== requestId) return
-    crosses.value = response.crosses.map(({ id, sku, name, producerId, producerName, indicator, stock }) => (
+    const items = response.crosses.map(({ id, sku, name, producerId, producerName, indicator, stock }) => (
       { id, sku, name, producerId, producerName, indicator, stock }
     ))
+    const stockedItems = await loadSelectionStock(items, props.storageCode)
+    if (currentRequestId !== requestId) return
+    crosses.value = stockedItems
     hasNext.value = crosses.value.length === size.value
   } catch (error) {
     if (currentRequestId === requestId) loadError.value = classifyDataLoadError(error)
@@ -117,6 +124,7 @@ watch([page, size, sortBy], ([currentPage, currentSize, currentSort], [, previou
   }
   void loadCrosses()
 })
+watch(() => props.storageCode, () => { void loadCrosses() })
 onMounted(() => {
   pickerRoot.value?.querySelector<HTMLButtonElement>('.product-cross-picker__back')?.focus()
   void loadCrosses()

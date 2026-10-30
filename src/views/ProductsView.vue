@@ -9,6 +9,9 @@
               <el-dropdown-item v-if="canCreateProducts" command="create" :icon="Plus">
                 {{ t('products.createProduct') }}
               </el-dropdown-item>
+              <el-dropdown-item v-if="canImportGroups" command="import" :icon="Upload">
+                {{ t('products.groupImport.title') }}
+              </el-dropdown-item>
               <el-dropdown-item command="groups" :divided="canCreateProducts">
                 {{ t('products.manageGroups') }}
               </el-dropdown-item>
@@ -363,6 +366,7 @@
     </div>
 
     <CreateProductsCrossesDialog v-if="canCreateProducts" v-model="createDialogOpen" @saved="loadProducts" />
+    <ProductGroupImportDialog v-if="canImportGroups" v-model="importDialogOpen" @saved="loadProducts" />
     <ProductGroupsDrawer v-model="groupsDrawerOpen" :can-edit="canManageDetails" @saved="onProductGroupSaved" />
     <CharacteristicsDrawer v-if="canViewCharacteristics" v-model="characteristicsDrawerOpen" :can-edit="canManageDetails" />
     <ProductQuickViewDrawer
@@ -386,7 +390,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowDown, Clock, Money, MoreFilled, Plus, Search, View } from '@element-plus/icons-vue'
+import { ArrowDown, Clock, Money, MoreFilled, Plus, Search, Upload, View } from '@element-plus/icons-vue'
 import { useDebounceFn, useMediaQuery } from '@vueuse/core'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue'
@@ -395,6 +399,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import DataLoadError from '@/components/common/DataLoadError.vue'
 import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
+import ProductGroupImportDialog from '@/components/products/ProductGroupImportDialog.vue'
 import ProductGroupsDrawer from '@/components/products/ProductGroupsDrawer.vue'
 import CharacteristicsDrawer from '@/components/products/CharacteristicsDrawer.vue'
 import ProductCriteriaFilters from '@/components/products/ProductCriteriaFilters.vue'
@@ -481,6 +486,7 @@ const isLoading = ref(false)
 const loadError = ref<DataLoadErrorKind | null>(null)
 const producerNames = ref<Record<number, string>>({})
 const createDialogOpen = ref(false)
+const importDialogOpen = ref(false)
 const groupsDrawerOpen = ref(false)
 const characteristicsDrawerOpen = ref(false)
 const productGroupsRevision = ref(0)
@@ -498,6 +504,7 @@ const resultsScroll = ref<HTMLElement | null>(null)
 const isMobileViewport = useMediaQuery('(max-width: 760px)')
 const { hasPermission } = usePermissions()
 const canCreateProducts = computed(() => hasPermission('ARTICLES_CREATE'))
+const canImportGroups = computed(() => hasPermission('ARTICLES_GET_MAIN') && hasPermission('ARTICLES_CREATE', 'ARTICLE_CROSSES_CREATE'))
 const canManageDetails = computed(() => hasPermission('ARTICLES_DETAILS_EDIT'))
 const canViewCharacteristics = computed(() => hasPermission('ARTICLES_DETAILS_GET'))
 const canViewPriceOffers = computed(() => hasPermission('PRICES_GET_DETAILED'))
@@ -897,7 +904,9 @@ function setSingleProducer(producerId?: number) {
 }
 
 function handleProductsAction(command: string) {
-  if (command === 'create' && canCreateProducts.value) {
+  if (command === 'import' && canImportGroups.value) {
+    importDialogOpen.value = true
+  } else if (command === 'create' && canCreateProducts.value) {
     createDialogOpen.value = true
   } else if (command === 'groups') {
     resultsScrollPosition = resultsScroll.value?.scrollTop ?? null

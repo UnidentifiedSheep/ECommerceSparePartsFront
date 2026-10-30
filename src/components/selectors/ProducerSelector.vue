@@ -4,10 +4,10 @@
     v-bind="$attrs"
     v-model="producerId"
     :options="options"
-    :loading="loading"
+    :loading="loading || creating"
     :placeholder="resolvedPlaceholder"
     :size="props.size"
-    :disabled="isDisabled"
+    :disabled="isDisabled || creating"
     clearable
     filterable
     remote
@@ -19,28 +19,20 @@
     <template #empty>{{ t(loadError ? 'products.filterOptionsLoadError' : 'products.noFilterOptions') }}</template>
     <template v-if="canRetry || canOfferCreation" #footer>
       <el-button v-if="canRetry" link @click="loadMore">{{ t('common.actions.loadMore') }}</el-button>
-      <el-button v-if="canOfferCreation" :icon="Plus" link type="primary" class="producer-create-action" @click="openCreateDialog">
+      <el-button v-if="canOfferCreation" :icon="Plus" link type="primary" class="producer-create-action" :loading="creating" @click="createFromQuery">
         {{ t('producers.createNamed', { name: query }) }}
       </el-button>
     </template>
   </el-select-v2>
-  <CreateProducerDialog
-    v-if="props.allowCreate && canCreate"
-    v-model="createDialogOpen"
-    :initial-name="createName"
-    @created="selectCreatedProducer"
-    @closed="selectRef?.focus()"
-  />
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
-import { useFormDisabled, type SelectV2Instance } from 'element-plus'
-import CreateProducerDialog from '@/components/producers/CreateProducerDialog.vue'
+import { ElMessage, useFormDisabled, type SelectV2Instance } from 'element-plus'
+import { createProducer } from '@/services/api/producers'
 import { useProducerSelectOptions } from '@/composables/useProducerSelectOptions.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import type { ProducerModel } from '@/models/producerModel.ts'
 import { useI18n } from '@/i18n'
 
 defineOptions({ inheritAttrs: false })
@@ -57,11 +49,10 @@ const canCreate = computed(() => hasPermission('PRODUCERS_CREATE'))
 const isDisabled = useFormDisabled()
 const canOfferCreation = computed(() => props.allowCreate && canCreate.value && !isDisabled.value && canCreateForQuery.value)
 const selectRef = ref<SelectV2Instance>()
-const createDialogOpen = ref(false)
-const createName = ref('')
+const creating = ref(false)
 
 watch(autoSelectId, async (id) => {
-  if (id === undefined || isDisabled.value || createDialogOpen.value) return
+  if (id === undefined || isDisabled.value || creating.value) return
   const hadFocus = selectRef.value?.$el.contains(document.activeElement)
   producerId.value = id
   await nextTick()
@@ -72,16 +63,23 @@ watch(autoSelectId, async (id) => {
   }
 })
 
-function openCreateDialog() {
-  if (!canOfferCreation.value) return
-  createName.value = query.value
-  selectRef.value?.blur()
-  createDialogOpen.value = true
-}
-
-function selectCreatedProducer(producer: ProducerModel) {
-  rememberProducer(producer)
-  producerId.value = producer.id
+async function createFromQuery() {
+  if (!canOfferCreation.value || creating.value) return
+  const name = query.value.trim()
+  creating.value = true
+  try {
+    const { producer } = await createProducer({ name, description: null })
+    rememberProducer(producer)
+    producerId.value = producer.id
+    selectRef.value?.blur()
+    ElMessage.success(t('producers.created'))
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('producers.createError'))
+  } finally {
+    creating.value = false
+    await nextTick()
+    selectRef.value?.focus()
+  }
 }
 </script>
 

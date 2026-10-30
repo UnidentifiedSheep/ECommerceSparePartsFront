@@ -19,7 +19,17 @@
           <h2>{{ t('sales.createTitle') }}</h2>
           <p>{{ t('sales.createDescription') }}</p>
         </div>
-        <el-button :icon="Close" :disabled="isSaving" :aria-label="t('common.actions.close')" circle text @click="closeGuard.requestClose" />
+        <div class="sale-heading-actions">
+          <el-dropdown v-if="canImportJson" trigger="click" placement="bottom-end">
+            <el-button :icon="MoreFilled" :disabled="isSaving || jsonImportOpen" :aria-label="t('common.labels.actions')" circle text />
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item :disabled="!form.currencyId || !form.storageCode" @click="jsonImportOpen = true">{{ t('sales.jsonImport.title') }}</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button :icon="Close" :disabled="isSaving || jsonImportOpen" :aria-label="t('common.actions.close')" circle text @click="closeGuard.requestClose" />
+        </div>
       </div>
     </template>
 
@@ -76,16 +86,16 @@
           </div>
 
           <div class="form-grid">
+            <el-form-item :label="t('sales.writeOffStorage')" class="span-4">
+              <StorageSelector v-model="form.storageCode" auto-select-single :placeholder="t('sales.selectStorage')" />
+            </el-form-item>
+
             <el-form-item :label="t('sales.buyer')" class="span-4">
               <OrganizationSelector
                 v-model="form.buyer"
                 :placeholder="t('sales.selectBuyer')"
                 :clearable="false"
               />
-            </el-form-item>
-
-            <el-form-item :label="t('sales.writeOffStorage')" class="span-4">
-              <StorageSelector v-model="form.storageCode" :placeholder="t('sales.selectStorage')" />
             </el-form-item>
 
             <el-form-item :label="t('sales.saleDate')" class="span-4">
@@ -181,14 +191,14 @@
               <div class="section-title">{{ t('sales.salePositions') }}</div>
               <div class="section-subtitle">{{ itemsSummary }}</div>
             </div>
-            <el-button :icon="Plus" type="primary" @click="productSelectorOpen = true">
+            <el-button :icon="Plus" type="primary" :disabled="!form.storageCode" @click="productSelectorOpen = true">
               {{ t('sales.addProduct') }}
             </el-button>
           </div>
 
           <div v-if="form.items.length === 0" class="empty-items">
             <div class="text-base font-semibold text-slate-900">{{ t('sales.noPositions') }}</div>
-            <div class="mt-1 text-sm text-slate-500">{{ t('sales.noPositionsHint') }}</div>
+            <div class="mt-1 text-sm text-slate-500">{{ t(form.storageCode ? 'sales.noPositionsHint' : 'sales.selectStorage') }}</div>
           </div>
 
           <div v-else class="items-list">
@@ -209,12 +219,12 @@
                       <button
                         type="button"
                         class="stock-badge"
-                        :class="stockColorClass(item.product?.stock ?? 0)"
+                        :class="stockColorClass(item.availableStock)"
                         :disabled="!form.storageCode || !item.product"
                         @click="openStorageBatches(item)"
                       >
                         {{ t('sales.available') }}:
-                        {{ isStockLoading ? t('sales.loading') : (item.product?.stock ?? 0).toLocaleString(locale) }}
+                        {{ isStockLoading ? t('sales.loading') : item.availableStock.toLocaleString(locale) }}
                       </button>
                       <span v-if="item.product">
                         {{ t('sales.selected') }}: {{ selectedProductCount(item).toLocaleString(locale) }}
@@ -321,14 +331,16 @@
         </div>
         <div class="footer-actions">
           <el-button size="large" :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
-          <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save()">
+          <el-button size="large" type="primary" :disabled="!canSave || jsonImportOpen" :loading="isSaving" @click="save()">
             {{ t('sales.create') }}
           </el-button>
         </div>
       </div>
     </template>
 
-    <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
+    <ProductSelectorDialog v-model="productSelectorOpen" :storage-code="form.storageCode" @select="addProduct" />
+    <SaleJsonImportDialog v-model="jsonImportOpen" :storage-code="form.storageCode" :currency-id="form.currencyId"
+      :currency-label="selectedCurrency?.name" :currency-sign="selectedCurrency?.currencySign" :existing="existingImportItems" @import="addImportedItems" />
     <StorageContentBatchesDialog
       v-model="storageBatchesOpen"
         :storage-code="form.storageCode"
@@ -345,6 +357,7 @@ import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled, RefreshRight } 
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
+import SaleJsonImportDialog from '@/components/sales/SaleJsonImportDialog.vue'
 import StorageContentBatchesDialog from '@/components/sales/StorageContentBatchesDialog.vue'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
@@ -359,6 +372,8 @@ import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 import { useDialogGuard } from '@/composables/useDialogGuard.ts'
+import { usePermissions } from '@/composables/usePermissions'
+import { saleImportStockExceeded, type SaleImportRow } from '@/models/saleJsonImport'
 
 interface SaleItemForm {
   product?: ProductSearchModel
@@ -382,12 +397,16 @@ const props = defineProps<{
 }>()
 
 const { locale, t } = useI18n()
+const { hasPermission } = usePermissions()
+const canImportJson = computed(() => hasPermission('SALES_CREATE') && hasPermission('ARTICLES_GET_MAIN'))
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   created: [sale: SaleModel]
 }>()
 
 const productSelectorOpen = ref(false)
+const jsonImportOpen = ref(false)
+const existingImportItems = computed(() => form.items.flatMap(item => item.product ? [{ productId: item.product.id, count: item.count }] : []))
 const storageBatchesOpen = ref(false)
 const storageBatchesProduct = ref<ProductSearchModel>()
 const historyPanelOpen = ref(false)
@@ -464,6 +483,7 @@ const canSave = computed(() => (
   !!form.buyer
   && !!form.currencyId
   && !!form.storageCode
+  && !isStockLoading.value
   && form.saleDateTime !== ''
   && form.items.length > 0
   && form.items.every((item) => (
@@ -476,7 +496,20 @@ const canSave = computed(() => (
   ))
 ))
 
-const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form, saleDiscount: saleDiscount.value, items: form.items.map(({ product, count, price, priceWithDiscount, discountMode, comment }) => ({ productId: product?.id, count, price, priceWithDiscount, discountMode, comment })) }))
+const closeGuard = useDialogGuard(isOpen, computed(() => isSaving.value || jsonImportOpen.value), () => ({ ...form, saleDiscount: saleDiscount.value, items: form.items.map(({ product, count, price, priceWithDiscount, discountMode, comment }) => ({ productId: product?.id, count, price, priceWithDiscount, discountMode, comment })) }))
+
+function addImportedItems(rows: SaleImportRow[]) {
+  if (isSaving.value || !canImportJson.value || !form.currencyId || !form.storageCode || rows.some(row => !row.product || saleImportStockExceeded(row))) return
+  const start = form.items.length
+  const stocks = new Map(rows.flatMap(row => row.product ? [[row.product.id, row.availableStock] as const] : []))
+  form.items.forEach(item => { if (item.product && stocks.has(item.product.id)) item.availableStock = stocks.get(item.product.id)! })
+  form.items.push(...rows.map(row => ({
+    product: row.product, availableStock: row.availableStock, count: row.count, price: row.price,
+    priceWithDiscount: undefined, discountMode: 'Manual' as const, comment: '',
+  })))
+  // Imported prices are explicit; a sale-wide discount must not rewrite them.
+  selectedHistoryItemIndex.value = start
+}
 
 function resetForm() {
   form.buyer = undefined
@@ -501,7 +534,9 @@ async function addProduct(product: ProductSearchModel) {
     return
   }
 
+  const storageCode = form.storageCode
   const storageStock = await loadProductStorageStock(product.id)
+  if (storageCode !== form.storageCode || !isOpen.value) return
   if (storageStock <= 0) {
     ElMessage.warning(t('sales.noStock'))
     return
@@ -543,8 +578,10 @@ async function loadCurrentProductStocks() {
   const storageCode = form.storageCode
   const ids = [...new Set(form.items.map((item) => item.product?.id).filter((id): id is number => Boolean(id)))]
   const requestId = ++stockRequestId
+  form.items.forEach(item => { item.availableStock = 0 })
 
   if (!storageCode || ids.length === 0) {
+    isStockLoading.value = false
     if (!storageCode) {
       form.items.forEach((item) => {
         item.availableStock = 0
@@ -559,7 +596,7 @@ async function loadCurrentProductStocks() {
     if (requestId !== stockRequestId) return
     form.items.forEach((item) => {
       if (!item.product) return
-      item.availableStock = stocksById.get(item.product.id) ?? item.availableStock
+      item.availableStock = stocksById.get(item.product.id) ?? 0
     })
   } catch (error) {
     if (requestId === stockRequestId) {
@@ -839,6 +876,7 @@ watch(() => form.applySaleDiscountToAll, (enabled) => {
 })
 
 watch(() => form.storageCode, () => {
+  productSelectorOpen.value = false
   storageBatchesOpen.value = false
   void loadCurrentProductStocks()
 })
@@ -854,6 +892,7 @@ watch(
 <style scoped src="@/assets/sale-dialog.css"></style>
 
 <style>
+.sale-heading-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .create-sale-dialog.create-sale-dialog--history-open {
   margin-right: 0;
   margin-left: max(16px, calc((100vw - 1680px) / 2));

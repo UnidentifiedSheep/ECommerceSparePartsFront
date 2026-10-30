@@ -283,6 +283,7 @@ import {
   deleteProductImage,
   editProduct,
   getProductById,
+  getProductContent,
   getProductCrosses,
   uploadProductImages,
 } from '@/services/api/products.ts'
@@ -769,7 +770,19 @@ async function refreshStorageContent() {
 }
 
 async function refreshProductContent() {
-  await ensureTabLoaded('content', true)
+  const id = productId.value
+  isProductContentLoading.value = true
+  try {
+    const response = await getProductContent(id)
+    if (productId.value !== id || !product.value) return
+    product.value.contents = response.content
+    productContent.value = response.content
+    loadedTabs.value.content = true
+  } catch (error) {
+    if (productId.value === id) ElNotification({ title: t('products.details.contentLoadError'), message: error instanceof Error ? error.message : undefined, type: 'error' })
+  } finally {
+    if (productId.value === id) isProductContentLoading.value = false
+  }
 }
 
 async function refreshCharacteristics() {

@@ -330,7 +330,7 @@
       </div>
     </template>
 
-    <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
+    <ProductSelectorDialog v-model="productSelectorOpen" :storage-code="props.sale?.storageCode" @select="addProduct" />
     <StorageContentBatchesDialog
       v-model="storageBatchesOpen"
       :storage-code="props.sale?.storageCode"
