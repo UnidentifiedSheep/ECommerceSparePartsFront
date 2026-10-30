@@ -368,7 +368,7 @@ function addImportedItems(rows: Array<{ product: ProductSearchModel; count: numb
 function resetForm() {
   form.supplier = undefined
   form.currencyId = resolveDefaultCurrencyId(props.currencies)
-  form.storageCode = undefined
+  form.storageCode = props.storages.length === 1 ? props.storages[0]!.code : undefined
   form.purchaseDate = toLocalDateTimeInputValue(new Date())
   form.comment = ''
   form.payedSum = undefined
@@ -493,6 +493,12 @@ async function save() {
 
 watch(isOpen, (open) => {
   if (open) resetForm()
+})
+
+watch(() => props.storages.length, () => {
+  if (isOpen.value && !form.storageCode && props.storages.length === 1) {
+    form.storageCode = props.storages[0]!.code
+  }
 })
 
 watch(() => form.withLogistics, (enabled) => {
