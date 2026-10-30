@@ -1,0 +1,4 @@
+{
+  "extensionName": { "message": "SpareParts — импорт поставщиков" },
+  "extensionDescription": { "message": "Сбор группы кроссов Armtek в JSON для импорта в SpareParts." }
+}

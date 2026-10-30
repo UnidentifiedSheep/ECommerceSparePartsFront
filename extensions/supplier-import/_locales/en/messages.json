@@ -1,0 +1,4 @@
+{
+  "extensionName": { "message": "SpareParts — supplier import" },
+  "extensionDescription": { "message": "Export an Armtek cross-reference group as JSON for SpareParts." }
+}
