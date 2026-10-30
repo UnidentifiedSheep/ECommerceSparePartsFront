@@ -26,6 +26,9 @@ th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e0e8eb; overf
 th { background: #f3f7f6; position: sticky; top: 0; z-index: 1; }
 th:first-child { width: 36px; }
 th:nth-child(2) { width: 190px; }
+.purchase th:nth-child(2) { width: 140px; }
+.purchase th:nth-child(4) { width: 45px; }
+.purchase th:nth-child(5) { width: 85px; }
 td small { display: block; color: #52637a; margin-top: 2px; }
 .pagination { justify-content: flex-start; margin-top: 10px; font-size: 13px; }
 footer { justify-content: flex-end; }

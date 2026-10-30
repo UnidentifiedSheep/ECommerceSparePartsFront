@@ -86,16 +86,16 @@
           </div>
 
           <div class="form-grid">
+            <el-form-item :label="t('sales.writeOffStorage')" class="span-4">
+              <StorageSelector v-model="form.storageCode" auto-select-single :placeholder="t('sales.selectStorage')" />
+            </el-form-item>
+
             <el-form-item :label="t('sales.buyer')" class="span-4">
               <OrganizationSelector
                 v-model="form.buyer"
                 :placeholder="t('sales.selectBuyer')"
                 :clearable="false"
               />
-            </el-form-item>
-
-            <el-form-item :label="t('sales.writeOffStorage')" class="span-4">
-              <StorageSelector v-model="form.storageCode" :placeholder="t('sales.selectStorage')" />
             </el-form-item>
 
             <el-form-item :label="t('sales.saleDate')" class="span-4">
@@ -191,14 +191,14 @@
               <div class="section-title">{{ t('sales.salePositions') }}</div>
               <div class="section-subtitle">{{ itemsSummary }}</div>
             </div>
-            <el-button :icon="Plus" type="primary" @click="productSelectorOpen = true">
+            <el-button :icon="Plus" type="primary" :disabled="!form.storageCode" @click="productSelectorOpen = true">
               {{ t('sales.addProduct') }}
             </el-button>
           </div>
 
           <div v-if="form.items.length === 0" class="empty-items">
             <div class="text-base font-semibold text-slate-900">{{ t('sales.noPositions') }}</div>
-            <div class="mt-1 text-sm text-slate-500">{{ t('sales.noPositionsHint') }}</div>
+            <div class="mt-1 text-sm text-slate-500">{{ t(form.storageCode ? 'sales.noPositionsHint' : 'sales.selectStorage') }}</div>
           </div>
 
           <div v-else class="items-list">
@@ -219,12 +219,12 @@
                       <button
                         type="button"
                         class="stock-badge"
-                        :class="stockColorClass(item.product?.stock ?? 0)"
+                        :class="stockColorClass(item.availableStock)"
                         :disabled="!form.storageCode || !item.product"
                         @click="openStorageBatches(item)"
                       >
                         {{ t('sales.available') }}:
-                        {{ isStockLoading ? t('sales.loading') : (item.product?.stock ?? 0).toLocaleString(locale) }}
+                        {{ isStockLoading ? t('sales.loading') : item.availableStock.toLocaleString(locale) }}
                       </button>
                       <span v-if="item.product">
                         {{ t('sales.selected') }}: {{ selectedProductCount(item).toLocaleString(locale) }}
@@ -338,7 +338,7 @@
       </div>
     </template>
 
-    <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
+    <ProductSelectorDialog v-model="productSelectorOpen" :storage-code="form.storageCode" @select="addProduct" />
     <SaleJsonImportDialog v-model="jsonImportOpen" :storage-code="form.storageCode" :currency-id="form.currencyId"
       :currency-label="selectedCurrency?.name" :currency-sign="selectedCurrency?.currencySign" :existing="existingImportItems" @import="addImportedItems" />
     <StorageContentBatchesDialog
@@ -483,6 +483,7 @@ const canSave = computed(() => (
   !!form.buyer
   && !!form.currencyId
   && !!form.storageCode
+  && !isStockLoading.value
   && form.saleDateTime !== ''
   && form.items.length > 0
   && form.items.every((item) => (
@@ -533,7 +534,9 @@ async function addProduct(product: ProductSearchModel) {
     return
   }
 
+  const storageCode = form.storageCode
   const storageStock = await loadProductStorageStock(product.id)
+  if (storageCode !== form.storageCode || !isOpen.value) return
   if (storageStock <= 0) {
     ElMessage.warning(t('sales.noStock'))
     return
@@ -575,8 +578,10 @@ async function loadCurrentProductStocks() {
   const storageCode = form.storageCode
   const ids = [...new Set(form.items.map((item) => item.product?.id).filter((id): id is number => Boolean(id)))]
   const requestId = ++stockRequestId
+  form.items.forEach(item => { item.availableStock = 0 })
 
   if (!storageCode || ids.length === 0) {
+    isStockLoading.value = false
     if (!storageCode) {
       form.items.forEach((item) => {
         item.availableStock = 0
@@ -591,7 +596,7 @@ async function loadCurrentProductStocks() {
     if (requestId !== stockRequestId) return
     form.items.forEach((item) => {
       if (!item.product) return
-      item.availableStock = stocksById.get(item.product.id) ?? item.availableStock
+      item.availableStock = stocksById.get(item.product.id) ?? 0
     })
   } catch (error) {
     if (requestId === stockRequestId) {
@@ -871,6 +876,7 @@ watch(() => form.applySaleDiscountToAll, (enabled) => {
 })
 
 watch(() => form.storageCode, () => {
+  productSelectorOpen.value = false
   storageBatchesOpen.value = false
   void loadCurrentProductStocks()
 })

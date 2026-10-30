@@ -1,6 +1,6 @@
 /* global chrome */
 import { getSupplierAdapter } from './suppliers.js'
-import { createGroupJson, maxGroupProducts } from './export.js'
+import { createGroupJson, createPurchaseJson, maxGroupProducts } from './export.js'
 import { messages } from './messages.js'
 
 const element = id => document.getElementById(id)
@@ -35,6 +35,10 @@ function renderControls() {
     element(`${section}-count`).textContent = `(${products.length})`
   }
   element('summary').textContent = t('summary', { selected: selected.size, total: result.products.length, duplicates: result.duplicates, max: maxGroupProducts })
+  if (result.mode === 'purchase') {
+    const total = result.products.filter(product => selected.has(product.key)).reduce((sum, row) => sum + Math.round(row.price * 100) * row.count, 0) / 100
+    element('summary').textContent += ` · ${total.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${result.currency ?? ''}`
+  }
 }
 function renderRows() {
   const body = element('products'); body.replaceChildren()
@@ -50,7 +54,14 @@ function renderRows() {
     selectCell.append(check)
     const sku = document.createElement('strong'), producer = document.createElement('small')
     sku.textContent = product.sku; producer.textContent = product.producer; name.textContent = product.name
-    reference.append(sku, producer); row.append(selectCell, reference, name); body.append(row)
+    reference.append(sku, producer); row.append(selectCell, reference, name)
+    if (result.mode === 'purchase') {
+      const count = document.createElement('td'), price = document.createElement('td')
+      count.textContent = String(product.count); price.textContent = product.price.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      if (product.returnedCount) { const returned = document.createElement('small'); returned.textContent = t('returned', { count: product.returnedCount }); name.append(returned) }
+      row.append(count, price)
+    }
+    body.append(row)
   })
   element('page').textContent = t('page', { page: page + 1, pages: Math.ceil(result.products.length / pageSize) })
 }
@@ -62,9 +73,14 @@ function render() {
   element('export').hidden = !result
   element('intro').hidden = !!result
   if (result) {
+    const purchase = result.mode === 'purchase'
+    element('group-info').hidden = purchase; element('selection').hidden = purchase
+    element('count-header').hidden = !purchase; element('price-header').hidden = !purchase
+    document.body.classList.toggle('purchase', purchase)
+    element('import-hint').textContent = t(purchase ? 'purchaseImportHint' : 'importHint')
     const supplierName = { Tmtr: 'Truck Motors', FavoritParts: 'Favorit Parts', Armtek: 'Armtek' }[result.supplier] ?? result.supplier
-    element('preview-heading').textContent = `${t('preview')} · ${supplierName}`
-    element('loaded').textContent = t(result.virtualized ? 'virtualized' : result.moreAvailable ? 'loaded' : 'complete')
+    element('preview-heading').textContent = `${t(purchase ? 'purchasePreview' : 'preview')} · ${supplierName}`
+    element('loaded').textContent = t(purchase ? result.partial ? 'invoicePartial' : 'purchaseHint' : result.virtualized ? 'virtualized' : result.moreAvailable ? 'loaded' : 'complete')
     element('skipped').hidden = !result.skipped
     element('skipped').textContent = t('skipped', { count: result.skipped })
   }
@@ -77,11 +93,11 @@ async function readPage(expected) {
   if (!adapter || tab.id == null) throw new Error('unsupported')
   const [execution] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: adapter.collect })
   const data = execution?.result
-  if (!data?.ok) throw new Error(['unsupported', 'notSearch', 'empty', 'limit'].includes(data?.code) ? data.code : 'readFailed')
+  if (!data?.ok) throw new Error(['unsupported', 'notSearch', 'empty', 'limit', 'invoiceInvalid'].includes(data?.code) ? data.code : 'readFailed')
   if (data.supplier !== adapter.supplier) throw new Error('readFailed')
   return { data, tab: { id: tab.id, url: tab.url } }
 }
-function readError(cause) { return ['unsupported', 'notSearch', 'empty', 'limit', 'changed'].includes(cause?.message) ? cause.message : 'readFailed' }
+function readError(cause) { return ['unsupported', 'notSearch', 'empty', 'limit', 'changed', 'invoiceInvalid'].includes(cause?.message) ? cause.message : 'readFailed' }
 element('scan').addEventListener('click', async () => {
   if (busy) return
   busy = true; result = undefined; selected.clear(); page = 0; showStatus('reading'); render()
@@ -103,11 +119,11 @@ async function exportGroup(mode) {
     result = undefined; selected.clear(); busy = false; showStatus(readError(cause), {}, true); render(); return
   }
   try {
-    const json = createGroupJson(result, selected)
+    const json = result.mode === 'purchase' ? createPurchaseJson(result, selected) : createGroupJson(result, selected)
     if (mode === 'copy') { await navigator.clipboard.writeText(json); showStatus('copied') }
     else {
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json;charset=utf-8' }))
-      const link = document.createElement('a'); link.href = url; link.download = `${result.supplier}-crosses-${new Date().toISOString().slice(0, 10)}.json`
+      const link = document.createElement('a'); link.href = url; link.download = `${result.supplier}-${result.mode === 'purchase' ? 'purchase' : 'crosses'}-${new Date().toISOString().slice(0, 10)}.json`
       document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000)
       showStatus('downloaded')
     }

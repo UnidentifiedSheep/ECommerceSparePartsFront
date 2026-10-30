@@ -1,5 +1,6 @@
 import { normalizedImportSku } from '@/models/productGroupImport'
 import type { ProductSearchModel } from '@/models/productSearchModel'
+import { importQuantity, importPriceCents } from '@/utils/importNumbers'
 
 export const saleImportLimits = { rows: 1000, text: 2_000_000 }
 export class SaleImportIssue extends Error {
@@ -25,14 +26,12 @@ export function parseSaleImport(text: string): SaleImportInput[] {
     const { uniValue, producer, count, price } = value
     if (typeof uniValue !== 'string' || uniValue.trim().length < 3 || uniValue.trim().length > 128 || !normalizedImportSku(uniValue)
       || typeof producer !== 'string' || !producer.trim()) throw new SaleImportIssue('reference', row)
-    if (!['string', 'number'].includes(typeof count) || !/^\d+$/.test(String(count).trim())) throw new SaleImportIssue('count', row)
-    const quantity = Number(count)
-    if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 2147483647) throw new SaleImportIssue('count', row)
-    if (!['string', 'number'].includes(typeof price) || !/^\d+(?:[.,]\d{1,2})?$/.test(String(price).trim())) throw new SaleImportIssue('price', row)
-    const [whole = '', fraction = ''] = String(price).trim().replace(',', '.').split('.')
-    const cents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
+    const quantity = importQuantity(count)
+    if (quantity === undefined) throw new SaleImportIssue('count', row)
+    const cents = importPriceCents(price)
+    if (cents === undefined) throw new SaleImportIssue('price', row)
     totalCents += cents * quantity
-    if (!Number.isSafeInteger(cents) || cents <= 0 || !Number.isSafeInteger(totalCents)) throw new SaleImportIssue('price', row)
+    if (!Number.isSafeInteger(totalCents)) throw new SaleImportIssue('price', row)
     return { sku: uniValue.trim(), producer: producer.trim(), count: quantity, price: cents / 100 }
   })
 }

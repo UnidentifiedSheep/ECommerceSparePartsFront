@@ -11,6 +11,7 @@
       v-if="isOpen && crossProduct"
       :key="crossProduct.id"
       :product="crossProduct"
+      :storage-code="storageCode"
       @back="closeCrosses"
       @select="selectProduct"
     />
@@ -169,10 +170,11 @@
         </el-table-column>
         <el-table-column prop="stock" :label="t('products.stock')" min-width="140">
           <template #header>
-            <SortableColumnHeader :label="t('products.stock')" field="stock" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
+            <span v-if="storageCode">{{ t('sales.available') }} · {{ storageCode }}</span>
+            <SortableColumnHeader v-else :label="t('products.stock')" field="stock" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
           </template>
           <template #default="{ row }">
-            <ProductStockCell :stock="row.stock" />
+            <ProductStockCell :stock="storageCode ? row.availableStock ?? 0 : row.stock" />
           </template>
         </el-table-column>
         <el-table-column fixed="right" label="" width="180" align="right">
@@ -194,6 +196,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ArrowDown, RefreshLeft, Search } from '@element-plus/icons-vue'
 import { useDebounceFn } from '@vueuse/core'
+import { ElMessage } from 'element-plus'
+import { loadSelectionStock } from '@/services/productSelection'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import SearchHighlightedText from '@/components/common/SearchHighlightedText.vue'
@@ -222,6 +226,7 @@ import { resolveSkuHighlight } from '@/utils/searchHighlights.ts'
 
 type SearchPreset = 'Exact' | 'Normal' | 'Broad'
 
+const props = defineProps<{ storageCode?: string }>()
 const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
 const isOpen = defineModel<boolean>({ required: true })
@@ -324,6 +329,7 @@ function setSingleProducer(producerId?: number) {
 }
 
 function selectProduct(product: ProductSearchModel) {
+  if (isLoading.value) return
   emit('select', product)
   isOpen.value = false
 }
@@ -446,7 +452,9 @@ async function loadProducts(resetPage: boolean) {
         },
       })
       if (requestId !== productsRequestId) return
-      products.value = response.products.items
+      const items = await loadSelectionStock(response.products.items, props.storageCode)
+      if (requestId !== productsRequestId) return
+      products.value = items
       total.value = response.products.total
       hasExactTotal.value = true
     } else {
@@ -470,7 +478,9 @@ async function loadProducts(resetPage: boolean) {
             sortBy: sortBy.value,
           })
       if (requestId !== productsRequestId) return
-      products.value = response.products
+      const items = await loadSelectionStock(response.products, props.storageCode)
+      if (requestId !== productsRequestId) return
+      products.value = items
       total.value = response.total ?? response.products.length
       hasExactTotal.value = response.total !== undefined
     }
@@ -480,6 +490,12 @@ async function loadProducts(resetPage: boolean) {
       ? (page.value + 1) * size.value < total.value
       : products.value.length === size.value
     loadProducerNames(products.value)
+  } catch (error) {
+    if (requestId !== productsRequestId) return
+    products.value = []
+    hasNext.value = false
+    total.value = 0
+    ElMessage.error(error instanceof Error ? error.message : t('sales.loadStockError'))
   } finally {
     if (requestId === productsRequestId) isLoading.value = false
   }
@@ -517,6 +533,12 @@ watch(query, () => {
   if (isResetting) return
   isLoading.value = false
   void searchProductsDebounced(++productsRequestId)
+})
+watch(() => props.storageCode, () => {
+  productsRequestId += 1
+  products.value = []
+  crossProduct.value = null
+  void loadProducts(true)
 })
 
 onBeforeUnmount(() => { productsRequestId += 1 })

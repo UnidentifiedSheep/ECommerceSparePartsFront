@@ -1,11 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { createGroupJson, maxGroupProducts } from './export.js'
+import { createGroupJson, createPurchaseJson, maxGroupProducts } from './export.js'
+import { parsePurchaseImport } from '../../src/models/purchaseJsonImport'
 import { parseProductImport } from '../../src/models/productGroupImport'
 import { messages } from './messages.js'
 import manifest from './manifest.json'
 import { getSupplierAdapter } from './suppliers.js'
 
 describe('supplier extension export', () => {
+  it('exports independent invoice positions as a purchase and prevents using cross-group import', () => {
+    const invoice = { mode: 'purchase', supplier: 'Armtek', currency: 'RUB', partial: false, products: [
+      { key: 'invoice:0', sku: 'SR1035', producer: 'ZEKKERT', name: 'Bearing\\', count: 1, price: 651, returnedCount: 0 },
+      { key: 'invoice:1', sku: 'SR1035', producer: 'ZEKKERT', name: 'Roller', count: 2, price: 650, returnedCount: 1 },
+    ] }
+    const selected = new Set(invoice.products.map(row => row.key))
+    const json = createPurchaseJson(invoice, selected)
+    expect(parsePurchaseImport(json).group.rows.map(row => [row.sku, row.count, row.price, row.returnedCount])).toEqual([['SR1035', 1, 651, 0], ['SR1035', 2, 650, 1]])
+    expect(() => createGroupJson(invoice, selected)).toThrow('wrongMode')
+    expect(() => parseProductImport(json)).toThrowError(expect.objectContaining({ code: 'document' }))
+    expect(parsePurchaseImport(createPurchaseJson(invoice, new Set(['invoice:0']))).partial).toBe(true)
+    expect(getSupplierAdapter('https://etp.armtek.ru/invoice/index/123/456')?.collect.name).toBe('collectArmtekInvoice')
+  })
   it('exports only selected references in a format accepted by the product group importer', () => {
     const products = [
       { key: 'STARTEC:INF211208', producer: 'STARTEC', sku: 'INF211208', name: 'Фитинг М12\\', sections: ['results'] },

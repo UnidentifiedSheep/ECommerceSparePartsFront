@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseProductImport, normalizedImportSku } from '@/models/productGroupImport'
-import { executeProductImport, resolveImportGroups } from './productGroupImport'
+import { executeProductImport, executeProductCreation, resolveImportGroups } from './productGroupImport'
+import { parsePurchaseImport } from '@/models/purchaseJsonImport'
 import { resolveImportReferences } from '@/services/api/productImport'
 import { createProducts, createProductCrosses } from '@/services/api/products'
 import { getProducersByIdsGraphql } from '@/services/graphql/products'
@@ -32,6 +33,31 @@ beforeEach(() => {
 })
 
 describe('product group import execution', () => {
+  it('prepares existing document products without create or cross permissions and without writes', async () => {
+    database.set(key('OLD', 1), { id: 10, name: 'Existing' })
+    database.set(key('OTHER', 1), { id: 11, name: 'Another' })
+    const groups = input([[{ sku: 'OLD' }, { sku: 'OTHER' }]])
+    const onWrite = vi.fn()
+    await executeProductCreation(groups, { ...access, canCreate: () => false, canLink: () => false }, vi.fn(), onWrite)
+    expect(onWrite).not.toHaveBeenCalled()
+    expect(createProducts).not.toHaveBeenCalled()
+    expect(createProductCrosses).not.toHaveBeenCalled()
+    expect(groups[0]!.done).toBe(true)
+  })
+  it('creates document products without cross permissions or links and preserves duplicate invoice positions', async () => {
+    database.set(key('OLD', 1), { id: 10, name: 'Existing' })
+    const { group } = parsePurchaseImport(JSON.stringify({ type: 'purchase', supplier: 'Armtek', products: [
+      { sku: 'OLD', producer: 'MAN', name: 'Do not rename', count: 1, price: 10 },
+      { sku: 'NEW', producer: 'MAN', name: 'New product', count: 2, price: 20 },
+      { sku: 'NEW', producer: 'ALIAS', name: 'New product', count: 3, price: 30 },
+    ] }))
+    await executeProductCreation([group], { ...access, canLink: () => false }, vi.fn(), vi.fn())
+    expect(createProductCrosses).not.toHaveBeenCalled()
+    expect(createProducts).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(createProducts).mock.calls[0]![0].newProducts).toEqual([{ sku: 'NEW', producerId: 1, name: 'New product' }])
+    expect(group.rows.map(row => [row.productId, row.count, row.price])).toEqual([[10, 1, 10], [100, 2, 20], [100, 3, 30]])
+    expect(group.rows[0]!.productName).toBe('Existing')
+  })
   it('resolves legacy references without a supplier and links existing and new products in one group', async () => {
     database.set(key('INF211208', 1), { id: 10, name: 'Existing fitting' })
     const groups = parseProductImport(JSON.stringify([

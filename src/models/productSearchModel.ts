@@ -20,6 +20,7 @@ export interface ProductSearchModel {
   producerName?: string
   indicator?: string | null
   stock: number
+  availableStock?: number
   dimensions?: ProductDimensionsModel | null
   weight?: ProductWeightModel | null
   highlights?: Record<string, string[]> | null

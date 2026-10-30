@@ -39,10 +39,12 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   disabled?: boolean
   type?: StorageType
+  autoSelectSingle?: boolean
 }>(), {
   placeholder: undefined,
   disabled: false,
   type: undefined,
+  autoSelectSingle: false,
 })
 
 const { t } = useI18n()
@@ -91,6 +93,10 @@ async function loadStorages(reset = false) {
       searchTerm: searchTerm.value.trim() || undefined,
       type: props.type,
     })
+    if (props.autoSelectSingle && reset && !searchTerm.value.trim()
+      && !selectedStorageCode.value && resp.storages.length === 1) {
+      selectedStorageCode.value = resp.storages[0]!.code
+    }
     const existingCodes = new Set(storages.value.map((storage) => storage.code))
     storages.value.push(...resp.storages.filter((storage) => !existingCodes.has(storage.code)))
     hasNextPage.value = resp.storages.length === limit.value
@@ -119,6 +125,12 @@ function onVisibleChange(open: boolean) {
 }
 
 watch(selectedStorageCode, ensureSelectedStorage)
+watch(selectedStorageCode, (code) => {
+  if (!code && props.autoSelectSingle && !searchTerm.value.trim()
+    && !hasNextPage.value && storages.value.length === 1) {
+    selectedStorageCode.value = storages.value[0]!.code
+  }
+})
 watch(() => props.type, () => loadStorages(true))
 
 onMounted(() => loadStorages(true))

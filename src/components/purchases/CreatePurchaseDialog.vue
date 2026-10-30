@@ -14,7 +14,13 @@
           <h2>{{ t('purchases.createTitle') }}</h2>
           <p>{{ t('purchases.createDescription') }}</p>
         </div>
-        <el-button :icon="Close" :disabled="isSaving" :aria-label="t('common.actions.close')" circle text @click="closeGuard.requestClose" />
+        <div class="purchase-heading-actions">
+          <el-dropdown v-if="canImportJson" trigger="click" placement="bottom-end">
+            <el-button :icon="MoreFilled" :disabled="isSaving || jsonImportOpen" :aria-label="t('common.labels.actions')" circle text />
+            <template #dropdown><el-dropdown-menu><el-dropdown-item :disabled="!form.currencyId || !form.storageCode" @click="jsonImportOpen = true">{{ t('purchases.jsonImport.title') }}</el-dropdown-item></el-dropdown-menu></template>
+          </el-dropdown>
+          <el-button :icon="Close" :disabled="isSaving || jsonImportOpen" :aria-label="t('common.actions.close')" circle text @click="closeGuard.requestClose" />
+        </div>
       </div>
     </template>
 
@@ -220,7 +226,7 @@
         </div>
         <div class="footer-actions">
           <el-button size="large" :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
-          <el-button size="large" type="primary" :disabled="!canSave" :loading="isSaving" @click="save">
+          <el-button size="large" type="primary" :disabled="!canSave || jsonImportOpen" :loading="isSaving" @click="save">
             {{ t('purchases.create') }}
           </el-button>
         </div>
@@ -228,15 +234,17 @@
     </template>
 
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
+    <PurchaseJsonImportDialog v-model="jsonImportOpen" :storage-code="form.storageCode" :currency="selectedCurrency" @import="addImportedItems" />
   </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import { Check, Close, Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
+import PurchaseJsonImportDialog from '@/components/purchases/PurchaseJsonImportDialog.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
@@ -249,6 +257,7 @@ import { toLocalDateTimeInputValue, toUtcDateTimeString } from '@/utils/dateTime
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
 import { useDialogGuard } from '@/composables/useDialogGuard.ts'
+import { usePermissions } from '@/composables/usePermissions'
 
 interface CreatePurchaseItemForm {
   product?: ProductSearchModel
@@ -267,12 +276,15 @@ const props = defineProps<{
 }>()
 
 const { locale, t } = useI18n()
+const { hasPermission } = usePermissions()
+const canImportJson = computed(() => hasPermission('PURCHASE_CREATE') && hasPermission('ARTICLES_GET_MAIN'))
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   created: [purchase: PurchaseModel]
 }>()
 
 const productSelectorOpen = ref(false)
+const jsonImportOpen = ref(false)
 const isSaving = ref(false)
 const isCalculatingLogistics = ref(false)
 const logisticsCurrencyId = ref<number>()
@@ -346,7 +358,12 @@ const canSave = computed(() => (
   && !hasSkippedLogistics.value
 ))
 
-const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form, items: form.items.map(({ product, count, price, calculateLogistics, comment }) => ({ productId: product?.id, count, price, calculateLogistics, comment })) }))
+const closeGuard = useDialogGuard(isOpen, computed(() => isSaving.value || jsonImportOpen.value), () => ({ ...form, items: form.items.map(({ product, count, price, calculateLogistics, comment }) => ({ productId: product?.id, count, price, calculateLogistics, comment })) }))
+
+function addImportedItems(rows: Array<{ product: ProductSearchModel; count: number; price: number }>) {
+  if (isSaving.value || !canImportJson.value || !form.currencyId || !form.storageCode) return
+  form.items.push(...rows.map(row => ({ ...row, calculateLogistics: form.withLogistics, comment: '' })))
+}
 
 function resetForm() {
   form.supplier = undefined
@@ -505,3 +522,6 @@ watch(
 </script>
 
 <style scoped src="@/assets/create-purchase-dialog.css"></style>
+<style scoped>
+.purchase-heading-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+</style>

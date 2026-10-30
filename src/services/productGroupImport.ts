@@ -8,11 +8,11 @@ export interface ImportAccess { canRead: () => boolean; canCreate: () => boolean
 interface LocatedRow { row: ProductImportRow; supplier: ProductImportGroup['supplier'] }
 const batchSize = 100
 
-function validateGroup(group: ProductImportGroup, access: ImportAccess) {
+function validateGroup(group: ProductImportGroup, access: ImportAccess, linkGroups: boolean) {
   if (group.rows.some(row => !row.producerId)) throw new ProductImportIssue('producer')
   if (group.rows.some(row => !row.productId && (row.name.trim().length < 3 || row.name.trim().length > 255))) throw new ProductImportIssue('name')
   if (group.rows.some(row => !row.productId) && !access.canCreate()) throw new ProductImportIssue('permissions')
-  if (group.rows.length > 1 && !access.canLink()) throw new ProductImportIssue('permissions')
+  if (linkGroups && group.rows.length > 1 && !access.canLink()) throw new ProductImportIssue('permissions')
 }
 
 export async function resolveImportGroups(groups: ProductImportGroup[], progress?: (value: ImportProgress) => void) {
@@ -45,11 +45,20 @@ export async function resolveImportGroups(groups: ProductImportGroup[], progress
 }
 
 export async function executeProductImport(groups: ProductImportGroup[], access: ImportAccess, progress: (value: ImportProgress) => void, onWrite: () => void) {
+  return executeImport(groups, access, progress, onWrite, true)
+}
+
+// Document positions are independent products, never a cross-reference group.
+export async function executeProductCreation(groups: ProductImportGroup[], access: ImportAccess, progress: (value: ImportProgress) => void, onWrite: () => void) {
+  return executeImport(groups, access, progress, onWrite, false)
+}
+
+async function executeImport(groups: ProductImportGroup[], access: ImportAccess, progress: (value: ImportProgress) => void, onWrite: () => void, linkGroups: boolean) {
   if (!access.canRead()) throw new ProductImportIssue('permissions')
   await resolveImportGroups(groups, progress)
   // Validate all pending groups before the first write.
   for (const group of groups.filter(item => !item.done)) {
-    validateGroup(group, access)
+    validateGroup(group, access, linkGroups)
   }
   for (let index = 0; index < groups.length; index++) {
     const group = groups[index]!
@@ -58,7 +67,7 @@ export async function executeProductImport(groups: ProductImportGroup[], access:
     try {
       // A previous group (or another user) may have created the same products.
       await resolveImportGroups([group])
-      validateGroup(group, access)
+      validateGroup(group, access, linkGroups)
       const missing = [...new Map(group.rows.filter(row => !row.productId).map(row => [importProductKey(row), row])).values()]
       for (let offset = 0; offset < missing.length; offset += batchSize) {
         const batch = missing.slice(offset, offset + batchSize).filter(row => !row.productId)
@@ -81,7 +90,7 @@ export async function executeProductImport(groups: ProductImportGroup[], access:
         }
       }
       if (group.rows.some(row => !row.productId)) throw new ProductImportIssue('resolve')
-      const linkages = fullGroupLinkages(group.rows)
+      const linkages = linkGroups ? fullGroupLinkages(group.rows) : []
       if (linkages.length) {
         if (!access.canLink()) throw new ProductImportIssue('permissions')
         progress({ group: index, phase: 'link' })

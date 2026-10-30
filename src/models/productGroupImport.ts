@@ -1,7 +1,7 @@
 import type { Supplier } from '@/models/producerModel'
 
 export const importLimits = { groups: 100, perGroup: 1000, total: 5000, text: 2_000_000 }
-export type ImportIssueCode = 'json' | 'shape' | 'textLimit' | 'groupsLimit' | 'productsLimit' | 'supplier' | 'row' | 'sku' | 'name' | 'producer' | 'resolve' | 'permissions'
+export type ImportIssueCode = 'json' | 'shape' | 'textLimit' | 'groupsLimit' | 'productsLimit' | 'supplier' | 'row' | 'sku' | 'name' | 'producer' | 'resolve' | 'permissions' | 'document'
 export class ProductImportIssue extends Error {
   constructor(public code: ImportIssueCode, public params: Record<string, string | number> = {}) { super(code) }
 }
@@ -44,6 +44,7 @@ export function parseProductImport(text: string): ProductImportGroup[] {
   return groups.map((group, index) => {
     const groupNumber = index + 1
     if (!object(group) || !Array.isArray(group.products) || !group.products.length) throw new ProductImportIssue('shape', { group: groupNumber })
+    if (group.type === 'purchase' || group.products.some(value => object(value) && 'count' in value && 'price' in value)) throw new ProductImportIssue('document')
     total += group.products.length
     if (group.products.length > importLimits.perGroup || total > importLimits.total) throw new ProductImportIssue('productsLimit', { count: group.products.length > importLimits.perGroup ? importLimits.perGroup : importLimits.total })
     let supplier: Supplier | null = null
