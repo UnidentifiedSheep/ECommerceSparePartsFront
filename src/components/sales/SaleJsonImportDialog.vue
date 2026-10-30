@@ -32,6 +32,9 @@
             <el-tag v-else type="success">{{ t('products.groupImport.found') }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column width="52" fixed="right">
+          <template #default="{ row }"><el-button :icon="Delete" text type="danger" :disabled="busy" :aria-label="t('products.groupImport.removeRow')" :title="t('products.groupImport.removeRow')" @click="removeRow(row)" /></template>
+        </el-table-column>
       </el-table>
       <div class="sale-json-pagination" :inert="busy"><ZeroPagination v-model:page="page" v-model:size="size" :has-next="(page + 1) * size < rows.length" /></div>
       <p role="status">{{ t('sales.jsonImport.summary', { count: rows.length, total: money(total) }) }}</p>
@@ -48,12 +51,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import { useDialogGuard } from '@/composables/useDialogGuard'
 import { usePermissions } from '@/composables/usePermissions'
 import { useI18n } from '@/i18n'
-import { parseSaleImport, SaleImportIssue, saleImportLimits, saleImportStockExceeded, type SaleImportRow } from '@/models/saleJsonImport'
-import { prepareSaleImport } from '@/services/saleJsonImport'
+import { parseSaleImport, SaleImportIssue, saleImportLimits, saleImportStockExceeded, type SaleImportRow, type SaleImportInput } from '@/models/saleJsonImport'
+import { prepareSaleImport, updateSaleImportCounts } from '@/services/saleJsonImport'
 
 const props = defineProps<{ storageCode?: string; currencyId?: number; currencyLabel?: string; currencySign?: string; existing: Array<{ productId: number; count: number }> }>()
 const open = defineModel<boolean>({ required: true })
@@ -63,11 +67,12 @@ const { hasPermission } = usePermissions()
 const canImport = computed(() => !!props.storageCode && !!props.currencyId && hasPermission('ARTICLES_GET_MAIN') && hasPermission('SALES_CREATE'))
 const raw = ref('')
 const rows = ref<SaleImportRow[]>([])
+const inputRows = ref<SaleImportInput[]>()
 const error = ref('')
 const busy = ref(false)
 const page = ref(0)
 const size = ref(20)
-const guard = useDialogGuard(open, busy, () => raw.value)
+const guard = useDialogGuard(open, busy, () => ({ raw: raw.value, input: inputRows.value }))
 const context = computed(() => JSON.stringify([props.storageCode, props.currencyId, props.existing]))
 const hasProblems = computed(() => rows.value.some(row => !row.product || saleImportStockExceeded(row)))
 const visibleRows = computed(() => rows.value.slice(page.value * size.value, (page.value + 1) * size.value))
@@ -75,6 +80,17 @@ const total = computed(() => rows.value.reduce((sum, row) => sum + Math.round(ro
 const example = JSON.stringify([{ count: '1', price: '5012,53', producer: 'Dayco', uniValue: '9PK4145HD' }], null, 2)
 function money(value: number) { return `${value.toLocaleString(locale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${props.currencySign ?? ''}`.trim() }
 function rowIndex(index: number) { return page.value * size.value + index + 1 }
+
+function removeRow(row: SaleImportRow) {
+  if (busy.value || !inputRows.value) return
+  const index = rows.value.indexOf(row)
+  if (index < 0) return
+  rows.value.splice(index, 1)
+  inputRows.value.splice(index, 1)
+  updateSaleImportCounts(rows.value, props.existing)
+  page.value = Math.min(page.value, Math.max(0, Math.ceil(rows.value.length / size.value) - 1))
+  error.value = ''
+}
 
 async function check(): Promise<boolean> {
   if (busy.value || !canImport.value || !props.storageCode) return false
@@ -84,7 +100,9 @@ async function check(): Promise<boolean> {
   page.value = 0
   const snapshot = context.value
   try {
-    const result = await prepareSaleImport(parseSaleImport(raw.value), props.storageCode, props.existing)
+    inputRows.value ??= parseSaleImport(raw.value)
+    if (!inputRows.value.length) return false
+    const result = await prepareSaleImport(inputRows.value, props.storageCode, props.existing)
     if (!open.value || snapshot !== context.value || !canImport.value) return false
     rows.value = result
     return !hasProblems.value
@@ -101,10 +119,10 @@ async function apply() {
   guard.markClean()
   open.value = false
 }
-watch(raw, () => { rows.value = []; error.value = ''; page.value = 0 })
+watch(raw, () => { inputRows.value = undefined; rows.value = []; error.value = ''; page.value = 0 })
 watch(context, () => { rows.value = []; error.value = ''; page.value = 0 })
 watch(size, () => { page.value = 0 })
-watch(open, value => { if (value) { raw.value = ''; rows.value = []; error.value = ''; page.value = 0 } })
+watch(open, value => { if (value) { raw.value = ''; inputRows.value = undefined; rows.value = []; error.value = ''; page.value = 0 } })
 </script>
 
 <style>

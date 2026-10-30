@@ -2,7 +2,7 @@ import { supplierAdapters } from './suppliers.js'
 
 export const maxGroupProducts = 1000
 
-export function createGroupJson({ supplier, products, mode }, selected) {
+export function createGroupJson({ supplier, products, mode }, selected = new Set(products.map(product => product.key))) {
   if (mode === 'purchase') throw new Error('wrongMode')
   if (!supplierAdapters.some(adapter => adapter.supplier === supplier)) throw new Error('unsupported')
   const chosen = products.filter(product => selected.has(product.key))
@@ -11,7 +11,7 @@ export function createGroupJson({ supplier, products, mode }, selected) {
   return JSON.stringify({ supplier, products: chosen.map(({ producer, sku, name }) => ({ producer, sku, name })) }, null, 2)
 }
 
-export function createPurchaseJson({ supplier, products, mode, currency, partial }, selected) {
+export function createPurchaseJson({ supplier, products, mode, currency, partial }, selected = new Set(products.map(product => product.key))) {
   if (mode !== 'purchase' || !supplierAdapters.some(adapter => adapter.supplier === supplier)) throw new Error('unsupported')
   const chosen = products.filter(product => selected.has(product.key))
   if (!chosen.length) throw new Error('selection')

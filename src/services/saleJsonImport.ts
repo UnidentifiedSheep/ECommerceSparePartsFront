@@ -24,13 +24,19 @@ export async function prepareSaleImport(input: SaleImportInput[], storageCode: s
     const batch = await getProductsAvailableStock(ids.slice(start, start + 100), storageCode)
     batch.forEach((stock, id) => { stocks.set(id, stock) })
   }
+  for (const row of rows) if (row.product) {
+    row.availableStock = stocks.get(row.product.id) ?? 0
+    row.product.stock = row.availableStock
+  }
+  updateSaleImportCounts(rows, existing)
+  return rows
+}
+
+export function updateSaleImportCounts(rows: SaleImportRow[], existing: Array<{ productId: number; count: number }>) {
   const counts = new Map<number, number>()
   for (const row of existing) counts.set(row.productId, (counts.get(row.productId) ?? 0) + row.count)
   for (const row of rows) if (row.product) counts.set(row.product.id, (counts.get(row.product.id) ?? 0) + row.count)
   for (const row of rows) if (row.product) {
-    row.availableStock = stocks.get(row.product.id) ?? 0
     row.requestedCount = counts.get(row.product.id) ?? row.count
-    row.product.stock = row.availableStock
   }
-  return rows
 }

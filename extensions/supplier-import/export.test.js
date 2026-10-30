@@ -7,6 +7,14 @@ import manifest from './manifest.json'
 import { getSupplierAdapter } from './suppliers.js'
 
 describe('supplier extension export', () => {
+  it('copies the entire collected list by default, including repeated purchase positions', () => {
+    const products = [{ key: '1', sku: 'ABC', producer: 'MAN', name: 'Part', count: 1, price: 12 },
+      { key: '2', sku: 'ABC', producer: 'MAN', name: 'Part', count: 2, price: 15 }]
+    expect(JSON.parse(createGroupJson({ supplier: 'Armtek', products })).products).toHaveLength(2)
+    const invoice = JSON.parse(createPurchaseJson({ supplier: 'Armtek', mode: 'purchase', currency: 'RUB', products }))
+    expect(invoice.products.map(row => [row.count, row.price])).toEqual([[1, 12], [2, 15]])
+    expect(invoice.partial).toBe(false)
+  })
   it('exports independent invoice positions as a purchase and prevents using cross-group import', () => {
     const invoice = { mode: 'purchase', supplier: 'Armtek', currency: 'RUB', partial: false, products: [
       { key: 'invoice:0', sku: 'SR1035', producer: 'ZEKKERT', name: 'Bearing\\', count: 1, price: 651, returnedCount: 0 },

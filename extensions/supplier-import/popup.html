@@ -20,14 +20,9 @@
     <details id="group-info"><summary data-i18n="groupInfo"></summary><p data-i18n="groupHint" class="muted"></p></details>
     <p id="loaded" class="notice"></p>
     <p id="skipped" class="notice" hidden></p>
-    <fieldset id="selection">
-      <legend data-i18n="sections"></legend>
-      <label><input type="checkbox" id="results"><span data-i18n="results"></span><span id="results-count"></span></label>
-      <label><input type="checkbox" id="replacements"><span data-i18n="replacements"></span><span id="replacements-count"></span></label>
-    </fieldset>
     <div class="table-scroll">
       <table>
-        <thead><tr><th><input id="all" type="checkbox"></th><th data-i18n="reference"></th><th data-i18n="name"></th><th id="count-header" data-i18n="count" hidden></th><th id="price-header" data-i18n="price" hidden></th></tr></thead>
+        <thead><tr><th data-i18n="reference"></th><th data-i18n="name"></th><th id="count-header" data-i18n="count" hidden></th><th id="price-header" data-i18n="price" hidden></th></tr></thead>
         <tbody id="products"></tbody>
       </table>
     </div>
@@ -35,7 +30,7 @@
   </section>
   <div id="export" hidden>
     <p id="summary" role="status"></p>
-    <footer><button id="copy" type="button" data-i18n="copy"></button><button id="download" type="button" class="primary" data-i18n="download"></button></footer>
+    <footer><button id="copy" type="button" class="primary" data-i18n="copy"></button></footer>
     <p id="import-hint" class="muted"></p>
   </div>
 </body>

@@ -34,6 +34,9 @@
             <div v-if="row.returnedCount" class="purchase-json-hint">{{ t('purchases.jsonImport.returned', { count: row.returnedCount }) }}</div>
           </template>
         </el-table-column>
+        <el-table-column width="52" fixed="right">
+          <template #default="{ row }"><el-button :icon="Delete" text type="danger" :disabled="busy || wrote" :aria-label="t('products.groupImport.removeRow')" :title="t('products.groupImport.removeRow')" @click="removeRow(row)" /></template>
+        </el-table-column>
       </el-table>
       <div class="purchase-json-pagination" :inert="busy"><ZeroPagination v-model:page="page" v-model:size="size" :has-next="(page + 1) * size < data.group.rows.length" /></div>
       <p role="status">{{ t('sales.jsonImport.summary', { count: data.group.rows.length, total: money(total) }) }}</p>
@@ -54,6 +57,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import { useDialogGuard } from '@/composables/useDialogGuard'
@@ -75,12 +79,12 @@ const canCreate = computed(() => hasPermission('ARTICLES_CREATE'))
 const raw = ref(''), error = ref(''), busy = ref(false), wrote = ref(false), reviewed = ref(false), needsResolve = ref(false)
 const data = ref<PurchaseImportData>()
 const page = ref(0), size = ref(20)
-const guard = useDialogGuard(open, busy, () => ({ raw: raw.value, rows: data.value?.group.rows.map(row => ({ name: row.name, producer: row.manualProducerId })) }))
+const guard = useDialogGuard(open, busy, () => ({ raw: raw.value, rows: data.value?.group.rows.map(row => ({ key: row.key, name: row.name, producer: row.manualProducerId })) }))
 const context = computed(() => JSON.stringify([props.currency?.id, props.storageCode]))
 const currencyMatches = computed(() => !!data.value && purchaseCurrencyMatches(data.value.currency, props.currency))
 const missing = computed(() => data.value?.group.rows.some(row => !row.productId) ?? false)
 const needsReview = computed(() => !!data.value && (data.value.partial || !data.value.currency || data.value.group.rows.some(row => row.returnedCount > 0)))
-const ready = computed(() => canRead.value && !!data.value && currencyMatches.value && !needsResolve.value && (!needsReview.value || reviewed.value)
+const ready = computed(() => canRead.value && !!data.value?.group.rows.length && currencyMatches.value && !needsResolve.value && (!needsReview.value || reviewed.value)
   && (!missing.value || canCreate.value) && data.value.group.rows.every(row => row.producerId && (row.productId || row.name.trim().length >= 3)))
 const visibleRows = computed(() => data.value?.group.rows.slice(page.value * size.value, (page.value + 1) * size.value) ?? [])
 const total = computed(() => (data.value?.group.rows.reduce((sum, row) => sum + Math.round(row.price * 100) * row.count, 0) ?? 0) / 100)
@@ -94,6 +98,13 @@ function message(cause: unknown) {
 }
 function selectProducer(row: PurchaseImportRow, id?: number) {
   row.manualProducerId = id; row.producerId = undefined; row.productId = undefined; row.productName = undefined; row.created = false; needsResolve.value = true
+}
+function removeRow(row: PurchaseImportRow) {
+  if (busy.value || wrote.value || !data.value) return
+  data.value.group.rows = data.value.group.rows.filter(item => item !== row)
+  page.value = Math.min(page.value, Math.max(0, Math.ceil(data.value.group.rows.length / size.value) - 1))
+  reviewed.value = false
+  error.value = ''
 }
 async function check() {
   if (busy.value || !canRead.value) return false

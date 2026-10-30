@@ -46,6 +46,11 @@
             <el-tag :type="row.productId ? 'success' : row.producerId ? 'info' : 'warning'">{{ t(`products.groupImport.${rowStatus(row)}`) }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column width="52" fixed="right">
+          <template #default="{ row }">
+            <el-button :icon="Delete" text type="danger" :disabled="busy || wrote || activeGroup.done" :aria-label="t('products.groupImport.removeRow')" :title="t('products.groupImport.removeRow')" @click="removeRow(row)" />
+          </template>
+        </el-table-column>
       </el-table>
       <div class="group-import-pagination" :inert="busy"><ZeroPagination v-model:page="page" v-model:size="size" :has-next="(page + 1) * size < (activeGroup?.rows.length ?? 0)" /></div>
       <p v-if="needsResolve" class="group-import-hint" role="status">{{ t('products.groupImport.recheckHint') }}</p>
@@ -77,6 +82,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import { useDialogGuard } from '@/composables/useDialogGuard'
@@ -166,6 +172,18 @@ function selectProducer(row: ProductImportRow, id: number | undefined) {
   row.productName = undefined
   row.created = false
   needsResolve.value = true
+}
+
+function removeRow(row: ProductImportRow) {
+  const group = activeGroup.value
+  if (busy.value || wrote.value || !group || group.done) return
+  group.rows = group.rows.filter(item => item !== row)
+  if (!group.rows.length) {
+    groups.value = groups.value.filter(item => item !== group)
+    groupIndex.value = Math.min(groupIndex.value, Math.max(0, groups.value.length - 1))
+  }
+  page.value = Math.min(page.value, Math.max(0, Math.ceil((activeGroup.value?.rows.length ?? 0) / size.value) - 1))
+  error.value = ''
 }
 
 async function run() {

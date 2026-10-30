@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { prepareSaleImport } from './saleJsonImport'
+import { prepareSaleImport, updateSaleImportCounts } from './saleJsonImport'
 import { saleImportStockExceeded, type SaleImportInput } from '@/models/saleJsonImport'
 import { resolveImportReferences } from '@/services/api/productImport'
 import { getProductsAvailableStock } from '@/services/api/products'
@@ -16,6 +16,17 @@ beforeEach(() => {
   vi.mocked(getProductsAvailableStock).mockImplementation(async ids => new Map(ids.map(id => [id, 10])))
 })
 describe('sale JSON preview', () => {
+  it('recalculates duplicate quantities after excluding a position without new requests', async () => {
+    const rows = await prepareSaleImport([{ ...input(), count: 7 }, { ...input(), count: 2 }], 'MAIN', [{ productId: 1, count: 3 }])
+    expect(rows.every(saleImportStockExceeded)).toBe(true)
+    rows.splice(0, 1)
+    vi.clearAllMocks()
+    updateSaleImportCounts(rows, [{ productId: 1, count: 3 }])
+    expect(rows[0]!.requestedCount).toBe(5)
+    expect(saleImportStockExceeded(rows[0]!)).toBe(false)
+    expect(resolveImportReferences).not.toHaveBeenCalled()
+    expect(getProductsAvailableStock).not.toHaveBeenCalled()
+  })
   it('uses supplier-free resolution and stock in the selected warehouse, preserving quantities and distinct prices', async () => {
     const rows = await prepareSaleImport([input(), { ...input('SKU1', 6000), count: 2 }], 'MAIN', [{ productId: 1, count: 4 }])
     expect(resolveImportReferences).toHaveBeenCalledWith([{ sku: 'SKU1', producerName: 'Dayco', supplier: null }, { sku: 'SKU1', producerName: 'Dayco', supplier: null }])
