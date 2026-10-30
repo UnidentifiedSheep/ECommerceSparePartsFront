@@ -1,11 +1,12 @@
 # SpareParts: supplier import
 
-Version 0.2.0. Chrome / Edge (Manifest V3). One extension, separate adapters per supplier.
+Version 0.3.0. Chrome / Edge (Manifest V3). One extension, separate adapters per supplier.
 
 | Supplier | Supported pages | JSON supplier |
 | --- | --- | --- |
 | Armtek | https://etp.armtek.ru search results | Armtek |
 | Truck Motors | https://market.tmtr.ru/goods/… | Tmtr |
+| Favorit Parts | https://lk.favorit-parts.ru/analogues/… | FavoritParts |
 
 ## Установка и использование
 

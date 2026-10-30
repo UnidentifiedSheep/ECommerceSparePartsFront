@@ -62,7 +62,8 @@ function render() {
   element('export').hidden = !result
   element('intro').hidden = !!result
   if (result) {
-    element('preview-heading').textContent = `${t('preview')} · ${result.supplier === 'Tmtr' ? 'Truck Motors' : result.supplier}`
+    const supplierName = { Tmtr: 'Truck Motors', FavoritParts: 'Favorit Parts', Armtek: 'Armtek' }[result.supplier] ?? result.supplier
+    element('preview-heading').textContent = `${t('preview')} · ${supplierName}`
     element('loaded').textContent = t(result.virtualized ? 'virtualized' : result.moreAvailable ? 'loaded' : 'complete')
     element('skipped').hidden = !result.skipped
     element('skipped').textContent = t('skipped', { count: result.skipped })

@@ -10,6 +10,7 @@
         <ul class="supplier-sites">
           <li><strong>Armtek</strong><code>etp.armtek.ru</code><span>{{ t('products.supplierExtension.searchPage') }}</span></li>
           <li><strong>Truck Motors</strong><code>market.tmtr.ru/goods/…</code><span>{{ t('products.supplierExtension.goodsPage') }}</span></li>
+          <li><strong>Favorit Parts</strong><code>lk.favorit-parts.ru/analogues/</code><span>{{ t('products.supplierExtension.goodsPage') }}</span></li>
         </ul>
         <el-alert :title="t('products.supplierExtension.loadedOnly')" type="info" :closable="false" show-icon />
       </section>

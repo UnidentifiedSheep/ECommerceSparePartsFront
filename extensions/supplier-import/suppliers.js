@@ -1,9 +1,11 @@
 import { collectArmtekPage } from './adapters/armtek.js'
 import { collectTmtrPage } from './adapters/tmtr.js'
+import { collectFavoritPage } from './adapters/favorit.js'
 
 export const supplierAdapters = [
   { host: 'etp.armtek.ru', supplier: 'Armtek', collect: collectArmtekPage, supports: () => true },
   { host: 'market.tmtr.ru', supplier: 'Tmtr', collect: collectTmtrPage, supports: path => /^\/goods\/[^/]+\/?$/.test(path) },
+  { host: 'lk.favorit-parts.ru', supplier: 'FavoritParts', collect: collectFavoritPage, supports: path => /^\/analogues(?:\/|$)/.test(path) },
 ]
 export function getSupplierAdapter(address) {
   let url

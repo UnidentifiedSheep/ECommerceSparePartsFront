@@ -43,4 +43,11 @@ describe('supplier extension export', () => {
     expect(manifest.content_scripts).toBeUndefined()
     expect(manifest.background).toBeUndefined()
   })
+  it('supports Favorit analogues and keeps its supplier mapping compatible with import', () => {
+    expect(getSupplierAdapter('https://lk.favorit-parts.ru/analogues/?id=123')?.supplier).toBe('FavoritParts')
+    expect(getSupplierAdapter('https://lk.favorit-parts.ru/analogues/123')?.supplier).toBe('FavoritParts')
+    for (const address of ['https://lk.favorit-parts.ru/analogues-other/', 'https://lk.favorit-parts.ru/search/', 'https://lk.favorit-parts.ru.example.org/analogues/', 'http://lk.favorit-parts.ru/analogues/']) expect(getSupplierAdapter(address)).toBeUndefined()
+    const product = { key: 'MFILTER:A152', producer: 'MFILTER', sku: 'A152', name: 'Air filter' }
+    expect(parseProductImport(createGroupJson({ supplier: 'FavoritParts', products: [product] }, new Set([product.key])))[0].supplier).toBe('FavoritParts')
+  })
 })
