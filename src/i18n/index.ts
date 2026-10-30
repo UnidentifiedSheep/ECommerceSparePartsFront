@@ -1740,6 +1740,15 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     sales: {
+      jsonImport: {
+        title: 'Импорт позиций из JSON',
+        hint: 'Вставьте массив с count, price, producer и uniValue. Цена — за единицу в выбранной валюте, без дополнительной скидки. Позиции добавятся к текущему черновику; продажа сохранится только после нажатия «Создать продажу».',
+        limit: 'До {rows} позиций. Количество — целое положительное число, цена — положительное число с запятой или точкой, до двух знаков после разделителя.',
+        add: 'Добавить в продажу', notFound: 'Товар не найден',
+        fixRows: 'Исправьте JSON: все товары должны быть найдены, а количества — доступны на выбранном складе. Уже добавленные позиции также учитываются.',
+        stockError: 'Всего нужно {count}, доступно {stock}', summary: 'Позиций: {count} · Сумма: {total}',
+        errors: { json: 'Проверьте JSON.', shape: 'Ожидается непустой массив позиций.', limit: 'Допускается до {rows} позиций и 2 МБ текста.', reference: 'Строка {row}: укажите производителя producer и артикул uniValue строками.', count: 'Строка {row}: count должен быть целым положительным числом.', price: 'Строка {row}: проверьте price — положительная цена с точностью до двух знаков и допустимая сумма.', resolve: 'Не удалось сопоставить ответ с позициями. Повторите проверку.' },
+      },
       title: 'Продажи',
       description: 'Список продаж, точные фильтры по покупателям, валютам и товарам.',
       create: 'Создать продажу',
@@ -3831,6 +3840,15 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     sales: {
+      jsonImport: {
+        title: 'Import positions from JSON',
+        hint: 'Paste an array with count, price, producer and uniValue. Prices are per unit in the selected currency, without an additional discount. Positions are appended to the current draft; the sale is saved only when you click Create sale.',
+        limit: 'Up to {rows} positions. Quantity must be a positive integer; price must be positive, with a comma or dot and up to two decimal places.',
+        add: 'Add to sale', notFound: 'Product not found',
+        fixRows: 'Correct the JSON: all products must be found and quantities available in the selected warehouse. Existing draft positions are also counted.',
+        stockError: 'Total required: {count}, available: {stock}', summary: 'Positions: {count} · Total: {total}',
+        errors: { json: 'Check the JSON.', shape: 'A non-empty array of positions is required.', limit: 'Up to {rows} positions and 2 MB of text are allowed.', reference: 'Row {row}: supply producer and uniValue as strings.', count: 'Row {row}: count must be a positive integer.', price: 'Row {row}: check price — it must be positive with up to two decimal places and a valid total.', resolve: 'The response could not be matched to the positions. Check again.' },
+      },
       title: 'Sales',
       description: 'Sales list with precise filters by buyers, currencies, and products.',
       create: 'Create sale',
@@ -5922,6 +5940,15 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     sales: {
+      jsonImport: {
+        title: "JSON'dan kalem içe aktar",
+        hint: 'count, price, producer ve uniValue içeren bir dizi yapıştırın. Fiyatlar seçilen para biriminde, ek indirim olmadan birim fiyatıdır. Kalemler mevcut taslağa eklenir; satış yalnızca Satış oluştur düğmesine basıldığında kaydedilir.',
+        limit: 'En fazla {rows} kalem. Miktar pozitif tam sayı; fiyat pozitif, virgül veya nokta ile en fazla iki ondalık basamak olmalıdır.',
+        add: 'Satışa ekle', notFound: 'Ürün bulunamadı',
+        fixRows: "JSON'u düzeltin: tüm ürünler bulunmalı ve miktarlar seçilen depoda mevcut olmalıdır. Taslaktaki mevcut kalemler de hesaba katılır.",
+        stockError: 'Toplam gerekli: {count}, mevcut: {stock}', summary: 'Kalem: {count} · Toplam: {total}',
+        errors: { json: "JSON'u kontrol edin.", shape: 'Boş olmayan bir kalem dizisi gereklidir.', limit: 'En fazla {rows} kalem ve 2 MB metin kabul edilir.', reference: 'Satır {row}: producer ve uniValue metin olmalıdır.', count: 'Satır {row}: count pozitif tam sayı olmalıdır.', price: 'Satır {row}: price pozitif, en fazla iki ondalık basamaklı ve toplam geçerli olmalıdır.', resolve: 'Yanıt kalemlerle eşleştirilemedi. Tekrar kontrol edin.' },
+      },
       title: 'Satışlar',
       description: 'Alıcı, para birimi ve ürünlere göre kesin filtreli satış listesi.',
       create: 'Satış oluştur',
