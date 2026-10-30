@@ -6,7 +6,7 @@
     <main class="supplier-extensions-content">
       <section class="supplier-extensions-panel">
         <h2>{{ t('products.supplierExtension.sites') }}</h2>
-        <p class="supplier-extensions-meta">Chrome / Edge</p>
+        <p class="supplier-extensions-meta">Chrome / Edge / Firefox</p>
         <ul class="supplier-sites">
           <li><strong>Armtek</strong><code>etp.armtek.ru</code><span>{{ t('products.supplierExtension.armtekPages') }}</span></li>
           <li><strong>Truck Motors</strong><code>market.tmtr.ru/goods/…</code><span>{{ t('products.supplierExtension.goodsPage') }}</span></li>
@@ -18,7 +18,10 @@
         <h2>{{ t('products.supplierExtension.installTitle') }}</h2>
         <ol>
           <li>{{ t('products.supplierExtension.extract') }}</li>
-          <li>{{ t('products.supplierExtension.extensions') }} <code>chrome://extensions</code> / <code>edge://extensions</code>.</li>
+          <li>
+            {{ t('products.supplierExtension.extensions') }} <code>chrome://extensions</code> / <code>edge://extensions</code>.
+            <p>Firefox: <code>about:debugging#/runtime/this-firefox</code> — {{ t('products.supplierExtension.firefoxLoad') }}</p>
+          </li>
           <li>{{ t('products.supplierExtension.load') }}</li>
           <li>{{ t('products.supplierExtension.collect') }}</li>
           <li>{{ t('products.supplierExtension.import') }}</li>
