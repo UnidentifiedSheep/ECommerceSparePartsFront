@@ -222,6 +222,19 @@ query ProductContents($id: Int!) {
   products { byId(id: $id) { id contents { quantity product { ...ProductListFields images } } } }
 }
 
+query ResolveProductReferences($references: [ProductReferenceInput!]!) {
+  products {
+    resolve(references: $references) {
+      sku
+      producerName
+      supplier
+      productId
+      producer { id name }
+      product { id sku name }
+    }
+  }
+}
+
 query ProductCrosses($id: Int!, $input: ProductCrossesInput!) {
   products { byId(id: $id) { id crosses(input: $input) { ...ProductListFields } } }
 }

@@ -10,6 +10,9 @@
     :close-on-press-escape="!isBusy"
     :show-close="!isBusy"
   >
+    <div v-if="canImportGroups" class="creation-toolbar__actions">
+      <el-button :disabled="isBusy" @click="importOpen = true">{{ t('products.groupImport.title') }}</el-button>
+    </div>
     <nav v-if="canCreateProducts && canCreateCrosses" class="creation-tabs" :aria-label="t('products.crossesWizard.title')">
       <button type="button" :class="{ 'is-active': activeStep === 0 }" :aria-current="activeStep === 0 ? 'step' : undefined" :disabled="isBusy" @click="activeStep = 0">
         {{ t('products.crossesWizard.products') }}
@@ -149,6 +152,7 @@
     </template>
     <ProductSelectorDialog v-model="productSelectorOpen" @select="selectProduct" />
   </el-dialog>
+  <ProductGroupImportDialog v-if="canImportGroups" v-model="importOpen" @saved="emit('saved')" />
 </template>
 
 <script setup lang="ts">
@@ -159,6 +163,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
 import ProductGroupSelector from '@/components/selectors/ProductGroupSelector.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
+import ProductGroupImportDialog from '@/components/products/ProductGroupImportDialog.vue'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import {
@@ -221,6 +226,8 @@ const canLinkCreated = computed(() => createdProducts.value.length >= 2 || Boole
 let productRowCounter = 0
 let crossRowCounter = 0
 const { hasPermission } = usePermissions()
+const canImportGroups = computed(() => hasPermission('ARTICLES_GET_MAIN') && hasPermission('ARTICLES_CREATE', 'ARTICLE_CROSSES_CREATE'))
+const importOpen = ref(false)
 const canCreateProducts = computed(() => hasPermission('ARTICLES_CREATE'))
 const canCreateCrosses = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
 
