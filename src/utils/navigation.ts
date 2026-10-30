@@ -21,6 +21,7 @@ export const navigationEntries: NavigationEntry[] = [
   { path: '/markups', label: 'nav.markup', icon: Money, permissions: ['MARKUP_GET'] },
   { path: '/price-appliers', label: 'nav.priceAppliers', icon: Coin, permissions: ['PRICE_APPLIERS_MANAGE'] },
   { path: '/jobs', label: 'nav.jobs', icon: Tickets, permissions: ['JOBS_GET'] },
+  { path: '/extensions', label: 'nav.extensions', icon: Box, permissions: [] },
   { path: '/documents', label: 'nav.documents', icon: Document, permissions: ['DOCUMENTS_ME', 'DOCUMENTS_ALL'] },
   { path: '/settings', label: 'settings.title', icon: Setting, permissions: [] },
 ]

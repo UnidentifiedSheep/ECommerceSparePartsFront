@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 const root = new URL('../extensions/supplier-import/', import.meta.url)
-const names = ['manifest.json', 'popup.html', 'popup.css', 'popup.js', 'messages.js', 'export.js', 'adapters/armtek.js', '_locales/ru/messages.json', '_locales/en/messages.json', '_locales/tr/messages.json', 'README.md']
+const names = ['manifest.json', 'popup.html', 'popup.css', 'popup.js', 'messages.js', 'export.js', 'suppliers.js', 'adapters/armtek.js', 'adapters/tmtr.js', '_locales/ru/messages.json', '_locales/en/messages.json', '_locales/tr/messages.json', 'README.md']
 const crcTable = Array.from({ length: 256 }, (_, index) => {
   let value = index
   for (let bit = 0; bit < 8; bit++) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1

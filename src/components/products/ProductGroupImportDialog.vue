@@ -2,7 +2,6 @@
   <el-dialog v-model="open" :title="t('products.groupImport.title')" width="min(1180px, calc(100vw - 24px))" top="4vh"
     append-to-body destroy-on-close :before-close="guard.beforeClose" :close-on-click-modal="false" :close-on-press-escape="!busy" :show-close="!busy" class="group-import-dialog">
     <p class="group-import-hint">{{ t('products.groupImport.hint') }}</p>
-    <el-button link type="primary" :disabled="busy" @click="extensionOpen = true">{{ t('products.supplierExtension.title') }}</el-button>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="group-import-alert" />
     <el-alert v-if="complete && stage === 'review'" :title="t('products.groupImport.complete')" type="success" :closable="false" show-icon class="group-import-alert" />
 
@@ -74,13 +73,11 @@
       </div>
     </template>
   </el-dialog>
-  <SupplierExtensionDialog v-model="extensionOpen" />
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import ProducerSelector from '@/components/selectors/ProducerSelector.vue'
-import SupplierExtensionDialog from '@/components/products/SupplierExtensionDialog.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import { useDialogGuard } from '@/composables/useDialogGuard'
 import { usePermissions } from '@/composables/usePermissions'
@@ -96,7 +93,6 @@ const canRead = computed(() => hasPermission('ARTICLES_GET_MAIN'))
 const canCreate = computed(() => hasPermission('ARTICLES_CREATE'))
 const canLink = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
 const raw = ref('')
-const extensionOpen = ref(false)
 const groups = ref<ProductImportGroup[]>([])
 const stage = ref<'input' | 'review'>('input')
 const groupIndex = ref(0)

@@ -12,9 +12,6 @@
               <el-dropdown-item v-if="canImportGroups" command="import" :icon="Upload">
                 {{ t('products.groupImport.title') }}
               </el-dropdown-item>
-              <el-dropdown-item v-if="canImportGroups" command="extension">
-                {{ t('products.supplierExtension.title') }}
-              </el-dropdown-item>
               <el-dropdown-item command="groups" :divided="canCreateProducts">
                 {{ t('products.manageGroups') }}
               </el-dropdown-item>
@@ -370,7 +367,6 @@
 
     <CreateProductsCrossesDialog v-if="canCreateProducts" v-model="createDialogOpen" @saved="loadProducts" />
     <ProductGroupImportDialog v-if="canImportGroups" v-model="importDialogOpen" @saved="loadProducts" />
-    <SupplierExtensionDialog v-if="canImportGroups" v-model="extensionDialogOpen" />
     <ProductGroupsDrawer v-model="groupsDrawerOpen" :can-edit="canManageDetails" @saved="onProductGroupSaved" />
     <CharacteristicsDrawer v-if="canViewCharacteristics" v-model="characteristicsDrawerOpen" :can-edit="canManageDetails" />
     <ProductQuickViewDrawer
@@ -404,7 +400,6 @@ import DataLoadError from '@/components/common/DataLoadError.vue'
 import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
 import ProductGroupImportDialog from '@/components/products/ProductGroupImportDialog.vue'
-import SupplierExtensionDialog from '@/components/products/SupplierExtensionDialog.vue'
 import ProductGroupsDrawer from '@/components/products/ProductGroupsDrawer.vue'
 import CharacteristicsDrawer from '@/components/products/CharacteristicsDrawer.vue'
 import ProductCriteriaFilters from '@/components/products/ProductCriteriaFilters.vue'
@@ -492,7 +487,6 @@ const loadError = ref<DataLoadErrorKind | null>(null)
 const producerNames = ref<Record<number, string>>({})
 const createDialogOpen = ref(false)
 const importDialogOpen = ref(false)
-const extensionDialogOpen = ref(false)
 const groupsDrawerOpen = ref(false)
 const characteristicsDrawerOpen = ref(false)
 const productGroupsRevision = ref(0)
@@ -912,8 +906,6 @@ function setSingleProducer(producerId?: number) {
 function handleProductsAction(command: string) {
   if (command === 'import' && canImportGroups.value) {
     importDialogOpen.value = true
-  } else if (command === 'extension' && canImportGroups.value) {
-    extensionDialogOpen.value = true
   } else if (command === 'create' && canCreateProducts.value) {
     createDialogOpen.value = true
   } else if (command === 'groups') {

@@ -1,4 +1,4 @@
 {
   "extensionName": { "message": "SpareParts — tedarikçi içe aktarma" },
-  "extensionDescription": { "message": "SpareParts için Armtek kros grubunu JSON olarak dışa aktarın." }
+  "extensionDescription": { "message": "SpareParts için Armtek ve Truck Motors kros gruplarını JSON olarak dışa aktarın." }
 }

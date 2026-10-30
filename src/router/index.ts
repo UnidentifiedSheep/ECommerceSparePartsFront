@@ -22,6 +22,7 @@ import RolesView from '@/views/RolesView.vue'
 import SalesView from '@/views/SalesView.vue'
 import ServiceSettingsView from '@/views/ServiceSettingsView.vue'
 import SettingsView from '@/views/SettingsView.vue'
+import SupplierExtensionsView from '@/views/SupplierExtensionsView.vue'
 import StoragesView from '@/views/StoragesView.vue'
 import TransactionsView from '@/views/TransactionsView.vue'
 import UsersView from '@/views/UsersView.vue'
@@ -142,6 +143,12 @@ const routes = [
         path: '/jobs',
         name: 'jobs',
         component: JobsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/extensions',
+        name: 'supplier-extensions',
+        component: SupplierExtensionsView,
         meta: { requiresAuth: true },
       },
       {

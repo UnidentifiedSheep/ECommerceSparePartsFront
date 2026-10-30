@@ -91,6 +91,7 @@
 
       <el-menu-item v-if="canOpen('/jobs')" index="/jobs" @click="openRoute('/jobs')"><span class="main-nav__item-label" :title="t('nav.jobs')">{{ t('nav.jobs') }}</span><PinMenuButton path="/jobs" /></el-menu-item>
       <el-menu-item v-if="canViewDocuments" index="/documents" @click="openRoute('/documents')"><span class="main-nav__item-label" :title="t('nav.documents')">{{ t('nav.documents') }}</span><PinMenuButton path="/documents" /></el-menu-item>
+      <el-menu-item v-if="canOpen('/extensions')" index="/extensions" @click="openRoute('/extensions')"><span class="main-nav__item-label" :title="t('nav.extensions')">{{ t('nav.extensions') }}</span><PinMenuButton path="/extensions" /></el-menu-item>
     </el-sub-menu>
   </el-menu>
 </template>
@@ -133,7 +134,7 @@ function canOpen(path: string) {
 const operationsRoutes = ['/purchases', '/sales', '/reservations', '/transactions']
 const adminRoutes = ['/users', '/organizations', '/roles', '/permissions', '/currencies', '/service-settings']
 const pricingRoutes = ['/markups', '/price-appliers']
-const controlRoutes = ['/jobs', '/documents']
+const controlRoutes = ['/jobs', '/documents', '/extensions']
 
 const activeMenuIndex = computed(() => activeNavigationPath(route.path) ?? route.path)
 const menu = ref<MenuInstance>()

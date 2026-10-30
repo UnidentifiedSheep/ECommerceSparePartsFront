@@ -1,34 +1,39 @@
-# SpareParts: Armtek
+# SpareParts: supplier import
 
-Version 0.1.0. Chrome / Edge (Manifest V3).
+Version 0.2.0. Chrome / Edge (Manifest V3). One extension, separate adapters per supplier.
 
-## Установка
+| Supplier | Supported pages | JSON supplier |
+| --- | --- | --- |
+| Armtek | https://etp.armtek.ru search results | Armtek |
+| Truck Motors | https://market.tmtr.ru/goods/… | Tmtr |
 
-1. Распакуйте ZIP в отдельную папку. Файл manifest.json должен лежать в её корне.
+## Установка и использование
+
+1. В SpareParts откройте Контроль → Расширения. Скачайте ZIP и распакуйте в отдельную папку.
 2. Откройте chrome://extensions (Chrome) или edge://extensions (Edge).
-3. Включите режим разработчика, нажмите «Загрузить распакованное расширение» и выберите эту папку.
-4. Откройте результаты поиска товара на https://etp.armtek.ru и нажмите значок расширения.
-5. Нажмите «Собрать со страницы», проверьте разделы и выбранные товары, скопируйте или скачайте JSON.
-6. В SpareParts откройте Товары → ⋯ → Импорт групп из JSON и вставьте данные.
+3. Включите режим разработчика, нажмите «Загрузить распакованное расширение» и выберите папку с manifest.json.
+4. Откройте поддерживаемую страницу поставщика, нажмите значок расширения → «Собрать со страницы».
+5. Проверьте поставщика, разделы и выбранные товары. Скопируйте или скачайте JSON.
+6. В SpareParts откройте Товары → ⋯ → Импорт групп из JSON, вставьте данные и проверьте их перед записью.
+
+Расширение читает только строки, присутствующие в DOM страницы. На Armtek сначала загрузите нужные результаты кнопкой «Показать ещё» и повторите сбор. На Truck Motors аналоги находятся в виртуальном списке: прокрутка может менять набор присутствующих строк, сбор не гарантирует все аналоги. Проверьте состав в предпросмотре. Автоматической прокрутки и накопления строк между сборами нет.
+
+Повторы предложений одного артикула и производителя удаляются. Можно исключить раздел аналогов/замен и отдельные товары. До 1000 выбранных товаров экспортируются одной группой. При импорте полные кроссы объединят также существующие группы. Корзина и заказы для закупок пока не поддерживаются.
 
 Для обновления замените файлы в той же папке и нажмите «Обновить» на карточке расширения.
 
-Расширение читает только загруженные строки таблицы поиска. Для остальных результатов сначала нажмите «Показать ещё» на Armtek и повторите сбор. Скрытые фильтрами строки не включаются. Повторы предложений одного артикула и производителя удаляются. Можно исключить раздел «Возможные замены» и отдельные товары. Выбранные товары экспортируются одной группой, до 1000 товаров. Перед записью фронт снова показывает предпросмотр; полные кроссы объединят также существующие группы.
+## Installation and use
 
-Сейчас поддержан только сбор группы товаров из поиска Armtek. Корзина и заказы для закупки пока не поддерживаются.
+In SpareParts, open Control → Extensions, download and extract the ZIP. In chrome://extensions or edge://extensions, enable Developer mode and Load unpacked. Select the folder containing manifest.json. Open a supported supplier page, click the extension, collect and review products, then copy or download JSON. In SpareParts use Products → ⋯ → Import groups from JSON. Replace files in the same folder and reload the extension to update.
 
-## Installation
+Only rows currently in the DOM are collected. On Armtek, load more results before collecting. Truck Motors alternatives use a virtual list: scrolling may replace rows; the collected group is not guaranteed to include all alternatives. There is no automatic scrolling or accumulation between scans. Review the group. Duplicate offers are removed; select sections and products. Up to 1000 selected products form one cross-reference group, including existing groups when imported. Purchase cart/order export is not supported yet.
 
-Extract the ZIP. In chrome://extensions or edge://extensions, enable Developer mode, choose Load unpacked and select the folder containing manifest.json. Open Armtek product search results, click the extension, collect and review products, then copy or download JSON. In SpareParts use Products → ⋯ → Import groups from JSON. To update, replace files in the same folder and reload the extension.
+## Kurulum ve kullanım
 
-Only loaded search rows are collected. Load more results on Armtek and collect again if needed. Filtered-out rows are excluded. Duplicate offers are removed; select sections and individual products before export. A maximum of 1000 selected products form one cross-reference group, including existing cross-reference groups when imported. Cart/order purchase export is not supported yet.
+SpareParts üzerinde Kontrol → Eklentiler sayfasından ZIP'i indirip çıkarın. chrome://extensions veya edge://extensions üzerinde Geliştirici modunu açın ve Paketlenmemiş öğe yükle seçeneğiyle manifest.json içeren klasörü seçin. Desteklenen tedarikçi sayfasında eklentiyi açın, ürünleri toplayıp kontrol edin; JSON'u kopyalayın veya indirin. SpareParts üzerinde Ürünler → ⋯ → JSON'dan grup içe aktar seçeneğini kullanın. Güncellemek için aynı klasördeki dosyaları değiştirip eklentiyi yeniden yükleyin.
 
-## Kurulum
+Yalnızca şu anda DOM'da bulunan satırlar toplanır. Armtek üzerinde önce daha fazla sonuç yükleyin. Truck Motors sanal liste kullanır: kaydırma satırları değiştirebilir; tüm alternatifler dahil olmayabilir. Otomatik kaydırma veya toplamalar arasında biriktirme yoktur. Grubu kontrol edin. Tekrarlanan teklifler çıkarılır, bölümler ve ürünler seçilebilir. En fazla 1000 seçili ürün bir grup oluşturur; mevcut kros grupları da birleştirilir. Sepet/sipariş üzerinden satın alma aktarımı henüz desteklenmez.
 
-ZIP'i çıkarın. chrome://extensions veya edge://extensions üzerinde Geliştirici modunu açın, Paketlenmemiş öğe yükle seçeneğiyle manifest.json içeren klasörü seçin. Armtek ürün arama sonuçlarında eklentiyi açıp ürünleri toplayın ve kontrol edin; JSON'u kopyalayın veya indirin. SpareParts üzerinde Ürünler → ⋯ → JSON'dan grup içe aktar seçeneğini kullanın. Güncellemek için aynı klasördeki dosyaları değiştirip eklentiyi yeniden yükleyin.
+## Access and adding suppliers
 
-Yalnızca yüklenen arama satırları toplanır. Gerekirse Armtek üzerinde daha fazla sonuç yükleyip tekrar toplayın. Filtrelerle gizlenen satırlar dahil edilmez. Tekrarlanan teklifler çıkarılır; bölümleri ve ürünleri seçebilirsiniz. En fazla 1000 seçili ürün bir kros grubu oluşturur; içe aktarılırken mevcut gruplar da birleştirilir. Sepet/sipariş üzerinden satın alma aktarımı henüz desteklenmez.
-
-## Access
-
-No backend connection, account tokens, cookies or background collection. Reading happens only after clicking Collect from page, using activeTab and scripting. Clipboard access is used only by Copy JSON. Supplier detection requires the exact https://etp.armtek.ru hostname. Opening the popup alone does not read page contents. Exports contain only supplier, producer, sku and name. All code is packaged locally; no remote scripts or network calls.
+No backend connection, tokens, cookies, remote scripts or background collection. Reading happens after clicking Collect from page, using activeTab and scripting. Clipboard access is used by Copy JSON. Exact HTTPS hosts and supported paths select adapters in suppliers.js. Collectors in adapters/ are self-contained functions for the browser's isolated world. Exports contain only supplier, producer, sku and name. Add an adapter and registry entry, update supported-page instructions/translations, bump the manifest version and include the adapter in the archive builder.

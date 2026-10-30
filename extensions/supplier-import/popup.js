@@ -1,5 +1,5 @@
 /* global chrome */
-import { collectArmtekPage } from './adapters/armtek.js'
+import { getSupplierAdapter } from './suppliers.js'
 import { createGroupJson, maxGroupProducts } from './export.js'
 import { messages } from './messages.js'
 
@@ -62,7 +62,8 @@ function render() {
   element('export').hidden = !result
   element('intro').hidden = !!result
   if (result) {
-    element('loaded').textContent = t(result.moreAvailable ? 'loaded' : 'complete')
+    element('preview-heading').textContent = `${t('preview')} · ${result.supplier === 'Tmtr' ? 'Truck Motors' : result.supplier}`
+    element('loaded').textContent = t(result.virtualized ? 'virtualized' : result.moreAvailable ? 'loaded' : 'complete')
     element('skipped').hidden = !result.skipped
     element('skipped').textContent = t('skipped', { count: result.skipped })
   }
@@ -71,12 +72,12 @@ function render() {
 async function readPage(expected) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   if (expected && (tab?.id !== expected.id || tab?.url !== expected.url)) throw new Error('changed')
-  let url
-  try { url = new URL(tab?.url ?? '') } catch { throw new Error('unsupported') }
-  if (url.protocol !== 'https:' || url.hostname !== 'etp.armtek.ru' || tab.id == null) throw new Error('unsupported')
-  const [execution] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: collectArmtekPage })
+  const adapter = getSupplierAdapter(tab?.url ?? '')
+  if (!adapter || tab.id == null) throw new Error('unsupported')
+  const [execution] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: adapter.collect })
   const data = execution?.result
   if (!data?.ok) throw new Error(['unsupported', 'notSearch', 'empty', 'limit'].includes(data?.code) ? data.code : 'readFailed')
+  if (data.supplier !== adapter.supplier) throw new Error('readFailed')
   return { data, tab: { id: tab.id, url: tab.url } }
 }
 function readError(cause) { return ['unsupported', 'notSearch', 'empty', 'limit', 'changed'].includes(cause?.message) ? cause.message : 'readFailed' }
@@ -101,11 +102,11 @@ async function exportGroup(mode) {
     result = undefined; selected.clear(); busy = false; showStatus(readError(cause), {}, true); render(); return
   }
   try {
-    const json = createGroupJson(result.products, selected)
+    const json = createGroupJson(result, selected)
     if (mode === 'copy') { await navigator.clipboard.writeText(json); showStatus('copied') }
     else {
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json;charset=utf-8' }))
-      const link = document.createElement('a'); link.href = url; link.download = `Armtek-crosses-${new Date().toISOString().slice(0, 10)}.json`
+      const link = document.createElement('a'); link.href = url; link.download = `${result.supplier}-crosses-${new Date().toISOString().slice(0, 10)}.json`
       document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000)
       showStatus('downloaded')
     }
