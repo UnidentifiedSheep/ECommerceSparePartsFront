@@ -20,6 +20,42 @@ describe('product group import input', () => {
     expect(groups[1]!.rows).toHaveLength(2)
   })
 
+  it('imports a legacy product array as one supplier-free group and preserves names', () => {
+    const name = 'штуцер прямой! под трубку 8 мм М12х1.5\\'
+    const groups = parseProductImport(JSON.stringify([
+      { name: 'Фитинг м12х1,5 D=8х1', producer: 'STARTEC', uniValue: 'INF211208' },
+      { name, producer: 'STELLOX', uniValue: '8521306SX' },
+      { name, producer: 'stellox', uniValue: '852-1306 SX' },
+    ]))
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({ supplier: null, duplicates: 1, rows: [
+      { sku: 'INF211208', producer: 'STARTEC', name: 'Фитинг м12х1,5 D=8х1' },
+      { sku: '8521306SX', producer: 'STELLOX', name },
+    ] })
+  })
+
+  it('supports sku and uniValue together while preferring an explicitly supplied sku', () => {
+    const groups = parseProductImport(JSON.stringify({ products: [
+      product('FIRST'), { producer: 'MAN', uniValue: 'SECOND' }, { ...product('THIRD'), uniValue: 'IGNORED' },
+    ] }))
+    expect(groups[0]!.rows.map(row => row.sku)).toEqual(['FIRST', 'SECOND', 'THIRD'])
+    expect(() => parseProductImport(JSON.stringify([{ producer: 'MAN', sku: '', uniValue: 'VALID' }]))).toThrow(ProductImportIssue)
+  })
+
+  it('applies product limits rather than group limits to legacy arrays', () => {
+    const products = Array.from({ length: importLimits.perGroup }, (_, index) => ({ producer: 'MAN', uniValue: `SKU${index}` }))
+    expect(parseProductImport(JSON.stringify(products))[0]!.rows).toHaveLength(importLimits.perGroup)
+    expect(() => parseProductImport(JSON.stringify([...products, products[0]]))).toThrowError(expect.objectContaining({ code: 'productsLimit' }))
+  })
+
+  it.each([
+    { values: [{ producer: 'MAN', uniValue: 123 }] },
+    { values: [{ producer: 'MAN', uniValue: '---' }] },
+    { values: [product(), { products: [product()] }] },
+  ])('rejects invalid legacy rows and mixed group/product arrays: $values', ({ values }) => {
+    expect(() => parseProductImport(JSON.stringify(values))).toThrow(ProductImportIssue)
+  })
+
   it.each(['{', 'null', '[]', '{}', '{"products":[]}', '{"supplier":"Other","products":[{}]}'])('rejects malformed or unsupported input %s', text => {
     expect(() => parseProductImport(text)).toThrow(ProductImportIssue)
   })

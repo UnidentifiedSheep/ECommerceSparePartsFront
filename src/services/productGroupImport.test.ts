@@ -32,6 +32,22 @@ beforeEach(() => {
 })
 
 describe('product group import execution', () => {
+  it('resolves legacy references without a supplier and links existing and new products in one group', async () => {
+    database.set(key('INF211208', 1), { id: 10, name: 'Existing fitting' })
+    const groups = parseProductImport(JSON.stringify([
+      { name: 'Фитинг м12х1,5 D=8х1', producer: 'STARTEC', uniValue: 'INF211208' },
+      { name: 'Штуцер прямой', producer: 'STELLOX', uniValue: '8521306SX' },
+    ]))
+    await executeProductImport(groups, access, vi.fn(), vi.fn())
+    expect(vi.mocked(resolveImportReferences).mock.calls[0]![0]).toEqual([
+      { sku: 'INF211208', producerName: 'STARTEC', supplier: null },
+      { sku: '8521306SX', producerName: 'STELLOX', supplier: null },
+    ])
+    expect(createProducts).toHaveBeenCalledWith({ newProducts: [{ sku: '8521306SX', name: 'Штуцер прямой', producerId: 1 }] })
+    expect(createProductCrosses).toHaveBeenCalledWith({ linkages: [{ productId: 10, crossProductId: 100, linkageType: 'FullCross' }] })
+    expect(groups[0]!.done).toBe(true)
+  })
+
   it('resolves supplier context, creates only missing products, deduplicates aliases and links full groups', async () => {
     database.set(key('OLD', 1), { id: 10, name: 'Existing' })
     const groups = input([[{ sku: 'OLD' }, { sku: 'NEW' }, { sku: 'NEW', producer: 'ALIAS' }]])

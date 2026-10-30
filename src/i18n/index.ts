@@ -1396,7 +1396,7 @@ const messages: Record<AppLocale, MessageTree> = {
       sizeDeletedMessage: 'Размеры продукта удалены.',
       groupImport: {
         title: 'Импорт групп из JSON',
-        hint: 'Вставьте одну группу с supplier и products или массив групп. Найденные товары используются без изменения; недостающие будут созданы после проверки.',
+        hint: 'Вставьте группу с products и необязательным supplier или массив групп. Старый формат — массив товаров с uniValue вместо sku — обрабатывается как одна группа без поставщика. Найденные товары используются без изменения; недостающие будут созданы после проверки.',
         jsonLabel: 'Данные из плагина',
         limits: 'До {groups} групп, {perGroup} товаров в группе и {total} товаров за импорт.',
         group: 'Группа', groupNumber: 'Группа {number}', noSupplier: 'Без поставщика', done: 'Готово',
@@ -3487,7 +3487,7 @@ const messages: Record<AppLocale, MessageTree> = {
       sizeDeletedMessage: 'Product dimensions deleted.',
       groupImport: {
         title: 'Import groups from JSON',
-        hint: 'Paste one group with supplier and products, or an array of groups. Existing products stay unchanged; missing products will be created after review.',
+        hint: 'Paste a group with products and an optional supplier, or an array of groups. The legacy format — an array of products with uniValue instead of sku — is treated as one group without a supplier. Existing products stay unchanged; missing products will be created after review.',
         jsonLabel: 'Plugin data',
         limits: 'Up to {groups} groups, {perGroup} products per group and {total} products per import.',
         group: 'Group', groupNumber: 'Group {number}', noSupplier: 'No supplier', done: 'Done',
@@ -5578,7 +5578,7 @@ const messages: Record<AppLocale, MessageTree> = {
       sizeDeletedMessage: 'Ürün ölçüleri silindi.',
       groupImport: {
         title: "JSON'dan grup içe aktar",
-        hint: 'supplier ve products içeren bir grup veya grup dizisi yapıştırın. Mevcut ürünler değiştirilmez; eksik ürünler kontrolden sonra oluşturulur.',
+        hint: 'products ve isteğe bağlı supplier içeren bir grup veya grup dizisi yapıştırın. Eski biçim — sku yerine uniValue içeren ürün dizisi — tedarikçisiz tek grup olarak işlenir. Mevcut ürünler değiştirilmez; eksik ürünler kontrolden sonra oluşturulur.',
         jsonLabel: 'Eklenti verileri',
         limits: 'En fazla {groups} grup, grup başına {perGroup} ve toplam {total} ürün.',
         group: 'Grup', groupNumber: 'Grup {number}', noSupplier: 'Tedarikçi yok', done: 'Tamam',
