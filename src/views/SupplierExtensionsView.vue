@@ -1,12 +1,12 @@
 <template>
   <div class="supplier-extensions-page">
     <PageHeader :title="t('products.supplierExtension.title')" :description="t('products.supplierExtension.description')">
-      <template #actions><a :href="downloadUrl" download="SpareParts-supplier-import.zip" class="el-button el-button--primary">{{ t('products.supplierExtension.download') }}</a></template>
+      <template #actions><a :href="downloadUrl" class="el-button el-button--primary">{{ t('products.supplierExtension.download') }}</a></template>
     </PageHeader>
     <main class="supplier-extensions-content">
       <section class="supplier-extensions-panel">
         <h2>{{ t('products.supplierExtension.sites') }}</h2>
-        <p class="supplier-extensions-meta">Chrome / Edge · v{{ manifest.version }}</p>
+        <p class="supplier-extensions-meta">Chrome / Edge</p>
         <ul class="supplier-sites">
           <li><strong>Armtek</strong><code>etp.armtek.ru</code><span>{{ t('products.supplierExtension.armtekPages') }}</span></li>
           <li><strong>Truck Motors</strong><code>market.tmtr.ru/goods/…</code><span>{{ t('products.supplierExtension.goodsPage') }}</span></li>
@@ -32,9 +32,8 @@
 <script setup lang="ts">
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useI18n } from '@/i18n'
-import manifest from '../../extensions/supplier-import/manifest.json'
 const { t } = useI18n()
-const downloadUrl = `${import.meta.env.BASE_URL}downloads/supplier-import-extension.zip?v=${manifest.version}`
+const downloadUrl = 'https://github.com/UnidentifiedSheep/ecommerce-extensions/releases/latest/download/supplier-import-extension.zip'
 </script>
 
 <style scoped>

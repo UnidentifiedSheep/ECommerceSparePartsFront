@@ -4,9 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "extension:build": "node scripts/build-supplier-extension.mjs",
-    "predev": "npm run extension:build",
-    "prebuild-only": "npm run extension:build",
     "graphql:codegen": "graphql-codegen --config codegen.ts",
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
