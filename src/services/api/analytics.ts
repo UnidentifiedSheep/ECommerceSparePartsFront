@@ -1,78 +1,9 @@
-import api, { analyticsApiPrefix, clampPageSize } from '@/services/api/api.ts'
-import { normalizeObjectSchema, type ObjectSchema, type SchemaUiField } from '@/models/schemaModel.ts'
-
-export type CalculationStatus =
-  | 'Pending'
-  | 'Locked'
-  | 'Processing'
-  | 'Failed'
-  | 'Succeeded'
-  | 'Cancelled'
-  | 'Calculating'
-  | 'AwaitingWorker'
-
-type CalculationStatusDto = CalculationStatus | 0 | 1 | 2 | 3 | 4 | 5
-
-export interface MetricInfoModel {
-  systemName: string
-  name: string
-  description: string
-  inputSchema: ObjectSchema
-}
-
-export type MetricSchemaField = SchemaUiField
-export type MetricInitStateSchema = ObjectSchema
-
-export type MetricSortBy =
-  | 'id_asc'
-  | 'id_desc'
-  | 'createdAt_asc'
-  | 'createdAt_desc'
-  | 'updatedAt_asc'
-  | 'updatedAt_desc'
-  | 'recalculatedAt_asc'
-  | 'recalculatedAt_desc'
-
-export type MetricCalculationJobSortBy =
-  | 'jobId_asc'
-  | 'jobId_desc'
-  | 'metricId_asc'
-  | 'metricId_desc'
-  | 'createdAt_asc'
-  | 'createdAt_desc'
-  | 'updatedAt_asc'
-  | 'updatedAt_desc'
-  | 'status_asc'
-  | 'status_desc'
-
-export interface CalculationJobModel {
-  jobId: string
-  metricId: string
-  status: CalculationStatus
-  attempts: number
-  maxAttempts: number
-  errorMessage?: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface GetMetricsRequest {
-  page: number
-  limit: number
-  sortBy?: MetricSortBy[]
-  metricSystemName?: string
-}
-
-export interface GetMetricCalculationJobsRequest {
-  metricId: string
-  page: number
-  limit: number
-  sortBy?: MetricCalculationJobSortBy[]
-}
-
-export interface GetMetricInfosResponse {
-  metrics: MetricInfoModel[]
-}
+import { normalizeObjectSchema, type ObjectSchema } from '@/models/schemaModel'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import { AvailableChartsDocument, SalesProfitChartDocument } from '@/graphql/generated/graphql'
+import { getGraphqlErrors } from '@/services/graphql/auth'
+import { t } from '@/i18n'
 
 export interface ChartModel {
   systemName: string
@@ -81,13 +12,8 @@ export interface ChartModel {
   queryInputSchema: ObjectSchema
   dataPointSchema: ObjectSchema
 }
-
-export interface GetChartsResponse {
-  charts: ChartModel[]
-}
-
+export interface GetChartsResponse { charts: ChartModel[] }
 export type ChartGranularity = 'Day' | 'Month' | 'Year'
-
 export interface SalesProfitChartQueryInput {
   organizationId?: string | null
   buyerId?: string | null
@@ -97,7 +23,6 @@ export interface SalesProfitChartQueryInput {
   cursor?: string | null
   size: number
 }
-
 export interface SalesProfitDataPoint {
   periodStart: string
   revenue: number
@@ -107,170 +32,36 @@ export interface SalesProfitDataPoint {
   productsCount: number
   margin: number
 }
-
-export interface QuerySalesProfitChartResponse {
-  dataPoints: SalesProfitDataPoint[]
-  nextCursor: string | null
-}
-
-export interface GetMetricsResponse {
-  metrics: MetricModel[]
-}
-
-export interface GetMetricCalculationJobsResponse {
-  jobs: CalculationJobModel[]
-}
-
-export interface UpsertMetricRequest {
-  metricSystemName: string
-  inputPayload: Record<string, string | number | boolean | null>
-}
-
-export interface UpsertMetricResponse {
-  metric: MetricModel
-}
-
-export interface NamedObjectModel {
-  systemName: string
-  name: string | null
-  description: string | null
-}
-
-export interface GetNamedObjectsResponse {
-  namedObjects: NamedObjectModel[]
-}
-
-interface CalculationJobDto extends Omit<CalculationJobModel, 'status'> {
-  status: CalculationStatusDto
-}
-
-interface MetricDto extends Omit<MetricModel, 'lastMetricJob'> {
-  lastMetricJob: CalculationJobDto | null
-}
-
-export interface MetricModel {
-  id: string
-  systemName: string
-  name: string
-  description: string
-  data: string | null
-  tags: string
-  rangeStart: string
-  rangeEnd: string
-  currencyId: number
-  productId?: number | null
-  lastMetricJob: CalculationJobModel | null
-}
-
-const statusByNumber: Record<number, CalculationStatus> = {
-  0: 'Pending',
-  1: 'Locked',
-  2: 'Processing',
-  3: 'Failed',
-  4: 'Succeeded',
-  5: 'Cancelled',
-}
-
-function analyticsUrl(path: string): string {
-  return `${analyticsApiPrefix}${path}`
-}
-
-function businessMetricsUrl(path = ''): string {
-  return analyticsUrl(`/business-metrics${path}`)
-}
-
-function mapCalculationJob(dto: CalculationJobDto): CalculationJobModel {
-  return {
-    ...dto,
-    status: typeof dto.status === 'number'
-      ? (statusByNumber[dto.status] ?? 'Calculating')
-      : dto.status,
-  }
-}
-
-function mapMetric(dto: MetricDto): MetricModel {
-  return {
-    ...dto,
-    lastMetricJob: dto.lastMetricJob
-      ? mapCalculationJob(dto.lastMetricJob)
-      : null,
-  }
-}
-
-export async function getMetricInfos(): Promise<GetMetricInfosResponse> {
-  const resp = await api.get<GetMetricInfosResponse>(businessMetricsUrl('/info'))
-  return {
-    metrics: resp.data.metrics.map((metric) => ({
-      ...metric,
-      inputSchema: normalizeObjectSchema(metric.inputSchema),
-    })),
-  }
-}
+export interface QuerySalesProfitChartResponse { dataPoints: SalesProfitDataPoint[]; nextCursor: string | null }
 
 export async function getCharts(signal?: AbortSignal): Promise<GetChartsResponse> {
-  const resp = await api.get<GetChartsResponse>(analyticsUrl('/charts'), { signal })
-  return {
-    charts: resp.data.charts.map((chart) => ({
-      ...chart,
-      queryInputSchema: normalizeObjectSchema(chart.queryInputSchema),
-      dataPointSchema: normalizeObjectSchema(chart.dataPointSchema),
-    })),
-  }
+  const { data } = await operationRequest(graphqlClient.query({
+    query: AvailableChartsDocument, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } },
+  }))
+  return { charts: data.analytics.charts.map(chart => ({ ...chart,
+    queryInputSchema: normalizeObjectSchema(chart.queryInputSchema),
+    dataPointSchema: normalizeObjectSchema(chart.dataPointSchema),
+  })) }
 }
-
-export async function querySalesProfitChart(
-  queryInput: SalesProfitChartQueryInput,
-  signal?: AbortSignal,
-): Promise<QuerySalesProfitChartResponse> {
-  const systemName = 'SalesProfitOverTimeChartDataSource'
-  const resp = await api.post<QuerySalesProfitChartResponse>(
-    analyticsUrl(`/charts/${systemName}/query`),
-    { queryInput },
-    { signal },
-  )
-  return resp.data
-}
-
-export async function getMetrics(req: GetMetricsRequest): Promise<GetMetricsResponse> {
-  const resp = await api.get<{ metrics: MetricDto[] }>(businessMetricsUrl(), {
-    params: {
-      page: req.page,
-      limit: clampPageSize(req.limit),
-      sortBy: req.sortBy,
-      metricSystemName: req.metricSystemName,
-    },
+export async function querySalesProfitChart(queryInput: SalesProfitChartQueryInput, signal?: AbortSignal): Promise<QuerySalesProfitChartResponse> {
+  const { data } = await operationRequest(graphqlClient.query({
+    query: SalesProfitChartDocument,
+    variables: { systemName: 'SalesProfitOverTimeChartDataSource', queryInput },
+    fetchPolicy: 'no-cache', context: { fetchOptions: { signal } },
+  })).catch((error: unknown) => {
+    const messages = [error instanceof Error ? error.message : '', ...getGraphqlErrors(error).map(item => item.message)]
+    if (messages.some(message => /missing analytics|restore historical analytics/i.test(message))) throw new Error(t('home.analyticsNotReady'))
+    throw error
   })
-  return {
-    metrics: resp.data.metrics.map(mapMetric),
-  }
-}
-
-export async function getMetricCalculationJobs(
-  req: GetMetricCalculationJobsRequest,
-): Promise<GetMetricCalculationJobsResponse> {
-  const resp = await api.get<{ jobs: CalculationJobDto[] }>(businessMetricsUrl(`/${req.metricId}/jobs`), {
-    params: {
-      page: req.page,
-      limit: clampPageSize(req.limit),
-      sortBy: req.sortBy,
-    },
+  if (!data.analytics.chart) return { dataPoints: [], nextCursor: null }
+  const result = data.analytics.chart.data
+  // Chart points are an Any scalar: check their shape before rendering numbers.
+  const dataPoints = result.dataPoints.map(point => {
+    if (!point || typeof point !== 'object' || Array.isArray(point)) throw new Error(t('home.loadError'))
+    const row = point as Record<string, unknown>
+    if (typeof row.periodStart !== 'string' || !Number.isFinite(Date.parse(row.periodStart))
+      || ['revenue', 'cost', 'grossProfit', 'salesCount', 'productsCount', 'margin'].some(key => typeof row[key] !== 'number' || !Number.isFinite(row[key]))) throw new Error(t('home.loadError'))
+    return row as unknown as SalesProfitDataPoint
   })
-  return {
-    jobs: resp.data.jobs.map(mapCalculationJob),
-  }
-}
-
-export async function upsertMetric(req: UpsertMetricRequest): Promise<UpsertMetricResponse> {
-  const resp = await api.post<{ metric: MetricDto }>(businessMetricsUrl(), {
-    metricSystemName: req.metricSystemName,
-    inputPayload: JSON.stringify(req.inputPayload),
-  })
-  return {
-    metric: mapMetric(resp.data.metric),
-  }
-}
-
-export async function getAnalyticsNamedObjects(groupName: string): Promise<GetNamedObjectsResponse> {
-  const resp = await api.get<GetNamedObjectsResponse>(analyticsUrl(`/named-objects/${encodeURIComponent(groupName)}`))
-  return resp.data
+  return { dataPoints, nextCursor: result.nextCursor ?? null }
 }

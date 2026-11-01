@@ -83,13 +83,12 @@
           <div v-else class="sale-history__list">
             <div class="sale-history__columns" role="group" :aria-label="t('sales.history.sort')">
               <div class="sale-history__entry-head">
-                <SortableColumnHeader :label="t('common.labels.price')" field="price" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
+                <SortableColumnHeader :label="t('common.labels.price')" field="discountedPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
                 <SortableColumnHeader :label="t('common.labels.date')" field="saleDate" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
               </div>
               <div class="sale-history__details">
                 <SortableColumnHeader :label="t('common.labels.count')" field="quantity" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
                 <SortableColumnHeader :label="t('sales.history.buyPriceColumn')" field="averageBuyPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
-                <SortableColumnHeader :label="t('sales.history.discount')" field="discount" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
               </div>
             </div>
             <button
@@ -97,14 +96,14 @@
               :key="entry.saleContentId"
               type="button"
               class="sale-history__entry"
-              :class="{ 'is-applied': appliedEntryId === entry.saleContentId && selectedPrice === entry.price }"
+              :class="{ 'is-applied': appliedEntryId === entry.saleContentId && selectedPrice === entry.discountedPrice }"
               :disabled="!canApplyPrice(entry)"
-              :aria-pressed="appliedEntryId === entry.saleContentId && selectedPrice === entry.price"
+              :aria-pressed="appliedEntryId === entry.saleContentId && selectedPrice === entry.discountedPrice"
               :title="entryTitle(entry)"
               @click="applyPrice(entry)"
             >
               <span class="sale-history__entry-head">
-                <strong class="sale-history__price">{{ formatMoney(entry.price, entry.currency?.currencySign) }}</strong>
+                <SalePrice class="sale-history__price" :original-price="entry.originalPrice" :discounted-price="entry.discountedPrice" :currency-sign="entry.currency?.currencySign ?? currencySign" />
                 <time :datetime="entry.saleDate">{{ formatDate(entry.saleDate) }}</time>
               </span>
               <span class="sale-history__identity">
@@ -118,7 +117,6 @@
               <span class="sale-history__details">
                 <span><span class="sr-only">{{ t('common.labels.count') }}: </span>{{ entry.quantity.toLocaleString(locale) }}</span>
                 <span :title="t('sales.history.averageBuyPrice')"><span class="sr-only">{{ t('sales.history.averageBuyPrice') }}: </span>{{ formatMoney(entry.averageBuyPrice, entry.currency?.currencySign) }}</span>
-                <span><span class="sr-only">{{ t('sales.history.discount') }}: </span>{{ formatPercent(entry.discount) }}</span>
               </span>
             </button>
             <div v-if="isLoadingMore" class="sale-history__loading-more" role="status">{{ t('sales.history.loading') }}</div>
@@ -144,6 +142,7 @@ import {
   getProductSaleHistory,
   type ProductSaleHistoryModel,
 } from '@/services/api/sales.ts'
+import SalePrice from '@/components/sales/SalePrice.vue'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import { useMultiSort } from '@/composables/useMultiSort'
 import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
@@ -169,7 +168,7 @@ const { nextZIndex } = useZIndex()
 const panelZIndex = ref(nextZIndex())
 const history = ref<ProductSaleHistoryModel[]>([])
 const resultsElement = ref<HTMLElement>()
-const hasAppliedPrice = computed(() => appliedEntryId.value !== undefined && history.value.some(entry => entry.saleContentId === appliedEntryId.value && entry.price === props.selectedPrice))
+const hasAppliedPrice = computed(() => appliedEntryId.value !== undefined && history.value.some(entry => entry.saleContentId === appliedEntryId.value && entry.discountedPrice === props.selectedPrice))
 const isLoading = ref(false)
 const isLoadingMore = ref(false)
 const errorMessage = ref('')
@@ -279,13 +278,6 @@ function formatMoney(value: number, currencySign?: string) {
   return `${formatted} ${currencySign ?? props.currencySign ?? ''}`.trim()
 }
 
-function formatPercent(value: number) {
-  return (value * 100).toLocaleString(locale.value, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }) + '%'
-}
-
 function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -299,7 +291,7 @@ function entryTitle(entry: ProductSaleHistoryModel) {
   const date = new Date(entry.saleDate)
   const dateTime = Number.isNaN(date.getTime()) ? entry.saleDate : new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(date)
   return [
-    canApplyPrice(entry) ? t('sales.history.applyPrice', { price: formatMoney(entry.price, entry.currency?.currencySign) }) : t('sales.history.priceUnavailable'),
+    canApplyPrice(entry) ? t('sales.history.applyPrice', { price: formatMoney(entry.discountedPrice, entry.currency?.currencySign) }) : t('sales.history.priceUnavailable'),
     entry.productId !== props.product?.id ? t('sales.history.cross') : undefined,
     entry.product ? [entry.product.sku, entry.product.producerName, entry.product.name].filter(Boolean).join(' · ') : undefined,
     dateTime,
@@ -309,7 +301,7 @@ function entryTitle(entry: ProductSaleHistoryModel) {
 }
 
 function canApplyPrice(entry: ProductSaleHistoryModel) {
-  return !props.disabled && props.currencyId === entry.currencyId && Number.isFinite(entry.price) && entry.price >= 0
+  return !props.disabled && props.currencyId === entry.currencyId && Number.isFinite(entry.discountedPrice) && entry.discountedPrice >= 0
 }
 
 function applyPrice(entry: ProductSaleHistoryModel) {
@@ -472,7 +464,7 @@ watch(
 .sale-history__organization { min-width: 0; color: var(--app-text-muted); text-align: right; }
 .sale-history__entry-product.is-match { background: var(--app-primary-soft); color: var(--app-primary); box-shadow: inset 0 0 0 1px var(--app-border-strong); }
 .sale-history__organization.is-match { background: #fffbeb; color: #92400e; }
-.sale-history__details { display: grid; grid-template-columns: 70px minmax(0, 1fr) 70px; align-items: baseline; gap: 8px; color: var(--app-text-muted); font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.sale-history__details { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: baseline; gap: 8px; color: var(--app-text-muted); font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; }
 .sale-history__details > :nth-child(2) { justify-self: center; white-space: nowrap; }
 .sale-history__details > :last-child { justify-self: end; white-space: nowrap; }
 .sale-history__loading-more { padding: 10px; color: var(--app-text-muted); font-size: 12px; text-align: center; }

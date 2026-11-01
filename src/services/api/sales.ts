@@ -26,7 +26,6 @@ export interface CreateSaleRequest {
   comment?: string | null
   payedSum?: number | null
   forcePayment?: boolean
-  confirmationCode?: string | null
 }
 
 export interface EditSaleContentRequest extends NewSaleContentRequest {
@@ -39,7 +38,6 @@ export interface EditSaleRequest {
   content: EditSaleContentRequest[]
   comment?: string | null
   forcePayment?: boolean
-  confirmationCode?: string | null
 }
 
 export interface CreateSaleResponse {
@@ -77,8 +75,8 @@ export interface ProductSaleHistoryModel {
   storageCode: string
   currencyId: number
   quantity: number
-  discount: number
-  price: number
+  originalPrice: number
+  discountedPrice: number
   averageBuyPrice: number
   saleDate: string
   whoCreated?: string | null

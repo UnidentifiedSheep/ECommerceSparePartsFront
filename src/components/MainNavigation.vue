@@ -35,7 +35,6 @@
 
       <el-menu-item v-if="canOpen('/purchases')" index="/purchases" @click="openRoute('/purchases')"><span class="main-nav__item-label" :title="t('nav.purchases')">{{ t('nav.purchases') }}</span><PinMenuButton path="/purchases" /></el-menu-item>
       <el-menu-item v-if="canOpen('/sales')" index="/sales" @click="openRoute('/sales')"><span class="main-nav__item-label" :title="t('nav.sales')">{{ t('nav.sales') }}</span><PinMenuButton path="/sales" /></el-menu-item>
-      <el-menu-item v-if="canOpen('/reservations')" index="/reservations" @click="openRoute('/reservations')"><span class="main-nav__item-label" :title="t('nav.reservations')">{{ t('nav.reservations') }}</span><PinMenuButton path="/reservations" /></el-menu-item>
       <el-menu-item v-if="canOpen('/transactions')" index="/transactions" @click="openRoute('/transactions')"><span class="main-nav__item-label" :title="t('nav.transactions')">{{ t('nav.transactions') }}</span><PinMenuButton path="/transactions" /></el-menu-item>
     </el-sub-menu>
 
@@ -131,7 +130,7 @@ function canOpen(path: string) {
   const entry = navigationEntries.find(item => item.path === path)
   return Boolean(entry && canAccessNavigation(entry, hasPermission))
 }
-const operationsRoutes = ['/purchases', '/sales', '/reservations', '/transactions']
+const operationsRoutes = ['/purchases', '/sales', '/transactions']
 const adminRoutes = ['/users', '/organizations', '/roles', '/permissions', '/currencies', '/service-settings']
 const pricingRoutes = ['/markups', '/price-appliers']
 const controlRoutes = ['/jobs', '/documents', '/extensions']

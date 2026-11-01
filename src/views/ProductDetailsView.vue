@@ -41,9 +41,6 @@
                 <el-dropdown-item v-if="canCreateCrosses" command="crosses" :icon="Plus">
                   {{ t('products.addCrosses') }}
                 </el-dropdown-item>
-                <el-dropdown-item v-if="product && canViewProductReservations" command="reservations" :icon="View">
-                  {{ t('users.viewReservations') }}
-                </el-dropdown-item>
                 <el-dropdown-item v-if="product && canDeleteProduct" command="delete" :icon="Delete" divided class="text-red-600" :disabled="product.rowVersion === undefined">
                   {{ t('common.actions.delete') }}
                 </el-dropdown-item>
@@ -200,12 +197,6 @@
       :alternative-names="alternativeProductNames"
       @saved="refreshSummary"
     />
-    <ProductReservationsDialog
-      v-if="product && canViewProductReservations"
-      v-model="reservationsDialogOpen"
-      :product-id="product.id"
-      :title="t('products.details.reservationsTitle', { sku: product.sku })"
-    />
     <ProductPriceOffersDialog
       v-if="product && canViewPriceOffers"
       v-model="priceOffersDialogOpen"
@@ -246,7 +237,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Delete, Edit, Money, MoreFilled, Plus, Refresh, View } from '@element-plus/icons-vue'
+import { ArrowLeft, Delete, Edit, Money, MoreFilled, Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import AddProductStorageContentDialog from '@/components/products/AddProductStorageContentDialog.vue'
 import CreateProductsCrossesDialog from '@/components/products/CreateProductsCrossesDialog.vue'
@@ -260,7 +251,6 @@ import ProductEditDialog from '@/components/products/ProductEditDialog.vue'
 import ProductEansPanel from '@/components/products/ProductEansPanel.vue'
 import ProductImageGallery from '@/components/products/ProductImageGallery.vue'
 import ProductPriceOffersDialog from '@/components/pricing/ProductPriceOffersDialog.vue'
-import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import ProductSizeDialog from '@/components/products/ProductSizeDialog.vue'
 import ProductStoragePanel from '@/components/products/ProductStoragePanel.vue'
 import ProductSummaryPanel from '@/components/products/ProductSummaryPanel.vue'
@@ -342,7 +332,6 @@ const crossDialogOpen = ref(false)
 const sizeDialogOpen = ref(false)
 const weightDialogOpen = ref(false)
 const editDialogOpen = ref(false)
-const reservationsDialogOpen = ref(false)
 const priceOffersDialogOpen = ref(false)
 const pairSelectorOpen = ref(false)
 const addStorageContentDialogOpen = ref(false)
@@ -361,7 +350,6 @@ const canCreateCrosses = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
 const canAddImages = computed(() => hasPermission('ARTICLE_IMAGES_CREATE'))
 const canDeleteImages = computed(() => hasPermission('ARTICLE_IMAGES_DELETE'))
 const canViewStorageContent = computed(() => hasPermission('STORAGES_CONTENT_GET_ALL'))
-const canViewProductReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
 const canViewPriceOffers = computed(() => hasPermission('PRICES_GET_DETAILED'))
 const canReviewCatalogueCandidates = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))
 const canCreateStorageContent = computed(() => hasPermission('STORAGES_CONTENT_CREATE'))
@@ -465,7 +453,6 @@ async function handleProductAction(command: string) {
   if (command === 'refresh') await refreshDetails()
   if (command === 'edit') editDialogOpen.value = true
   if (command === 'crosses') crossDialogOpen.value = true
-  if (command === 'reservations') reservationsDialogOpen.value = true
   if (command === 'delete') await removeProduct()
 }
 

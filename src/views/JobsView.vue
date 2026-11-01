@@ -2176,7 +2176,6 @@ function setInputStateField(name: string, value: FieldValue) {
 function serviceLabel(key: string) {
   const labels: Record<string, string> = {
     main: 'Main',
-    analytics: 'Analytics',
     search: 'Search',
     pricing: 'Pricing',
   }

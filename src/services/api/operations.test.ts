@@ -27,23 +27,26 @@ describe('GraphQL operation contracts', () => {
     expect(print(vi.mocked(graphqlClient.query).mock.calls[0]![0].query)).not.toMatch(/\btransaction\s*\{/)
   })
   it('maps sale contents and rejects missing documents rather than clearing their content silently', async () => {
-    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { sales: { byId: { contents: [{ id: 1, count: 2, price: 10, totalSum: 18, discount: 0.1, comment: null, product, details: [] }] } } } } as never).mockResolvedValueOnce({ data: { sales: { byId: null } } } as never)
-    expect((await getSaleContent(sale.id)).contents[0]).toMatchObject({ product: { sku: 'ABC', producerName: 'ACME' }, discount: 0.1 })
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { sales: { byId: { contents: [{ id: 1, count: 2, originalPrice: 10, discountedPrice: 9, totalSum: 18, comment: null, product, details: [] }] } } } } as never).mockResolvedValueOnce({ data: { sales: { byId: null } } } as never)
+    expect((await getSaleContent(sale.id)).contents[0]).toMatchObject({ product: { sku: 'ABC', producerName: 'ACME' }, originalPrice: 10, discountedPrice: 9 })
+    expect(print(vi.mocked(graphqlClient.query).mock.calls[0]![0].query)).toContain('discountedPrice')
     await expect(getSaleContent('missing')).rejects.toThrow('Sale not found')
   })
   it('keeps optimistic concurrency rowVersion on sale update and delete', async () => {
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: {} } as never)
-    await editSale(sale.id, 7, { currencyId: 1, saleDateTime: sale.saleDatetime, content: [{ id: 1, productId: 1, count: 1, price: 100, priceWithDiscount: 80 }], confirmationCode: 'confirmation-test', forcePayment: true })
-    expect(mutationInput()).toMatchObject({ saleId: sale.id, rowVersion: 7, contents: [{ id: 1, priceWithDiscount: 80 }], confirmationCode: 'confirmation-test', forcePayment: true })
+    await editSale(sale.id, 7, { currencyId: 1, saleDateTime: sale.saleDatetime, content: [{ id: 1, productId: 1, count: 1, price: 100, priceWithDiscount: 80 }], forcePayment: true })
+    expect(mutationInput()).toMatchObject({ saleId: sale.id, rowVersion: 7, contents: [{ id: 1, price: 100, priceWithDiscount: 80 }], forcePayment: true })
+    expect(mutationInput()).not.toHaveProperty('confirmationCode')
     expect(mutationInput()).not.toHaveProperty('content')
     vi.mocked(graphqlClient.mutate).mockClear()
     await deleteSale(sale.id, 7)
     expect(mutationInput()).toEqual({ saleId: sale.id, rowVersion: 7 })
   })
-  it('creates sales with payment and confirmation data', async () => {
+  it('creates sales with payment data without the removed reservation confirmation', async () => {
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: { sales: { create: sale } } } as never)
-    await createSale({ userId: user.id, organizationId: org.id, currencyId: 1, storageCode: 'MAIN', saleDateTime: sale.saleDatetime, contents: [], payedSum: 50, forcePayment: true, confirmationCode: 'confirmation-test' })
-    expect(mutationInput()).toMatchObject({ payedSum: 50, forcePayment: true, confirmationCode: 'confirmation-test', saleDateTime: '2026-10-27T10:00:00.000Z' })
+    await createSale({ userId: user.id, organizationId: org.id, currencyId: 1, storageCode: 'MAIN', saleDateTime: sale.saleDatetime, contents: [], payedSum: 50, forcePayment: true })
+    expect(mutationInput()).toMatchObject({ payedSum: 50, forcePayment: true, saleDateTime: '2026-10-27T10:00:00.000Z' })
+    expect(mutationInput()).not.toHaveProperty('confirmationCode')
   })
   it('loads purchase filters and logistics with the correct model enum values', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { purchases: { list: [purchase] } } } as never)
@@ -64,9 +67,9 @@ describe('GraphQL operation contracts', () => {
     expect(mutationInput()).toMatchObject({ purchaseId: purchase.id, contents })
   })
   it('queries history with crosses and maps identity and currency per entry', async () => {
-    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { saleHistory: [{ saleContentId: 3, product, organization: { id: org.id, name: org.name, systemName: org.systemName }, storage: { code: 'MAIN' }, currency, quantity: 1, discount: 0, price: 10, averageBuyPrice: 5, saleDate: sale.saleDatetime, createdBy: { id: user.id } }] } } } } as never)
-    const result = await getProductSaleHistory({ productId: 42, page: 1, size: 10, showCrosses: true, preferredOrganizationId: org.id, sortBy: ['price_asc'] })
-    expect(input()).toMatchObject({ showCrosses: true, pagination: { page: 1, size: 10 }, preferredOrganizationId: org.id, sortBy: [{ field: 'price', isDescending: false }] })
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { saleHistory: [{ saleContentId: 3, product, organization: { id: org.id, name: org.name, systemName: org.systemName }, storage: { code: 'MAIN' }, currency, quantity: 1, originalPrice: 12, discountedPrice: 10, averageBuyPrice: 5, saleDate: sale.saleDatetime, createdBy: { id: user.id } }] } } } } as never)
+    const result = await getProductSaleHistory({ productId: 42, page: 1, size: 10, showCrosses: true, preferredOrganizationId: org.id, sortBy: ['discountedPrice_asc'] })
+    expect(input()).toMatchObject({ showCrosses: true, pagination: { page: 1, size: 10 }, preferredOrganizationId: org.id, sortBy: [{ field: 'discountedPrice', isDescending: false }] })
     expect(result.history[0]).toMatchObject({ productId: product.id, product: { sku: 'ABC', producerName: 'ACME' }, organization: { name: 'ACME' }, currency: { currencySign: '₽' }, whoCreated: user.id })
   })
   it('uses a nullable composite transaction cursor and maps completion/reversal flags', async () => {

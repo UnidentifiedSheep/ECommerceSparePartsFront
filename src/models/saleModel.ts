@@ -21,10 +21,10 @@ export interface SaleModel {
 export interface SaleContentModel {
   id: number
   count: number
-  price: number
+  originalPrice: number
+  discountedPrice: number
   totalSum: number
   comment?: string | null
-  discount: number
   product: {
     id?: number
     sku?: string

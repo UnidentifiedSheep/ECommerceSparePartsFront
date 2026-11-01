@@ -1,8 +1,8 @@
 import { ApiError } from '@/models/errorModel'
 import { getGraphqlErrors } from './auth'
 
-// GraphQL business errors keep the same status and confirmation data as REST.
-// This preserves the existing reservation/debt confirmation flows in sale forms.
+// GraphQL business errors keep the same status and related data as REST.
+// Preserve localized validation errors and finance details from the backend.
 export async function operationRequest<T>(request: Promise<T>): Promise<T> {
   try { return await request } catch (error) {
     const errors = getGraphqlErrors(error)

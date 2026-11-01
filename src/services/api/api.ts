@@ -7,7 +7,6 @@ import { SessionChangedError, type AuthSession } from '@/services/auth/types'
 import { apiBaseUrl } from './config'
 
 export { apiBaseUrl } from './config'
-export const analyticsApiPrefix = '/analytics'
 export function clampPageSize(value: number) { return Math.min(Math.max(value, 1), 100) }
 
 type AuthRequest = InternalAxiosRequestConfig & { authSession?: AuthSession | null; authRetried?: boolean }

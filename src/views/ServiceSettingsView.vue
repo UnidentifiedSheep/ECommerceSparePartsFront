@@ -188,7 +188,6 @@ const { hasPermission } = usePermissions()
 const canManageSettings = computed(() => hasPermission('OPTIONS_GET'))
 const knownServices: ServiceCard[] = [
   { key: 'main', available: true },
-  { key: 'analytics', available: true },
   { key: 'pricing', available: true },
   { key: 'search', available: true },
 ]
@@ -244,7 +243,6 @@ const canSaveSetting = computed(() => Boolean(
 function serviceLabel(key: string) {
   const labels: Record<string, string> = {
     main: 'Main',
-    analytics: 'Analytics',
     search: 'Search',
     pricing: 'Pricing',
   }

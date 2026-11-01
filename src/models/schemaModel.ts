@@ -79,8 +79,19 @@ function normalizeEnumValue<T extends string>(value: unknown, values: T[]): T {
   return normalized
 }
 
-/** REST responses may contain numeric enums when emitted by the gateway. */
-export function normalizeObjectSchema(schema: ObjectSchema): ObjectSchema {
+type WireSchemaField = Omit<SchemaField, 'type' | 'control' | 'nestedSchema'> & {
+  type: string | number
+  control?: string | number | null
+  nestedSchema?: WireObjectSchema | null
+}
+interface WireObjectSchema {
+  version: number
+  fields: WireSchemaField[]
+  csvSchema?: { columns: Array<Omit<CsvColumnSchema, 'type'> & { type: string | number }> } | null
+}
+
+/** REST numeric enums and GraphQL upper-case enums share one normalized UI schema. */
+export function normalizeObjectSchema(schema: WireObjectSchema): ObjectSchema {
   return {
     ...schema,
     fields: schema.fields.map((field) => ({

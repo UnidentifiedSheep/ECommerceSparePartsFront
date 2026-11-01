@@ -5,12 +5,12 @@ import { ApiError } from '@/models/errorModel'
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
 
 describe('GraphQL operation errors', () => {
-  it('preserves reservation confirmation data for the existing sale retry flow', async () => {
-    const related = { confirmationCode: 'confirmation-test', reserved: { 'ABC-1': 2 } }
-    const rejection = { graphQLErrors: [{ message: 'Confirm reserved items', extensions: { status: 428, code: 'SaleSoftConfirmationNeededException', errorRelatedData: related } }] }
+  it('preserves finance error details without losing the localized message', async () => {
+    const related = { currentBalance: 0, requiredBalance: 100 }
+    const rejection = { graphQLErrors: [{ message: 'Insufficient balance', extensions: { status: 409, code: 'NotEnoughBalance', errorRelatedData: related } }] }
     try { await operationRequest(Promise.reject(rejection)); expect.unreachable() } catch (error) {
       expect(error).toBeInstanceOf(ApiError)
-      expect(error).toMatchObject({ status: 428, errorRelatedData: related, message: 'Confirm reserved items' })
+      expect(error).toMatchObject({ status: 409, errorRelatedData: related, message: 'Insufficient balance' })
     }
   })
   it('preserves optimistic concurrency failures instead of treating them as successful updates', async () => {

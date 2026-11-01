@@ -315,7 +315,7 @@
         :preferred-organization-id="form.buyer?.organization.id"
         :currency-id="form.currencyId"
         :currency-sign="selectedCurrency?.currencySign"
-        :selected-price="selectedHistoryItem?.price"
+        :selected-price="selectedHistoryItem ? effectivePriceWithDiscount(selectedHistoryItem) : undefined"
         :selection-key="selectedHistoryItemIndex ?? undefined"
         :disabled="isSaving"
         @apply-price="applyHistoryPrice"
@@ -352,9 +352,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
 import SaleJsonImportDialog from '@/components/sales/SaleJsonImportDialog.vue'
@@ -365,7 +365,6 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleModel } from '@/models/saleModel.ts'
 import type { OrganizationSelection } from '@/models/organizationModel.ts'
-import { ApiError } from '@/models/errorModel.ts'
 import { getProductAvailableStock, getProductsAvailableStock } from '@/services/api/products.ts'
 import { createSale, type ProductSaleHistoryModel } from '@/services/api/sales.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
@@ -386,11 +385,6 @@ interface SaleItemForm {
 }
 
 type DiscountMode = 'Manual' | 'Sale'
-
-interface SaleConfirmationData {
-  confirmationCode: string
-  reserved: Record<string, number>
-}
 
 const props = defineProps<{
   currencies: CurrencyModel[]
@@ -634,10 +628,9 @@ function selectHistoryItem(index: number) {
 function applyHistoryPrice(entry: ProductSaleHistoryModel) {
   const item = selectedHistoryItem.value
   if (!item || isSaving.value || entry.currencyId !== form.currencyId) return
-  item.price = entry.price
-  item.priceWithDiscount = item.discountMode === 'Sale'
-    ? calculateSaleDiscountPrice(item.price)
-    : undefined
+  item.price = entry.originalPrice
+  item.priceWithDiscount = entry.discountedPrice
+  item.discountMode = 'Manual'
 }
 
 function openStorageBatches(item: SaleItemForm) {
@@ -747,7 +740,7 @@ function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
-async function save(confirmationCode?: string) {
+async function save() {
   if (!canSave.value || !form.buyer?.member || !form.currencyId || !form.storageCode || isSaving.value) return
 
   fillMissingManualDiscountPrices()
@@ -769,7 +762,6 @@ async function save(confirmationCode?: string) {
       comment: form.comment.trim() || null,
       payedSum: form.payedSum ?? null,
       forcePayment: form.forcePayment,
-      confirmationCode: confirmationCode ?? null,
     })
 
     ElNotification({
@@ -780,71 +772,8 @@ async function save(confirmationCode?: string) {
 
     isOpen.value = false
     emit('created', resp.sale)
-  } catch (error) {
-    const confirmationData = getSaleConfirmationData(error)
-    if (!confirmationData) throw error
-
-    isSaving.value = false
-    const confirmed = await confirmReservedSale(confirmationData)
-    if (confirmed) {
-      await save(confirmationData.confirmationCode)
-    }
   } finally {
     isSaving.value = false
-  }
-}
-
-function getSaleConfirmationData(error: unknown): SaleConfirmationData | null {
-  if (!(error instanceof ApiError) || error.status !== 428) return null
-
-  const data = error.errorRelatedData
-  if (!isRecord(data)) return null
-
-  const confirmationCode = stringValue(data.confirmationCode ?? data.ConfirmationCode)
-  const reservedRaw = data.reserved ?? data.Reserved
-  if (!confirmationCode || !isRecord(reservedRaw)) return null
-
-  const reserved: Record<string, number> = {}
-  Object.entries(reservedRaw).forEach(([key, value]) => {
-    const count = Number(value)
-    if (Number.isFinite(count) && count > 0) {
-      reserved[key] = count
-    }
-  })
-
-  return Object.keys(reserved).length > 0
-    ? { confirmationCode, reserved }
-    : null
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function stringValue(value: unknown) {
-  return typeof value === 'string' ? value : undefined
-}
-
-async function confirmReservedSale(data: SaleConfirmationData) {
-  try {
-    await ElMessageBox.confirm(
-      h('div', { class: 'reservation-confirmation' }, [
-        h('p', t('sales.confirmationIntro')),
-        h('ul', Object.entries(data.reserved).map(([key, count]) => (
-          h('li', t('sales.confirmationItem', { key, count }))
-        ))),
-        h('p', t('sales.confirmationOutro')),
-      ]),
-      t('sales.confirmationTitle'),
-      {
-        confirmButtonText: t('sales.confirm'),
-        cancelButtonText: t('common.actions.cancel'),
-        type: 'warning',
-      },
-    )
-    return true
-  } catch {
-    return false
   }
 }
 
