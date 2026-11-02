@@ -34,7 +34,7 @@ describe('GraphQL operation contracts', () => {
   })
   it('keeps optimistic concurrency rowVersion on sale update and delete', async () => {
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: {} } as never)
-    await editSale(sale.id, 7, { currencyId: 1, saleDateTime: sale.saleDatetime, content: [{ id: 1, productId: 1, count: 1, price: 100, priceWithDiscount: 80 }], forcePayment: true })
+    await editSale(sale.id, 7, { currencyId: 1, saleDateTime: sale.saleDatetime, content: [{ id: 1, productId: 1, count: 1, price: 100, priceWithDiscount: 80 }] })
     expect(mutationInput()).toMatchObject({ saleId: sale.id, rowVersion: 7, contents: [{ id: 1, price: 100, priceWithDiscount: 80 }], forcePayment: true })
     expect(mutationInput()).not.toHaveProperty('confirmationCode')
     expect(mutationInput()).not.toHaveProperty('content')
@@ -44,7 +44,7 @@ describe('GraphQL operation contracts', () => {
   })
   it('creates sales with payment data without the removed reservation confirmation', async () => {
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: { sales: { create: sale } } } as never)
-    await createSale({ userId: user.id, organizationId: org.id, currencyId: 1, storageCode: 'MAIN', saleDateTime: sale.saleDatetime, contents: [], payedSum: 50, forcePayment: true })
+    await createSale({ userId: user.id, organizationId: org.id, currencyId: 1, storageCode: 'MAIN', saleDateTime: sale.saleDatetime, contents: [], payedSum: 50 })
     expect(mutationInput()).toMatchObject({ payedSum: 50, forcePayment: true, saleDateTime: '2026-10-27T10:00:00.000Z' })
     expect(mutationInput()).not.toHaveProperty('confirmationCode')
   })
@@ -59,8 +59,8 @@ describe('GraphQL operation contracts', () => {
     expect((await getPurchaseContent(purchase.id)).content[0]).toMatchObject({ product: { sku: 'ABC', producerName: 'ACME' }, logistics: { price: 5 } })
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: { purchases: { create: purchase } } } as never)
     const contents = [{ productId: 1, count: 2, price: 10, calculateLogistics: true }]
-    await createPurchase({ supplierUserId: user.id, supplierOrganizationId: org.id, currencyId: 1, storageCode: 'MAIN', purchaseDate: sale.saleDatetime, purchaseContent: contents, withLogistics: true, storageFrom: 'SOURCE', forcePayment: false })
-    expect(mutationInput()).toMatchObject({ contents, withLogistics: true, storageFrom: 'SOURCE' })
+    await createPurchase({ supplierUserId: user.id, supplierOrganizationId: org.id, currencyId: 1, storageCode: 'MAIN', purchaseDate: sale.saleDatetime, purchaseContent: contents, withLogistics: true, storageFrom: 'SOURCE' })
+    expect(mutationInput()).toMatchObject({ contents, withLogistics: true, storageFrom: 'SOURCE', forcePayment: true })
     expect(mutationInput()).not.toHaveProperty('purchaseContent')
     vi.mocked(graphqlClient.mutate).mockClear()
     await editPurchase(purchase.id, { currencyId: 1, content: contents, purchaseDateTime: sale.saleDatetime, withLogistics: true })
@@ -83,12 +83,12 @@ describe('GraphQL operation contracts', () => {
     await getBalanceTransactions({ ...request, cursorId: tx.id, cursorDate: tx.transactionDate })
     expect(input().cursor.value).toEqual({ id: tx.id, transactionDate: '2026-10-27T10:00:00.000Z' })
   })
-  it('creates and reverses transactions without losing the force-payment flag', async () => {
+  it('always forces payment when creating and reversing transactions', async () => {
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: {} } as never)
-    await createSystemBalanceTransaction({ organizationId: org.id, direction: 'UserToSystem', amount: 10, currencyId: 1, transactionDateTime: sale.saleDatetime, forcePayment: true })
+    await createSystemBalanceTransaction({ organizationId: org.id, direction: 'UserToSystem', amount: 10, currencyId: 1, transactionDateTime: sale.saleDatetime })
     expect(mutationInput()).toMatchObject({ organizationId: org.id, direction: 'USER_TO_SYSTEM', forcePayment: true })
     vi.mocked(graphqlClient.mutate).mockClear()
-    await deleteBalanceTransaction('tx-1', true)
+    await deleteBalanceTransaction('tx-1')
     expect(mutationInput()).toEqual({ transactionId: 'tx-1', forcePayment: true })
   })
 })

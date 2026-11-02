@@ -78,7 +78,7 @@
               />
             </el-form-item>
 
-            <el-form-item :label="t('common.labels.currency')" class="span-3">
+            <el-form-item :label="t('common.labels.currency')" class="span-6">
               <el-select v-model="form.currencyId" class="w-full" :placeholder="t('sales.selectCurrency')">
                 <el-option
                   v-for="currency in currencies"
@@ -89,22 +89,7 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item
-              :label="t('sales.forcePayment')"
-              class="span-4 force-payment-field"
-            >
-              <div class="force-payment-box">
-                <div class="force-payment-control">
-                  <el-switch v-model="form.forcePayment" size="small" />
-                  <strong>
-                    {{ form.forcePayment ? t('sales.forcePaymentEnabled') : t('sales.forcePaymentDisabled') }}
-                  </strong>
-                </div>
-                <p>{{ t('sales.forcePaymentHint') }}</p>
-              </div>
-            </el-form-item>
-
-            <el-form-item :label="t('sales.saleDiscount')" class="span-5 sale-discount-field">
+            <el-form-item :label="t('sales.saleDiscount')" class="span-6 sale-discount-field">
               <div class="discount-control">
                 <div class="discount-editor">
                   <el-input-number
@@ -406,7 +391,6 @@ const form = reactive({
   currencyId: undefined as number | undefined,
   saleDateTime: toLocalDateTimeInputValue(new Date()),
   comment: '',
-  forcePayment: false,
   applySaleDiscountToAll: false,
   items: [] as EditSaleItemForm[],
 })
@@ -478,7 +462,6 @@ function resetForm() {
     ? toLocalDateTimeInputValue(new Date(props.sale.saleDatetime))
     : toLocalDateTimeInputValue(new Date())
   form.comment = props.sale?.comment ?? ''
-  form.forcePayment = false
   form.applySaleDiscountToAll = false
   initialCountsByProductId.value = props.content.reduce<Record<number, number>>((acc, item) => {
     if (item.product.id === undefined) return acc
@@ -737,7 +720,6 @@ function formSnapshot() {
     currencyId: form.currencyId,
     saleDateTime: form.saleDateTime,
     comment: form.comment,
-    forcePayment: form.forcePayment,
     applySaleDiscountToAll: form.applySaleDiscountToAll,
     items: form.items.map((item) => ({
       id: item.id,
@@ -769,7 +751,6 @@ async function save() {
         comment: item.comment.trim() || null,
       })),
       comment: form.comment.trim() || null,
-      forcePayment: form.forcePayment,
     })
 
     ElNotification({

@@ -57,7 +57,6 @@ export interface CreateSystemBalanceTransactionRequest {
   amount: number
   currencyId: number
   transactionDateTime: string
-  forcePayment?: boolean
 }
 
 export async function getBalanceTransactions(req: GetBalanceTransactionsRequest): Promise<GetBalanceTransactionsResponse> {
@@ -72,9 +71,9 @@ export async function getBalanceTransactions(req: GetBalanceTransactionsRequest)
 }
 export async function createSystemBalanceTransaction(req: CreateSystemBalanceTransactionRequest): Promise<void> {
   await operationRequest(graphqlClient.mutate({ mutation: CreateTransactionDocument, variables: { input: {
-    ...req, direction: req.direction === 'UserToSystem' ? 'USER_TO_SYSTEM' : 'SYSTEM_TO_USER', transactionDateTime: toUtcDateTimeString(req.transactionDateTime),
+    ...req, forcePayment: true, direction: req.direction === 'UserToSystem' ? 'USER_TO_SYSTEM' : 'SYSTEM_TO_USER', transactionDateTime: toUtcDateTimeString(req.transactionDateTime),
   } } }))
 }
-export async function deleteBalanceTransaction(id: string, forcePayment = false): Promise<void> {
-  await operationRequest(graphqlClient.mutate({ mutation: ReverseTransactionDocument, variables: { input: { transactionId: id, forcePayment } } }))
+export async function deleteBalanceTransaction(id: string): Promise<void> {
+  await operationRequest(graphqlClient.mutate({ mutation: ReverseTransactionDocument, variables: { input: { transactionId: id, forcePayment: true } } }))
 }

@@ -54,7 +54,6 @@ export interface CreatePurchaseRequest {
   comment?: string | null
   payedSum?: number | null
   storageFrom?: string | null
-  forcePayment: boolean
 }
 
 export interface EditPurchaseRequest {
@@ -98,7 +97,7 @@ export async function deletePurchase(id: string): Promise<void> {
 }
 export async function createPurchase(req: CreatePurchaseRequest): Promise<CreatePurchaseResponse> {
   const { purchaseContent, ...fields } = req
-  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreatePurchaseDocument, variables: { input: { ...fields, contents: purchaseContent, purchaseDate: toUtcDateTimeString(req.purchaseDate) } } }))
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreatePurchaseDocument, variables: { input: { ...fields, forcePayment: true, contents: purchaseContent, purchaseDate: toUtcDateTimeString(req.purchaseDate) } } }))
   if (!data) throw new Error('Purchase creation returned no data')
   return { purchase: mapPurchase(data.purchases.create) }
 }

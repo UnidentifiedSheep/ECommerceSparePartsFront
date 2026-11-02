@@ -107,7 +107,7 @@
               />
             </el-form-item>
 
-            <el-form-item :label="t('common.labels.currency')" class="span-3">
+            <el-form-item :label="t('common.labels.currency')" class="span-4">
               <el-select v-model="form.currencyId" class="w-full" :placeholder="t('sales.selectCurrency')">
                 <el-option
                   v-for="currency in currencies"
@@ -118,20 +118,11 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item :label="t('sales.paid')" class="span-3">
+            <el-form-item :label="t('sales.paid')" class="span-4">
               <el-input-number v-model="form.payedSum" :min="0" :precision="2" :controls="false" class="w-full" />
             </el-form-item>
 
-            <el-form-item :label="t('sales.forcePayment')" class="span-3">
-              <div class="force-payment-control">
-                <el-switch v-model="form.forcePayment" size="small" />
-                <el-tooltip :content="t('sales.forcePaymentHint')" placement="top">
-                  <el-icon class="force-payment-help"><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </div>
-            </el-form-item>
-
-            <el-form-item :label="t('sales.saleDiscount')" class="span-3 sale-discount-field">
+            <el-form-item :label="t('sales.saleDiscount')" class="span-4 sale-discount-field">
               <div class="discount-control">
                 <div class="discount-editor">
                   <el-input-number
@@ -353,7 +344,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled, RefreshRight } from '@element-plus/icons-vue'
+import { Check, Close, Delete, MoreFilled, Plus, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
@@ -419,7 +410,6 @@ const form = reactive({
   saleDateTime: toLocalDateTimeInputValue(new Date()),
   comment: '',
   payedSum: undefined as number | undefined,
-  forcePayment: false,
   applySaleDiscountToAll: false,
   items: [] as SaleItemForm[],
 })
@@ -512,7 +502,6 @@ function resetForm() {
   form.saleDateTime = toLocalDateTimeInputValue(new Date())
   form.comment = ''
   form.payedSum = undefined
-  form.forcePayment = false
   form.applySaleDiscountToAll = false
   form.items = []
   historyPanelOpen.value = true
@@ -761,7 +750,6 @@ async function save() {
       })),
       comment: form.comment.trim() || null,
       payedSum: form.payedSum ?? null,
-      forcePayment: form.forcePayment,
     })
 
     ElNotification({
