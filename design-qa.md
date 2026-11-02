@@ -45,8 +45,42 @@ The reference and rendered captures were reviewed for the same selected-organiza
 - Backend account convention: sender balance increases and receiver balance decreases, covered by dedicated tests; signed display follows that convention.
 - Base-only balance deduplication, multi-currency detail with a separate base-currency total, RU/EN/TR, desktop/mobile containment and browser console errors (none in the tested scenarios).
 
-Validation: `npm run check` passed, including 255 tests, lint, types and production build. Browser mutations were mocked; no live financial data was changed. Screenshot paths are local session artifacts, not hosted URLs.
+Validation: latest `npm run check` passed, including 257 tests, lint, types and production build. Browser mutations were mocked; no live financial data was changed. Screenshot paths are local session artifacts, not hosted URLs.
 
 ## Follow-up
 
 Backend aggregates can enable full-period receipt/debit metrics later. No remaining visual P3 polish is required for this iteration.
+
+## Transaction journal and drawer — follow-up QA
+
+Source visual truth: the two inline user wireframes for the general transaction journal and grouped transaction details in the subsequent request. These specify source-first rows, compact metadata, grouped parties, contextual amounts and cancellation in details. The existing light production theme is retained; the source's dark background is not introduced globally. The source table omits a sidebar but the written brief explicitly permits retaining the filters on the left.
+
+Final browser evidence, deviceScaleFactor 1:
+
+- `/tmp/force-payment-browser/transactions-desktop.png` — 1760 × 1080 px; two-party exact-direction filter, neutral amounts, compact metadata without totals and expanded-filter indicator.
+- `/tmp/force-payment-browser/transaction-manual-details.png` — 400 × 1080 px drawer capture; manual operation with one selected organization, contextual amount, grouped parties/metadata and the only cancellation action.
+- `/tmp/force-payment-browser/transaction-details.png` — 400 × 1080 px; document transaction with its document action and no manual cancellation.
+- `/tmp/force-payment-browser/transaction-details-mobile.png` — 390 × 900 px drawer, tested with the collapsed mobile filter panel.
+- `/tmp/force-payment-browser/transaction-reversal-confirmation.png` — 420 × 248 px confirmation, showing the reverse route, amount and original-operation status change.
+
+The wireframes and the captures were reviewed for hierarchy and interaction scope, with focused inspection of amount/state grouping, party direction, record density and cancellation. Drawer captures use the full runtime viewport; the supplied drawer reference is shorter/cropped. The records occupy the top part of the drawer rather than adding artificial information to fill a taller viewport. Captures wait for the opening animation to finish.
+
+Fidelity surfaces:
+
+- Typography: existing font stack; 26 px journal heading, 17 px drawer heading, 30 px amount, compact source titles and muted secondary type/date. The primary operation is its source, rather than two equally weighted badges.
+- Layout: compact loaded-count/period/context metadata replaces three large summary boxes. Desktop keeps sender/receiver columns; observed table width controls the combined “From → To” column. The drawer groups amount/status/date, a vertical sender/receiver route, then source/currency/type and actions.
+- Tokens/contrast: amounts remain neutral without one unambiguous organization. With a context, transfer outflow is red/minus and inflow green/plus. These are transfer-direction signs, intentionally distinct from the backend account-balance convention used in the organization finances panel. The tooltip states the journal meaning. Cancelled amounts are muted; pending state is visible. Destructive confirmation uses a red action, not the site's default green primary button.
+- Assets: Element Plus icons for transfer, parties, direction, refresh, close and cancellation. No raster or invented illustration is required by these wireframes.
+- Copy: “Loaded” describes the number of fetched records. No turnover or totals block is displayed. Pending/reversed operations remain explicitly identified. Cancellation describes a reverse movement and marks the original operation cancelled; it does not promise a new transaction record the backend does not create.
+
+Iteration history:
+
+1. Initial review found hidden active advanced-filter state, unlabelled pending rows, and excessive row line-height. A filter count/active treatment, pending label and compact line-height were added. Final desktop evidence shows these fixes.
+2. The framework's primary-button styling overrode the initial destructive confirmation class. A dedicated scoped action class now makes the confirm button red. Semantic tag colors were darkened and the drawer cancel action uses an explicit danger color. Final confirmation/detail captures were reviewed after these changes.
+3. An early screenshot caught the drawer opening transition and was unsuitable for comparison. Capture timing was fixed; final evidence above shows settled content.
+
+Verified in the full-page browser flow: neutral two-party context and signed single-party context, absence of the turnover block, hidden/default and active advanced filters, source navigation affordances, cursor loading, arrow selection/Enter/Esc, pending/document reversal restrictions, cancellation dismissal without mutation, confirmation with exactly one reverse mutation and the correct transaction id/force flag, responsive party columns, collapsed mobile filters, drawer overflow and RU/EN/TR. No browser console errors occurred in these scenarios.
+
+Backend constraints retained: at least one organization is required to request a list. General text/source filters and full-period aggregates require contract additions, so no fake controls or cross-currency grand total are shown. “Load more” is retained for this cursor-based general journal, as requested.
+
+final result: passed
