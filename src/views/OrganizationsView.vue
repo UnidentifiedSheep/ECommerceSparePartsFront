@@ -145,20 +145,21 @@
               <el-button
                 v-if="detailsTab === 'finances' && canCreateTransactions"
                 type="primary"
+                size="small"
                 :icon="Plus"
                 :loading="transactionCurrenciesLoading"
                 @click="openCreateTransaction"
               >
-                {{ t('transactions.createTitle') }}
+                {{ t('organizationPage.newTransaction') }}
               </el-button>
               <el-button
-                v-if="canEditOrganizations"
+                v-if="canEditOrganizations && detailsTab !== 'finances'"
                 :icon="EditPen"
                 @click="openEditDialog"
               >
                 {{ t('common.actions.edit') }}
               </el-button>
-              <el-button :loading="detailsLoading" @click="loadOrganizationDetails">
+              <el-button v-if="detailsTab !== 'finances'" :loading="detailsLoading" @click="loadOrganizationDetails">
                 {{ t('common.actions.refresh') }}
               </el-button>
             </div>
@@ -229,46 +230,55 @@
             <el-tab-pane v-if="canViewFinances" :label="t('organizationPage.finances')" name="finances">
               <div v-loading="financesLoading" class="finances-content">
                 <div v-if="financialInfo" class="financial-summary">
-                  <div>
-                    <span>{{ t('organizationPage.netPosition') }}</span>
+                  <div class="current-balance">
+                    <span>{{ t('organizationPage.currentBalance') }}</span>
                     <strong :class="amountClass(financialInfo.financialProfile?.netPositionInBaseCurrency ?? 0)">
                       {{ formatAmount(financialInfo.financialProfile?.netPositionInBaseCurrency ?? 0, baseCurrency) }}
                     </strong>
                   </div>
-                  <div>
-                    <span>{{ t('organizationPage.minimalBalance') }}</span>
-                    <div class="minimal-balance-control">
+                  <div v-if="summaryCurrencyBalances.length" class="currency-balances" :aria-label="t('organizationPage.currencyBalances')">
+                    <div v-for="balance in summaryCurrencyBalances" :key="balance.currency.id" class="currency-balance">
+                      <span>{{ balance.currency.shortName }}</span>
+                      <strong :class="amountClass(balance.balance)">{{ formatAmount(balance.balance, balance.currency) }}</strong>
+                    </div>
+                  </div>
+                  <div class="minimal-balance-row">
+                    <span>{{ t('organizationPage.minimumBalanceLabel') }}:</span>
+                    <template v-if="!minimalBalanceEditing">
+                      <strong>{{ formatAmount(financialInfo.financialProfile?.minimalAllowedBalance ?? 0, baseCurrency) }}</strong>
+                      <el-button v-if="canEditFinances" :icon="EditPen" size="small" text :aria-label="t('organizationPage.editMinimalBalance')" :title="t('organizationPage.editMinimalBalance')" @click="minimalBalanceEditing = true" />
+                    </template>
+                    <div v-else class="minimal-balance-control">
                       <el-input-number
                         v-model="minimalAllowedBalance"
                         :precision="2"
                         :controls="false"
-                        :disabled="!canEditFinances"
+                        size="small"
+                        :disabled="financesSaving"
+                        :aria-label="t('organizationPage.minimalBalance')"
+                        @keydown.enter.prevent="saveFinancialProfile"
+                        @keydown.esc.stop.prevent="cancelMinimalBalanceEdit"
                       />
                       <el-button
-                        v-if="canEditFinances"
                         type="primary"
+                        size="small"
+                        :disabled="!Number.isFinite(minimalAllowedBalance)"
                         :loading="financesSaving"
                         @click="saveFinancialProfile"
                       >
                         {{ t('common.actions.save') }}
                       </el-button>
+                      <el-button size="small" :disabled="financesSaving" @click="cancelMinimalBalanceEdit">{{ t('common.actions.cancel') }}</el-button>
                     </div>
                   </div>
                 </div>
 
-                <div class="balances-heading">{{ t('organizationPage.currencyBalances') }}</div>
-                <div v-if="financialInfo?.balances.length" class="balances-list">
-                  <div v-for="balance in financialInfo.balances" :key="balance.currency.id">
-                    <span>{{ balance.currency.name }}</span>
-                    <strong :class="amountClass(balance.balance)">{{ formatAmount(balance.balance, balance.currency) }}</strong>
-                  </div>
-                </div>
-                <el-empty v-else :description="t('organizationPage.noBalances')" :image-size="64" />
                 <OrganizationTransactionsPanel
                   v-if="detailsTab === 'finances' && canViewTransactions"
                   :key="selectedOrganization.id"
                   :organization-id="selectedOrganization.id"
                   :refresh-key="transactionsRefreshKey"
+                  @refresh-finances="loadFinances"
                 />
               </div>
             </el-tab-pane>
@@ -504,9 +514,15 @@ const membersLoading = ref(false)
 const changingMemberId = ref('')
 const removingMemberId = ref('')
 const financialInfo = ref<GetOrganizationFinancialInfoResponse>()
+const summaryCurrencyBalances = computed(() => {
+  const balances = financialInfo.value?.balances ?? []
+  return balances.filter(balance => balances.length > 1 || balance.currency.id !== baseCurrency.value?.id)
+})
 const financesLoading = ref(false)
 const financesSaving = ref(false)
 const minimalAllowedBalance = ref(0)
+const minimalBalanceEditing = ref(false)
+watch(() => selectedOrganization.value?.id, () => { minimalBalanceEditing.value = false })
 const createDialogOpen = ref(false)
 const createFormRef = ref<FormInstance>()
 const creating = ref(false)
@@ -1007,15 +1023,25 @@ async function confirmRemoveMember(member: OrganizationMemberModel) {
 }
 
 async function saveFinancialProfile() {
-  if (!selectedOrganization.value || financesSaving.value) return
+  if (!selectedOrganization.value || !canEditFinances.value || !Number.isFinite(minimalAllowedBalance.value) || financesSaving.value) return
+  const organizationId = selectedOrganization.value.id
   financesSaving.value = true
   try {
-    await updateOrganizationFinancialInfo(selectedOrganization.value.id, minimalAllowedBalance.value)
+    await updateOrganizationFinancialInfo(organizationId, minimalAllowedBalance.value)
+    if (selectedOrganization.value?.id !== organizationId) return
     await loadFinances()
+    if (selectedOrganization.value?.id !== organizationId) return
+    minimalBalanceEditing.value = false
     ElNotification({ title: t('common.labels.success'), message: t('organizationPage.financesUpdated'), type: 'success' })
   } finally {
     financesSaving.value = false
   }
+}
+
+function cancelMinimalBalanceEdit() {
+  if (financesSaving.value) return
+  minimalAllowedBalance.value = financialInfo.value?.financialProfile?.minimalAllowedBalance ?? 0
+  minimalBalanceEditing.value = false
 }
 
 function openUser(userId: string) {
@@ -1151,18 +1177,20 @@ const draftGuard2 = useDialogGuard(editDialogOpen, computed(() => organizationSa
 .member-link:hover strong { color: #047857; }
 .load-more-row { display: flex; justify-content: flex-start; padding-top: 12px; }
 .finances-content { min-height: 300px; }
-.financial-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); gap: 12px; }
-.financial-summary > div { display: grid; gap: 8px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
-.financial-summary span, .balances-heading { color: #64748b; font-size: 12px; font-weight: 600; }
-.financial-summary strong { color: #0f172a; font-size: 20px; }
-.minimal-balance-control { display: flex; gap: 8px; }
-.minimal-balance-control :deep(.el-input-number) { width: 100%; }
-.balances-heading { margin: 18px 0 8px; }
-.balances-list { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
-.balances-list > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
-.balances-list > div:last-child { border-bottom: 0; }
-.balances-list span { color: #475569; font-size: 13px; }
-.balances-list strong { color: #0f172a; font-size: 13px; font-variant-numeric: tabular-nums; }
+.financial-summary { display: flex; align-items: start; flex-wrap: wrap; gap: 14px 28px; padding: 14px 0 16px; border-bottom: 1px solid var(--app-border); }
+.current-balance { display: grid; gap: 5px; min-width: 150px; flex: 1; }
+.current-balance > span { color: var(--app-text-muted); font-size: 12px; }
+.current-balance > strong { color: var(--app-text); font-size: 26px; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.currency-balances { display: flex; flex-wrap: wrap; gap: 10px 24px; max-width: 65%; }
+.currency-balance { display: grid; gap: 6px; }
+.currency-balance > span { color: var(--app-text-muted); font-size: 11px; }
+.currency-balance > strong { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.minimal-balance-row { display: flex; width: 100%; min-height: 24px; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 12px; color: var(--app-text-muted); }
+.minimal-balance-row > strong { font-size: 12px; font-weight: 500; color: var(--app-text); }
+.minimal-balance-row > .el-button { padding: 3px; height: 24px; margin: 0; }
+.minimal-balance-control { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.minimal-balance-control :deep(.el-input-number) { width: 150px; }
+.minimal-balance-control > .el-button { margin: 0; }
 .amount-negative { color: #dc2626 !important; }
 .amount-positive { color: #047857 !important; }
 @media (max-width: 1080px) {
@@ -1172,6 +1200,6 @@ const draftGuard2 = useDialogGuard(editDialogOpen, computed(() => organizationSa
 @media (max-width: 680px) {
   .organizations-layout { padding: 10px; }
   .organizations-toolbar__primary { grid-template-columns: 1fr; }
-  .financial-summary { grid-template-columns: 1fr; }
+  .currency-balances { max-width: 100%; }
 }
 </style>

@@ -1,353 +1,115 @@
 <template>
   <div class="transactions-page">
-    <section class="transactions-header">
-      <div>
-        <h1>{{ t('transactions.title') }}</h1>
-        <p>{{ t('transactions.description') }}</p>
-      </div>
+    <header class="transactions-header">
+      <div><h1>{{ t('transactions.title') }}</h1><p>{{ t('transactions.description') }}</p></div>
       <div class="header-actions">
-        <el-button v-if="canCreateTransactions" type="primary" @click="createDialogOpen = true">
-          {{ t('common.actions.create') }}
-        </el-button>
-        <el-button :loading="isLoading" @click="reloadTransactions">
-          {{ t('common.actions.refresh') }}
-        </el-button>
+        <el-button v-if="canCreateTransactions" type="primary" :icon="Plus" @click="createDialogOpen = true">{{ t('common.actions.create') }}</el-button>
+        <el-button :icon="Refresh" :loading="isLoading" :disabled="!hasSelectedUserFilter" @click="reloadTransactions">{{ t('common.actions.refresh') }}</el-button>
       </div>
-    </section>
-
+    </header>
     <section class="transactions-layout">
       <aside class="transactions-filters">
-        <div class="filter-title">{{ t('transactions.filters') }}</div>
-
-        <el-form label-position="top" class="transactions-filter-fields">
-          <el-form-item :label="t('transactions.period')">
-            <el-date-picker
-              v-model="dateRange"
-              type="daterange"
-              :start-placeholder="t('transactions.start')"
-              :end-placeholder="t('transactions.end')"
-              value-format="YYYY-MM-DD"
-              class="w-full"
-            />
-          </el-form-item>
-
-          <el-form-item :label="t('common.labels.currency')">
-            <el-select v-model="filters.currencyId" clearable filterable :placeholder="t('transactions.allCurrencies')" class="w-full">
-              <el-option
-                v-for="currency in currencies"
-                :key="currency.id"
-                :label="`${currency.shortName} (${currency.code})`"
-                :value="currency.id"
-              />
-            </el-select>
-          </el-form-item>
-
-          <el-checkbox v-model="showReversed" class="skip-reversed-checkbox">
-            {{ t('transactions.showReversed') }}
-          </el-checkbox>
-
-          <fieldset class="participants-filter">
-            <legend>
-              <el-tooltip
-                placement="top"
-                :content="logicalOperatorTooltip"
-                :show-after="700"
-              >
-                <div class="logical-switch">
-                  <span :class="{ active: filters.logicalOperator === 'And' }">{{ t('transactions.and') }}</span>
-                  <el-switch
-                    v-model="filters.logicalOperator"
-                    size="small"
-                    active-value="Or"
-                    inactive-value="And"
-                  />
-                  <span :class="{ active: filters.logicalOperator === 'Or' }">{{ t('transactions.or') }}</span>
-                </div>
-              </el-tooltip>
-            </legend>
-
-            <template v-if="filters.logicalOperator === 'And'">
-              <div class="participant-row">
-                <label>{{ t('transactions.sender') }}</label>
-                <OrganizationSelector
-                  v-model="sender"
-                  :member-required="false"
-                  :placeholder="t('transactions.selectSender')"
-                />
-              </div>
-
-              <div class="participants-arrow">{{ t('transactions.transferDirection') }}</div>
-
-              <div class="participant-row">
-                <label>{{ t('transactions.receiver') }}</label>
-                <OrganizationSelector
-                  v-model="receiver"
-                  :member-required="false"
-                  :placeholder="t('transactions.selectReceiver')"
-                />
-              </div>
-            </template>
-
-            <div v-else class="participant-row">
-              <label>{{ t('organizations.organization') }}</label>
-              <OrganizationSelector
-                v-model="sender"
-                :member-required="false"
-                :placeholder="t('transactions.selectUser')"
-              />
-            </div>
-          </fieldset>
-        </el-form>
-
-        <div class="filter-actions">
-          <el-button @click="resetFilters">{{ t('common.actions.reset') }}</el-button>
-          <el-button type="primary" @click="reloadTransactions">{{ t('transactions.show') }}</el-button>
+        <header class="filter-header"><h2>{{ t('transactions.filters') }}</h2><el-button v-if="narrowPage" text :icon="filtersExpanded ? ArrowUp : ArrowDown" :aria-expanded="filtersExpanded" :aria-label="t(filtersExpanded ? 'transactions.hideFilters' : 'transactions.showFilters')" @click="filtersExpanded = !filtersExpanded" /></header>
+        <div v-show="!narrowPage || filtersExpanded" class="filter-body">
+          <el-form label-position="top" class="transactions-filter-fields">
+            <el-form-item :label="t(filters.logicalOperator === 'And' ? 'transactions.sender' : 'organizations.organization')">
+              <OrganizationSelector v-model="sender" :member-required="false" :placeholder="t('transactions.selectUser')" />
+            </el-form-item>
+            <el-form-item :label="t('transactions.period')">
+              <el-date-picker v-model="dateRange" type="daterange" :start-placeholder="t('transactions.start')" :end-placeholder="t('transactions.end')" value-format="YYYY-MM-DD" class="w-full" />
+            </el-form-item>
+            <el-form-item :label="t('common.labels.currency')">
+              <el-select v-model="filters.currencyId" clearable filterable :placeholder="t('transactions.allCurrencies')" class="w-full">
+                <el-option v-for="currency in currencies" :key="currency.id" :label="`${currency.shortName} (${currency.code})`" :value="currency.id" />
+              </el-select>
+            </el-form-item>
+            <el-button text class="advanced-toggle" :type="advancedFilterCount ? 'primary' : 'default'" :icon="advancedFiltersOpen ? ArrowUp : ArrowDown" :aria-label="t('transactions.advancedFilters')" :aria-description="advancedFilterCount ? t('transactions.activeAdvancedFilters', { count: advancedFilterCount }) : undefined" :aria-expanded="advancedFiltersOpen" @click="advancedFiltersOpen = !advancedFiltersOpen">{{ t('transactions.advancedFilters') }}<span v-if="advancedFilterCount" class="advanced-count" aria-hidden="true">{{ advancedFilterCount }}</span></el-button>
+            <section v-show="advancedFiltersOpen" class="advanced-filters">
+              <el-form-item :label="t('transactions.participationMode')">
+                <el-radio-group v-model="filters.logicalOperator" size="small">
+                  <el-radio-button value="Or">{{ t('transactions.or') }}</el-radio-button>
+                  <el-radio-button value="And">{{ t('transactions.and') }}</el-radio-button>
+                </el-radio-group>
+                <p class="filter-explanation">{{ logicalOperatorTooltip }}</p>
+              </el-form-item>
+              <el-form-item v-if="filters.logicalOperator === 'And'" :label="t('transactions.receiver')">
+                <OrganizationSelector v-model="receiver" :member-required="false" :placeholder="t('transactions.selectReceiver')" />
+              </el-form-item>
+              <el-checkbox v-model="showReversed">{{ t('transactions.showReversed') }}</el-checkbox>
+            </section>
+          </el-form>
+          <div class="filter-actions"><el-button @click="resetFilters">{{ t('common.actions.reset') }}</el-button><el-button type="primary" :disabled="!hasSelectedUserFilter || isLoading" @click="reloadTransactions">{{ t('transactions.show') }}</el-button></div>
         </div>
       </aside>
-
       <main class="transactions-content">
-        <div class="transactions-summary">
-          <div>
-            <span>{{ t('transactions.found') }}</span>
-            <strong>{{ transactions.length }}</strong>
-          </div>
-          <div>
-            <span>{{ t('transactions.amount') }}</span>
-            <strong>{{ formatTotalAmount }}</strong>
-          </div>
-          <div>
-            <span>{{ t('transactions.period') }}</span>
-            <strong>{{ transactionPeriodText }}</strong>
-          </div>
+        <div class="journal-meta">
+          <span>{{ t('transactions.loadedCount', { count: transactions.length }) }}</span>
+          <span>{{ transactionPeriodText }}</span>
+          <el-tooltip :content="t('transactions.flowContextHint')"><span class="flow-context">{{ flowOrganization ? t('transactions.relativeTo', { name: flowOrganization.name }) : t('transactions.neutralAmounts') }}</span></el-tooltip>
         </div>
-
-        <div class="transactions-table-region">
-          <el-table
-            ref="transactionsTableRef"
-            tabindex="0"
-            :aria-label="t('transactions.title')"
-            :aria-description="t('common.labels.transactionNavigation')"
-            highlight-current-row
-            @keydown="tableNavigation.onKeydown"
-            v-loading="isLoading"
-            :data="transactions"
-            class="transactions-table"
-            height="100%"
-            row-key="id"
-            @row-click="handleTransactionRowClick"
-          >
-            <el-table-column :label="t('common.labels.date')" min-width="170">
-              <template #default="{ row }">
-                {{ formatLocalDateTime(row.transactionDate) }}
-              </template>
-            </el-table-column>
-
-            <el-table-column :label="t('transactions.operation')" min-width="160">
+        <div ref="tableRegion" class="transactions-table-region">
+          <el-table ref="transactionsTableRef" tabindex="0" :aria-label="t('transactions.title')" :aria-description="t('common.labels.transactionNavigation')" highlight-current-row @keydown="tableNavigation.onKeydown" v-loading="isLoading" :data="transactions" class="transactions-table" height="100%" row-key="id" :empty-text="t(hasSelectedUserFilter ? 'organizationPage.noTransactions' : 'transactions.selectOrganizationToLoad')" @row-click="handleTransactionRowClick" @scroll="loadNearEnd">
+            <el-table-column :label="t('common.labels.date')" min-width="145"><template #default="{ row }"><span :title="row.id">{{ formatTransactionDate(row.transactionDate) }}</span></template></el-table-column>
+            <el-table-column :label="t('transactions.operation')" min-width="145">
               <template #default="{ row }">
                 <div class="operation-cell">
-                  <el-tag :type="transactionTypeTag(row.type)" effect="light">
-                    {{ transactionTypeLabel(row.type) }}
-                  </el-tag>
-                  <el-tag
-                    v-if="isPurchaseSource(row.sourceType) && !isReversedStatus(row.status)"
-                    :type="transactionSourceTag(row.sourceType)"
-                    effect="plain"
-                    class="source-link"
-                    @click.stop="openPurchaseByTransaction(row)"
-                  >
-                    {{ transactionSourceLabel(row.sourceType) }}
-                  </el-tag>
-                  <el-tag
-                    v-else-if="isSaleSource(row.sourceType) && !isReversedStatus(row.status)"
-                    :type="transactionSourceTag(row.sourceType)"
-                    effect="plain"
-                    class="source-link"
-                    @click.stop="openSaleByTransaction(row)"
-                  >
-                    {{ transactionSourceLabel(row.sourceType) }}
-                  </el-tag>
-                  <el-tag
-                    v-else
-                    :type="transactionSourceTag(row.sourceType)"
-                    effect="plain"
-                    :class="{ 'source-disabled': isNavigableSource(row.sourceType) && isReversedStatus(row.status) }"
-                  >
-                    {{ transactionSourceLabel(row.sourceType) }}
-                  </el-tag>
-                  <el-tag v-if="isReversedStatus(row.status)" type="danger" effect="light">
-                    {{ t('transactions.reversed') }}
-                  </el-tag>
+                  <button v-if="canNavigateDocument(row) && !isReversedStatus(row.status)" type="button" class="document-link" @click.stop="isSaleSource(row.sourceType) ? openSaleByTransaction(row) : openPurchaseByTransaction(row)">{{ transactionSourceLabel(row.sourceType) }}<el-icon><ArrowRight /></el-icon></button>
+                  <strong v-else>{{ transactionSourceLabel(row.sourceType) }}</strong>
+                  <small>{{ transactionTypeLabel(row.type) }}<span v-if="isReversedStatus(row.status)"> · {{ t('transactions.reversed') }}</span><span v-else-if="!transactionIsCompleted(row)"> · {{ t('transactions.statuses.Pending') }}</span></small>
                 </div>
               </template>
             </el-table-column>
-
-            <el-table-column :label="t('transactions.sender')" min-width="190">
-              <template #default="{ row }">
-                <OrganizationPartyHoverCard :organization="row.sender" />
-              </template>
+            <el-table-column v-if="!compactTransfer" key="sender" :label="t('transactions.sender')" min-width="180"><template #default="{ row }"><OrganizationPartyHoverCard :organization="row.sender" /></template></el-table-column>
+            <el-table-column v-if="!compactTransfer" key="receiver" :label="t('transactions.receiver')" min-width="180"><template #default="{ row }"><OrganizationPartyHoverCard :organization="row.receiver" /></template></el-table-column>
+            <el-table-column v-else key="parties" :label="t('transactions.transferParties')" min-width="195">
+              <template #default="{ row }"><div class="compact-parties"><OrganizationPartyHoverCard :organization="row.sender" /><el-icon><ArrowRight /></el-icon><OrganizationPartyHoverCard :organization="row.receiver" /></div></template>
             </el-table-column>
-
-            <el-table-column :label="t('transactions.receiver')" min-width="190">
-              <template #default="{ row }">
-                <OrganizationPartyHoverCard :organization="row.receiver" />
-              </template>
-            </el-table-column>
-
-            <el-table-column :label="t('transactions.amount')" min-width="180" align="right">
-              <template #default="{ row }">
-                <strong
-                  class="transaction-amount"
-                  :class="{
-                    'amount-muted': isReversedStatus(row.status),
-                    'amount-negative': !isReversedStatus(row.status) && isNegativeTransaction(row),
-                    'amount-positive': !isReversedStatus(row.status) && !isNegativeTransaction(row),
-                  }"
-                >
-                  {{ formatMoney(row.amount, row.currencyId) }}
-                </strong>
-              </template>
-            </el-table-column>
-
-            <el-table-column v-if="canDeleteTransactions" :label="t('common.labels.actions')" width="120" align="right" fixed="right">
-              <template #default="{ row }">
-                <el-button
-                  v-if="canCancelTransaction(row)"
-                  size="small"
-                  type="danger"
-                  plain
-                  :loading="cancellingTransactionId === row.id"
-                  @click.stop="confirmCancelTransaction(row)"
-                >
-                  {{ t('transactions.cancel') }}
-                </el-button>
-              </template>
-            </el-table-column>
+            <el-table-column :label="t('transactions.amount')" min-width="145" align="right"><template #default="{ row }"><strong class="transaction-amount" :class="amountClass(row)">{{ rowMoney(row) }}</strong></template></el-table-column>
           </el-table>
         </div>
-
-        <div class="table-footer">
+        <footer class="table-footer">
           <span class="table-shortcuts">{{ t('common.labels.transactionNavigation') }}</span>
-          <el-button
-            v-if="canLoadMore"
-            plain
-            :loading="isLoadingMore"
-            @click="loadMoreTransactions"
-          >
-            {{ t('common.actions.loadMore') }}
-          </el-button>
-        </div>
+          <div v-if="loadMoreError" class="load-more-error" role="alert"><span>{{ loadMoreError }}</span><el-button size="small" @click="retryLoadMore">{{ t('common.actions.refresh') }}</el-button></div>
+          <span v-else-if="isLoadingMore" class="table-shortcuts" role="status">{{ t('organizationPage.loadingTransactions') }}</span>
+          <span v-else-if="transactions.length && !canLoadMore && !isLoading" class="table-shortcuts" role="status">{{ t('organizationPage.transactionsEnd') }}</span>
+        </footer>
       </main>
     </section>
-
-    <el-drawer
-      v-model="detailsOpen"
-      direction="rtl"
-      size="min(420px, 100vw)"
-      :with-header="false"
-      class="transaction-drawer"
-      @opened="focusTransactionDetails"
-    >
+    <el-drawer v-model="detailsOpen" direction="rtl" size="min(400px, 100vw)" :with-header="false" class="transaction-drawer" @opened="focusTransactionDetails">
       <div v-if="selectedTransaction" ref="transactionDetailsRef" class="transaction-details" tabindex="0" @keydown="tableNavigation.onKeydown">
-        <header>
-          <div>
-            <span>{{ transactionTypeLabel(selectedTransaction.type) }}</span>
-            <h2>{{ formatMoney(selectedTransaction.amount, selectedTransaction.currencyId) }}</h2>
-          </div>
-          <el-button text @click="detailsOpen = false">{{ t('transactions.close') }}</el-button>
-        </header>
-
-        <dl>
-          <div>
-            <dt>{{ t('transactions.source') }}</dt>
-            <dd class="source-details">
-              <el-tag :type="transactionSourceTag(selectedTransaction.sourceType)" effect="plain">
-                {{ transactionSourceLabel(selectedTransaction.sourceType) }}
-              </el-tag>
-              <el-button
-                v-if="isPurchaseSource(selectedTransaction.sourceType)"
-                size="small"
-                type="primary"
-                plain
-                :loading="purchaseNavigationLoading"
-                :disabled="isReversedStatus(selectedTransaction.status)"
-                @click="openPurchaseByTransaction(selectedTransaction)"
-              >
-                {{ t('transactions.openPurchase') }}
-              </el-button>
-              <el-button
-                v-if="isSaleSource(selectedTransaction.sourceType)"
-                size="small"
-                type="primary"
-                plain
-                :loading="saleNavigationLoading"
-                :disabled="isReversedStatus(selectedTransaction.status)"
-                @click="openSaleByTransaction(selectedTransaction)"
-              >
-                {{ t('transactions.openSale') }}
-              </el-button>
-              <el-button
-                v-if="canDeleteTransactions && canCancelTransaction(selectedTransaction)"
-                size="small"
-                type="danger"
-                plain
-                :loading="cancellingTransactionId === selectedTransaction.id"
-                @click="confirmCancelTransaction(selectedTransaction)"
-              >
-                {{ t('transactions.cancel') }}
-              </el-button>
-            </dd>
-          </div>
-          <div>
-            <dt>{{ t('common.labels.status') }}</dt>
-            <dd class="status-list">
-              <el-tag
-                v-for="status in transactionStatusItems(selectedTransaction.status)"
-                :key="status.raw"
-                :type="status.type"
-                effect="light"
-              >
-                {{ status.label }}
-              </el-tag>
-            </dd>
-          </div>
-          <div>
-            <dt>{{ t('common.labels.date') }}</dt>
-            <dd>{{ formatLocalDateTime(selectedTransaction.transactionDate) }}</dd>
-          </div>
-          <div>
-            <dt>{{ t('transactions.sender') }}</dt>
-            <dd>
-              <OrganizationPartyHoverCard :organization="selectedTransaction.sender" placement="bottom-start" />
-            </dd>
-          </div>
-          <div>
-            <dt>{{ t('transactions.receiver') }}</dt>
-            <dd>
-              <OrganizationPartyHoverCard :organization="selectedTransaction.receiver" placement="bottom-start" />
-            </dd>
-          </div>
-          <div>
-            <dt>{{ t('common.labels.currency') }}</dt>
-            <dd>{{ currencyLabel(selectedTransaction.currencyId) }}</dd>
-          </div>
+        <header class="drawer-heading"><h2>{{ t('transactions.detailsTitle') }}</h2><el-button :icon="Close" circle text :aria-label="t('transactions.close')" @click="detailsOpen = false" /></header>
+        <section class="transaction-hero">
+          <el-icon class="transfer-icon"><Switch /></el-icon>
+          <strong class="hero-amount" :class="amountClass(selectedTransaction)">{{ rowMoney(selectedTransaction) }}</strong>
+          <el-tag :type="primaryStatus(selectedTransaction).type" effect="light" round>{{ primaryStatus(selectedTransaction).label }}</el-tag>
+          <time :datetime="selectedTransaction.transactionDate">{{ formatTransactionDate(selectedTransaction.transactionDate) }}</time>
+          <small v-if="flowOrganization">{{ t('transactions.relativeTo', { name: flowOrganization.name }) }}</small>
+        </section>
+        <section class="transfer-participants" :aria-label="t('transactions.transferParties')">
+          <div class="transfer-party"><el-icon><OfficeBuilding /></el-icon><div><span>{{ t('transactions.sender') }}</span><OrganizationPartyHoverCard :organization="selectedTransaction.sender" placement="bottom-start" /></div></div>
+          <el-icon class="transfer-direction"><ArrowDown /></el-icon>
+          <div class="transfer-party"><el-icon><OfficeBuilding /></el-icon><div><span>{{ t('transactions.receiver') }}</span><OrganizationPartyHoverCard :organization="selectedTransaction.receiver" placement="bottom-start" /></div></div>
+        </section>
+        <dl class="transaction-facts">
+          <div><dt>{{ t('transactions.source') }}</dt><dd><el-tag :type="transactionSourceTag(selectedTransaction.sourceType)" effect="plain">{{ transactionSourceLabel(selectedTransaction.sourceType) }}</el-tag></dd></div>
+          <div><dt>{{ t('common.labels.currency') }}</dt><dd>{{ currencyLabel(selectedTransaction.currencyId) }}</dd></div>
+          <div><dt>{{ t('common.labels.type') }}</dt><dd>{{ transactionTypeLabel(selectedTransaction.type) }}</dd></div>
         </dl>
+        <div v-if="canNavigateDocument(selectedTransaction)" class="drawer-document"><el-button type="primary" plain :loading="purchaseNavigationLoading || saleNavigationLoading" :disabled="isReversedStatus(selectedTransaction.status)" @click="isSaleSource(selectedTransaction.sourceType) ? openSaleByTransaction(selectedTransaction) : openPurchaseByTransaction(selectedTransaction)">{{ t(isSaleSource(selectedTransaction.sourceType) ? 'transactions.openSale' : 'transactions.openPurchase') }}</el-button></div>
+        <footer v-if="canDeleteTransactions && canCancelTransaction(selectedTransaction)" class="drawer-cancel"><el-button type="danger" color="#b91c1c" plain :icon="CircleClose" :loading="cancellingTransactionId === selectedTransaction.id" @click="confirmCancelTransaction(selectedTransaction)">{{ t('transactions.cancelTransaction') }}</el-button></footer>
       </div>
     </el-drawer>
-
-    <CreateTransactionDialog
-      v-model="createDialogOpen"
-      :currencies="currencies"
-      @created="handleTransactionCreated"
-    />
+    <CreateTransactionDialog v-model="createDialogOpen" :currencies="currencies" @created="handleTransactionCreated" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, h, nextTick, onMounted, onScopeDispose, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useDebounceFn } from '@vueuse/core'
-import { ElMessage, ElMessageBox, type TableInstance } from 'element-plus'
+import { useDebounceFn, useMediaQuery, useResizeObserver } from '@vueuse/core'
+import { ElIcon, ElMessage, ElMessageBox, type TableInstance } from 'element-plus'
+import { ArrowDown, ArrowUp, ArrowRight, Close, OfficeBuilding, Plus, Refresh, Switch, CircleClose } from '@element-plus/icons-vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
 import CreateTransactionDialog from '@/components/transactions/CreateTransactionDialog.vue'
@@ -366,7 +128,7 @@ import {
 } from '@/services/api/balances.ts'
 import { getPurchaseByTransactionId } from '@/services/api/purchases.ts'
 import { getSaleByTransactionId } from '@/services/api/sales.ts'
-import { formatLocalDateTime } from '@/utils/dateTime.ts'
+import { transactionFlowAmount, transactionIsCompleted, transactionIsReversed } from '@/utils/transactionJournal'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { useI18n } from '@/i18n'
 
@@ -393,18 +155,32 @@ const tableNavigation = useTableArrowNavigation({
   root: () => transactionsTableRef.value?.$el as HTMLElement | undefined,
   select: selectTransaction,
   activate: openTransactionDetails,
+  onBoundary: (direction) => { if (direction === 1) return loadMoreTransactions() },
 })
 const currencies = ref<CurrencyModel[]>([])
 const sender = ref<OrganizationSelection | undefined>()
 const receiver = ref<OrganizationSelection | undefined>()
 const canLoadMore = ref(false)
+const loadMoreError = ref('')
 const dateRange = ref<[string, string] | null>(null)
+const advancedFiltersOpen = ref(false)
+const filtersExpanded = ref(false)
+const narrowPage = useMediaQuery('(max-width: 980px)')
+const tableRegion = ref<HTMLElement>()
+const compactTransfer = ref(false)
+useResizeObserver(tableRegion, ([entry]) => {
+  if (entry) compactTransfer.value = entry.contentRect.width < 820
+  void nextTick(loadNearEnd)
+})
+let requestGeneration = 0
+let disposed = false
+onScopeDispose(() => { disposed = true; ++requestGeneration })
 const isApplyingRouteQuery = ref(false)
 const isSyncingRouteQuery = ref(false)
 
 const filters = reactive({
   currencyId: null as number | null,
-  logicalOperator: 'And' as TransactionLogicalOperator,
+  logicalOperator: 'Or' as TransactionLogicalOperator,
   skipReversed: true,
 })
 
@@ -416,11 +192,14 @@ const showReversed = computed({
     filters.skipReversed = !value
   },
 })
-const formatTotalAmount = computed(() => {
-  if (!filters.currencyId) return t('transactions.chooseCurrencySummary')
-  const total = transactions.value.reduce((sum, transaction) => sum + transaction.amount, 0)
-  return formatMoney(total, filters.currencyId)
+const advancedFilterCount = computed(() => Number(filters.logicalOperator === 'And') + Number(!!receiver.value) + Number(!filters.skipReversed))
+const flowOrganization = computed(() => {
+  const a = sender.value?.organization
+  const b = filters.logicalOperator === 'And' ? receiver.value?.organization : undefined
+  return a && b && a.id !== b.id ? undefined : a ?? b
 })
+const canViewPurchases = computed(() => hasPermission('PURCHASE_GET'))
+const canViewSales = computed(() => hasPermission('SALES_GET'))
 const logicalOperatorTooltip = computed(() => (
   filters.logicalOperator === 'And'
     ? t('transactions.andTooltip')
@@ -434,14 +213,14 @@ const transactionPeriodText = computed(() => (
 const hasSelectedUserFilter = computed(() => Boolean(sender.value || receiver.value))
 
 const reloadTransactionsDebounced = useDebounceFn(async () => {
-  if (!hasSelectedUserFilter.value) return
+  if (!hasSelectedUserFilter.value || disposed) return
   await reloadTransactions()
 }, 250)
 
 onMounted(async () => {
   await applyFiltersFromQuery()
   await loadCurrencies()
-  if (hasSelectedUserFilter.value) {
+  if (hasSelectedUserFilter.value && !disposed) {
     await reloadTransactions()
   }
 })
@@ -456,11 +235,16 @@ async function loadCurrencies() {
 }
 
 async function reloadTransactions() {
+  if (!hasSelectedUserFilter.value || disposed) { invalidateTransactions(); return }
+  const generation = ++requestGeneration
+  loadMoreError.value = ''
+  canLoadMore.value = false
+  isLoadingMore.value = false
   isLoading.value = true
   try {
     const response = await getBalanceTransactions({
-      rangeStart: dateRange.value?.[0],
-      rangeEnd: dateRange.value?.[1],
+      rangeStart: dateRange.value ? `${dateRange.value[0]}T00:00:00.000` : undefined,
+      rangeEnd: dateRange.value ? `${dateRange.value[1]}T23:59:59.999` : undefined,
       currencyId: filters.currencyId,
       senderId: sender.value?.organization.id,
       receiverId: filters.logicalOperator === 'And' ? receiver.value?.organization.id : undefined,
@@ -469,6 +253,7 @@ async function reloadTransactions() {
       size: pageSize,
     })
 
+    if (generation !== requestGeneration || disposed) return
     transactions.value = response.transactions
     const current = transactions.value.find((item) => item.id === selectedTransaction.value?.id)
     selectedTransaction.value = current ?? null
@@ -477,21 +262,27 @@ async function reloadTransactions() {
     transactionsTableRef.value?.setCurrentRow(current)
     canLoadMore.value = response.transactions.length === pageSize
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : t('transactions.loadError'))
+    if (generation === requestGeneration && !disposed) ElMessage.error(error instanceof Error ? error.message : t('transactions.loadError'))
   } finally {
-    isLoading.value = false
+    if (generation === requestGeneration) {
+      isLoading.value = false
+      await nextTick()
+      loadNearEnd()
+    }
   }
 }
 
 async function loadMoreTransactions() {
+  if (isLoading.value || isLoadingMore.value || loadMoreError.value || !canLoadMore.value || !hasSelectedUserFilter.value || disposed) return
+  const generation = requestGeneration
   const cursor = transactions.value[transactions.value.length - 1]
   if (!cursor) return
 
   isLoadingMore.value = true
   try {
     const response = await getBalanceTransactions({
-      rangeStart: dateRange.value?.[0],
-      rangeEnd: dateRange.value?.[1],
+      rangeStart: dateRange.value ? `${dateRange.value[0]}T00:00:00.000` : undefined,
+      rangeEnd: dateRange.value ? `${dateRange.value[1]}T23:59:59.999` : undefined,
       currencyId: filters.currencyId,
       senderId: sender.value?.organization.id,
       receiverId: filters.logicalOperator === 'And' ? receiver.value?.organization.id : undefined,
@@ -502,21 +293,37 @@ async function loadMoreTransactions() {
       size: pageSize,
     })
 
+    if (generation !== requestGeneration || disposed) return
     const existingIds = new Set(transactions.value.map((transaction) => transaction.id))
     const newTransactions = response.transactions.filter((transaction) => !existingIds.has(transaction.id))
     transactions.value = [...transactions.value, ...newTransactions]
     canLoadMore.value = response.transactions.length === pageSize && newTransactions.length > 0
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : t('transactions.loadMoreError'))
+    if (generation === requestGeneration && !disposed) loadMoreError.value = error instanceof Error ? error.message : t('transactions.loadMoreError')
   } finally {
-    isLoadingMore.value = false
+    if (generation === requestGeneration) {
+      isLoadingMore.value = false
+      await nextTick()
+      loadNearEnd()
+    }
   }
+}
+
+function loadNearEnd() {
+  if (isLoading.value || isLoadingMore.value || loadMoreError.value || !canLoadMore.value || disposed) return
+  const scroll = transactionsTableRef.value?.$el.querySelector('.el-table__body-wrapper .el-scrollbar__wrap') as HTMLElement | undefined
+  if (scroll && scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight <= 100) void loadMoreTransactions()
+}
+
+function retryLoadMore() {
+  loadMoreError.value = ''
+  void loadMoreTransactions()
 }
 
 function resetFilters() {
   dateRange.value = null
   filters.currencyId = null
-  filters.logicalOperator = 'And'
+  filters.logicalOperator = 'Or'
   filters.skipReversed = true
   sender.value = undefined
   receiver.value = undefined
@@ -545,6 +352,8 @@ async function applyFiltersFromQuery() {
 
     sender.value = nextSender
     receiver.value = filters.logicalOperator === 'And' ? nextReceiver : undefined
+    advancedFiltersOpen.value = filters.logicalOperator === 'And' || !filters.skipReversed
+    await nextTick()
   } finally {
     isApplyingRouteQuery.value = false
   }
@@ -578,7 +387,7 @@ function parsePositiveIntegerQuery(value: unknown) {
 }
 
 function parseLogicalOperatorQuery(value: unknown): TransactionLogicalOperator {
-  return firstQueryValue(value) === 'Or' ? 'Or' : 'And'
+  return firstQueryValue(value) === 'And' ? 'And' : 'Or'
 }
 
 function parseBooleanQuery(value: unknown) {
@@ -605,7 +414,7 @@ async function syncFiltersToQuery() {
     nextQuery.to = dateRange.value[1]
   }
   if (filters.currencyId) nextQuery.currencyId = String(filters.currencyId)
-  if (filters.logicalOperator !== 'And') nextQuery.operator = filters.logicalOperator
+  if (filters.logicalOperator !== 'Or') nextQuery.operator = filters.logicalOperator
   if (!filters.skipReversed) nextQuery.showReversed = 'true'
   if (sender.value?.organization.id) nextQuery.senderId = sender.value.organization.id
   if (filters.logicalOperator === 'And' && receiver.value?.organization.id) nextQuery.receiverId = receiver.value.organization.id
@@ -639,7 +448,7 @@ function isSameQuery(currentQuery: Record<string, unknown>, nextQuery: Record<st
 
 function handleTransactionRowClick(transaction: BalanceTransactionModel, column: unknown, event: MouseEvent) {
   tableNavigation.onRowClick(transaction, column, event)
-  selectTransaction(transaction)
+  openTransactionDetails(transaction)
 }
 
 function focusTransactionDetails() {
@@ -658,12 +467,12 @@ function openTransactionDetails(transaction: BalanceTransactionModel) {
 
 function formatMoney(value: number, currencyId: number) {
   const currency = currencies.value.find((item) => item.id === currencyId)
-  return `${formatNumber(value)} ${currency?.currencySign ?? currency?.shortName ?? ''}`.trim()
+  return `${formatNumber(value)} ${currency?.currencySign ?? currency?.shortName ?? t('transactions.unknownCurrency', { id: currencyId })}`.trim()
 }
 
 function currencyLabel(currencyId: number) {
   const currency = currencies.value.find((item) => item.id === currencyId)
-  return currency ? `${currency.shortName} (${currency.code})` : t('transactions.unknownCurrency', { id: currencyId })
+  return currency ? `${currency.name} (${currency.code})` : t('transactions.unknownCurrency', { id: currencyId })
 }
 
 function formatNumber(value: number) {
@@ -727,38 +536,39 @@ function isNavigableSource(sourceType: TransactionSourceType) {
 }
 
 function canCancelTransaction(transaction: BalanceTransactionModel) {
-  return isManualSource(transaction.sourceType) && !isReversedStatus(transaction.status)
+  return isManualSource(transaction.sourceType) && transactionIsCompleted(transaction) && !isReversedStatus(transaction.status)
 }
 
 async function confirmCancelTransaction(transaction: BalanceTransactionModel) {
-  if (!canCancelTransaction(transaction) || cancellingTransactionId.value) return
-
-  try {
-    await ElMessageBox.confirm(
-      t('transactions.cancelConfirm'),
-      t('transactions.cancelTitle'),
-      {
-        confirmButtonText: t('transactions.cancelTransaction'),
-        cancelButtonText: t('transactions.close'),
-        type: 'warning',
-      },
-    )
-  } catch {
-    return
-  }
-
+  if (!canDeleteTransactions.value || !canCancelTransaction(transaction) || cancellingTransactionId.value) return
   cancellingTransactionId.value = transaction.id
   try {
+    try {
+      await ElMessageBox.confirm(
+        h('div', [
+          h('p', t('transactions.reversalExplanation')),
+          h('p', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' } }, [
+            h('strong', partyName(transaction.receiver)),
+            h(ElIcon, null, { default: () => h(ArrowRight) }),
+            h('strong', partyName(transaction.sender)),
+          ]),
+          h('p', [h('strong', formatMoney(transaction.amount, transaction.currencyId))]),
+          h('p', t('transactions.reversalStatusHint')),
+        ]),
+        t('transactions.cancelTitle'),
+        { confirmButtonText: t('transactions.cancelTransaction'), cancelButtonText: t('transactions.close'), type: 'warning', closeOnClickModal: false, autofocus: false, confirmButtonClass: 'transaction-reversal-confirm' },
+      )
+    } catch { return }
+    if (!canDeleteTransactions.value || disposed) return
     await deleteBalanceTransaction(transaction.id)
+    if (disposed) return
     ElMessage.success(t('transactions.cancelled'))
     selectedTransaction.value = null
     detailsOpen.value = false
     await reloadTransactions()
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : t('transactions.cancelError'))
-  } finally {
-    cancellingTransactionId.value = null
-  }
+    if (!disposed) ElMessage.error(error instanceof Error ? error.message : t('transactions.cancelError'))
+  } finally { cancellingTransactionId.value = null }
 }
 
 async function handleTransactionCreated() {
@@ -766,11 +576,12 @@ async function handleTransactionCreated() {
 }
 
 async function openPurchaseByTransaction(transaction: BalanceTransactionModel) {
-  if (!isPurchaseSource(transaction.sourceType) || isReversedStatus(transaction.status) || purchaseNavigationLoading.value) return
+  if (!canViewPurchases.value || !isPurchaseSource(transaction.sourceType) || isReversedStatus(transaction.status) || purchaseNavigationLoading.value) return
 
   purchaseNavigationLoading.value = true
   try {
     const response = await getPurchaseByTransactionId(transaction.id)
+    if (disposed) return
     detailsOpen.value = false
     await router.push({
       name: 'purchases',
@@ -786,11 +597,12 @@ async function openPurchaseByTransaction(transaction: BalanceTransactionModel) {
 }
 
 async function openSaleByTransaction(transaction: BalanceTransactionModel) {
-  if (!isSaleSource(transaction.sourceType) || isReversedStatus(transaction.status) || saleNavigationLoading.value) return
+  if (!canViewSales.value || !isSaleSource(transaction.sourceType) || isReversedStatus(transaction.status) || saleNavigationLoading.value) return
 
   saleNavigationLoading.value = true
   try {
     const response = await getSaleByTransactionId(transaction.id)
+    if (disposed) return
     detailsOpen.value = false
     await router.push({
       name: 'sales',
@@ -805,85 +617,35 @@ async function openSaleByTransaction(transaction: BalanceTransactionModel) {
   }
 }
 
-function transactionStatusItems(status: TransactionStatus) {
-  const values = transactionStatusValues(status)
-  if (values.length === 0) values.push(String(status))
-
-  return values.map((value) => ({
-    raw: value,
-    label: transactionStatusLabelByValue(value),
-    type: transactionStatusTagType(value),
-  }))
-}
-
-function transactionStatusValues(status: TransactionStatus) {
-  if (typeof status === 'string') {
-    return status.split(',').map((item) => item.trim()).filter(Boolean)
-  }
-
-  const numericStatus = Number(status)
-  if (!Number.isFinite(numericStatus)) return [String(status)]
-  if (numericStatus === 0) return ['Pending']
-
-  const values: string[] = []
-  if ((numericStatus & 1) === 1) values.push('Completed')
-  if ((numericStatus & 2) === 2) values.push('CompletionApplied')
-  if ((numericStatus & 4) === 4) values.push('Reversed')
-  if ((numericStatus & 8) === 8) values.push('ReversedApplied')
-  if ((numericStatus & 16) === 16) values.push('CompletionProfileApplied')
-  if ((numericStatus & 32) === 32) values.push('ReversalProfileApplied')
-  return values
-}
-
-function transactionStatusLabelByValue(status: string) {
-  const value = String(status)
-  const labels: Record<string, string> = {
-    Pending: t('transactions.statuses.Pending'),
-    Completed: t('transactions.statuses.Completed'),
-    CompletionApplied: t('transactions.statuses.CompletionApplied'),
-    Reversed: t('transactions.statuses.Reversed'),
-    ReversedApplied: t('transactions.statuses.ReversedApplied'),
-    CompletionProfileApplied: t('transactions.statuses.CompletionProfileApplied'),
-    ReversalProfileApplied: t('transactions.statuses.ReversalProfileApplied'),
-    0: t('transactions.statuses.Pending'),
-    1: t('transactions.statuses.Completed'),
-    2: t('transactions.statuses.CompletionApplied'),
-    4: t('transactions.statuses.Reversed'),
-    8: t('transactions.statuses.ReversedApplied'),
-    16: t('transactions.statuses.CompletionProfileApplied'),
-    32: t('transactions.statuses.ReversalProfileApplied'),
-  }
-
-  return labels[value] ?? value
-}
-
-function transactionStatusTagType(status: string) {
-  if (status === 'Reversed' || status === 'ReversedApplied' || status === 'ReversalProfileApplied' || status === '4' || status === '8' || status === '32') return 'danger'
-  if (status === 'Pending' || status === '0') return 'warning'
-  if (status === 'CompletionApplied' || status === 'CompletionProfileApplied' || status === '2' || status === '16') return 'success'
-  return 'info'
-}
-
 function isReversedStatus(status: TransactionStatus) {
-  return transactionStatusValues(status).some((value) => (
-    value === 'Reversed'
-    || value === 'ReversedApplied'
-    || value === 'ReversalProfileApplied'
-    || value === '4'
-    || value === '8'
-    || value === '32'
-  ))
+  return typeof status === 'number' ? (status & 4) !== 0 : status.includes('Reversed')
 }
-
-function transactionTypeTag(type: TransactionType) {
-  if (type === 'Refund' || type === 1) return 'warning'
-  if (type === 'Fee' || type === 2) return 'danger'
-  if (type === 'Adjustment' || type === 3) return 'info'
-  return 'success'
+function primaryStatus(row: BalanceTransactionModel) {
+  if (transactionIsReversed(row)) return { label: t('transactions.statuses.Reversed'), type: 'danger' as const }
+  return transactionIsCompleted(row)
+    ? { label: t('transactions.statuses.Completed'), type: 'success' as const }
+    : { label: t('transactions.statuses.Pending'), type: 'warning' as const }
 }
-
-function isNegativeTransaction(transaction: BalanceTransactionModel) {
-  return transaction.type === 'Fee' || transaction.type === 2
+function formatTransactionDate(value: string) { return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) }
+function partyName(party: BalanceTransactionModel['sender']) { return party.type === 'System' ? t('transactions.system') : party.name }
+function canNavigateDocument(row: BalanceTransactionModel) { return isNavigableSource(row.sourceType) && (isPurchaseSource(row.sourceType) ? canViewPurchases.value : canViewSales.value) }
+function signedMoney(amount: number, currencyId: number) { return `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${formatMoney(Math.abs(amount), currencyId)}` }
+function rowMoney(row: BalanceTransactionModel) { return flowOrganization.value ? signedMoney(transactionFlowAmount(row, flowOrganization.value.id), row.currencyId) : formatMoney(row.amount, row.currencyId) }
+function amountClass(row: BalanceTransactionModel) {
+  if (transactionIsReversed(row)) return 'amount-muted'
+  if (!flowOrganization.value) return ''
+  const amount = transactionFlowAmount(row, flowOrganization.value.id)
+  return amount > 0 ? 'amount-positive' : amount < 0 ? 'amount-negative' : ''
+}
+function invalidateTransactions() {
+  ++requestGeneration
+  loadMoreError.value = ''
+  isLoading.value = false
+  isLoadingMore.value = false
+  transactions.value = []
+  selectedTransaction.value = null
+  detailsOpen.value = false
+  canLoadMore.value = false
 }
 
 watch(() => filters.logicalOperator, (operator) => {
@@ -907,6 +669,7 @@ watch(
   async () => {
     if (isApplyingRouteQuery.value) return
 
+    invalidateTransactions()
     await syncFiltersToQuery()
 
     if (!hasSelectedUserFilter.value) {
@@ -922,6 +685,7 @@ watch(
 watch(() => route.query, async () => {
   if (isApplyingRouteQuery.value || isSyncingRouteQuery.value) return
 
+  invalidateTransactions()
   await applyFiltersFromQuery()
 
   if (hasSelectedUserFilter.value) {
@@ -935,410 +699,88 @@ watch(() => route.query, async () => {
 </script>
 
 <style scoped>
-.transactions-page {
-  display: flex;
-  flex-direction: column;
-  height: calc(100dvh - var(--app-viewport-offset, 56px));
-  min-height: 0;
-  box-sizing: border-box;
-  overflow: hidden;
-  background: #f5f7fb;
-  padding: 24px;
+.transactions-page { display: flex; flex-direction: column; height: calc(100dvh - var(--app-viewport-offset, 56px)); min-height: 0; box-sizing: border-box; overflow: hidden; background: var(--app-bg-soft); padding: 20px; }
+.transactions-header { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.transactions-header h1 { margin: 0; color: var(--app-text); font-size: 26px; font-weight: 700; }
+.transactions-header p { margin: 4px 0 0; color: var(--app-text-muted); font-size: 13px; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: end; }
+.transactions-layout { display: grid; flex: 1; min-height: 0; min-width: 0; grid-template-columns: 280px minmax(0,1fr); gap: 16px; }
+.transactions-filters, .transactions-content { min-width: 0; border: 1px solid var(--app-border); border-radius: 8px; background: var(--app-surface); }
+.transactions-filters { align-self: start; max-height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 16px; }
+.filter-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.filter-header h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.filter-body { display: flex; flex-direction: column; min-height: 0; margin-top: 16px; }
+.transactions-filter-fields { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.filter-actions { display: flex; gap: 8px; justify-content: end; border-top: 1px solid var(--app-border); padding-top: 12px; margin-top: 8px; }
+.advanced-toggle { padding: 4px 0; height: auto; margin-bottom: 12px; }
+.advanced-count { margin-left: 6px; border-radius: 4px; background: var(--app-primary-soft); padding: 0 5px; font-size: 11px; }
+.advanced-filters { padding: 12px 0; border-top: 1px solid var(--app-border); }
+.filter-explanation { color: var(--app-text-muted); font-size: 12px; line-height: 1.5; margin: 8px 0 0; }
+.transactions-content { display: flex; flex-direction: column; min-height: 0; padding: 16px; }
+.journal-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; padding-bottom: 10px; color: var(--app-text-muted); font-size: 12px; }
+.flow-context { color: var(--app-text); }
+.transactions-table-region { flex: 1; min-height: 0; min-width: 0; }
+.transactions-table { width: 100%; }
+.transactions-table :deep(.el-table__row) { cursor: pointer; }
+.operation-cell { display: grid; gap: 3px; line-height: 1.3; }
+.operation-cell > strong { font-weight: 600; font-size: 13px; }
+.operation-cell small { color: var(--app-text-muted); font-size: 12px; }
+.document-link { display: inline-flex; align-items: center; width: fit-content; gap: 4px; border: 0; padding: 0; background: transparent; color: var(--app-primary); font: inherit; font-weight: 600; cursor: pointer; }
+.document-link:focus-visible { outline: 2px solid var(--app-primary); outline-offset: 3px; }
+.document-link:hover { text-decoration: underline; }
+.compact-parties { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; min-width: 0; }
+.compact-parties > .el-icon { flex: none; color: var(--app-text-muted); }
+.compact-parties :deep(.organization-party-reference) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.transaction-amount, .hero-amount { color: var(--app-text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.amount-positive { color: #15803d; }
+.amount-negative { color: #b91c1c; }
+.amount-muted { color: var(--app-text-muted); text-decoration: line-through; }
+.table-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; }
+.load-more-error { display: flex; align-items: center; gap: 8px; color: #b91c1c; font-size: 12px; }
+.table-shortcuts { color: var(--app-text-muted); font-size: 11px; }
+.transaction-details { min-height: 100%; background: var(--app-surface); color: var(--app-text); padding: 20px; }
+.drawer-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.drawer-heading h2 { margin: 0; font-size: 17px; font-weight: 650; }
+.transaction-hero { display: grid; justify-items: center; gap: 10px; padding: 28px 0 24px; text-align: center; }
+.transfer-icon { font-size: 22px; color: var(--app-text-muted); }
+.hero-amount { font-size: 30px; line-height: 1.25; font-weight: 700; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.transaction-hero time, .transaction-hero small { color: var(--app-text-muted); font-size: 12px; }
+.transaction-details :deep(.el-tag--success) { color: #15803d; --el-tag-text-color: #15803d; }
+.transaction-details :deep(.el-tag--warning) { color: #854d0e; --el-tag-text-color: #854d0e; }
+.transaction-details :deep(.el-tag--danger) { color: #b91c1c; --el-tag-text-color: #b91c1c; }
+.transfer-participants { display: grid; gap: 12px; padding: 22px 0; border-block: 1px solid var(--app-border); }
+.transfer-party { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.transfer-party > .el-icon { color: var(--app-text-muted); font-size: 18px; }
+.transfer-party > div { display: grid; gap: 4px; min-width: 0; }
+.transfer-party span { color: var(--app-text-muted); font-size: 12px; }
+.transfer-direction { margin-left: 2px; color: var(--app-text-muted); }
+.transaction-facts { display: grid; gap: 14px; margin: 0; padding: 22px 0; }
+.transaction-facts > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.transaction-facts dt { flex: none; color: var(--app-text-muted); font-size: 13px; }
+.transaction-facts dd { margin: 0; text-align: right; font-size: 13px; font-weight: 500; }
+.drawer-document { padding-bottom: 18px; }
+.drawer-document .el-button { width: 100%; }
+.drawer-cancel { border-top: 1px solid var(--app-border); padding-top: 20px; }
+.drawer-cancel .el-button { width: 100%; color: #b91c1c; }
+.drawer-cancel .el-button:hover { color: #fff; background: #b91c1c; border-color: #b91c1c; }
+.drawer-cancel :deep(.el-button) { --el-button-text-color: #b91c1c; --el-button-hover-text-color: #fff; --el-button-hover-bg-color: #b91c1c; --el-button-hover-border-color: #b91c1c; }
+:global(.transaction-reversal-confirm.el-button) { --el-button-bg-color: #b91c1c; --el-button-border-color: #b91c1c; --el-button-hover-bg-color: #991b1b; --el-button-hover-border-color: #991b1b; --el-button-active-bg-color: #7f1d1d; --el-button-text-color: #fff; }
+:deep(.transaction-drawer .el-drawer__body) { padding: 0; }
+:deep(.transactions-filters .el-form-item) { margin-bottom: 16px; }
+:deep(.transactions-filters .el-select), :deep(.transactions-filters .el-date-editor) { width: 100%; min-width: 0; }
+@media (max-width:980px) {
+  .transactions-page { height: auto; min-height: calc(100dvh - var(--app-viewport-offset,56px)); overflow: visible; padding: 12px; }
+  .transactions-layout { grid-template-columns: 1fr; }
+  .transactions-content { height: clamp(420px,75dvh,760px); }
+  .transactions-filters { padding: 10px 14px; }
 }
-
-.transactions-header {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.transactions-header h1 {
-  margin: 0;
-  color: #111827;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.transactions-header p {
-  margin: 6px 0 0;
-  color: #64748b;
-  font-size: 14px;
-}
-
-.header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.transactions-layout {
-  display: grid;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 16px;
-}
-
-.transactions-filters,
-.transactions-content {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.transactions-filters {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  max-height: 100%;
-  overflow: hidden;
-  align-self: start;
-  padding: 16px;
-}
-
-.transactions-filter-fields {
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.filter-title {
-  flex: none;
-  margin-bottom: 16px;
-  color: #111827;
-  font-size: 16px;
-  font-weight: 650;
-}
-
-.filter-actions {
-  flex: none;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 14px;
-}
-
-.skip-reversed-checkbox {
-  margin: -4px 0 14px;
-}
-
-.participants-filter {
-  min-width: 0;
-  max-width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border: 1px solid #dbe3ef;
-  border-radius: 10px;
-  margin: 4px 0 18px;
-  padding: 16px 12px 12px;
-}
-
-.participants-filter legend {
-  margin-left: 10px;
-  padding: 0 6px;
-}
-
-.participant-row {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.participant-row label {
-  color: #334155;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.participants-arrow {
-  align-self: center;
-  border-radius: 999px;
-  background: #f1f5f9;
-  color: #64748b;
-  font-size: 11px;
-  line-height: 1;
-  padding: 5px 9px;
-}
-
-.logical-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 8%);
-  cursor: help;
-  padding: 4px 8px;
-}
-
-.logical-switch span {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.logical-switch span.active {
-  color: #111827;
-}
-
-:deep(.participant-row .el-select) {
-  width: 100%;
-}
-
-.transactions-content {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: 0;
-  min-width: 0;
-  padding: 16px;
-}
-
-.transactions-table-region {
-  min-width: 0;
-  min-height: 0;
-}
-
-.transaction-amount {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.transactions-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.transactions-summary div {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.transactions-summary span {
-  display: block;
-  margin-bottom: 4px;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.transactions-summary strong {
-  color: #111827;
-  font-size: 16px;
-}
-
-.transactions-table {
-  width: 100%;
-}
-
-.operation-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.operation-cell span {
-  color: #64748b;
-  font-size: 13px;
-}
-
-.source-link {
-  cursor: pointer;
-}
-
-.source-link:hover {
-  filter: brightness(.96);
-}
-
-.source-disabled {
-  opacity: .65;
-  text-decoration: line-through;
-}
-
-.user-link {
-  border: 0;
-  background: transparent;
-  color: #2563eb;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-  padding: 0;
-  text-align: left;
-}
-
-.user-link:hover {
-  color: #1d4ed8;
-  text-decoration: underline;
-}
-
-.amount-positive {
-  color: #047857;
-}
-
-.amount-negative {
-  color: #b91c1c;
-}
-
-.amount-muted {
-  color: #94a3b8;
-  text-decoration: line-through;
-}
-
-.table-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding-top: 14px;
-}
-
-.table-shortcuts { color: #64748b; font-size: 12px; }
-
-.transaction-details {
-  min-height: 100%;
-  background: #fff;
-}
-
-.transaction-details header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 22px 24px 18px;
-}
-
-.transaction-details header span {
-  color: #2563eb;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.transaction-details h2 {
-  margin: 5px 0 0;
-  color: #111827;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.transaction-details dl {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin: 0;
-  padding: 20px 24px;
-}
-
-.transaction-details dl div {
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 12px;
-}
-
-.transaction-details dt {
-  margin-bottom: 4px;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.transaction-details dd {
-  margin: 0;
-  color: #111827;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.status-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.source-details {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-:deep(.transaction-drawer .el-drawer__body) {
-  padding: 0;
-}
-
-:deep(.transactions-filters .el-form-item) {
-  margin-bottom: 16px;
-}
-
-:deep(.transactions-filters .el-date-editor.el-input__wrapper) {
-  width: 100%;
-}
-
-@media (max-width: 980px) {
-  .transactions-page {
-    height: auto;
-    min-height: calc(100dvh - var(--app-viewport-offset, 56px));
-    overflow: visible;
-    padding: 16px;
-  }
-
-  .transactions-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .transactions-content {
-    height: clamp(420px, 75dvh, 760px);
-  }
-
-  .transactions-summary {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .transactions-page {
-    padding: 12px;
-  }
-
-  .transactions-header,
-  .transactions-filters,
-  .transactions-content {
-    padding: 14px;
-  }
-
-  .transactions-header h1 {
-    font-size: 22px;
-  }
-
-  .transactions-header,
-  .filter-actions,
-  .table-footer {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .header-actions {
-    justify-content: stretch;
-  }
-
-  .header-actions :deep(.el-button) {
-    flex: 1;
-  }
-
-  .filter-actions :deep(.el-button),
-  .table-footer :deep(.el-button) {
-    width: 100%;
-    margin-left: 0;
-  }
+@media (max-width:640px) {
+  .transactions-header { align-items: start; gap: 10px; }
+  .transactions-header h1 { font-size: 22px; }
+  .transactions-header p { display: none; }
+  .header-actions { gap: 4px; }
+  .header-actions > .el-button { margin: 0; padding: 8px 10px; }
+  .transactions-content { padding: 12px; }
+  .transaction-details { padding: 16px; }
 }
 </style>
