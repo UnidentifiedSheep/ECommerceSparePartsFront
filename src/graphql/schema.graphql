@@ -1,0 +1,1548 @@
+# Exported from backend CI 5d25c802caa9c4c709d94a9e14d2f8cd525bc8c0. Fusion execution metadata omitted.
+# Currency history types updated from Main CI schema 4e154563ca3a6261eb6b1a044705413639df5e3b.
+directive @authorize(apply: ApplyPolicy! = BEFORE_RESOLVER, policy: String, roles: [String!]) repeatable on OBJECT | FIELD_DEFINITION
+
+directive @cost(weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
+
+type Query {
+  analytics: AnalyticsQueries!
+  catalogue: CatalogueQueries!
+  catalogueCandidates: CatalogueCandidateQueries!
+  characteristics: CharacteristicQueries!
+  currencies: CurrencyQueries!
+  documents: DocumentQueries!
+  markupGroups: MarkupGroupQueries!
+  notifications: NotificationQueries!
+  organizations: OrganizationQueries!
+  priceAppliers: PriceApplierQueries!
+  producers: ProducerQueries!
+  productGroups: ProductGroupQueries!
+  products: ProductQueries!
+  purchases: PurchaseQueries!
+  sales: SaleQueries!
+  storageContents: StorageContentQueries!
+  transactions: TransactionQueries!
+  users: UserQueries!
+}
+
+type Mutation {
+  catalogueCandidates: CatalogueCandidateMutations!
+  characteristics: CharacteristicMutations!
+  documents: DocumentMutations!
+  markupGroups: MarkupGroupMutations!
+  notifications: NotificationMutations!
+  organizations: OrganizationMutations!
+  priceAppliers: PriceApplierMutations!
+  productEans: ProductEanMutation!
+  productGroups: ProductGroupMutations!
+  products: ProductMutations!
+  purchases: PurchaseMutations!
+  sales: SaleMutations!
+  transactions: TransactionMutations!
+  users: UserMutations!
+}
+
+type Subscription {
+  onNotificationCreated: NotificationCreated!
+}
+
+type AnalyticsQueries {
+  chart(systemName: String!): Chart
+  charts: [Chart!]!
+}
+
+type CatalogueCandidate {
+  crosses: CatalogueCandidateCrosses!
+  id: UUID!
+  producer: Producer!
+  product: Product
+  sku: String!
+  supplierProducts: [SupplierProduct!]!
+}
+
+type CatalogueCandidateCrosses {
+  mapped: [CatalogueCandidate!]!
+  notMapped: [SupplierProduct!]!
+}
+
+type CatalogueCandidateMutations {
+  candidateToCatalogue(input: CandidateToCatalogueInput!): Product!
+  mapCrosses(input: MaxCandidateCrossesInput!): [CatalogueCandidate!]!
+}
+
+type CatalogueCandidateQueries {
+  byId(id: UUID!): CatalogueCandidate
+  byProductId(productId: Int!): CatalogueCandidate
+}
+
+type CatalogueQueries {
+  search(input: CatalogueSearchInput!): CatalogueSearchResult!
+}
+
+type CatalogueSearchResult {
+  catalogues: SearchCatalogueSectionOfCatalogueCandidate!
+  products: SearchCatalogueSectionOfProduct!
+}
+
+type Characteristic {
+  id: Int!
+  name: String!
+  normalizedName: String!
+}
+
+type CharacteristicMutations {
+  delete(id: Int!): Boolean!
+  upsert(input: UpsertCharacteristicInput!): Characteristic!
+}
+
+type CharacteristicQueries {
+  byIds(ids: [Int!]!): [Characteristic!]!
+  search(input: SearchCharacteristicsInput!): [Characteristic!]!
+}
+
+type Chart {
+  data(queryInput: Any!): ChartData!
+  dataPointSchema: ObjectSchema!
+  description: String!
+  name: String!
+  queryInputSchema: ObjectSchema!
+  systemName: String!
+}
+
+type ChartData {
+  dataPoints: [Any!]!
+  nextCursor: String
+}
+
+type CsvColumnSchema {
+  description: String
+  descriptionKey: String
+  label: String
+  labelKey: String
+  names: [String!]!
+  propertyName: String!
+  required: Boolean!
+  type: SchemaValueType!
+}
+
+type CsvSchema {
+  columns: [CsvColumnSchema!]!
+}
+
+type Currency {
+  code: String!
+  history(pagination: PaginationInput!): [CurrencyRateHistory!]!
+  id: Int!
+  name: String!
+  shortName: String!
+  sign: String!
+}
+
+type CurrencyQueries {
+  byId(id: Int!): Currency
+}
+
+type CurrencyRateHistory {
+  createdAt: DateTime!
+  fromCurrency: Currency!
+  id: Int!
+  rate: Decimal!
+  toCurrency: Currency!
+}
+
+type DocumentDefinition {
+  description: String!
+  documentGroup: String!
+  name: String!
+  requestSchema: ObjectSchema!
+  supportedDocumentTypes: [DocumentType!]!
+  systemName: String!
+  templateSchema: ObjectSchema!
+}
+
+type DocumentGenerationRequest {
+  createdAt: DateTime!
+  documentSystemName: String!
+  expiresAt: DateTime
+  fileLink: DocumentLink
+  generatedAt: DateTime
+  jobId: UUID!
+  requesterId: UUID
+  requestId: UUID!
+  status: JobStatus!
+}
+
+type DocumentLink {
+  expiresAtUtc: DateTime!
+  url: String!
+}
+
+type DocumentMutations {
+  createGenerationRequest(input: CreateGenerationRequestInput!): DocumentGenerationRequest!
+}
+
+type DocumentQueries {
+  available: [DocumentDefinition!]!
+  byId(requestId: UUID!): DocumentGenerationRequest
+  byIds(requestIds: [UUID!]!): [DocumentGenerationRequest!]!
+  search(input: SearchDocumentsInput!): [DocumentGenerationRequest!]!
+}
+
+type FieldSchema {
+  accepts: [String!]!
+  control: InputControlType
+  dependency: SchemaDependency
+  description: String
+  descriptionKey: String
+  label: String
+  labelKey: String
+  name: String!
+  nestedSchema: ObjectSchema
+  required: Boolean!
+  type: SchemaValueType!
+}
+
+type Highlight {
+  field: String!
+  fragments: [String!]!
+}
+
+type Highlights {
+  items: [Highlight!]!
+}
+
+type MarkupGroup {
+  currency: Currency!
+  id: Int!
+  name: String
+  ranges(pagination: PaginationInput!): [MarkupRange!]!
+  sourceMessageId: UUID
+}
+
+type MarkupGroupMutations {
+  delete(id: Int!): Boolean!
+  upsert(input: UpsertMarkupGroupInput!): MarkupGroup!
+}
+
+type MarkupGroupQueries {
+  byId(id: Int!): MarkupGroup
+  search(input: SearchMarkupGroupsInput!): [MarkupGroup!]!
+}
+
+type MarkupRange {
+  id: Int!
+  markup: Decimal!
+  rangeEnd: Decimal!
+  rangeStart: Decimal!
+}
+
+type Notification {
+  createdAt: DateTime!
+  id: Int!
+  seenAt: DateTime
+  text: String!
+  userId: UUID!
+}
+
+type NotificationCreated {
+  notification: Notification!
+}
+
+type NotificationMutations {
+  see(ids: [Int!]!): Boolean!
+  send(input: SendNotificationInput!): Boolean!
+  upsertPreferences(input: UpsertNotificationPreferencesInput!): Boolean!
+}
+
+type NotificationPreference {
+  channelName: String!
+  enabled: Boolean!
+  localizableChannelName: String!
+  userId: UUID!
+}
+
+type NotificationQueries {
+  byId(id: Int!): Notification
+  list(input: ListNotificationsInput!): [Notification!]!
+  myPreferences: [NotificationPreference!]!
+}
+
+type ObjectSchema {
+  csvSchema: CsvSchema
+  fields: [FieldSchema!]!
+  version: Int!
+}
+
+type Organization {
+  approximateBalanceInBaseCurrency: Decimal
+  finances: OrganizationFinances!
+  id: UUID!
+  isHidden: Boolean!
+  members(input: OrganizationMembersInput!): [OrganizationMember!]!
+  name: String!
+  owner: User!
+  systemName: String!
+  transactions(input: OrganizationTransactionsInput!): [Transaction!]!
+  type: OrganizationType!
+}
+
+type OrganizationBalance {
+  balance: Decimal!
+  currency: Currency!
+}
+
+type OrganizationFinances {
+  balances: [OrganizationBalance!]!
+  financialProfile: OrganizationFinancialProfile
+}
+
+type OrganizationFinancialProfile {
+  minimalAllowedBalance: Decimal!
+  netPositionInBaseCurrency: Decimal!
+}
+
+type OrganizationMember {
+  organization: Organization!
+  role: OrganizationRole!
+  user: User!
+}
+
+type OrganizationMutations {
+  addMember(input: OrganizationMemberRoleInput!): Organization!
+  changeMemberRole(input: OrganizationMemberRoleInput!): Organization!
+  create(input: CreateOrganizationInput!): Organization!
+  removeMember(input: OrganizationMemberInput!): Organization!
+  update(input: UpdateOrganizationInput!): Organization!
+  updateFinancialProfile(input: UpdateOrganizationFinancialProfileInput!): Organization!
+}
+
+type OrganizationQueries {
+  byId(id: UUID!): Organization
+  bySystemName(systemName: String!): Organization!
+  isSystemNameAvailable(systemName: String!): Boolean!
+  list(input: GetOrganizationsInput!): [Organization!]!
+}
+
+type Permission {
+  description: String!
+  name: String!
+  systemName: String!
+}
+
+type PriceApplier {
+  dslLogic: String
+  isDynamic: Boolean!
+  name: String!
+  states: [PriceApplierState!]!
+  systemName: String!
+}
+
+type PriceApplierMutations {
+  delete(systemName: String!): Boolean!
+  upsert(input: UpsertPriceApplierInput!): PriceApplier!
+}
+
+type PriceApplierQueries {
+  bySystemName(systemName: String!): PriceApplier!
+  list(usage: PriceOfferSourceType!): [PriceApplier!]!
+}
+
+type PriceApplierState {
+  enabled: Boolean!
+  order: Int!
+  priceApplierSystemName: String!
+  usage: PriceOfferSourceType!
+}
+
+type PriceOffer {
+  availableQuantity: Int!
+  currency: Currency!
+  daysToRefund: Int!
+  deliveryDate: DateTime
+  deliveryProbability: Int!
+  expiresAt: DateTime!
+  guaranteedDeliveryDate: DateTime
+  id: UUID!
+  minimumPurchaseQuantity: Int!
+  offerForStorage: String!
+  orderTill: DateTime
+  product: Product!
+  purchasePrice: Decimal!
+  quantityCoefficient: Int!
+  source: PriceOfferSource!
+}
+
+type PriceOption {
+  currency: Currency!
+  deliveryProbability: Int!
+  deliveryTime: Duration!
+  forStorage: String!
+  guaranteedDeliveryTime: Duration!
+  markup: Decimal!
+  offer: PriceOffer!
+  priceOfferId: UUID!
+  score: Decimal!
+  sellPrice: Decimal!
+}
+
+type Producer {
+  aliases: [String!]!
+  description: String
+  id: Int!
+  name: String!
+  supplierMappings: [ProducerSupplierMapping!]!
+}
+
+type ProducerQueries {
+  byId(id: Int!): Producer
+  byIds(ids: [Int!]!): [Producer!]!
+  search(input: ProducerSearchInput!): [Producer!]!
+}
+
+type ProducerSupplierMapping {
+  id: Int!
+  producer: Producer!
+  supplier: Supplier!
+  supplierProducerName: String!
+}
+
+type Product {
+  availableStock(input: ProductAvailableStocksInput!): Int!
+  characteristics: [ProductCharacteristic!]!
+  contents: [ProductContent!]!
+  crosses(input: ProductCrossesInput!): [Product!]!
+  description: String
+  eans: [String!]!
+  group: ProductGroup
+  id: Int!
+  images: [String!]!
+  indicator: String
+  name: String!
+  offers(input: ProductOffersInput!): [PriceOption!]!
+  pair: Product
+  producer: Producer!
+  rowVersion: UnsignedInt!
+  saleHistory(input: ProductSaleHistoryInput!): [ProductSaleHistory!]!
+  size: ProductSize
+  sku: String!
+  stock: Int!
+  storageContents(input: ProductStorageContentsInput!): [StorageContent!]!
+  weight: ProductWeight
+}
+
+type ProductCharacteristic {
+  characteristic: Characteristic!
+  value: String!
+}
+
+type ProductContent {
+  product: Product!
+  quantity: Int!
+}
+
+type ProductEanMutation {
+  create(input: ProductEanInput!): Boolean!
+  delete(input: ProductEanInput!): Boolean!
+}
+
+type ProductGroup {
+  id: Int!
+  name: String!
+  normalizedName: String!
+}
+
+type ProductGroupMutations {
+  upsert(input: UpsertProductGroupInput!): ProductGroup!
+}
+
+type ProductGroupQueries {
+  byIds(ids: [Int!]!): [ProductGroup!]!
+  search(input: SearchProductGroupsInput!): [ProductGroup!]!
+}
+
+type ProductMutations {
+  create(products: [CreateProductInput!]!): [Product!]!
+  delete(input: DeleteProductInput!): Boolean!
+  patch(input: PatchProductInput!, productId: Int!): Product!
+}
+
+type ProductQueries {
+  byEan(input: ProductsByEanInput!): [Product!]!
+  byId(id: Int!): Product
+  byIds(ids: [Int!]!): [Product!]!
+  resolve(references: [ProductReferenceInput!]!): [ResolvedProductReference!]!
+}
+
+type ProductSaleHistory {
+  averageBuyPrice: Decimal!
+  createdBy: User
+  currency: Currency!
+  discountedPrice: Decimal!
+  organization: Organization!
+  originalPrice: Decimal!
+  product: Product!
+  quantity: Int!
+  saleContentId: Int!
+  saleDate: DateTime!
+  storage: Storage!
+}
+
+type ProductSize {
+  height: Decimal!
+  length: Decimal!
+  unit: DimensionUnit!
+  volumeM3: Decimal!
+  width: Decimal!
+}
+
+type ProductWeight {
+  unit: WeightUnit!
+  weight: Decimal!
+}
+
+type Purchase {
+  comment: String
+  contents: [PurchaseContent!]!
+  currency: Currency!
+  id: UUID!
+  logistics: PurchaseLogistic
+  purchaseDatetime: DateTime!
+  storage: Storage!
+  supplier: User!
+  supplierOrganization: Organization!
+  totalSum: Decimal!
+  transaction: Transaction!
+}
+
+type PurchaseContent {
+  comment: String
+  count: Int!
+  id: Int!
+  logistics: PurchaseContentLogistic
+  price: Decimal!
+  product: Product!
+  totalSum: Decimal!
+}
+
+type PurchaseContentLogistic {
+  areaM3: Decimal!
+  price: Decimal!
+  weightKg: Decimal!
+}
+
+type PurchaseLogistic {
+  currency: Currency!
+  minimumPrice: Decimal
+  minimumPriceApplied: Boolean!
+  priceKg: Decimal!
+  pricePerM3: Decimal!
+  pricePerOrder: Decimal!
+  pricingModel: LogisticPricingType!
+  routeId: UUID!
+  routeType: RouteType!
+  transaction: Transaction
+}
+
+type PurchaseMutations {
+  create(input: CreatePurchaseInput!): Purchase!
+  delete(input: DeletePurchaseInput!): UUID!
+  update(input: UpdatePurchaseInput!): Purchase!
+}
+
+type PurchaseQueries {
+  byId(id: UUID!): Purchase
+  byTransactionId(transactionId: UUID!): Purchase!
+  list(input: GetPurchasesInput!): [Purchase!]!
+}
+
+type ResolvedProductReference {
+  producer: Producer
+  producerName: String!
+  product: Product
+  productId: Int
+  sku: String!
+  supplier: Supplier
+}
+
+type Role {
+  createdAt: DateTime!
+  description: String
+  localizedName: String
+  permissions: [Permission!]!
+  systemName: String!
+  updatedAt: DateTime!
+  whoCreated: UUID
+  whoUpdated: UUID
+}
+
+type Sale {
+  buyer: User!
+  comment: String
+  contents: [SaleContent!]!
+  currency: Currency!
+  id: UUID!
+  organization: Organization!
+  rowVersion: UnsignedInt!
+  saleDatetime: DateTime!
+  state: SaleState!
+  storage: Storage!
+  totalSum: Decimal!
+  transaction: Transaction!
+}
+
+type SaleContent {
+  comment: String
+  count: Int!
+  details: [SaleContentDetail!]!
+  discountedPrice: Decimal!
+  id: Int!
+  originalPrice: Decimal!
+  product: Product!
+  totalSum: Decimal!
+}
+
+type SaleContentDetail {
+  buyPrice: Decimal!
+  count: Int!
+  currency: Currency!
+  id: Int!
+  purchaseDatetime: DateTime!
+  saleContentId: Int!
+  storageContentId: Int!
+}
+
+type SaleMutations {
+  create(input: CreateSaleInput!): Sale!
+  delete(input: DeleteSaleInput!): UUID!
+  update(input: UpdateSaleInput!): Sale!
+}
+
+type SaleQueries {
+  byId(id: UUID!): Sale
+  byTransactionId(transactionId: UUID!): Sale!
+  list(input: GetSalesInput!): [Sale!]!
+}
+
+type SchemaDependency {
+  entityName: String!
+  fieldName: String
+}
+
+type SearchCatalogueSectionItemOfCatalogueCandidate {
+  highlights: Highlights
+  item: CatalogueCandidate!
+}
+
+type SearchCatalogueSectionItemOfProduct {
+  highlights: Highlights
+  item: Product!
+}
+
+type SearchCatalogueSectionOfCatalogueCandidate {
+  items: [SearchCatalogueSectionItemOfCatalogueCandidate!]!
+  total: Long!
+}
+
+type SearchCatalogueSectionOfProduct {
+  items: [SearchCatalogueSectionItemOfProduct!]!
+  total: Long!
+}
+
+type Storage {
+  code: String!
+  description: String
+  location: String
+  type: StorageType!
+}
+
+type StorageContent {
+  buyPrice: Decimal!
+  count: Int!
+  currency: Currency!
+  id: Int!
+  product: Product!
+  purchaseDatetime: DateTime!
+  rowVersion: UnsignedInt!
+  storage: Storage!
+}
+
+type StorageContentQueries {
+  search(input: StorageContentsSearchInput!): [StorageContent!]!
+}
+
+type SupplierProduct {
+  candidateId: UUID
+  crosses: [SupplierProduct!]!
+  id: Int!
+  names: [SupplierProductName!]!
+  producer: String!
+  sku: String!
+  supplier: Supplier!
+}
+
+type SupplierProductName {
+  id: Int!
+  name: String!
+  supplierProductId: Int!
+}
+
+type Transaction {
+  amount: Decimal!
+  currency: Currency!
+  id: UUID!
+  isCompleted: Boolean!
+  isReversed: Boolean!
+  purchase: Purchase
+  receiver: Organization!
+  reversedAt: DateTime
+  reversedBy: User
+  sale: Sale
+  sender: Organization!
+  sourceType: TransactionSourceType!
+  transactionDate: DateTime!
+  type: TransactionType!
+}
+
+type TransactionMutations {
+  create(input: CreateTransactionInput!): Transaction!
+  reverse(input: ReverseTransactionInput!): Transaction!
+}
+
+type TransactionQueries {
+  byId(id: UUID!): Transaction
+  list(input: GetTransactionsInput!): [Transaction!]!
+}
+
+type User {
+  accessFailedCount: Int!
+  createdAt: DateTime!
+  emails: [UserEmail!]!
+  id: UUID!
+  info: UserInfo
+  lastLoginAt: DateTime
+  lockoutEnd: DateTime
+  normalizedUserName: String!
+  organizations(input: UserOrganizationsInput!): [Organization!]!
+  permissions: [Permission!]!
+  phones: [UserPhone!]!
+  roles: [Role!]!
+  storages: [Storage!]!
+  twoFactorEnabled: Boolean!
+  updatedAt: DateTime!
+  userName: String!
+}
+
+type UserEmail {
+  confirmed: Boolean!
+  confirmedAt: DateTime
+  createdAt: DateTime!
+  email: String!
+  emailType: EmailType!
+  isPrimary: Boolean!
+  updatedAt: DateTime!
+}
+
+type UserInfo {
+  description: String
+  name: String!
+  surname: String!
+}
+
+type UserMutations {
+  addEmail(input: AddUserEmailInput!): User!
+  addPermissions(input: UserPermissionsInput!): User!
+  addRoles(input: UserRolesInput!): User!
+  addStorage(input: UserStorageInput!): User!
+  create(input: CreateUserInput!): User!
+  editInfo(input: EditUserInfoInput!): User!
+  makeEmailPrimary(input: UserEmailInput!): User!
+  makeMyEmailPrimary(email: String!): User!
+  removeEmail(input: UserEmailInput!): User!
+  removePermissions(input: UserPermissionsInput!): User!
+  removeRoles(input: UserRolesInput!): User!
+  removeStorage(input: UserStorageInput!): User!
+  requestEmailVerification(input: UserEmailInput!): Boolean!
+  requestMyEmailVerification(email: String!): Boolean!
+}
+
+type UserPhone {
+  isConfirmed: Boolean!
+  isPrimary: Boolean!
+  number: String!
+  type: PhoneType!
+}
+
+type UserQueries {
+  byId(id: UUID!): User
+  list(input: GetUsersInput!): [User!]!
+  search(input: SearchUsersInput!): [User!]!
+}
+
+input AddUserEmailInput {
+  email: String!
+  type: EmailType!
+  userId: UUID!
+}
+
+input CandidateToCatalogueInput {
+  id: UUID!
+  selectedName: String
+}
+
+input CatalogueSearchInput {
+  candidateMappingStatus: CandidateMappingStatus
+  catalogueCandidateSortBy: [SortByInput!]
+  includeHighlights: Boolean
+  nameModes: [SearchMatchType!]
+  pagination: PaginationInput!
+  producerIds: [Int!]
+  productCriteria: ProductSearchCriteriaInput
+  productGroupIds: [Int!]
+  productSortBy: [SortByInput!]
+  query: String
+  skuModes: [SearchMatchType!]
+  targets: [SearchTarget!]!
+}
+
+input CreateGenerationRequestInput {
+  documentRequest: String!
+  documentSystemName: String!
+}
+
+input CreateOrganizationInput {
+  name: String!
+  ownerId: UUID!
+  systemName: String!
+}
+
+input CreateProductInput {
+  description: String
+  groupId: Int
+  indicator: String
+  name: String!
+  producerId: Int!
+  sku: String!
+}
+
+input CreatePurchaseInput {
+  comment: String
+  contents: [NewPurchaseContentInput!]!
+  currencyId: Int!
+  forcePayment: Boolean
+  payedSum: Decimal
+  purchaseDate: DateTime!
+  storageCode: String!
+  storageFrom: String
+  supplierOrganizationId: UUID!
+  supplierUserId: UUID!
+  withLogistics: Boolean
+}
+
+input CreateSaleInput {
+  comment: String
+  contents: [NewSaleContentInput!]!
+  currencyId: Int!
+  forcePayment: Boolean
+  organizationId: UUID!
+  payedSum: Decimal
+  saleDateTime: DateTime!
+  storageCode: String!
+  userId: UUID!
+}
+
+input CreateTransactionInput {
+  amount: Decimal!
+  currencyId: Int!
+  direction: SystemTransactionDirection!
+  forcePayment: Boolean
+  organizationId: UUID!
+  transactionDateTime: DateTime!
+}
+
+input CreateUserEmailInput {
+  email: String!
+  isConfirmed: Boolean!
+  isPrimary: Boolean!
+  type: EmailType!
+}
+
+input CreateUserInput {
+  emails: [CreateUserEmailInput!]!
+  password: String!
+  phones: [CreateUserPhoneInput!]!
+  roles: [String!]!
+  userInfo: UserInfoInput!
+  userName: String!
+}
+
+input CreateUserPhoneInput {
+  isConfirmed: Boolean!
+  isPrimary: Boolean!
+  number: String!
+  type: PhoneType!
+}
+
+input DeleteProductInput {
+  productId: Int!
+  rowVersion: UnsignedInt!
+}
+
+input DeletePurchaseInput {
+  purchaseId: UUID!
+}
+
+input DeleteSaleInput {
+  rowVersion: UnsignedInt!
+  saleId: UUID!
+}
+
+input EditPurchaseContentInput {
+  calculateLogistics: Boolean!
+  comment: String
+  count: Int!
+  id: Int
+  price: Decimal!
+  productId: Int!
+}
+
+input EditSaleContentInput {
+  comment: String
+  count: Int!
+  id: Int
+  price: Decimal!
+  priceWithDiscount: Decimal!
+  productId: Int!
+}
+
+input EditUserInfoInput {
+  userId: UUID!
+  userInfo: UserInfoInput!
+}
+
+input GetOrganizationsInput {
+  ids: [UUID!]
+  pagination: PaginationInput!
+  searchTerm: String
+  showHidden: Boolean
+  sortBy: [SortByInput!]
+  types: [OrganizationType!]
+  userId: UUID
+}
+
+input GetPurchasesInput {
+  currencyIds: [Int!]
+  pagination: PaginationInput!
+  productIds: [Int!]
+  rangeEndDate: DateTime
+  rangeStartDate: DateTime
+  searchTerm: String
+  sortBy: [SortByInput!]
+  supplierOrganizationIds: [UUID!]
+}
+
+input GetSalesInput {
+  currencyIds: [Int!]
+  organizationIds: [UUID!]
+  pagination: PaginationInput!
+  productIds: [Int!]
+  rangeEndDate: DateTime
+  rangeStartDate: DateTime
+  searchTerm: String
+  sortBy: [SortByInput!]
+  states: [SaleState!]
+}
+
+input GetTransactionsInput {
+  currencyId: Int
+  cursor: GqlCursorOfNullableOfTransactionCursorValueInput!
+  logicalOperation: LogicalOperation
+  rangeEnd: DateTime
+  rangeStart: DateTime
+  receiverId: UUID
+  senderId: UUID
+  skipReversed: Boolean
+}
+
+input GetUsersInput {
+  description: String
+  email: String
+  id: UUID
+  name: String
+  pagination: PaginationInput!
+  phone: String
+  roles: [String!]
+  surname: String
+  userName: String
+}
+
+input GqlCursorOfNullableOfDateTimeInput {
+  size: Int!
+  value: DateTime
+}
+
+input GqlCursorOfNullableOfTransactionCursorValueInput {
+  size: Int!
+  value: TransactionCursorValueInput
+}
+
+input GqlPatchFieldOfBooleanInput {
+  isSet: Boolean!
+  value: Boolean!
+}
+
+input GqlPatchFieldOfDecimalInput {
+  isSet: Boolean!
+  value: Decimal!
+}
+
+input GqlPatchFieldOfInt32Input {
+  isSet: Boolean!
+  value: Int!
+}
+
+input GqlPatchFieldOfNullableOfInt32Input {
+  isSet: Boolean!
+  value: Int
+}
+
+input GqlPatchFieldOfStringInput {
+  isSet: Boolean!
+  value: String
+}
+
+input ListNotificationsInput {
+  cursor: GqlCursorOfNullableOfDateTimeInput!
+}
+
+input MaxCandidateCrossesInput {
+  candidateId: UUID!
+  crossCandidateIds: [UUID!]!
+  linkageType: ProductLinkageType!
+}
+
+input NewPurchaseContentInput {
+  calculateLogistics: Boolean!
+  comment: String
+  count: Int!
+  price: Decimal!
+  productId: Int!
+}
+
+input NewSaleContentInput {
+  comment: String
+  count: Int!
+  price: Decimal!
+  priceWithDiscount: Decimal!
+  productId: Int!
+}
+
+input OrganizationMemberInput {
+  organizationId: UUID!
+  userId: UUID!
+}
+
+input OrganizationMemberRoleInput {
+  organizationId: UUID!
+  role: OrganizationRole!
+  userId: UUID!
+}
+
+input OrganizationMembersInput {
+  pagination: PaginationInput!
+}
+
+input OrganizationTransactionsInput {
+  currencyId: Int
+  cursor: GqlCursorOfNullableOfTransactionCursorValueInput!
+  rangeEnd: DateTime
+  rangeStart: DateTime
+  skipReversed: Boolean
+}
+
+input PaginationInput {
+  page: Int!
+  size: Int!
+}
+
+input PatchProductInput {
+  description: GqlPatchFieldOfStringInput
+  groupId: GqlPatchFieldOfNullableOfInt32Input
+  indicator: GqlPatchFieldOfStringInput
+  name: GqlPatchFieldOfStringInput
+  packingUnit: GqlPatchFieldOfNullableOfInt32Input
+  pairId: GqlPatchFieldOfNullableOfInt32Input
+  producerId: GqlPatchFieldOfInt32Input
+  sku: GqlPatchFieldOfStringInput
+}
+
+input ProducerSearchInput {
+  pagination: PaginationInput!
+  query: String
+}
+
+input ProductAvailableStocksInput {
+  storageCode: String!
+}
+
+input ProductCharacteristicCriteriaInput {
+  characteristicId: Int!
+  exists: Boolean
+  numericRange: SearchNumericRangeInput
+  values: [String!]
+}
+
+input ProductCrossesInput {
+  pagination: PaginationInput!
+  sortBy: [SortByInput!]
+}
+
+input ProductDimensionsCriteriaInput {
+  height: SearchNumericRangeInput
+  length: SearchNumericRangeInput
+  unit: DimensionUnit!
+  volume: SearchNumericRangeInput
+  width: SearchNumericRangeInput
+}
+
+input ProductEanInput {
+  ean: String!
+  productId: Int!
+}
+
+input ProductOffersInput {
+  currencyId: Int!
+  pagination: PaginationInput!
+  sortBy: [SortByInput!]
+  sources: [PriceOfferSource!]!
+  storageCode: String!
+}
+
+input ProductReferenceInput {
+  producerName: String!
+  sku: String!
+  supplier: Supplier
+}
+
+input ProductSaleHistoryInput {
+  currencyId: Int
+  organizationId: UUID
+  pagination: PaginationInput!
+  preferredOrganizationId: UUID
+  showCrosses: Boolean
+  sortBy: [SortByInput!]
+  storageCode: String
+}
+
+input ProductsByEanInput {
+  ean: String!
+  pagination: PaginationInput!
+}
+
+input ProductSearchCriteriaInput {
+  characteristics: [ProductCharacteristicCriteriaInput!]
+  dimensions: ProductDimensionsCriteriaInput
+  stock: SearchIntegerRangeInput
+  weight: ProductWeightCriteriaInput
+}
+
+input ProductStorageContentsInput {
+  pagination: PaginationInput!
+  showZeroCount: Boolean!
+  storageCode: String
+}
+
+input ProductWeightCriteriaInput {
+  range: SearchNumericRangeInput!
+  unit: WeightUnit!
+}
+
+input ReverseTransactionInput {
+  forcePayment: Boolean
+  transactionId: UUID!
+}
+
+input SearchCharacteristicsInput {
+  pagination: PaginationInput!
+  searchTerm: String
+  sortBy: [SortByInput!]
+}
+
+input SearchDocumentsInput {
+  documentSystemName: String
+  pagination: PaginationInput!
+  requesterId: UUID
+  sortBy: [SortByInput!]
+}
+
+input SearchIntegerRangeInput {
+  gt: Int
+  gte: Int
+  lt: Int
+  lte: Int
+}
+
+input SearchMarkupGroupsInput {
+  pagination: PaginationInput!
+  searchTerm: String
+}
+
+input SearchNumericRangeInput {
+  gt: Decimal
+  gte: Decimal
+  lt: Decimal
+  lte: Decimal
+}
+
+input SearchProductGroupsInput {
+  pagination: PaginationInput!
+  searchTerm: String
+  sortBy: [SortByInput!]
+}
+
+input SearchUsersInput {
+  pagination: PaginationInput!
+  roles: [String!]
+  searchTerm: String!
+}
+
+input SendNotificationInput {
+  message: String!
+  userId: UUID!
+}
+
+input SortByInput {
+  field: String!
+  isDescending: Boolean!
+}
+
+input StorageContentsSearchInput {
+  pagination: PaginationInput!
+  productId: Int
+  showZeroCount: Boolean!
+  sortBy: [SortByInput!]
+  storageCode: String
+}
+
+input TransactionCursorValueInput {
+  id: UUID!
+  transactionDate: DateTime!
+}
+
+input UpdateOrganizationFinancialProfileInput {
+  minimalAllowedBalance: GqlPatchFieldOfDecimalInput
+  organizationId: UUID!
+}
+
+input UpdateOrganizationInput {
+  isHidden: GqlPatchFieldOfBooleanInput
+  name: GqlPatchFieldOfStringInput
+  organizationId: UUID!
+}
+
+input UpdatePurchaseInput {
+  comment: String
+  contents: [EditPurchaseContentInput!]!
+  currencyId: Int!
+  purchaseDateTime: DateTime!
+  purchaseId: UUID!
+  storageFrom: String
+  withLogistics: Boolean
+}
+
+input UpdateSaleInput {
+  comment: String
+  contents: [EditSaleContentInput!]!
+  currencyId: Int!
+  forcePayment: Boolean
+  rowVersion: UnsignedInt!
+  saleDateTime: DateTime!
+  saleId: UUID!
+}
+
+input UpsertCharacteristicInput {
+  id: Int
+  name: String!
+}
+
+input UpsertMarkupGroupInput {
+  currencyId: Int!
+  id: Int
+  name: String
+  ranges: [UpsertMarkupRangeInput!]!
+}
+
+input UpsertMarkupRangeInput {
+  markup: Decimal!
+  rangeEnd: Decimal!
+  rangeStart: Decimal!
+}
+
+input UpsertNotificationPreferenceInput {
+  channelName: String!
+  isEnabled: Boolean!
+}
+
+input UpsertNotificationPreferencesInput {
+  preferences: [UpsertNotificationPreferenceInput!]!
+}
+
+input UpsertPriceApplierInput {
+  dslLogic: String
+  name: String
+  states: [UpsertPriceApplierStateInput!]!
+  systemName: String!
+}
+
+input UpsertPriceApplierStateInput {
+  enabled: Boolean!
+  order: Int
+  usage: PriceOfferSourceType!
+}
+
+input UpsertProductGroupInput {
+  id: Int
+  name: String!
+}
+
+input UserEmailInput {
+  email: String!
+  userId: UUID!
+}
+
+input UserInfoInput {
+  description: String
+  name: String!
+  surname: String!
+}
+
+input UserOrganizationsInput {
+  ids: [UUID!]
+  pagination: PaginationInput!
+  searchTerm: String
+  showHidden: Boolean
+  sortBy: [SortByInput!]
+  types: [OrganizationType!]
+}
+
+input UserPermissionsInput {
+  permissions: [String!]!
+  userId: UUID!
+}
+
+input UserRolesInput {
+  roles: [String!]!
+  userId: UUID!
+}
+
+input UserStorageInput {
+  storageCode: String!
+  userId: UUID!
+}
+
+"""Defines when a policy shall be executed."""
+enum ApplyPolicy {
+  """Before the resolver was executed."""
+  BEFORE_RESOLVER
+
+  """After the resolver was executed."""
+  AFTER_RESOLVER
+
+  """The policy is applied in the validation step before the execution."""
+  VALIDATION
+}
+
+enum CandidateMappingStatus {
+  UNMAPPED
+  MAPPED
+  ALL
+}
+
+enum DimensionUnit {
+  MILLIMETER
+  CENTIMETER
+  METER
+}
+
+enum DocumentType {
+  PDF
+  EXCEL
+  HTML
+  DOCX
+}
+
+enum EmailType {
+  PERSONAL
+  WORK
+  UNKNOWN
+}
+
+enum InputControlType {
+  UPLOAD_FILE
+  TEXT_FIELD
+  DATE_PICKER
+  ENTITY_SELECTOR
+  ENUM_SELECTOR
+  NAMED_OBJECT_SELECTOR
+}
+
+enum JobStatus {
+  PENDING
+  LOCKED
+  PROCESSING
+  FAILED
+  SUCCEEDED
+  CANCELLATION_REQUESTED
+  CANCELLED
+  WAITING
+  BLOCKED
+}
+
+enum LogicalOperation {
+  AND
+  OR
+}
+
+enum LogisticPricingType {
+  NONE
+  PER_ORDER
+  PER_AREA
+  PER_WEIGHT
+  PER_AREA_AND_WEIGHT
+  PER_AREA_OR_WEIGHT
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+enum OrganizationType {
+  INDIVIDUAL
+  BUSINESS
+  SYSTEM
+}
+
+enum PhoneType {
+  MOBILE
+  WORK
+  HOME
+  UNKNOWN
+}
+
+enum PriceOfferSource {
+  OUR_WAREHOUSE
+  ARMTEK
+  FAVORITE_PARTS
+  TMTR
+}
+
+enum PriceOfferSourceType {
+  SUPPLIER
+  OUR_WAREHOUSE
+}
+
+enum ProductLinkageType {
+  SINGLE_CROSS
+  FULL_CROSS
+  FULL_LEFT_TO_RIGHT_CROSS
+  FULL_RIGHT_TO_LEFT_CROSS
+}
+
+enum RouteType {
+  INTRA_CITY
+  INTER_CITY
+  INTERNATIONAL
+}
+
+enum SaleState {
+  DRAFT
+  COMPLETED
+  DELETED
+}
+
+enum SchemaValueType {
+  STRING
+  BOOLEAN
+  INTEGER
+  NUMBER
+  ENUM
+  ARRAY
+  OBJECT
+}
+
+enum SearchMatchType {
+  EXACT
+  STARTS_WITH
+  CONTAINS
+  FUZZY
+}
+
+enum SearchTarget {
+  PRODUCTS
+  CATALOGUE_CANDIDATES
+}
+
+enum StorageType {
+  WAREHOUSE
+  SUPPLIER_STORAGE
+}
+
+enum Supplier {
+  ARMTEK
+  FAVORIT_PARTS
+  TMTR
+}
+
+enum SystemTransactionDirection {
+  USER_TO_SYSTEM
+  SYSTEM_TO_USER
+}
+
+enum TransactionSourceType {
+  MANUAL
+  PURCHASE
+  SALE
+  LOGISTIC
+}
+
+enum TransactionType {
+  TRANSFER
+  REFUND
+  FEE
+  ADJUSTMENT
+}
+
+enum WeightUnit {
+  GRAM
+  KILOGRAM
+  TONNE
+}
+
+"""The `Any` scalar type represents any valid GraphQL value."""
+scalar Any @specifiedBy(url: "https://scalars.graphql.org/chillicream/any.html")
+
+"""
+The `DateTime` scalar type represents a date and time with time zone offset information.
+"""
+scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/chillicream/date-time.html")
+
+"""
+The `Decimal` scalar type represents a decimal floating-point number with high precision.
+"""
+scalar Decimal @specifiedBy(url: "https://scalars.graphql.org/chillicream/decimal.html")
+
+"""The `Duration` scalar type represents a duration of time."""
+scalar Duration @specifiedBy(url: "https://scalars.graphql.org/chillicream/duration.html")
+
+"""The `Long` scalar type represents a signed 64-bit integer."""
+scalar Long @specifiedBy(url: "https://scalars.graphql.org/chillicream/long.html")
+
+"""The `UnsignedInt` scalar type represents an unsigned 32-bit integer."""
+scalar UnsignedInt @specifiedBy(url: "https://scalars.graphql.org/chillicream/unsigned-int.html")
+
+"""
+The `UUID` scalar type represents a Universally Unique Identifier (UUID) as defined by RFC 9562.
+"""
+scalar UUID @specifiedBy(url: "https://scalars.graphql.org/chillicream/uuid.html")

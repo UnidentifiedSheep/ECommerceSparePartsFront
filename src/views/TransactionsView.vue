@@ -755,44 +755,9 @@ async function confirmCancelTransaction(transaction: BalanceTransactionModel) {
     detailsOpen.value = false
     await reloadTransactions()
   } catch (error) {
-    const shouldForceCancel = await confirmForceCancelTransaction(error)
-    if (shouldForceCancel) {
-      await forceCancelTransaction(transaction)
-    }
+    ElMessage.error(error instanceof Error ? error.message : t('transactions.cancelError'))
   } finally {
     cancellingTransactionId.value = null
-  }
-}
-
-async function confirmForceCancelTransaction(error: unknown) {
-  try {
-    await ElMessageBox.confirm(
-      error instanceof Error
-        ? t('transactions.forceCancelConfirmWithReason', { reason: error.message })
-        : t('transactions.forceCancelConfirm'),
-      t('transactions.forceCancelTitle'),
-      {
-        confirmButtonText: t('transactions.forceCancelTransaction'),
-        cancelButtonText: t('transactions.close'),
-        type: 'warning',
-      },
-    )
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function forceCancelTransaction(transaction: BalanceTransactionModel) {
-  cancellingTransactionId.value = transaction.id
-  try {
-    await deleteBalanceTransaction(transaction.id, true)
-    ElMessage.success(t('transactions.cancelled'))
-    selectedTransaction.value = null
-    detailsOpen.value = false
-    await reloadTransactions()
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : t('transactions.cancelError'))
   }
 }
 

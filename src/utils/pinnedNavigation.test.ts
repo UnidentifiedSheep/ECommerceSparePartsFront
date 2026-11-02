@@ -3,6 +3,10 @@ import { parsePinnedNavigation, defaultPinnedNavigation } from './pinnedNavigati
 import { activeNavigationPath, canAccessNavigation, navigationEntries } from './navigation'
 
 describe('pinned navigation preferences', () => {
+  it('removes retired reservation links from the saved dock', () => {
+    const saved = parsePinnedNavigation(JSON.stringify({ pins: [{ path: '/reservations' }, { path: '/products' }] }))
+    expect(saved.pins.map(pin => pin.path)).toEqual(['/products'])
+  })
   it('rejects arbitrary destinations, duplicates and unsupported colors in saved settings', () => {
     const saved = parsePinnedNavigation(JSON.stringify({ enabled: false, showLabels: false, barColor: 'rose', pins: [
       { path: 'https://example.com', color: 'red' }, null, { path: '/products', label: '  Parts  ', color: 'sapphire' },

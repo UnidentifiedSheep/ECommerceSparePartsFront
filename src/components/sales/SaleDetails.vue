@@ -11,7 +11,6 @@
           <span></span>
           <span>{{ t('common.labels.count') }}</span>
           <span>{{ t('common.labels.price') }}</span>
-          <span>{{ t('sales.discount') }}</span>
           <span>{{ t('sales.amount') }}</span>
         </div>
         <div v-loading="loading" class="content-list">
@@ -29,8 +28,7 @@
               <span v-if="row.product.name && row.product.name !== row.product.sku" class="product-meta">{{ row.product.name }}</span>
             </div>
             <span class="content-value content-value--count">{{ row.count.toLocaleString(locale) }}</span>
-            <span class="content-value" :title="formatCurrency(row.price, sale.currency.currencySign)">{{ formatCurrency(row.price, sale.currency.currencySign) }}</span>
-            <span class="content-value">{{ formatPercent(row.discount) }}</span>
+            <SalePrice :original-price="row.originalPrice" :discounted-price="row.discountedPrice" :currency-sign="sale.currency.currencySign" />
             <strong class="content-value content-value--total" :title="formatCurrency(row.totalSum, sale.currency.currencySign)">{{ formatCurrency(row.totalSum, sale.currency.currencySign) }}</strong>
           </article>
           <el-empty v-if="!loading && content.length === 0" :description="t('sales.notFound')" />
@@ -49,6 +47,7 @@
 import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
 import { useI18n } from '@/i18n'
 import PositionCommentPopover from '@/components/common/PositionCommentPopover.vue'
+import SalePrice from '@/components/sales/SalePrice.vue'
 
 const { locale, t } = useI18n()
 
@@ -62,9 +61,6 @@ function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
-function formatPercent(value: number) {
-  return `${(value * 100).toLocaleString(locale.value, { maximumFractionDigits: 2 })}%`
-}
 </script>
 
 <style scoped>
@@ -108,7 +104,7 @@ function formatPercent(value: number) {
 .content-columns,
 .content-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(44px, 8%) minmax(64px, 14%) minmax(54px, 11%) minmax(78px, 16%);
+  grid-template-columns: minmax(0, 1fr) minmax(44px, 8%) minmax(110px, 25%) minmax(90px, 18%);
   gap: 5px;
   align-items: center;
   padding-right: 12px;
@@ -199,4 +195,11 @@ a.product-link:hover { color: var(--app-primary); text-decoration: underline; }
 
 .sale-details-empty h2 { margin: 0; color: var(--app-text); font-size: 16px; }
 .sale-details-empty p { margin: 7px 0 0; color: var(--app-text-muted); font-size: 13px; }
+
+@media (max-width: 600px) {
+  .content-columns,
+  .content-row { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr); }
+  .content-columns span:first-child { display: none; }
+  .product-cell { grid-column: 1 / -1; margin-bottom: 4px; }
+}
 </style>

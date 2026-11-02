@@ -25,8 +25,6 @@ export interface CreateSaleRequest {
   contents: NewSaleContentRequest[]
   comment?: string | null
   payedSum?: number | null
-  forcePayment?: boolean
-  confirmationCode?: string | null
 }
 
 export interface EditSaleContentRequest extends NewSaleContentRequest {
@@ -38,8 +36,6 @@ export interface EditSaleRequest {
   saleDateTime: string
   content: EditSaleContentRequest[]
   comment?: string | null
-  forcePayment?: boolean
-  confirmationCode?: string | null
 }
 
 export interface CreateSaleResponse {
@@ -77,8 +73,8 @@ export interface ProductSaleHistoryModel {
   storageCode: string
   currencyId: number
   quantity: number
-  discount: number
-  price: number
+  originalPrice: number
+  discountedPrice: number
   averageBuyPrice: number
   saleDate: string
   whoCreated?: string | null
@@ -104,7 +100,7 @@ export interface GetProductSaleHistoryResponse {
 }
 
 export async function createSale(req: CreateSaleRequest): Promise<CreateSaleResponse> {
-  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateSaleDocument, variables: { input: { ...req, saleDateTime: toUtcDateTimeString(req.saleDateTime) } } }))
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateSaleDocument, variables: { input: { ...req, forcePayment: true, saleDateTime: toUtcDateTimeString(req.saleDateTime) } } }))
   if (!data) throw new Error('Sale creation returned no data')
   return { sale: mapSale(data.sales.create) }
 }
@@ -147,5 +143,5 @@ export async function deleteSale(id: string, rowVersion: number): Promise<void> 
 }
 export async function editSale(id: string, rowVersion: number, req: EditSaleRequest): Promise<void> {
   const { content, ...fields } = req
-  await operationRequest(graphqlClient.mutate({ mutation: UpdateSaleDocument, variables: { input: { ...fields, saleId: id, rowVersion, contents: content, saleDateTime: toUtcDateTimeString(req.saleDateTime) } } }))
+  await operationRequest(graphqlClient.mutate({ mutation: UpdateSaleDocument, variables: { input: { ...fields, forcePayment: true, saleId: id, rowVersion, contents: content, saleDateTime: toUtcDateTimeString(req.saleDateTime) } } }))
 }

@@ -8,7 +8,7 @@ fragment SaleFields on Sale {
   comment saleDatetime totalSum rowVersion state storage { code } currency { ...OperationCurrency }
 }
 fragment SaleContentFields on SaleContent {
-  id count price totalSum comment discount
+  id count originalPrice discountedPrice totalSum comment
   product { id sku name producer { name } }
   details { id saleContentId storageContentId buyPrice count purchaseDatetime currency { ...OperationCurrency } }
 }
@@ -36,7 +36,7 @@ query PurchaseContents($id: UUID!) { purchases { byId(id: $id) { id contents { .
 query ListTransactions($input: GetTransactionsInput!) { transactions { list(input: $input) { ...TransactionFields } } }
 query ProductSalesHistory($id: Int!, $input: ProductSaleHistoryInput!) {
   products { byId(id: $id) { id saleHistory(input: $input) {
-    saleContentId quantity discount price averageBuyPrice saleDate
+    saleContentId quantity originalPrice discountedPrice averageBuyPrice saleDate
     product { id sku name producer { id name } }
     organization { id name systemName } storage { code } currency { ...OperationCurrency }
     createdBy { id }

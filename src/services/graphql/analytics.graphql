@@ -1,0 +1,17 @@
+fragment ChartSchemaField on FieldSchema {
+  name type required label labelKey description descriptionKey control accepts
+  dependency { entityName fieldName }
+}
+fragment ChartSchema on ObjectSchema {
+  version
+  fields {
+    ...ChartSchemaField
+    nestedSchema { version fields { ...ChartSchemaField } }
+  }
+}
+query AvailableCharts {
+  analytics { charts { systemName name description queryInputSchema { ...ChartSchema } dataPointSchema { ...ChartSchema } } }
+}
+query SalesProfitChart($systemName: String!, $queryInput: Any!) {
+  analytics { chart(systemName: $systemName) { systemName data(queryInput: $queryInput) { dataPoints nextCursor } } }
+}

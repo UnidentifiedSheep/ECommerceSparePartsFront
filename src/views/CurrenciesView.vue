@@ -81,21 +81,9 @@
                 <span class="font-medium text-slate-800">{{ currencyPairLabel(row) }}</span>
               </template>
             </el-table-column>
-            <el-table-column :label="t('common.labels.before')" min-width="130">
+            <el-table-column :label="t('currencies.rate')" min-width="130">
               <template #default="{ row }">
-                <span class="tabular-nums text-slate-600">{{ formatRate(row.prevRate) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.labels.after')" min-width="130">
-              <template #default="{ row }">
-                <span class="tabular-nums text-slate-900">{{ formatRate(row.newRate) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.labels.change')" min-width="130">
-              <template #default="{ row }">
-                <span :class="rateDeltaClass(row)">
-                  {{ formatRateDelta(row) }}
-                </span>
+                <span class="tabular-nums text-slate-900">{{ formatRate(row.rate) }}</span>
               </template>
             </el-table-column>
             <el-table-column :label="t('common.labels.date')" min-width="170">
@@ -255,32 +243,18 @@ async function selectCurrency(currency: CurrencyModel) {
   await loadCurrencyHistory(true)
 }
 
-function currencyLabel(currencyId: number) {
-  const currency = currencies.value.find((item) => item.id === currencyId)
-  return currency ? `${currency.shortName} (${currency.code})` : t('currencies.unknownCurrency')
+function currencyLabel(currency: CurrencyModel) {
+  return `${currency.shortName} (${currency.code})`
 }
 
 function currencyPairLabel(history: CurrencyRateHistoryModel) {
-  return `${currencyLabel(history.fromCurrencyId)} → ${currencyLabel(history.toCurrencyId)}`
+  return `${currencyLabel(history.fromCurrency)} → ${currencyLabel(history.toCurrency)}`
 }
 
 function formatRate(value: number) {
   return value.toLocaleString(locale.value, {
     maximumFractionDigits: 8,
   })
-}
-
-function formatRateDelta(history: CurrencyRateHistoryModel) {
-  const delta = history.newRate - history.prevRate
-  const sign = delta > 0 ? '+' : ''
-  return `${sign}${formatRate(delta)}`
-}
-
-function rateDeltaClass(history: CurrencyRateHistoryModel) {
-  const delta = history.newRate - history.prevRate
-  if (delta > 0) return 'tabular-nums font-medium text-emerald-600'
-  if (delta < 0) return 'tabular-nums font-medium text-red-600'
-  return 'tabular-nums text-slate-500'
 }
 
 function formatDate(value: string) {

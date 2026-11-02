@@ -1,11 +1,4 @@
 import type { ProductContentModel, ProductModel, ProductSizeModel, ProductWeightModel } from '@/models/productModel.ts'
-import type {
-  EditProductReservationModel,
-  ProductReservationHistoryModel,
-  NewProductReservationModel,
-  ProductReservationModel,
-} from '@/models/productReservationModel.ts'
-import { mapOrganizationModel, type OrganizationDto } from '@/models/organizationModel.ts'
 import type { CatalogueCandidateReviewModel } from '@/models/catalogueCandidateModel.ts'
 import type {
   CandidateMappingStatus,
@@ -135,41 +128,6 @@ export interface EditProductCharacteristicRequest {
   value: string
 }
 
-export interface GetProductReservationsRequest {
-  productId?: number
-  organizationId?: string
-  showDeleted?: boolean
-  page: number
-  size: number
-  sortBy?: string[]
-}
-
-export interface GetProductReservationsResponse {
-  reservations: ProductReservationModel[]
-}
-
-export interface CreateProductReservationRequest {
-  reservation: NewProductReservationModel
-}
-
-export interface CreateProductReservationResponse {
-  reservation: ProductReservationModel
-}
-
-export interface GetProductReservationHistoryRequest {
-  reservationId: number
-  page: number
-  size: number
-}
-
-export interface GetProductReservationHistoryResponse {
-  history: ProductReservationHistoryModel[]
-}
-
-interface ProductReservationDto extends Omit<ProductReservationModel, 'organization'> {
-  organization: OrganizationDto
-}
-
 export type DimensionUnit = 'Millimeter' | 'Centimeter' | 'Meter'
 export type WeightUnit = 'Gram' | 'Kilogram' | 'Tonne'
 
@@ -194,13 +152,6 @@ function patchField<T>(value: T): PatchField<T> {
   return {
     isSet: true,
     value,
-  }
-}
-
-function mapProductReservationModel(dto: ProductReservationDto): ProductReservationModel {
-  return {
-    ...dto,
-    organization: mapOrganizationModel(dto.organization),
   }
 }
 
@@ -238,23 +189,6 @@ export async function getProductById(
   )
   if (!product) throw new Error(`Product ${productId} not found`)
   return { product, catalogueCandidate }
-}
-
-export async function getProductReservations(req: GetProductReservationsRequest): Promise<GetProductReservationsResponse> {
-  const resp = await api.get<{ reservations: ProductReservationDto[] }>('/main/products/reservations', {
-    params: {
-      productId: req.productId,
-      organizationId: req.organizationId,
-      showDeleted: req.showDeleted,
-      page: req.page,
-      size: clampPageSize(req.size),
-      sortBy: req.sortBy,
-    },
-  })
-
-  return {
-    reservations: resp.data.reservations.map(mapProductReservationModel),
-  }
 }
 
 export async function getProductAvailableStock(
@@ -345,36 +279,6 @@ export async function editProductCharacteristic(req: EditProductCharacteristicRe
 
 export async function deleteProductCharacteristic(productId: number, characteristicId: number): Promise<void> {
   await api.delete(`/main/products/${productId}/characteristics/${characteristicId}`)
-}
-
-export async function createProductReservation(req: CreateProductReservationRequest): Promise<CreateProductReservationResponse> {
-  const resp = await api.post<{ reservation: ProductReservationDto }>('/main/products/reservations', req)
-  return {
-    reservation: mapProductReservationModel(resp.data.reservation),
-  }
-}
-
-export async function editProductReservation(reservationId: number, newValue: EditProductReservationModel): Promise<void> {
-  await api.put(`/main/products/reservations/${reservationId}`, {
-    newValue,
-  })
-}
-
-export async function deleteProductReservation(reservationId: number): Promise<void> {
-  await api.delete(`/main/products/reservations/${reservationId}`)
-}
-
-export async function getProductReservationHistory(
-  req: GetProductReservationHistoryRequest,
-): Promise<GetProductReservationHistoryResponse> {
-  const resp = await api.get<GetProductReservationHistoryResponse>(`/main/products/reservations/${req.reservationId}/history`, {
-    params: {
-      page: req.page,
-      size: clampPageSize(req.size),
-    },
-  })
-
-  return resp.data
 }
 
 export async function createProducts(req: CreateProductsRequest): Promise<CreateProductsResponse> {

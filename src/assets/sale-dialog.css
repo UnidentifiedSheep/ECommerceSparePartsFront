@@ -197,44 +197,6 @@
   min-width: 0;
 }
 
-.force-payment-control {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.force-payment-control span,
-.force-payment-control strong {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.25;
-  white-space: nowrap;
-}
-
-.force-payment-box {
-  width: 100%;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #f8fafc;
-  padding: 8px 10px;
-}
-
-.force-payment-box p {
-  margin: 5px 0 0;
-  color: #64748b;
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.force-payment-help {
-  color: #94a3b8;
-  cursor: help;
-  font-size: 14px;
-}
-
 .sale-discount-field {
   padding-left: 12px;
 }

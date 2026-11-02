@@ -6,7 +6,6 @@ export const navigationEntries: NavigationEntry[] = [
   { path: '/', label: 'nav.overview', icon: DataAnalysis, permissions: ['CHARTS_GET'] },
   { path: '/purchases', label: 'nav.purchases', icon: ShoppingCart, permissions: ['PURCHASE_GET'] },
   { path: '/sales', label: 'nav.sales', icon: Money, permissions: ['SALES_GET'] },
-  { path: '/reservations', label: 'nav.reservations', icon: Tickets, permissions: ['ARTICLE_RESERVATIONS_GET_ME', 'ARTICLE_RESERVATIONS_GET_ALL'] },
   { path: '/transactions', label: 'nav.transactions', icon: Money, permissions: ['BALANCES_TRANSACTION_GET_ME', 'BALANCES_TRANSACTION_GET_ALL'] },
   { path: '/products', label: 'nav.products', icon: Box, permissions: ['ARTICLES_GET_MAIN', 'ARTICLES_GET_FULL'] },
   { path: '/products/enrichment', label: 'nav.catalogueReview', icon: Collection, permissions: ['CATALOGUE_CANDIDATES_REVIEW'] },

@@ -1,0 +1,14 @@
+query CurrencyHistory($id: Int!, $pagination: PaginationInput!) {
+  currencies {
+    byId(id: $id) {
+      id
+      history(pagination: $pagination) {
+        id
+        rate
+        createdAt
+        fromCurrency { id name shortName code currencySign: sign }
+        toCurrency { id name shortName code currencySign: sign }
+      }
+    }
+  }
+}

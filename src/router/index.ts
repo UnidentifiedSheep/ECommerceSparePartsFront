@@ -17,7 +17,6 @@ import ProductGroupsView from '@/views/ProductGroupsView.vue'
 import CatalogueEnrichmentView from '@/views/CatalogueEnrichmentView.vue'
 import ProducersView from '@/views/ProducersView.vue'
 import PurchasesView from '@/views/PurchasesView.vue'
-import ReservationsView from '@/views/ReservationsView.vue'
 import RolesView from '@/views/RolesView.vue'
 import SalesView from '@/views/SalesView.vue'
 import ServiceSettingsView from '@/views/ServiceSettingsView.vue'
@@ -73,12 +72,7 @@ const routes = [
         component: SalesView,
         meta: { requiresAuth: true },
       },
-      {
-        path: '/reservations',
-        name: 'reservations',
-        component: ReservationsView,
-        meta: { requiresAuth: true },
-      },
+      { path: '/reservations', redirect: '/products' },
       {
         path: '/currencies',
         name: 'currencies',

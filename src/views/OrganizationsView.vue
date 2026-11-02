@@ -151,9 +151,6 @@
               >
                 {{ t('transactions.createTitle') }}
               </el-button>
-              <el-button v-if="canViewReservations" @click="reservationsDialogOpen = true">
-                {{ t('reservations.title') }}
-              </el-button>
               <el-button
                 v-if="canEditOrganizations"
                 :icon="EditPen"
@@ -267,6 +264,12 @@
                   </div>
                 </div>
                 <el-empty v-else :description="t('organizationPage.noBalances')" :image-size="64" />
+                <OrganizationTransactionsPanel
+                  v-if="detailsTab === 'finances' && canViewTransactions"
+                  :key="selectedOrganization.id"
+                  :organization-id="selectedOrganization.id"
+                  :refresh-key="transactionsRefreshKey"
+                />
               </div>
             </el-tab-pane>
           </el-tabs>
@@ -390,12 +393,6 @@
       </template>
     </el-dialog>
 
-    <ProductReservationsDialog
-      v-if="selectedOrganization && canViewReservations"
-      v-model="reservationsDialogOpen"
-      :organization-id="selectedOrganization.id"
-      :title="t('reservations.organizationTitle', { name: selectedOrganization.name })"
-    />
 
     <CreateTransactionDialog
       v-if="selectedOrganization"
@@ -422,9 +419,9 @@ import ActionIconButton from '@/components/common/ActionIconButton.vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
-import ProductReservationsDialog from '@/components/products/ProductReservationsDialog.vue'
 import OrganizationApproximateBalance from '@/components/organizations/OrganizationApproximateBalance.vue'
 import CreateTransactionDialog from '@/components/transactions/CreateTransactionDialog.vue'
+import OrganizationTransactionsPanel from '@/components/organizations/OrganizationTransactionsPanel.vue'
 import type {
   OrganizationMemberModel,
   OrganizationModel,
@@ -475,7 +472,8 @@ const canEditOrganizations = computed(() => hasPermission('ORGANIZATIONS_EDIT'))
 const canViewFinances = computed(() => hasPermission('BALANCES_FINANCES_GET'))
 const canEditFinances = computed(() => hasPermission('BALANCES_FINANCES_UPDATE'))
 const canCreateTransactions = computed(() => hasPermission('BALANCES_TRANSACTION_CREATE'))
-const canViewReservations = computed(() => hasPermission('ARTICLE_RESERVATIONS_GET_ALL'))
+const canViewTransactions = computed(() => hasPermission('BALANCES_TRANSACTION_GET_ALL'))
+const transactionsRefreshKey = ref(0)
 
 const organizationsTableRef = ref<TableInstance>()
 const organizations = ref<OrganizationModel[]>([])
@@ -515,7 +513,6 @@ const creating = ref(false)
 const createSystemNameStatus = ref<'idle' | 'checking' | 'available' | 'unavailable' | 'error'>('idle')
 const createSystemNameManuallyEdited = ref(false)
 const addMemberDialogOpen = ref(false)
-const reservationsDialogOpen = ref(false)
 const createTransactionDialogOpen = ref(false)
 const transactionCurrencies = ref<CurrencyModel[]>([])
 const transactionCurrenciesLoading = ref(false)
@@ -902,6 +899,7 @@ async function openCreateTransaction() {
 }
 
 async function handleTransactionCreated() {
+  transactionsRefreshKey.value += 1
   await Promise.all([
     loadFinances(),
     loadOrganizations(false),

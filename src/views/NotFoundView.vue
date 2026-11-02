@@ -100,7 +100,7 @@ const shortcuts = Object.values(sections)
 const suggestedSection = computed(() => {
   const path = route.path.toLowerCase()
 
-  if (/\/(sales|purchases|reservations|transactions)/.test(path)) return sections.operations
+  if (/\/(sales|purchases|transactions)/.test(path)) return sections.operations
   if (/\/(users|roles|permissions|currencies|settings)/.test(path)) return sections.admin
   if (/\/jobs/.test(path)) return sections.control
   return sections.catalog

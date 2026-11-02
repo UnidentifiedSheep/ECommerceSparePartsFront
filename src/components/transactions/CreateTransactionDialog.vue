@@ -80,12 +80,6 @@
         />
       </el-form-item>
 
-      <el-form-item :label="t('transactions.forcePayment')">
-        <div class="transaction-force-payment">
-          <el-switch v-model="form.forcePayment" />
-          <span>{{ t('transactions.forcePaymentHint') }}</span>
-        </div>
-      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -124,7 +118,6 @@ interface CreateTransactionForm {
   amount: number
   currencyId: number
   transactionDateTime: string
-  forcePayment: boolean
 }
 
 const props = defineProps<{
@@ -159,7 +152,6 @@ const form = reactive<CreateTransactionForm>({
   amount: 0.01,
   currencyId: 0,
   transactionDateTime: toLocalDateTimeInputValue(new Date()),
-  forcePayment: false,
 })
 
 const systemOrganizationLabel = computed(() => (
@@ -233,7 +225,6 @@ async function submit() {
       amount: form.amount,
       currencyId: form.currencyId,
       transactionDateTime: toUtcDateTimeString(form.transactionDateTime),
-      forcePayment: form.forcePayment,
     })
 
     ElMessage.success(t('transactions.created'))
@@ -254,7 +245,6 @@ function resetForm() {
   form.amount = 0.01
   form.currencyId = resolveDefaultCurrencyId(props.currencies) ?? 0
   form.transactionDateTime = toLocalDateTimeInputValue(new Date())
-  form.forcePayment = false
   formRef.value?.clearValidate()
 }
 
@@ -316,7 +306,7 @@ const draftGuard0 = useDialogGuard(dialogOpen, computed(() => isSubmitting.value
 
 .transaction-form-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -382,16 +372,6 @@ const draftGuard0 = useDialogGuard(dialogOpen, computed(() => isSubmitting.value
 .finance-error {
   color: #dc2626;
   font-size: 13px;
-}
-
-.transaction-force-payment {
-  display: flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 10px;
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.3;
 }
 
 :deep(.el-select),

@@ -101,7 +101,7 @@
               />
             </el-form-item>
 
-            <el-form-item :label="t('common.labels.currency')" class="span-3">
+            <el-form-item :label="t('common.labels.currency')" class="span-4">
               <el-select v-model="form.currencyId" class="w-full" :placeholder="t('purchases.selectCurrency')">
                 <el-option
                   v-for="currency in currencies"
@@ -112,22 +112,13 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item :label="t('purchases.paid')" class="span-3">
+            <el-form-item :label="t('purchases.paid')" class="span-4">
               <el-input-number v-model="form.payedSum" :min="0" :precision="2" :controls="false" class="w-full" />
             </el-form-item>
 
-            <el-form-item :label="t('purchases.logistics')" class="span-3">
+            <el-form-item :label="t('purchases.logistics')" class="span-4">
               <div class="flex h-8 items-center">
                 <el-switch v-model="form.withLogistics" :active-text="t('purchases.yes')" :inactive-text="t('purchases.no')" />
-              </div>
-            </el-form-item>
-
-            <el-form-item :label="t('purchases.forcePayment')" class="span-3">
-              <div class="force-payment-control">
-                <el-switch v-model="form.forcePayment" size="small" />
-                <el-tooltip :content="t('purchases.forcePaymentHint')" placement="top">
-                  <el-icon class="force-payment-help"><QuestionFilled /></el-icon>
-                </el-tooltip>
               </div>
             </el-form-item>
 
@@ -241,7 +232,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import { Check, Close, Delete, MoreFilled, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { Check, Close, Delete, MoreFilled, Plus } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import PurchaseJsonImportDialog from '@/components/purchases/PurchaseJsonImportDialog.vue'
@@ -297,7 +288,6 @@ const form = reactive({
   purchaseDate: toLocalDateTimeInputValue(new Date()),
   comment: '',
   payedSum: undefined as number | undefined,
-  forcePayment: false,
   withLogistics: false,
   storageFrom: undefined as string | undefined,
   items: [] as CreatePurchaseItemForm[],
@@ -372,7 +362,6 @@ function resetForm() {
   form.purchaseDate = toLocalDateTimeInputValue(new Date())
   form.comment = ''
   form.payedSum = undefined
-  form.forcePayment = false
   form.withLogistics = false
   form.storageFrom = undefined
   form.items = []
@@ -475,7 +464,6 @@ async function save() {
       comment: form.comment.trim() || null,
       payedSum: form.payedSum ?? null,
       storageFrom: form.withLogistics ? form.storageFrom ?? null : null,
-      forcePayment: form.forcePayment,
     })
 
     ElNotification({
