@@ -48,7 +48,7 @@
           <el-tooltip :content="t('transactions.flowContextHint')"><span class="flow-context">{{ flowOrganization ? t('transactions.relativeTo', { name: flowOrganization.name }) : t('transactions.neutralAmounts') }}</span></el-tooltip>
         </div>
         <div ref="tableRegion" class="transactions-table-region">
-          <el-table ref="transactionsTableRef" tabindex="0" :aria-label="t('transactions.title')" :aria-description="t('common.labels.transactionNavigation')" highlight-current-row @keydown="tableNavigation.onKeydown" v-loading="isLoading" :data="transactions" class="transactions-table" height="100%" row-key="id" :empty-text="t(hasSelectedUserFilter ? 'organizationPage.noTransactions' : 'transactions.selectOrganizationToLoad')" @row-click="handleTransactionRowClick">
+          <el-table ref="transactionsTableRef" tabindex="0" :aria-label="t('transactions.title')" :aria-description="t('common.labels.transactionNavigation')" highlight-current-row @keydown="tableNavigation.onKeydown" v-loading="isLoading" :data="transactions" class="transactions-table" height="100%" row-key="id" :empty-text="t(hasSelectedUserFilter ? 'organizationPage.noTransactions' : 'transactions.selectOrganizationToLoad')" @row-click="handleTransactionRowClick" @scroll="loadNearEnd">
             <el-table-column :label="t('common.labels.date')" min-width="145"><template #default="{ row }"><span :title="row.id">{{ formatTransactionDate(row.transactionDate) }}</span></template></el-table-column>
             <el-table-column :label="t('transactions.operation')" min-width="145">
               <template #default="{ row }">
@@ -67,7 +67,12 @@
             <el-table-column :label="t('transactions.amount')" min-width="145" align="right"><template #default="{ row }"><strong class="transaction-amount" :class="amountClass(row)">{{ rowMoney(row) }}</strong></template></el-table-column>
           </el-table>
         </div>
-        <footer class="table-footer"><span class="table-shortcuts">{{ t('common.labels.transactionNavigation') }}</span><el-button v-if="canLoadMore" plain :loading="isLoadingMore" @click="loadMoreTransactions">{{ t('common.actions.loadMore') }}</el-button></footer>
+        <footer class="table-footer">
+          <span class="table-shortcuts">{{ t('common.labels.transactionNavigation') }}</span>
+          <div v-if="loadMoreError" class="load-more-error" role="alert"><span>{{ loadMoreError }}</span><el-button size="small" @click="retryLoadMore">{{ t('common.actions.refresh') }}</el-button></div>
+          <span v-else-if="isLoadingMore" class="table-shortcuts" role="status">{{ t('organizationPage.loadingTransactions') }}</span>
+          <span v-else-if="transactions.length && !canLoadMore && !isLoading" class="table-shortcuts" role="status">{{ t('organizationPage.transactionsEnd') }}</span>
+        </footer>
       </main>
     </section>
     <el-drawer v-model="detailsOpen" direction="rtl" size="min(400px, 100vw)" :with-header="false" class="transaction-drawer" @opened="focusTransactionDetails">
@@ -150,18 +155,23 @@ const tableNavigation = useTableArrowNavigation({
   root: () => transactionsTableRef.value?.$el as HTMLElement | undefined,
   select: selectTransaction,
   activate: openTransactionDetails,
+  onBoundary: (direction) => { if (direction === 1) return loadMoreTransactions() },
 })
 const currencies = ref<CurrencyModel[]>([])
 const sender = ref<OrganizationSelection | undefined>()
 const receiver = ref<OrganizationSelection | undefined>()
 const canLoadMore = ref(false)
+const loadMoreError = ref('')
 const dateRange = ref<[string, string] | null>(null)
 const advancedFiltersOpen = ref(false)
 const filtersExpanded = ref(false)
 const narrowPage = useMediaQuery('(max-width: 980px)')
 const tableRegion = ref<HTMLElement>()
 const compactTransfer = ref(false)
-useResizeObserver(tableRegion, ([entry]) => { if (entry) compactTransfer.value = entry.contentRect.width < 820 })
+useResizeObserver(tableRegion, ([entry]) => {
+  if (entry) compactTransfer.value = entry.contentRect.width < 820
+  void nextTick(loadNearEnd)
+})
 let requestGeneration = 0
 let disposed = false
 onScopeDispose(() => { disposed = true; ++requestGeneration })
@@ -227,6 +237,8 @@ async function loadCurrencies() {
 async function reloadTransactions() {
   if (!hasSelectedUserFilter.value || disposed) { invalidateTransactions(); return }
   const generation = ++requestGeneration
+  loadMoreError.value = ''
+  canLoadMore.value = false
   isLoadingMore.value = false
   isLoading.value = true
   try {
@@ -252,12 +264,16 @@ async function reloadTransactions() {
   } catch (error) {
     if (generation === requestGeneration && !disposed) ElMessage.error(error instanceof Error ? error.message : t('transactions.loadError'))
   } finally {
-    if (generation === requestGeneration) isLoading.value = false
+    if (generation === requestGeneration) {
+      isLoading.value = false
+      await nextTick()
+      loadNearEnd()
+    }
   }
 }
 
 async function loadMoreTransactions() {
-  if (isLoading.value || isLoadingMore.value || !canLoadMore.value || !hasSelectedUserFilter.value || disposed) return
+  if (isLoading.value || isLoadingMore.value || loadMoreError.value || !canLoadMore.value || !hasSelectedUserFilter.value || disposed) return
   const generation = requestGeneration
   const cursor = transactions.value[transactions.value.length - 1]
   if (!cursor) return
@@ -283,10 +299,25 @@ async function loadMoreTransactions() {
     transactions.value = [...transactions.value, ...newTransactions]
     canLoadMore.value = response.transactions.length === pageSize && newTransactions.length > 0
   } catch (error) {
-    if (generation === requestGeneration && !disposed) ElMessage.error(error instanceof Error ? error.message : t('transactions.loadMoreError'))
+    if (generation === requestGeneration && !disposed) loadMoreError.value = error instanceof Error ? error.message : t('transactions.loadMoreError')
   } finally {
-    if (generation === requestGeneration) isLoadingMore.value = false
+    if (generation === requestGeneration) {
+      isLoadingMore.value = false
+      await nextTick()
+      loadNearEnd()
+    }
   }
+}
+
+function loadNearEnd() {
+  if (isLoading.value || isLoadingMore.value || loadMoreError.value || !canLoadMore.value || disposed) return
+  const scroll = transactionsTableRef.value?.$el.querySelector('.el-table__body-wrapper .el-scrollbar__wrap') as HTMLElement | undefined
+  if (scroll && scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight <= 100) void loadMoreTransactions()
+}
+
+function retryLoadMore() {
+  loadMoreError.value = ''
+  void loadMoreTransactions()
 }
 
 function resetFilters() {
@@ -608,6 +639,7 @@ function amountClass(row: BalanceTransactionModel) {
 }
 function invalidateTransactions() {
   ++requestGeneration
+  loadMoreError.value = ''
   isLoading.value = false
   isLoadingMore.value = false
   transactions.value = []
@@ -704,6 +736,7 @@ watch(() => route.query, async () => {
 .amount-negative { color: #b91c1c; }
 .amount-muted { color: var(--app-text-muted); text-decoration: line-through; }
 .table-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; }
+.load-more-error { display: flex; align-items: center; gap: 8px; color: #b91c1c; font-size: 12px; }
 .table-shortcuts { color: var(--app-text-muted); font-size: 11px; }
 .transaction-details { min-height: 100%; background: var(--app-surface); color: var(--app-text); padding: 20px; }
 .drawer-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
