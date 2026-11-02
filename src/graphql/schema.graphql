@@ -1,4 +1,5 @@
 # Exported from backend CI 5d25c802caa9c4c709d94a9e14d2f8cd525bc8c0. Fusion execution metadata omitted.
+# Currency history types updated from Main CI schema 4e154563ca3a6261eb6b1a044705413639df5e3b.
 directive @authorize(apply: ApplyPolicy! = BEFORE_RESOLVER, policy: String, roles: [String!]) repeatable on OBJECT | FIELD_DEFINITION
 
 directive @cost(weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
@@ -130,6 +131,7 @@ type CsvSchema {
 
 type Currency {
   code: String!
+  history(pagination: PaginationInput!): [CurrencyRateHistory!]!
   id: Int!
   name: String!
   shortName: String!
@@ -138,6 +140,14 @@ type Currency {
 
 type CurrencyQueries {
   byId(id: Int!): Currency
+}
+
+type CurrencyRateHistory {
+  createdAt: DateTime!
+  fromCurrency: Currency!
+  id: Int!
+  rate: Decimal!
+  toCurrency: Currency!
 }
 
 type DocumentDefinition {
