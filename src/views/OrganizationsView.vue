@@ -264,6 +264,12 @@
                   </div>
                 </div>
                 <el-empty v-else :description="t('organizationPage.noBalances')" :image-size="64" />
+                <OrganizationTransactionsPanel
+                  v-if="detailsTab === 'finances' && canViewTransactions"
+                  :key="selectedOrganization.id"
+                  :organization-id="selectedOrganization.id"
+                  :refresh-key="transactionsRefreshKey"
+                />
               </div>
             </el-tab-pane>
           </el-tabs>
@@ -415,6 +421,7 @@ import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import UserSelector from '@/components/selectors/UserSelector.vue'
 import OrganizationApproximateBalance from '@/components/organizations/OrganizationApproximateBalance.vue'
 import CreateTransactionDialog from '@/components/transactions/CreateTransactionDialog.vue'
+import OrganizationTransactionsPanel from '@/components/organizations/OrganizationTransactionsPanel.vue'
 import type {
   OrganizationMemberModel,
   OrganizationModel,
@@ -465,6 +472,8 @@ const canEditOrganizations = computed(() => hasPermission('ORGANIZATIONS_EDIT'))
 const canViewFinances = computed(() => hasPermission('BALANCES_FINANCES_GET'))
 const canEditFinances = computed(() => hasPermission('BALANCES_FINANCES_UPDATE'))
 const canCreateTransactions = computed(() => hasPermission('BALANCES_TRANSACTION_CREATE'))
+const canViewTransactions = computed(() => hasPermission('BALANCES_TRANSACTION_GET_ALL'))
+const transactionsRefreshKey = ref(0)
 
 const organizationsTableRef = ref<TableInstance>()
 const organizations = ref<OrganizationModel[]>([])
@@ -890,6 +899,7 @@ async function openCreateTransaction() {
 }
 
 async function handleTransactionCreated() {
+  transactionsRefreshKey.value += 1
   await Promise.all([
     loadFinances(),
     loadOrganizations(false),
