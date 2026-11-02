@@ -38,14 +38,9 @@
           <small v-else>{{ t(`transactions.sources.${row.sourceType}`) }}</small>
         </template>
       </el-table-column>
-      <el-table-column :label="t('organizationPage.moneyDirection')" min-width="240">
+      <el-table-column :label="t('organizationPage.moneyDirection')" min-width="190">
         <template #default="{ row }">
           <span class="direction-label" :class="{ 'direction-label--system': row.receiver.type === 'System', 'direction-label--organization': row.sender.type === 'System' }">{{ direction(row) }}</span>
-          <div class="transaction-parties">
-            <span :title="row.sender.name">{{ partyName(row.sender) }}</span>
-            <span aria-hidden="true">→</span>
-            <span :title="row.receiver.name">{{ partyName(row.receiver) }}</span>
-          </div>
         </template>
       </el-table-column>
       <el-table-column :label="t('transactions.amount')" min-width="140" align="right">
@@ -71,7 +66,6 @@ import { useRouter } from 'vue-router'
 import { getBalanceTransactions, type BalanceTransactionModel } from '@/services/api/balances'
 import { getCurrencies } from '@/services/api/currencies'
 import type { CurrencyModel } from '@/models/currencyModel'
-import type { OrganizationModel } from '@/models/organizationModel'
 import { getSaleByTransactionId } from '@/services/api/sales'
 import { getPurchaseByTransactionId } from '@/services/api/purchases'
 import { usePermissions } from '@/composables/usePermissions'
@@ -151,10 +145,11 @@ function completed(row: BalanceTransactionModel) { return typeof row.status === 
 function direction(row: BalanceTransactionModel) {
   if (row.sender.id === row.receiver.id) return t('organizationPage.internalTransfer')
   if (row.receiver.type === 'System') return t('organizationPage.toSystem')
-  if (row.sender.type === 'System') return t('organizationPage.toOrganization')
-  return t(row.sender.id === props.organizationId ? 'organizationPage.outgoing' : 'organizationPage.incoming')
+  if (row.sender.type === 'System') return t('organizationPage.fromSystem')
+  return row.sender.id === props.organizationId
+    ? t('organizationPage.toParty', { name: row.receiver.name })
+    : t('organizationPage.fromParty', { name: row.sender.name })
 }
-function partyName(organization: OrganizationModel) { return organization.type === 'System' ? t('transactions.system') : organization.name }
 function canOpenDocument(row: BalanceTransactionModel) {
   return row.sourceType === 'Sale' && hasPermission('SALES_GET') || row.sourceType === 'Purchase' && hasPermission('PURCHASE_GET')
 }
@@ -191,10 +186,8 @@ small { display: block; margin-top: 3px; }
 .transaction-amount { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .is-reversed { color: var(--app-text-muted); text-decoration: line-through; }
 .journal-status { min-height: 18px; text-align: center; }
-.direction-label { display: inline-block; border-radius: 4px; background: var(--app-surface-muted, #f1f5f9); padding: 2px 6px; font-size: 12px; font-weight: 650; }
+.direction-label { display: inline-block; max-width: 100%; overflow-wrap: anywhere; border-radius: 4px; background: var(--app-surface-muted, #f1f5f9); padding: 2px 6px; font-size: 12px; font-weight: 650; }
 .direction-label--system { color: #1d4ed8; background: #eff6ff; }
 .direction-label--organization { color: #047857; background: #ecfdf5; }
-.transaction-parties { display: flex; align-items: baseline; gap: 5px; margin-top: 5px; font-size: 12px; color: var(--app-text-muted); }
-.transaction-parties > span:not(:nth-child(2)) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 640px) { .transaction-filters { grid-template-columns: 1fr; } }
 </style>
