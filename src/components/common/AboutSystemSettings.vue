@@ -13,6 +13,27 @@
           <span class="stage-spark stage-spark--one">✦</span>
           <span class="stage-spark stage-spark--two">✧</span>
           <span class="stage-spark stage-spark--three">✦</span>
+          <svg class="stage-parts" viewBox="0 0 260 240" fill="none">
+            <g class="spare-piston" transform="translate(37 78) rotate(-22)">
+              <path d="M-4 2V30H4V2" fill="#d0d9e5" stroke="#8293ad" stroke-width="2" />
+              <circle cy="32" r="7" fill="#e5eaf1" stroke="#8293ad" stroke-width="2" />
+              <circle cy="32" r="3" fill="#f0e6fb" />
+              <rect x="-13" y="-17" width="26" height="23" rx="4" fill="#e5eaf1" stroke="#8293ad" stroke-width="2" />
+              <path d="M-12-10H12M-12-4H12" stroke="#8293ad" stroke-width="2" />
+            </g>
+            <g transform="translate(52 194)">
+              <g class="spare-gear">
+                <path v-for="tooth in 8" :key="tooth" d="M-3-12V-18H3V-12" :transform="`rotate(${tooth * 45})`" fill="#c6b5e6" stroke="#9474be" stroke-width="2" stroke-linejoin="round" />
+                <circle r="12" fill="#d9cbed" stroke="#9474be" stroke-width="2" />
+                <circle r="5" fill="#f7effb" stroke="#9474be" stroke-width="2" />
+              </g>
+            </g>
+            <g class="spare-wrench" transform="translate(225 177) rotate(27)">
+              <path d="M-5-6C-14-9-15-20-9-25V-15L0-11L9-15V-25C15-20 14-9 5-6L5 27C5 34-5 34-5 27Z" fill="#d0dce9" stroke="#7b90ac" stroke-width="2.5" stroke-linejoin="round" />
+              <circle cy="26" r="2.5" fill="#f0e6fb" />
+              <path d="M0-1V17" stroke="#edf3fa" stroke-width="2.5" stroke-linecap="round" />
+            </g>
+          </svg>
           <svg class="unicorn-shadow" viewBox="0 0 260 240"><ellipse cx="140" cy="222" rx="65" ry="8" fill="currentColor" /></svg>
           <span :key="petCount" class="unicorn-art" :class="{ 'unicorn-art--petted': petCount > 0 }">
             <svg class="unicorn" viewBox="0 0 260 240" fill="none">
@@ -37,12 +58,17 @@
                 <path d="M144 37V63M157 37V63" stroke="#ffe29a" stroke-width="5" stroke-linecap="round" />
                 <path d="M115 66C135 61 171 62 192 69L191 77C165 70 135 71 114 77Z" fill="#ffcf65" stroke="#bc852d" stroke-width="2.5" stroke-linejoin="round" />
                 <path d="M125 51C128 46 132 43 136 42" stroke="#ffe8ad" stroke-width="3" stroke-linecap="round" />
+                <circle cx="173" cy="56" r="7" fill="#fff1be" stroke="#a77b33" stroke-width="3" stroke-dasharray="3 2" />
+                <circle cx="173" cy="56" r="2.5" fill="#a77b33" />
               </g>
               <path d="M115 211H200" stroke="#d7cde5" stroke-width="3" stroke-linecap="round" />
             </svg>
           </span>
           <span v-if="petCount" :key="`burst-${petCount}`" class="pet-burst">
-            <span v-for="particle in 8" :key="particle" class="pet-particle" :style="{ '--particle': particle }">{{ particle % 3 === 0 ? '✦' : '♥' }}</span>
+            <span v-for="particle in 8" :key="particle" class="pet-particle" :style="{ '--particle': particle }">
+              <svg v-if="particle % 2 === 0" class="pet-nut" viewBox="0 0 24 24" fill="none"><path d="M7 3H17L22 12L17 21H7L2 12Z" fill="#dce4ef" stroke="#8293ad" stroke-width="2" /><circle cx="12" cy="12" r="4" fill="#f7effb" stroke="#8293ad" stroke-width="2" /></svg>
+              <template v-else>{{ particle % 3 === 0 ? '✦' : '♥' }}</template>
+            </span>
           </span>
         </span>
         <span class="pet-label">{{ t('settings.about.pet') }}</span>
@@ -92,6 +118,10 @@ header > p { margin: 0; color: var(--app-text-muted); font-size: 14px; line-heig
 .unicorn-art { position: absolute; inset: 0; display: block; transform-origin: 55% 88%; animation: unicorn-breathe 4s ease-in-out infinite; }
 .unicorn { display: block; width: 100%; height: 100%; overflow: visible; }
 .unicorn-shadow { position: absolute; inset: 0; width: 100%; height: 100%; color: #bba2ce; opacity: .24; }
+.stage-parts { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.spare-gear { animation: spare-turn 24s linear infinite; }
+.unicorn-pet:hover .spare-gear { animation-duration: 8s; }
+.pet-nut { display: block; width: 20px; height: 20px; }
 .unicorn-eye { transform-box: fill-box; transform-origin: center; animation: unicorn-blink 6s ease-in-out infinite; }
 .stage-spark { position: absolute; color: #b498da; animation: sparkle 3s ease-in-out infinite; }
 .stage-spark--one { top: 24px; left: 29px; font-size: 23px; }
@@ -111,6 +141,7 @@ header > p { margin: 0; color: var(--app-text-muted); font-size: 14px; line-heig
 @keyframes unicorn-breathe { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-4px) rotate(1deg); } }
 @keyframes unicorn-blink { 0%, 44%, 48%, 100% { transform: scaleY(1); } 46% { transform: scaleY(.15); } }
 @keyframes sparkle { 0%, 100% { opacity: .35; transform: scale(.8) rotate(-8deg); } 50% { opacity: 1; transform: scale(1.15) rotate(8deg); } }
+@keyframes spare-turn { to { transform: rotate(360deg); } }
 @keyframes unicorn-hop { 0%, 100% { transform: translateY(0); } 20% { transform: translateY(3px) scale(1.03,.95); } 48% { transform: translateY(-16px) rotate(-7deg); } 72% { transform: translateY(1px) rotate(3deg); } }
 @keyframes helmet-drop { 0% { opacity: 0; transform: translateY(-45px) rotate(-18deg); } 55% { opacity: 1; transform: translateY(3px) rotate(3deg); } 78% { transform: translateY(-4px) rotate(-2deg); } 100% { transform: translateY(0); } }
 @keyframes pet-particle { 0% { opacity: 0; transform: rotate(var(--angle)) translateX(32px) rotate(calc(-1 * var(--angle))) scale(.4); } 20% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--angle)) translateX(110px) rotate(calc(-1 * var(--angle))) translateY(-25px) scale(1.1); } }
