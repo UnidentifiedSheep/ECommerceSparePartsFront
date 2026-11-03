@@ -7,8 +7,15 @@
         <span>{{ [product.producerName, product.name].filter(Boolean).join(' · ') }}</span>
       </div>
     </div>
+    <form class="product-cross-picker__search" @submit.prevent="searchCrosses">
+      <el-input v-model="query" :prefix-icon="Search" clearable maxlength="200" :placeholder="t('products.crossPicker.searchPlaceholder')" :aria-label="t('products.crossPicker.searchPlaceholder')" />
+      <el-button native-type="submit" type="primary">{{ t('products.find') }}</el-button>
+    </form>
     <div class="product-cross-picker__summary">
       <span v-if="!isLoading && !loadError">{{ t('products.shownCount', { count: crosses.length.toLocaleString(locale) }) }}</span>
+      <el-tooltip v-if="storageCode" :content="t('products.crossPicker.stockSortHint')" :popper-style="{ maxWidth: 'min(360px, calc(100vw - 32px))' }" placement="top">
+        <span><SortableColumnHeader :label="t('products.crossPicker.stockSort')" field="count" :sort-by="sortBy" @toggle="toggleSort" /></span>
+      </el-tooltip>
       <span>{{ t('products.multiSortHint') }}</span>
     </div>
     <DataLoadError v-if="loadError" :error="loadError" @retry="loadCrosses" />
@@ -34,7 +41,7 @@
       </el-table-column>
       <el-table-column prop="stock" min-width="120" align="right">
         <template #header>
-          <span v-if="storageCode">{{ t('sales.available') }} · {{ storageCode }}</span>
+          <span v-if="storageCode">{{ t('sales.available') }}</span>
           <SortableColumnHeader v-else :label="t('products.stock')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
         </template>
         <template #default="{ row }"><ProductStockCell :stock="storageCode ? row.availableStock ?? 0 : row.stock" /></template>
@@ -51,7 +58,8 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, Search } from '@element-plus/icons-vue'
+import { useDebounceFn } from '@vueuse/core'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
@@ -72,11 +80,23 @@ const crosses = ref<ProductSearchModel[]>([])
 const page = ref(0)
 const size = ref(20)
 const sortBy = ref<string[]>(['-count'])
+const query = ref('')
 const selectedProductId = ref<number>()
 const hasNext = ref(false)
 const isLoading = ref(false)
 const loadError = ref<DataLoadErrorKind | null>(null)
 let requestId = 0
+
+const searchDebounced = useDebounceFn((searchRequestId: number) => {
+  if (searchRequestId === requestId) searchCrosses()
+}, 350)
+
+function searchCrosses() {
+  // Invalidate a pending debounce even when pagination will trigger the request.
+  requestId += 1
+  if (page.value !== 0) page.value = 0
+  else void loadCrosses()
+}
 
 function toggleSort(field: string, event: MouseEvent) {
   sortBy.value = nextSortValues(sortBy.value, field, event.shiftKey)
@@ -98,6 +118,7 @@ async function loadCrosses() {
   try {
     const response = await getProductCrosses({
       productId: props.product.id,
+      searchTerm: query.value.trim() || undefined,
       page: page.value,
       size: size.value,
       sortBy: [...sortBy.value, 'id'],
@@ -125,8 +146,14 @@ watch([page, size, sortBy], ([currentPage, currentSize, currentSort], [, previou
   void loadCrosses()
 })
 watch(() => props.storageCode, () => { void loadCrosses() })
+watch(query, () => {
+  selectedProductId.value = undefined
+  isLoading.value = true
+  loadError.value = null
+  void searchDebounced(++requestId)
+}, { flush: 'sync' })
 onMounted(() => {
-  pickerRoot.value?.querySelector<HTMLButtonElement>('.product-cross-picker__back')?.focus()
+  pickerRoot.value?.querySelector<HTMLInputElement>('.product-cross-picker__search input')?.focus()
   void loadCrosses()
 })
 onBeforeUnmount(() => { requestId += 1 })
@@ -138,6 +165,8 @@ onBeforeUnmount(() => { requestId += 1 })
 .product-cross-picker__identity { display: grid; gap: 3px; min-width: 0; color: var(--el-text-color-primary); }
 .product-cross-picker__identity strong, .product-cross-picker__identity span { overflow-wrap: anywhere; }
 .product-cross-picker__identity span { color: var(--el-text-color-regular); font-size: 12px; }
+.product-cross-picker__search { display: flex; gap: 8px; min-width: 0; }
+.product-cross-picker__search .el-input { min-width: 0; }
 .product-cross-picker__summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--el-text-color-regular); font-size: 12px; }
 :deep(.el-table__header th) { background: var(--app-surface-muted, #f7f9fa); }
 :deep(.el-table__row) { cursor: pointer; }

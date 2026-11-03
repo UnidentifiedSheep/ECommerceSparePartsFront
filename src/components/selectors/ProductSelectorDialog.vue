@@ -125,7 +125,7 @@
         <div class="product-selector-results-tools">
           <el-tooltip v-if="storageCode" :content="t('products.storageStockSortHint')" :popper-style="{ maxWidth: 'min(360px, calc(100vw - 32px))' }" placement="top">
             <span>
-              <SortableColumnHeader :label="t('products.storageStockSort', { code: storageCode })" field="stock" :sort-by="sortBy" @toggle="toggleSort" />
+              <SortableColumnHeader :label="t('products.storageStockSort')" field="stock" :sort-by="sortBy" @toggle="toggleSort" />
             </span>
           </el-tooltip>
           <div class="product-highlight-toggle">
@@ -175,7 +175,7 @@
         </el-table-column>
         <el-table-column prop="stock" :label="t('products.stock')" min-width="140">
           <template #header>
-            <span v-if="storageCode">{{ t('sales.available') }} · {{ storageCode }}</span>
+            <span v-if="storageCode">{{ t('sales.available') }}</span>
             <SortableColumnHeader v-else :label="t('products.stock')" field="stock" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
           </template>
           <template #default="{ row }">
