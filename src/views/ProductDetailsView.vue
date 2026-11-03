@@ -101,6 +101,7 @@
             <ProductCrossesPanel
               v-model:page="page"
               v-model:size="size"
+              v-model:query="crossesQuery"
               :crosses="crosses"
               :loading="isCrossesLoading"
               :summary="crossesSummary"
@@ -110,6 +111,7 @@
               @create="crossDialogOpen = true"
               @open="openProduct"
               @sort-toggle="handleCrossesSortToggle"
+              @search="searchCrosses"
             />
           </el-tab-pane>
 
@@ -235,7 +237,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Delete, Edit, Money, MoreFilled, Plus, Refresh } from '@element-plus/icons-vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -312,6 +315,18 @@ const loadedTabs = ref<Record<ProductTab, boolean>>({
 const page = ref(0)
 const size = ref(20)
 const hasNext = ref(false)
+const crossesQuery = ref('')
+let crossesRequestId = 0
+const searchCrossesDebounced = useDebounceFn((requestId: number) => {
+  if (requestId === crossesRequestId) searchCrosses()
+}, 350)
+
+function searchCrosses() {
+  crossesRequestId += 1
+  if (!product.value || activeTab.value !== 'crosses') return
+  if (page.value !== 0) page.value = 0
+  else void refreshCrosses()
+}
 const storageContentPage = ref(0)
 const storageContentSize = ref(20)
 const storageContentHasNext = ref(false)
@@ -696,6 +711,7 @@ async function loadProductMetrics() {
 }
 
 async function loadCrosses() {
+  const requestId = ++crossesRequestId
   isCrossesLoading.value = true
   try {
     const resp = await getProductCrosses({
@@ -703,11 +719,21 @@ async function loadCrosses() {
       page: page.value,
       size: size.value,
       sortBy: crossesSortBy.value,
+      searchTerm: crossesQuery.value.trim() || undefined,
     })
+    if (requestId !== crossesRequestId) return false
     crosses.value = resp.crosses
     hasNext.value = resp.crosses.length === size.value
+    return true
+  } catch (error) {
+    if (requestId === crossesRequestId) {
+      crosses.value = []
+      hasNext.value = false
+      ElNotification({ title: t('common.labels.error'), message: error instanceof Error ? error.message : t('common.loadError.failedDescription'), type: 'error' })
+    }
+    return false
   } finally {
-    isCrossesLoading.value = false
+    if (requestId === crossesRequestId) isCrossesLoading.value = false
   }
 }
 
@@ -735,7 +761,7 @@ async function loadProductContent() {
 
 async function ensureTabLoaded(tab: ProductTab, force = false) {
   if (loadedTabs.value[tab] && !force) return
-  if (tab === 'crosses') await loadCrosses()
+  if (tab === 'crosses' && !await loadCrosses()) return
   if (tab === 'storage') await loadStorageContent()
   if (tab === 'content') await loadProductContent()
   loadedTabs.value[tab] = true
@@ -787,7 +813,10 @@ async function refreshDetails() {
 }
 
 function resetPageState() {
+  crossesRequestId += 1
   product.value = undefined
+  crossesQuery.value = ''
+  isCrossesLoading.value = false
   catalogueCandidate.value = null
   productPair.value = null
   productSize.value = null
@@ -825,15 +854,22 @@ watch(productId, async () => {
 })
 watch(activeTab, async (tab) => ensureTabLoaded(tab))
 watch(page, async () => {
-  if (loadedTabs.value.crosses) await refreshCrosses()
+  if (product.value && activeTab.value === 'crosses') await refreshCrosses()
 })
 watch(size, async () => {
   if (page.value !== 0) {
     page.value = 0
     return
   }
-  if (loadedTabs.value.crosses) await refreshCrosses()
+  if (product.value && activeTab.value === 'crosses') await refreshCrosses()
 })
+watch(crossesQuery, () => {
+  const requestId = ++crossesRequestId
+  loadedTabs.value.crosses = false
+  if (!product.value || activeTab.value !== 'crosses') return
+  isCrossesLoading.value = true
+  void searchCrossesDebounced(requestId)
+}, { flush: 'sync' })
 watch(storageContentPage, async () => {
   if (loadedTabs.value.storage) await ensureTabLoaded('storage', true)
 })
@@ -853,6 +889,7 @@ watch(showZeroStorageContent, async () => {
 })
 
 onMounted(loadInitialDetails)
+onBeforeUnmount(() => { crossesRequestId += 1 })
 </script>
 
 <style scoped>

@@ -7,6 +7,11 @@
       </el-button>
     </div>
 
+    <form class="product-crosses-search" @submit.prevent="emit('search')">
+      <el-input v-model="query" :prefix-icon="Search" clearable maxlength="200" :placeholder="t('products.crossPicker.searchPlaceholder')" :aria-label="t('products.crossPicker.searchPlaceholder')" />
+      <el-button native-type="submit" type="primary">{{ t('products.find') }}</el-button>
+    </form>
+
     <el-table
       v-loading="loading"
       :data="crosses"
@@ -36,6 +41,7 @@
             :icon="View"
             size="small"
             text
+            :disabled="loading"
             :aria-label="t('common.actions.open')"
             @click="emit('open', row.id)"
           />
@@ -44,13 +50,13 @@
     </el-table>
 
     <div class="product-data-panel__pagination">
-      <ZeroPagination v-model:page="page" v-model:size="size" :has-next="hasNext" />
+      <ZeroPagination v-model:page="page" v-model:size="size" :has-next="hasNext && !loading" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Plus, View } from '@element-plus/icons-vue'
+import { Plus, Search, View } from '@element-plus/icons-vue'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import ProductSkuCell from '@/components/products/ProductSkuCell.vue'
 import ProductStockCell from '@/components/products/ProductStockCell.vue'
@@ -70,11 +76,13 @@ defineProps<{
 const emit = defineEmits<{
   create: []
   open: [id: number]
+  search: []
   'sort-toggle': [field: string, event: MouseEvent]
 }>()
 
 const page = defineModel<number>('page', { required: true })
 const size = defineModel<number>('size', { required: true })
+const query = defineModel<string>('query', { required: true })
 const { t } = useI18n()
 
 function forwardSortToggle(field: string, event: MouseEvent) {
@@ -83,6 +91,8 @@ function forwardSortToggle(field: string, event: MouseEvent) {
 </script>
 
 <style scoped>
+.product-crosses-search { display: flex; gap: 8px; min-width: 0; margin-bottom: 12px; }
+.product-crosses-search .el-input { min-width: 0; }
 .product-data-panel__toolbar {
   display: flex;
   min-height: 52px;
