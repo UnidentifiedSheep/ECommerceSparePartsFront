@@ -291,6 +291,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Настройки',
+      about: {
+        title: 'О системе', tagline: 'Система держится на одном единороге. Просьба не кормить после деплоя.',
+        pet: 'Погладить', greeting: 'Склад под присмотром. Почти.',
+        stock: 'Проверил склад. Всё радужно, кроме остатков.', cross: 'Это не баг. Это редкий кросс.',
+        currency: 'Не мешай, я конвертирую дружбу в рубли.', request: 'Твой запрос важен для нас. Иго-го.',
+        helmet: 'Ладно, показывай, где опять не сходится баланс.', foreman: 'Режим прораба',
+      },
       appearance: {
         title: 'Внешний вид', hint: 'Настройте интерфейс так, чтобы вам было удобно работать.',
         fontSize: 'Размер текста', fontHint: '100% — стандартный размер. Изменение применяется сразу, в том числе в таблицах и окнах.',
@@ -2439,6 +2446,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Settings',
+      about: {
+        title: 'About', tagline: 'One unicorn is holding this system together. Please do not feed after deployment.',
+        pet: 'Pet the unicorn', greeting: 'Keeping an eye on the warehouse. Mostly.',
+        stock: 'Checked the warehouse. Everything is rainbows, except the stock levels.', cross: 'It is not a bug. It is a rare cross-reference.',
+        currency: 'Quiet, I am converting friendship into rubles.', request: 'Your request is important to us. Neigh.',
+        helmet: 'All right, show me which balance is wrong this time.', foreman: 'Foreman mode',
+      },
       appearance: {
         title: 'Appearance', hint: 'Adjust the interface to work comfortably.',
         fontSize: 'Text size', fontHint: '100% is the default size. Changes apply immediately, including tables and dialogs.',
@@ -4587,6 +4601,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Ayarlar',
+      about: {
+        title: 'Hakkında', tagline: 'Bu sistemi bir tek boynuzlu at ayakta tutuyor. Dağıtımdan sonra beslemeyin.',
+        pet: 'Tek boynuzlu atı sev', greeting: 'Depoya göz kulak oluyorum. Sayılır.',
+        stock: 'Depoyu kontrol ettim. Stoklar dışında her şey gökkuşağı gibi.', cross: 'Bu bir hata değil. Nadir bir çapraz eşleşme.',
+        currency: 'Sessiz ol, arkadaşlığı rubleye çeviriyorum.', request: 'Talebiniz bizim için önemli. İhahaha.',
+        helmet: 'Peki, bu sefer hangi bakiye tutmuyor, göster bakalım.', foreman: 'Ustabaşı modu',
+      },
       appearance: {
         title: 'Görünüm', hint: 'Rahat çalışmak için arayüzü kendinize göre ayarlayın.',
         fontSize: 'Metin boyutu', fontHint: '%100 varsayılan boyuttur. Değişiklikler tablolara ve pencerelere hemen uygulanır.',
