@@ -1,11 +1,11 @@
-export const productEventParts = ['Core', 'Characteristics', 'Dimensions', 'Weight'] as const
+export const productEventParts = ['Core', 'Characteristics', 'Dimensions', 'Weight', 'Stocks'] as const
 
 export type ProductEventPart = (typeof productEventParts)[number]
 
 export function parseProductEventParts(value: unknown): ProductEventPart[] {
   if (typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value.trim()))) {
     const mask = Number(value)
-    if (!Number.isInteger(mask) || mask < 1 || mask > 15) return []
+    if (!Number.isInteger(mask) || mask < 1 || mask > 31) return []
     return productEventParts.filter((_, index) => (mask & (1 << index)) !== 0)
   }
 

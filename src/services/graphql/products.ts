@@ -374,6 +374,7 @@ export async function mapCandidateCrossesGraphql(
 }
 
 export async function searchProductsGraphql(options: {
+  stockStorageCode?: string
   query?: string
   producerId?: number
   productGroupIds?: number[]
@@ -385,6 +386,7 @@ export async function searchProductsGraphql(options: {
   productCriteria?: ProductSearchCriteriaInput | null
 }): Promise<{ products: ProductSearchModel[]; total: number }> {
   const response = await searchCatalogueGraphql({
+    stockStorageCode: options.stockStorageCode,
     query: options.query,
     producerIds: options.producerId === undefined ? [] : [options.producerId],
     productGroupIds: options.productGroupIds,
@@ -405,6 +407,7 @@ export async function searchProductsGraphql(options: {
 }
 
 export async function searchCatalogueGraphql(options: {
+  stockStorageCode?: string
   query?: string
   producerIds?: number[]
   productGroupIds?: number[]
@@ -434,6 +437,7 @@ export async function searchCatalogueGraphql(options: {
         productGroupIds: options.productGroupIds ?? [],
         pagination: { page: options.page, size: options.size },
         productSortBy: mapSortBy(options.productSortBy),
+        stockStorageCode: options.stockStorageCode?.trim() || null,
         catalogueCandidateSortBy: mapSortBy(options.catalogueCandidateSortBy),
         candidateMappingStatus: options.candidateMappingStatus ?? 'UNMAPPED',
         includeHighlights: options.includeHighlights ?? false,
@@ -637,6 +641,7 @@ export async function getProductContentsGraphql(productId: number): Promise<Prod
 
 export async function getProductCrossesGraphql(options: {
   productId: number
+  searchTerm?: string
   page: number
   size: number
   sortBy?: string[]
@@ -647,6 +652,7 @@ export async function getProductCrossesGraphql(options: {
       id: options.productId,
       input: {
         pagination: { page: options.page, size: options.size },
+        ...(options.searchTerm?.trim() ? { searchTerm: options.searchTerm.trim() } : {}),
         sortBy: mapSortBy(options.sortBy),
       },
     },

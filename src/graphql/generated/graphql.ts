@@ -32,6 +32,7 @@ export type CatalogueSearchInput = {
   productSortBy?: Array<SortByInput> | null | undefined;
   query?: string | null | undefined;
   skuModes?: Array<SearchMatchType> | null | undefined;
+  stockStorageCode?: string | null | undefined;
   targets: Array<SearchTarget>;
 };
 
@@ -390,6 +391,7 @@ export type ProductCharacteristicCriteriaInput = {
 
 export type ProductCrossesInput = {
   pagination: PaginationInput;
+  searchTerm?: string | null | undefined;
   sortBy?: Array<SortByInput> | null | undefined;
 };
 
@@ -439,7 +441,6 @@ export type ProductSaleHistoryInput = {
 export type ProductSearchCriteriaInput = {
   characteristics?: Array<ProductCharacteristicCriteriaInput> | null | undefined;
   dimensions?: ProductDimensionsCriteriaInput | null | undefined;
-  stock?: SearchIntegerRangeInput | null | undefined;
   weight?: ProductWeightCriteriaInput | null | undefined;
 };
 
@@ -489,13 +490,6 @@ export type SearchDocumentsInput = {
   pagination: PaginationInput;
   requesterId?: string | null | undefined;
   sortBy?: Array<SortByInput> | null | undefined;
-};
-
-export type SearchIntegerRangeInput = {
-  gt?: number | null | undefined;
-  gte?: number | null | undefined;
-  lt?: number | null | undefined;
-  lte?: number | null | undefined;
 };
 
 export type SearchMarkupGroupsInput = {

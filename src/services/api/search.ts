@@ -16,6 +16,7 @@ import type {
 export type { CandidateMappingStatus } from '@/graphql/generated/graphql.ts'
 
 export interface SearchProductsRequest {
+  stockStorageCode?: string
   query?: string
   producerId?: number
   productGroupIds?: number[]
@@ -54,6 +55,7 @@ export interface CatalogueSearchFieldsRequest {
 }
 
 export interface SearchCatalogueRequest {
+  stockStorageCode?: string
   query?: string
   targets?: SearchTarget[]
   fields?: CatalogueSearchFieldsRequest
@@ -91,6 +93,7 @@ export interface SearchProducersResponse {
 }
 
 export interface SearchProductsBySkuRequest {
+  stockStorageCode?: string
   sku: string
   producerId?: number
   productGroupIds?: number[]
@@ -114,6 +117,7 @@ function toGraphqlSearchMatchTypes(values: SearchMatchType[] | undefined) {
 
 export async function searchProducts(req: SearchProductsRequest): Promise<SearchProductsResponse> {
   return searchProductsGraphql({
+    stockStorageCode: req.stockStorageCode,
     query: req.query,
     producerId: req.producerId,
     productGroupIds: req.productGroupIds,
@@ -131,6 +135,7 @@ export async function searchProductsBySku(req: SearchProductsBySkuRequest): Prom
       ? [req.searchMode]
       : ['Exact', 'StartsWith', 'Contains']
   return searchProductsGraphql({
+    stockStorageCode: req.stockStorageCode,
     query: req.sku,
     producerId: req.producerId,
     productGroupIds: req.productGroupIds,
@@ -145,6 +150,7 @@ export async function searchProductsBySku(req: SearchProductsBySkuRequest): Prom
 
 export async function searchCatalogue(req: SearchCatalogueRequest): Promise<SearchCatalogueResponse> {
   return searchCatalogueGraphql({
+    stockStorageCode: req.stockStorageCode,
     query: req.query?.trim() || undefined,
     targets: (req.targets ?? ['Products']).map((target) => (
       target === 'Products' ? 'PRODUCTS' : 'CATALOGUE_CANDIDATES'

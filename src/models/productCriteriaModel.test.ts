@@ -18,15 +18,13 @@ describe('product criteria', () => {
 
   it('counts active ranges and converts them to GraphQL input', () => {
     const draft = emptyProductCriteria()
-    draft.stock.min = 2
     draft.weight.max = 5
     draft.dimensions.length.min = 10
     draft.characteristics.push({ ...emptyCharacteristicCriteria(), characteristicId: 7, values: 'red, blue, ' })
 
-    expect(countProductCriteria(draft)).toBe(4)
+    expect(countProductCriteria(draft)).toBe(3)
     expect(validateProductCriteria(draft)).toBeNull()
     expect(toProductCriteriaInput(draft)).toEqual({
-      stock: { gte: 2, lte: null },
       weight: { range: { gte: null, lte: 5 }, unit: 'KILOGRAM' },
       dimensions: {
         unit: 'CENTIMETER',
@@ -39,17 +37,13 @@ describe('product criteria', () => {
     })
   })
 
-  it('rejects reversed ranges, fractional stock, and duplicate characteristics', () => {
+  it('rejects reversed ranges and duplicate characteristics', () => {
     const draft = emptyProductCriteria()
     draft.weight.min = 10
     draft.weight.max = 5
     expect(validateProductCriteria(draft)).toBe('invalidRange')
 
     draft.weight.max = 12
-    draft.stock.min = 1.5
-    expect(validateProductCriteria(draft)).toBe('invalidStock')
-
-    draft.stock.min = 1
     draft.characteristics = [
       { ...emptyCharacteristicCriteria(), characteristicId: 3, values: 'first' },
       { ...emptyCharacteristicCriteria(), characteristicId: 3, values: 'second' },
@@ -77,12 +71,19 @@ describe('product criteria', () => {
       dimensions: { unit: 'METER', length: { min: 2 }, width: { max: Infinity } },
       characteristics: [{ characteristicId: 8, operation: 'exists', exists: false }],
     }))
-    expect(draft.stock).toEqual({ min: 3, max: null })
+    expect(draft).not.toHaveProperty('stock')
+    expect(toProductCriteriaInput(draft)).not.toHaveProperty('stock')
     expect(draft.weight.unit).toBe('KILOGRAM')
     expect(draft.dimensions.unit).toBe('METER')
     expect(draft.dimensions.width.max).toBeNull()
     expect(toProductCriteriaInput(draft)?.characteristics).toEqual([
       { characteristicId: 8, values: null, numericRange: null, exists: false },
     ])
+  })
+
+  it('discards a legacy stock-only filter instead of sending an unsupported GraphQL field', () => {
+    const draft = parseProductCriteriaDraft(JSON.stringify({ stock: { min: 3, max: 10 } }))
+    expect(countProductCriteria(draft)).toBe(0)
+    expect(toProductCriteriaInput(draft)).toBeNull()
   })
 })

@@ -57,6 +57,7 @@ export interface CreateProductCrossesRequest {
 
 export interface GetProductCrossesRequest {
   productId: number
+  searchTerm?: string
   page: number
   size: number
   sortBy?: string[]

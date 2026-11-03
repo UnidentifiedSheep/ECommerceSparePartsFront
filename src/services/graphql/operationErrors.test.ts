@@ -5,6 +5,15 @@ import { ApiError } from '@/models/errorModel'
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
 
 describe('GraphQL operation errors', () => {
+  it('preserves stock shortage identity and quantities for availability refresh after a rejected sale', async () => {
+    const related = { ArticleId: 42, AvailableCount: 2, NeededCount: 5 }
+    const rejection = { graphQLErrors: [{ message: 'Доступно 2, требуется 5', extensions: {
+      status: 400, code: 'NotEnoughCountOnStorageException', errorRelatedData: related,
+    } }] }
+    await expect(operationRequest(Promise.reject(rejection))).rejects.toMatchObject({
+      type: 'NotEnoughCountOnStorageException', message: 'Доступно 2, требуется 5', errorRelatedData: related,
+    })
+  })
   it('preserves finance error details without losing the localized message', async () => {
     const related = { currentBalance: 0, requiredBalance: 100 }
     const rejection = { graphQLErrors: [{ message: 'Insufficient balance', extensions: { status: 409, code: 'NotEnoughBalance', errorRelatedData: related } }] }

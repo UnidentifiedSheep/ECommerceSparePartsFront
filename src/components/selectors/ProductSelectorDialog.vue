@@ -123,6 +123,11 @@
       <div class="product-selector-results-header">
         <span>{{ t(hasExactTotal ? 'products.foundCount' : 'products.shownCount', { count: total.toLocaleString(locale) }) }}</span>
         <div class="product-selector-results-tools">
+          <el-tooltip v-if="storageCode" :content="t('products.storageStockSortHint')" :popper-style="{ maxWidth: 'min(360px, calc(100vw - 32px))' }" placement="top">
+            <span>
+              <SortableColumnHeader :label="t('products.storageStockSort', { code: storageCode })" field="stock" :sort-by="sortBy" @toggle="toggleSort" />
+            </span>
+          </el-tooltip>
           <div class="product-highlight-toggle">
             <span class="product-highlight-toggle__sample" aria-hidden="true">Aa</span>
             <span>{{ t('products.displayHighlights') }}</span>
@@ -435,6 +440,7 @@ async function loadProducts(resetPage: boolean) {
     const normalizedQuery = query.value.trim()
     if (canUseCatalogueSearch.value) {
       const response = await searchCatalogue({
+        stockStorageCode: props.storageCode,
         query: normalizedQuery || undefined,
         targets: ['Products'],
         fields: {
@@ -461,6 +467,7 @@ async function loadProducts(resetPage: boolean) {
       const useSkuSearch = nameModes.value.length === 0 && skuModes.value.length > 0
       const response = useSkuSearch
         ? await searchProductsBySku({
+            stockStorageCode: props.storageCode,
             sku: normalizedQuery,
             producerId: producerIds.value[0],
             productGroupIds: productGroupIds.value,
@@ -470,6 +477,7 @@ async function loadProducts(resetPage: boolean) {
             sortBy: sortBy.value,
           })
         : await searchProducts({
+            stockStorageCode: props.storageCode,
             query: normalizedQuery || undefined,
             producerId: producerIds.value[0],
             productGroupIds: productGroupIds.value,
@@ -731,6 +739,7 @@ onMounted(async () => {
 
 .product-selector-results-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -742,6 +751,7 @@ onMounted(async () => {
 
 .product-selector-results-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
 }

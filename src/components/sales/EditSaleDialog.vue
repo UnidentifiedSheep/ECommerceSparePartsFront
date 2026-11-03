@@ -340,6 +340,7 @@ import { getProductAvailableStock, getProductsAvailableStock } from '@/services/
 import { editSale, type ProductSaleHistoryModel } from '@/services/api/sales.ts'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
+import { ApiError } from '@/models/errorModel'
 import { useI18n } from '@/i18n'
 
 type DiscountMode = 'Manual' | 'Sale'
@@ -761,6 +762,11 @@ async function save() {
 
     isOpen.value = false
     emit('updated', props.sale.id)
+  } catch (error) {
+    if (error instanceof ApiError && error.type === 'NotEnoughCountOnStorageException') {
+      await loadCurrentProductStocks()
+    }
+    throw error
   } finally {
     isSaving.value = false
   }

@@ -360,6 +360,7 @@ import { getProductAvailableStock, getProductsAvailableStock } from '@/services/
 import { createSale, type ProductSaleHistoryModel } from '@/services/api/sales.ts'
 import { toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
+import { ApiError } from '@/models/errorModel'
 import { useI18n } from '@/i18n'
 import { useDialogGuard } from '@/composables/useDialogGuard.ts'
 import { usePermissions } from '@/composables/usePermissions'
@@ -760,6 +761,11 @@ async function save() {
 
     isOpen.value = false
     emit('created', resp.sale)
+  } catch (error) {
+    if (error instanceof ApiError && error.type === 'NotEnoughCountOnStorageException') {
+      await loadCurrentProductStocks()
+    }
+    throw error
   } finally {
     isSaving.value = false
   }

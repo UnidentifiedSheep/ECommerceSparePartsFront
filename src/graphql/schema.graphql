@@ -1,5 +1,5 @@
-# Exported from backend CI 5d25c802caa9c4c709d94a9e14d2f8cd525bc8c0. Fusion execution metadata omitted.
-# Currency history types updated from Main CI schema 4e154563ca3a6261eb6b1a044705413639df5e3b.
+# Aligned with the public gateway SDL retrieved 2026-11-03. Execution metadata omitted.
+# ProductCrossesInput.searchTerm follows Main commit 727c99f91318bcd717082fc36cf78c8d0eaa5c64.
 directive @authorize(apply: ApplyPolicy! = BEFORE_RESOLVER, policy: String, roles: [String!]) repeatable on OBJECT | FIELD_DEFINITION
 
 directive @cost(weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
@@ -425,7 +425,7 @@ type Product {
   saleHistory(input: ProductSaleHistoryInput!): [ProductSaleHistory!]!
   size: ProductSize
   sku: String!
-  stock: Int!
+  stock: Long!
   storageContents(input: ProductStorageContentsInput!): [StorageContent!]!
   weight: ProductWeight
 }
@@ -801,6 +801,7 @@ input CatalogueSearchInput {
   productSortBy: [SortByInput!]
   query: String
   skuModes: [SearchMatchType!]
+  stockStorageCode: String
   targets: [SearchTarget!]!
 }
 
@@ -1093,6 +1094,7 @@ input ProductCharacteristicCriteriaInput {
 
 input ProductCrossesInput {
   pagination: PaginationInput!
+  searchTerm: String
   sortBy: [SortByInput!]
 }
 
@@ -1141,7 +1143,6 @@ input ProductsByEanInput {
 input ProductSearchCriteriaInput {
   characteristics: [ProductCharacteristicCriteriaInput!]
   dimensions: ProductDimensionsCriteriaInput
-  stock: SearchIntegerRangeInput
   weight: ProductWeightCriteriaInput
 }
 
@@ -1172,13 +1173,6 @@ input SearchDocumentsInput {
   pagination: PaginationInput!
   requesterId: UUID
   sortBy: [SortByInput!]
-}
-
-input SearchIntegerRangeInput {
-  gt: Int
-  gte: Int
-  lt: Int
-  lte: Int
 }
 
 input SearchMarkupGroupsInput {
