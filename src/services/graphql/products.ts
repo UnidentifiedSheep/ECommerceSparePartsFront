@@ -642,6 +642,7 @@ export async function getProductContentsGraphql(productId: number): Promise<Prod
 export async function getProductCrossesGraphql(options: {
   productId: number
   searchTerm?: string
+  stockStorageCode?: string
   page: number
   size: number
   sortBy?: string[]
@@ -653,6 +654,7 @@ export async function getProductCrossesGraphql(options: {
       input: {
         pagination: { page: options.page, size: options.size },
         ...(options.searchTerm?.trim() ? { searchTerm: options.searchTerm.trim() } : {}),
+        ...(options.stockStorageCode?.trim() ? { stockStorageCode: options.stockStorageCode.trim() } : {}),
         sortBy: mapSortBy(options.sortBy),
       },
     },

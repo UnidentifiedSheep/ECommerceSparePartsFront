@@ -393,6 +393,7 @@ export type ProductCrossesInput = {
   pagination: PaginationInput;
   searchTerm?: string | null | undefined;
   sortBy?: Array<SortByInput> | null | undefined;
+  stockStorageCode?: string | null | undefined;
 };
 
 export type ProductDimensionsCriteriaInput = {

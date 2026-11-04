@@ -1095,6 +1095,7 @@ input ProductCharacteristicCriteriaInput {
 input ProductCrossesInput {
   pagination: PaginationInput!
   searchTerm: String
+  stockStorageCode: String
   sortBy: [SortByInput!]
 }
 

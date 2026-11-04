@@ -123,11 +123,6 @@
       <div class="product-selector-results-header">
         <span>{{ t(hasExactTotal ? 'products.foundCount' : 'products.shownCount', { count: total.toLocaleString(locale) }) }}</span>
         <div class="product-selector-results-tools">
-          <el-tooltip v-if="storageCode" :content="t('products.storageStockSortHint')" :popper-style="{ maxWidth: 'min(360px, calc(100vw - 32px))' }" placement="top">
-            <span>
-              <SortableColumnHeader :label="t('products.storageStockSort')" field="stock" :sort-by="sortBy" @toggle="toggleSort" />
-            </span>
-          </el-tooltip>
           <div class="product-highlight-toggle">
             <span class="product-highlight-toggle__sample" aria-hidden="true">Aa</span>
             <span>{{ t('products.displayHighlights') }}</span>
@@ -175,7 +170,9 @@
         </el-table-column>
         <el-table-column prop="stock" :label="t('products.stock')" min-width="140">
           <template #header>
-            <span v-if="storageCode">{{ t('sales.available') }}</span>
+            <el-tooltip v-if="storageCode" :content="t('products.storageStockSortHint')" :popper-style="{ maxWidth: 'min(360px, calc(100vw - 32px))' }" placement="top">
+              <span><SortableColumnHeader :label="t('sales.available')" field="stock" :sort-by="sortBy" @toggle="toggleSort" /></span>
+            </el-tooltip>
             <SortableColumnHeader v-else :label="t('products.stock')" field="stock" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
           </template>
           <template #default="{ row }">

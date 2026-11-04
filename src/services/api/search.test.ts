@@ -55,4 +55,12 @@ describe('warehouse stock search contracts', () => {
     await getProductCrosses({ productId: 1, page: 0, size: 20, searchTerm: '  ABC  ' })
     expect(queryInput()).toMatchObject({ searchTerm: 'ABC', pagination: { page: 0, size: 20 } })
   })
+
+  it('scopes cross count sorting to the selected warehouse while keeping the search and pagination', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { crosses: [product] } } } } as never)
+    await getProductCrosses({ productId: 1, page: 1, size: 20, searchTerm: ' ABC ', stockStorageCode: ' SECOND ', sortBy: ['-count', 'id'] })
+    expect(queryInput()).toEqual({ searchTerm: 'ABC', stockStorageCode: 'SECOND', pagination: { page: 1, size: 20 }, sortBy: [
+      { field: 'count', isDescending: true }, { field: 'id', isDescending: false },
+    ] })
+  })
 })
