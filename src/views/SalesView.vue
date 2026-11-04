@@ -81,28 +81,6 @@
             </section>
 
             <section class="drawer-section">
-              <div class="drawer-section-title">{{ t('sales.state') }}</div>
-              <label class="filter-field">
-                <span>{{ t('sales.state') }}</span>
-                <el-select
-                  v-model="saleStates"
-                  multiple
-                  collapse-tags
-                  collapse-tags-tooltip
-                  :placeholder="t('sales.allStates')"
-                  class="w-full"
-                >
-                  <el-option
-                    v-for="option in saleStateOptions"
-                    :key="option.value"
-                    :label="option.label"
-                    :value="option.value"
-                  />
-                </el-select>
-              </label>
-            </section>
-
-            <section class="drawer-section">
               <div class="drawer-section-title">{{ t('sales.buyers') }}</div>
               <div class="filter-field">
                 <span>{{ t('sales.addBuyer') }}</span>
@@ -175,7 +153,7 @@
             class="w-full"
             height="100%"
             highlight-current-row
-            :row-class-name="saleRowClassName"
+            row-class-name="sale-table-row"
             @current-change="handleCurrentSaleChange"
           >
             <el-table-column :label="t('sales.buyer')" min-width="140">
@@ -188,13 +166,6 @@
                     trigger-entity="user"
                   />
                 </div>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.labels.status')" width="108">
-              <template #default="{ row }">
-                <span class="sale-state" :class="`sale-state--${row.state.toLowerCase()}`">
-                  {{ t(`sales.states.${row.state}`) }}
-                </span>
               </template>
             </el-table-column>
             <el-table-column prop="storageCode" :label="t('sales.storage')" min-width="100" show-overflow-tooltip />
@@ -266,7 +237,7 @@
 import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
 import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
-import { queryText, queryStrings, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
+import { queryText, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
 import { organizationQueryBinding, productQueryBinding } from '@/composables/listFilterBindings'
 
 import { computed, nextTick, onMounted, onScopeDispose, ref, watch } from 'vue'
@@ -286,7 +257,7 @@ import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
-import type { SaleContentModel, SaleModel, SaleState } from '@/models/saleModel.ts'
+import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
 import type { OrganizationModel, OrganizationSelection } from '@/models/organizationModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { deleteSale, getSale, getSaleContent, getSales } from '@/services/api/sales.ts'
@@ -310,8 +281,6 @@ const currencies = ref<CurrencyModel[]>([])
 const selectedBuyerOrganizations = ref<OrganizationModel[]>([])
 const buyerOrganizationToAdd = ref<OrganizationSelection>()
 const currencyIds = ref<number[]>([])
-const defaultSaleStates: SaleState[] = ['Completed']
-const saleStates = ref<SaleState[]>([...defaultSaleStates])
 const selectedProducts = ref<ProductSearchModel[]>([])
 const searchTerm = ref<string>()
 const { sortBy, toggleSort } = useMultiSort()
@@ -339,17 +308,10 @@ let contentRequestVersion = 0
 const contentDebounce = useSelectionDebounce()
 onScopeDispose(() => { ++contentRequestVersion })
 
-const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(() => [
-  { label: t('sales.states.Draft'), value: 'Draft' },
-  { label: t('sales.states.Completed'), value: 'Completed' },
-  { label: t('sales.states.Deleted'), value: 'Deleted' },
-])
-
 const activeFiltersCount = computed(() => (
   (dateRange.value ? 1 : 0)
   + selectedBuyerOrganizations.value.length
   + currencyIds.value.length
-  + (isDefaultSaleStateFilter() ? 0 : 1)
   + selectedProducts.value.length
   + (searchTerm.value?.trim() ? 1 : 0)
 ))
@@ -368,7 +330,6 @@ const queryState = useListQueryState({
   products: productQueryBinding(selectedProducts),
   sort: queryField(sortBy, querySort(['dateTime', 'totalSum'])),
   buyers: organizationQueryBinding(selectedBuyerOrganizations, (item) => item, (organization) => organization),
-  states: queryField(saleStates, (value) => queryStrings(value).filter((item): item is SaleState => ['Draft', 'Completed', 'Deleted'].includes(item))),
   page: queryField(page, queryPage),
   size: queryField(limit, querySize),
 }, () => loadSales(false))
@@ -385,26 +346,13 @@ function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
-function saleRowClassName({ row }: { row: SaleModel }) {
-  return [
-    'sale-table-row',
-    `sale-table-row--${row.state.toLowerCase()}`,
-  ].join(' ')
-}
-
 function resetFilters() {
   dateRange.value = null
   selectedBuyerOrganizations.value = []
   buyerOrganizationToAdd.value = undefined
   currencyIds.value = []
-  saleStates.value = [...defaultSaleStates]
   selectedProducts.value = []
   searchTerm.value = undefined
-}
-
-function isDefaultSaleStateFilter() {
-  return saleStates.value.length === defaultSaleStates.length
-    && defaultSaleStates.every((state) => saleStates.value.includes(state))
 }
 
 async function handleSortToggle(field: string, event: MouseEvent) {
@@ -475,7 +423,7 @@ async function loadSales(resetPage: boolean, navigation?: { page: number; direct
       organizationIds: selectedBuyerOrganizations.value.map((buyer) => buyer.id),
       currencyIds: currencyIds.value,
       productIds: selectedProducts.value.map((product) => product.id),
-      states: saleStates.value,
+      states: ['Completed'],
       sortBy: toSortExpressions(sortBy.value),
       searchTerm: searchTerm.value,
     })
@@ -659,7 +607,6 @@ watch(page, async () => loadSales(false))
 watch(dateRange, async () => loadSales(true), { deep: true })
 watch(selectedBuyerOrganizations, async () => loadSales(true), { deep: true })
 watch(currencyIds, async () => loadSales(true), { deep: true })
-watch(saleStates, async () => loadSales(true), { deep: true })
 watch(selectedProducts, async () => loadSales(true), { deep: true })
 watch(searchTerm, () => { if (!queryState.restoring.value) loadSalesDebounced() })
 watch(() => route.query.saleId, async () => selectSaleFromRoute())
