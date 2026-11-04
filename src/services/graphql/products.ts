@@ -642,11 +642,15 @@ export async function getProductContentsGraphql(productId: number): Promise<Prod
 export async function getProductCrossesGraphql(options: {
   productId: number
   searchTerm?: string
-  stockStorageCode?: string
+  storageCode?: string
   page: number
   size: number
   sortBy?: string[]
 }): Promise<ProductModel[]> {
+  const storageCode = options.storageCode?.trim()
+  const sortBy = mapSortBy(options.sortBy).map(sort => (
+    sort.field === 'count' && storageCode ? { ...sort, argument: storageCode } : sort
+  ))
   const response = await graphqlClient.query<ProductCrossesResponse>({
     query: ProductCrossesDocument,
     variables: {
@@ -654,8 +658,7 @@ export async function getProductCrossesGraphql(options: {
       input: {
         pagination: { page: options.page, size: options.size },
         ...(options.searchTerm?.trim() ? { searchTerm: options.searchTerm.trim() } : {}),
-        ...(options.stockStorageCode?.trim() ? { stockStorageCode: options.stockStorageCode.trim() } : {}),
-        sortBy: mapSortBy(options.sortBy),
+        sortBy,
       },
     },
     fetchPolicy: 'network-only',

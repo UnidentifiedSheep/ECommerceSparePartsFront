@@ -118,7 +118,7 @@ async function loadCrosses() {
     const response = await getProductCrosses({
       productId: props.product.id,
       searchTerm: query.value.trim() || undefined,
-      stockStorageCode: props.storageCode,
+      storageCode: props.storageCode,
       page: page.value,
       size: size.value,
       sortBy: [...sortBy.value, 'id'],

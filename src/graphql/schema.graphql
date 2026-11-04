@@ -1,5 +1,5 @@
 # Aligned with the public gateway SDL retrieved 2026-11-03. Execution metadata omitted.
-# ProductCrossesInput.searchTerm follows Main commit 727c99f91318bcd717082fc36cf78c8d0eaa5c64.
+# SortByInput.argument follows backend commit 17e1da17f71075d5108be9925bacf95bf7f632fe.
 directive @authorize(apply: ApplyPolicy! = BEFORE_RESOLVER, policy: String, roles: [String!]) repeatable on OBJECT | FIELD_DEFINITION
 
 directive @cost(weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
@@ -1095,7 +1095,6 @@ input ProductCharacteristicCriteriaInput {
 input ProductCrossesInput {
   pagination: PaginationInput!
   searchTerm: String
-  stockStorageCode: String
   sortBy: [SortByInput!]
 }
 
@@ -1206,6 +1205,7 @@ input SendNotificationInput {
 }
 
 input SortByInput {
+  argument: String
   field: String!
   isDescending: Boolean!
 }

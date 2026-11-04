@@ -58,7 +58,7 @@ export interface CreateProductCrossesRequest {
 export interface GetProductCrossesRequest {
   productId: number
   searchTerm?: string
-  stockStorageCode?: string
+  storageCode?: string
   page: number
   size: number
   sortBy?: string[]
