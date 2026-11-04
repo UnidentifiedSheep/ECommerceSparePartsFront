@@ -291,6 +291,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Настройки',
+      about: {
+        title: 'О системе', tagline: 'Система держится на одном единороге. Просьба не кормить после деплоя.',
+        pet: 'Погладить', greeting: 'Склад под присмотром. Почти.',
+        stock: 'Проверил склад. Всё радужно, кроме остатков.', cross: 'Это не баг. Это редкий кросс.',
+        currency: 'Не мешай, я конвертирую дружбу в рубли.', request: 'Твой запрос важен для нас. Иго-го.',
+        helmet: 'Ладно, показывай, где опять не сходится баланс.', foreman: 'Режим прораба',
+      },
       appearance: {
         title: 'Внешний вид', hint: 'Настройте интерфейс так, чтобы вам было удобно работать.',
         fontSize: 'Размер текста', fontHint: '100% — стандартный размер. Изменение применяется сразу, в том числе в таблицах и окнах.',
@@ -1328,6 +1335,8 @@ const messages: Record<AppLocale, MessageTree> = {
       productColumn: 'Товар',
       sku: 'Артикул',
       stock: 'Остаток',
+      storageStockSort: 'По остатку на складе',
+      storageStockSortHint: 'Сортировка по физическому остатку выбранного склада. В таблице показано доступное количество с учётом блокировок.',
       outOfStock: 'нет',
       weight: 'Вес',
       volume: 'Объём',
@@ -1336,6 +1345,9 @@ const messages: Record<AppLocale, MessageTree> = {
         open: 'Кроссы товара {sku}',
         title: 'Кроссы: {sku}',
         back: 'К результатам поиска',
+        searchPlaceholder: 'Артикул, название или производитель кросса',
+        stockSort: 'По общему остатку',
+        stockSortHint: 'Сортировка по физическому остатку на всех складах. В таблице показано доступное количество выбранного склада.',
       },
       openProduct: 'Открыть товар',
       quickView: {
@@ -2052,6 +2064,7 @@ const messages: Record<AppLocale, MessageTree> = {
         Characteristics: 'Характеристики',
         Dimensions: 'Размеры',
         Weight: 'Вес',
+        Stocks: 'Остатки по складам',
       },
       enabled: 'Включено',
       scheduleStatus: 'Статус расписания',
@@ -2439,6 +2452,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Settings',
+      about: {
+        title: 'About', tagline: 'One unicorn is holding this system together. Please do not feed after deployment.',
+        pet: 'Pet the unicorn', greeting: 'Keeping an eye on the warehouse. Mostly.',
+        stock: 'Checked the warehouse. Everything is rainbows, except the stock levels.', cross: 'It is not a bug. It is a rare cross-reference.',
+        currency: 'Quiet, I am converting friendship into rubles.', request: 'Your request is important to us. Neigh.',
+        helmet: 'All right, show me which balance is wrong this time.', foreman: 'Foreman mode',
+      },
       appearance: {
         title: 'Appearance', hint: 'Adjust the interface to work comfortably.',
         fontSize: 'Text size', fontHint: '100% is the default size. Changes apply immediately, including tables and dialogs.',
@@ -3476,6 +3496,8 @@ const messages: Record<AppLocale, MessageTree> = {
       productColumn: 'Product',
       sku: 'SKU',
       stock: 'Stock',
+      storageStockSort: 'By warehouse stock',
+      storageStockSortHint: 'Sort by physical stock in the selected warehouse. The table shows available quantity after stock locks.',
       outOfStock: 'none',
       weight: 'Weight',
       volume: 'Volume',
@@ -3484,6 +3506,9 @@ const messages: Record<AppLocale, MessageTree> = {
         open: 'Crosses for {sku}',
         title: 'Crosses: {sku}',
         back: 'Back to search results',
+        searchPlaceholder: 'Cross SKU, name or manufacturer',
+        stockSort: 'By total stock',
+        stockSortHint: 'Sort by physical stock across all warehouses. The table shows available quantity in the selected warehouse.',
       },
       openProduct: 'Open product',
       quickView: {
@@ -4200,6 +4225,7 @@ const messages: Record<AppLocale, MessageTree> = {
         Characteristics: 'Characteristics',
         Dimensions: 'Dimensions',
         Weight: 'Weight',
+        Stocks: 'Warehouse stock',
       },
       enabled: 'Enabled',
       scheduleStatus: 'Schedule status',
@@ -4587,6 +4613,13 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     settings: {
       title: 'Ayarlar',
+      about: {
+        title: 'Hakkında', tagline: 'Bu sistemi bir tek boynuzlu at ayakta tutuyor. Dağıtımdan sonra beslemeyin.',
+        pet: 'Tek boynuzlu atı sev', greeting: 'Depoya göz kulak oluyorum. Sayılır.',
+        stock: 'Depoyu kontrol ettim. Stoklar dışında her şey gökkuşağı gibi.', cross: 'Bu bir hata değil. Nadir bir çapraz eşleşme.',
+        currency: 'Sessiz ol, arkadaşlığı rubleye çeviriyorum.', request: 'Talebiniz bizim için önemli. İhahaha.',
+        helmet: 'Peki, bu sefer hangi bakiye tutmuyor, göster bakalım.', foreman: 'Ustabaşı modu',
+      },
       appearance: {
         title: 'Görünüm', hint: 'Rahat çalışmak için arayüzü kendinize göre ayarlayın.',
         fontSize: 'Metin boyutu', fontHint: '%100 varsayılan boyuttur. Değişiklikler tablolara ve pencerelere hemen uygulanır.',
@@ -5624,6 +5657,8 @@ const messages: Record<AppLocale, MessageTree> = {
       productColumn: 'Ürün',
       sku: 'SKU',
       stock: 'Stok',
+      storageStockSort: 'Depo stokuna göre',
+      storageStockSortHint: 'Seçilen depodaki fiziksel stoka göre sıralar. Tabloda stok blokajlarından sonra kullanılabilir miktar gösterilir.',
       outOfStock: 'yok',
       weight: 'Ağırlık',
       volume: 'Hacim',
@@ -5632,6 +5667,9 @@ const messages: Record<AppLocale, MessageTree> = {
         open: '{sku} ürününün krosları',
         title: 'Kroslar: {sku}',
         back: 'Arama sonuçlarına dön',
+        searchPlaceholder: 'Kros ürün kodu, adı veya üreticisi',
+        stockSort: 'Toplam stoka göre',
+        stockSortHint: 'Tüm depolardaki fiziksel stoka göre sıralar. Tabloda seçilen depodaki kullanılabilir miktar gösterilir.',
       },
       openProduct: 'Ürünü aç',
       quickView: {
@@ -6348,6 +6386,7 @@ const messages: Record<AppLocale, MessageTree> = {
         Characteristics: 'Özellikler',
         Dimensions: 'Ölçüler',
         Weight: 'Ağırlık',
+        Stocks: 'Depo stokları',
       },
       enabled: 'Etkin',
       scheduleStatus: 'Zamanlama durumu',

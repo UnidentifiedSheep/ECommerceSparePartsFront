@@ -20,6 +20,7 @@
       <main class="settings-content">
         <section v-if="activeTab === 'pinned'" class="settings-panel"><PinnedNavigationSettings /></section>
         <section v-if="activeTab === 'appearance'" class="settings-panel"><AppearanceSettings /></section>
+        <section v-if="activeTab === 'about'" class="settings-panel"><AboutSystemSettings /></section>
         <section v-if="activeTab === 'notifications' && hasPermission('NOTIFICATIONS_ME')" class="settings-panel">
           <NotificationPreferences />
         </section>
@@ -132,14 +133,15 @@
 
 <script setup lang="ts">
 import { useDialogGuard } from '@/composables/useDialogGuard'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Coin, Lock, Bell, Brush, Star } from '@element-plus/icons-vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { Coin, Lock, Bell, Brush, Star, InfoFilled } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import PageHeader from '@/components/common/PageHeader.vue'
 import NotificationPreferences from '@/components/notifications/NotificationPreferences.vue'
 import AppearanceSettings from '@/components/common/AppearanceSettings.vue'
 import PinnedNavigationSettings from '@/components/common/PinnedNavigationSettings.vue'
+import AboutSystemSettings from '@/components/common/AboutSystemSettings.vue'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { changePassword } from '@/services/api/authApi.ts'
 import { makeMyEmailPrimary, requestMyEmailVerification } from '@/services/api/users.ts'
@@ -186,6 +188,7 @@ const settingsSections = computed(() => [
     icon: Lock,
   },
   ...(hasPermission('NOTIFICATIONS_ME') ? [{ name: 'notifications', label: t('notifications.title'), icon: Bell }] : []),
+  { name: 'about', label: t('settings.about.title'), icon: InfoFilled },
 ])
 watch(() => route.query.section, (section) => {
   if (typeof section === 'string' && settingsSections.value.some((item) => item.name === section)) activeTab.value = section
@@ -229,6 +232,7 @@ function updateDefaultCurrency(currencyId?: number) {
 }
 
 async function loadCurrencies() {
+  if (isLoadingCurrencies.value) return
   isLoadingCurrencies.value = true
   try {
     const response = await getCurrencies()
@@ -309,7 +313,7 @@ async function makeEmailPrimary() {
   }
 }
 
-onMounted(loadCurrencies)
+watch(activeTab, (tab) => { if (tab === 'operations') void loadCurrencies() }, { immediate: true })
 
 const draftGuard0 = useDialogGuard(passwordDialogOpen, computed(() => isChangingPassword.value), () => passwordForm)
 </script>

@@ -1,11 +1,6 @@
 <template>
   <div class="product-criteria">
     <div class="product-criteria__section">
-      <strong>{{ t('products.criteria.stock') }}</strong>
-      <CriteriaRangeFields v-model="criteria.stock" :label="t('products.criteria.stock')" :precision="0" hide-label />
-    </div>
-
-    <div class="product-criteria__section">
       <div class="product-criteria__heading">
         <strong>{{ t('products.criteria.weight') }}</strong>
         <el-select v-model="criteria.weight.unit" size="small" class="product-criteria__unit" :aria-label="t('products.criteria.weightUnit')">

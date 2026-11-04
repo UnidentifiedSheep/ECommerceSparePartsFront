@@ -15,7 +15,6 @@ export interface CharacteristicCriteriaDraft {
 }
 
 export interface ProductCriteriaDraft {
-  stock: CriteriaRangeDraft
   weight: CriteriaRangeDraft & { unit: WeightUnit }
   dimensions: {
     unit: DimensionUnit
@@ -33,7 +32,6 @@ export function emptyCriteriaRange(): CriteriaRangeDraft {
 
 export function emptyProductCriteria(): ProductCriteriaDraft {
   return {
-    stock: emptyCriteriaRange(),
     weight: { ...emptyCriteriaRange(), unit: 'KILOGRAM' },
     dimensions: {
       unit: 'CENTIMETER',
@@ -59,20 +57,19 @@ function toRange(range: CriteriaRangeDraft) {
 }
 
 export function countProductCriteria(draft: ProductCriteriaDraft): number {
-  return Number(hasRange(draft.stock)) + Number(hasRange(draft.weight))
+  return Number(hasRange(draft.weight))
     + (['length', 'width', 'height', 'volume'] as const).filter((field) => hasRange(draft.dimensions[field])).length
     + draft.characteristics.length
 }
 
-export type ProductCriteriaError = 'invalidRange' | 'invalidStock' | 'incompleteCharacteristic' | 'duplicateCharacteristic' | null
+export type ProductCriteriaError = 'invalidRange' | 'incompleteCharacteristic' | 'duplicateCharacteristic' | null
 
 export function validateProductCriteria(draft: ProductCriteriaDraft): ProductCriteriaError {
-  const ranges = [draft.stock, draft.weight, draft.dimensions.length, draft.dimensions.width, draft.dimensions.height, draft.dimensions.volume,
+  const ranges = [draft.weight, draft.dimensions.length, draft.dimensions.width, draft.dimensions.height, draft.dimensions.volume,
     ...draft.characteristics.filter((row) => row.operation === 'range')]
   if (ranges.some((range) => (range.min != null && !Number.isFinite(range.min))
     || (range.max != null && !Number.isFinite(range.max))
     || (range.min != null && range.max != null && range.min > range.max))) return 'invalidRange'
-  if ([draft.stock.min, draft.stock.max].some((value) => value != null && !Number.isInteger(value))) return 'invalidStock'
 
   const ids = new Set<number>()
   for (const row of draft.characteristics) {
@@ -93,7 +90,6 @@ export function toProductCriteriaInput(draft: ProductCriteriaDraft): ProductSear
   if (countProductCriteria(draft) === 0) return null
   const dimensions = draft.dimensions
   return {
-    stock: hasRange(draft.stock) ? toRange(draft.stock) : null,
     weight: hasRange(draft.weight) ? { range: toRange(draft.weight), unit: draft.weight.unit } : null,
     dimensions: (['length', 'width', 'height', 'volume'] as const).some((field) => hasRange(dimensions[field]))
       ? {
@@ -128,7 +124,6 @@ export function parseProductCriteriaDraft(raw: string | null): ProductCriteriaDr
     const dimensions = value.dimensions && typeof value.dimensions === 'object' ? value.dimensions : fallback.dimensions
     const weightUnit = value.weight && typeof value.weight === 'object' ? value.weight.unit : undefined
     return {
-      stock: range(value.stock),
       weight: { ...range(value.weight), unit: weightUnit && ['GRAM', 'KILOGRAM', 'TONNE'].includes(weightUnit) ? weightUnit : fallback.weight.unit },
       dimensions: {
         unit: ['MILLIMETER', 'CENTIMETER', 'METER'].includes(dimensions.unit) ? dimensions.unit : fallback.dimensions.unit,

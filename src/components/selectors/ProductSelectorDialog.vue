@@ -170,7 +170,9 @@
         </el-table-column>
         <el-table-column prop="stock" :label="t('products.stock')" min-width="140">
           <template #header>
-            <span v-if="storageCode">{{ t('sales.available') }} · {{ storageCode }}</span>
+            <el-tooltip v-if="storageCode" :content="t('products.storageStockSortHint')" :popper-style="{ maxWidth: 'min(360px, calc(100vw - 32px))' }" placement="top">
+              <span><SortableColumnHeader :label="t('sales.available')" field="stock" :sort-by="sortBy" @toggle="toggleSort" /></span>
+            </el-tooltip>
             <SortableColumnHeader v-else :label="t('products.stock')" field="stock" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
           </template>
           <template #default="{ row }">
@@ -435,6 +437,7 @@ async function loadProducts(resetPage: boolean) {
     const normalizedQuery = query.value.trim()
     if (canUseCatalogueSearch.value) {
       const response = await searchCatalogue({
+        storageCode: props.storageCode,
         query: normalizedQuery || undefined,
         targets: ['Products'],
         fields: {
@@ -461,6 +464,7 @@ async function loadProducts(resetPage: boolean) {
       const useSkuSearch = nameModes.value.length === 0 && skuModes.value.length > 0
       const response = useSkuSearch
         ? await searchProductsBySku({
+            storageCode: props.storageCode,
             sku: normalizedQuery,
             producerId: producerIds.value[0],
             productGroupIds: productGroupIds.value,
@@ -470,6 +474,7 @@ async function loadProducts(resetPage: boolean) {
             sortBy: sortBy.value,
           })
         : await searchProducts({
+            storageCode: props.storageCode,
             query: normalizedQuery || undefined,
             producerId: producerIds.value[0],
             productGroupIds: productGroupIds.value,
@@ -731,6 +736,7 @@ onMounted(async () => {
 
 .product-selector-results-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -742,6 +748,7 @@ onMounted(async () => {
 
 .product-selector-results-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
 }

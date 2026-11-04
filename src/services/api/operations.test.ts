@@ -69,8 +69,28 @@ describe('GraphQL operation contracts', () => {
   it('queries history with crosses and maps identity and currency per entry', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { saleHistory: [{ saleContentId: 3, product, organization: { id: org.id, name: org.name, systemName: org.systemName }, storage: { code: 'MAIN' }, currency, quantity: 1, originalPrice: 12, discountedPrice: 10, averageBuyPrice: 5, saleDate: sale.saleDatetime, createdBy: { id: user.id } }] } } } } as never)
     const result = await getProductSaleHistory({ productId: 42, page: 1, size: 10, showCrosses: true, preferredOrganizationId: org.id, sortBy: ['discountedPrice_asc'] })
-    expect(input()).toMatchObject({ showCrosses: true, pagination: { page: 1, size: 10 }, preferredOrganizationId: org.id, sortBy: [{ field: 'discountedPrice', isDescending: false }] })
+    expect(input()).toMatchObject({ showCrosses: true, pagination: { page: 1, size: 10 } })
+    expect(input().sortBy).toEqual([{ field: 'organizationMatch', argument: org.id, isDescending: true }, { field: 'discountedPrice', isDescending: false }])
+    expect(input()).not.toHaveProperty('preferredOrganizationId')
     expect(result.history[0]).toMatchObject({ productId: product.id, product: { sku: 'ABC', producerName: 'ACME' }, organization: { name: 'ACME' }, currency: { currencySign: '₽' }, whoCreated: user.id })
+  })
+  it('keeps default date ordering after organization priority and preserves explicit multi-sort', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { saleHistory: [] } } } } as never)
+    await getProductSaleHistory({ productId: 42, page: 0, size: 20, preferredOrganizationId: org.id })
+    expect(input().sortBy).toEqual([{ field: 'organizationMatch', argument: org.id, isDescending: true }, { field: 'saleDate', isDescending: true }])
+    vi.mocked(graphqlClient.query).mockClear()
+    await getProductSaleHistory({ productId: 42, page: 0, size: 20, preferredOrganizationId: org.id, sortBy: ['quantity', '-saleDate'] })
+    expect(input().sortBy).toEqual([{ field: 'organizationMatch', argument: org.id, isDescending: true }, { field: 'quantity', isDescending: false }, { field: 'saleDate', isDescending: true }])
+  })
+  it('does not prioritize an organization when filtering one explicitly or when no preference is set', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { saleHistory: [] } } } } as never)
+    for (const filters of [{ organizationId: 'another-org', preferredOrganizationId: org.id }, {}]) {
+      vi.mocked(graphqlClient.query).mockClear()
+      await getProductSaleHistory({ productId: 42, page: 0, size: 20, ...filters, sortBy: ['-saleDate'] })
+      expect(input().sortBy).toEqual([{ field: 'saleDate', isDescending: true }])
+      expect(input()).not.toHaveProperty('preferredOrganizationId')
+      if ('organizationId' in filters) expect(input().organizationId).toBe('another-org')
+    }
   })
   it('uses a nullable composite transaction cursor and maps completion/reversal flags', async () => {
     const tx = { id: 'tx-1', amount: 10, sender: org, receiver: org, currency, transactionDate: sale.saleDatetime, type: 'TRANSFER', sourceType: 'MANUAL', isCompleted: true, isReversed: true, reversedAt: sale.saleDatetime }

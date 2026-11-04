@@ -374,6 +374,7 @@ export async function mapCandidateCrossesGraphql(
 }
 
 export async function searchProductsGraphql(options: {
+  storageCode?: string
   query?: string
   producerId?: number
   productGroupIds?: number[]
@@ -385,6 +386,7 @@ export async function searchProductsGraphql(options: {
   productCriteria?: ProductSearchCriteriaInput | null
 }): Promise<{ products: ProductSearchModel[]; total: number }> {
   const response = await searchCatalogueGraphql({
+    storageCode: options.storageCode,
     query: options.query,
     producerIds: options.producerId === undefined ? [] : [options.producerId],
     productGroupIds: options.productGroupIds,
@@ -405,6 +407,7 @@ export async function searchProductsGraphql(options: {
 }
 
 export async function searchCatalogueGraphql(options: {
+  storageCode?: string
   query?: string
   producerIds?: number[]
   productGroupIds?: number[]
@@ -433,7 +436,10 @@ export async function searchCatalogueGraphql(options: {
         producerIds: options.producerIds ?? [],
         productGroupIds: options.productGroupIds ?? [],
         pagination: { page: options.page, size: options.size },
-        productSortBy: mapSortBy(options.productSortBy),
+        productSortBy: mapSortBy(options.productSortBy).map(sort =>
+          sort.field === 'stock' && options.storageCode?.trim()
+            ? { ...sort, argument: options.storageCode.trim() }
+            : sort),
         catalogueCandidateSortBy: mapSortBy(options.catalogueCandidateSortBy),
         candidateMappingStatus: options.candidateMappingStatus ?? 'UNMAPPED',
         includeHighlights: options.includeHighlights ?? false,
@@ -637,17 +643,24 @@ export async function getProductContentsGraphql(productId: number): Promise<Prod
 
 export async function getProductCrossesGraphql(options: {
   productId: number
+  searchTerm?: string
+  storageCode?: string
   page: number
   size: number
   sortBy?: string[]
 }): Promise<ProductModel[]> {
+  const storageCode = options.storageCode?.trim()
+  const sortBy = mapSortBy(options.sortBy).map(sort => (
+    sort.field === 'count' && storageCode ? { ...sort, argument: storageCode } : sort
+  ))
   const response = await graphqlClient.query<ProductCrossesResponse>({
     query: ProductCrossesDocument,
     variables: {
       id: options.productId,
       input: {
         pagination: { page: options.page, size: options.size },
-        sortBy: mapSortBy(options.sortBy),
+        ...(options.searchTerm?.trim() ? { searchTerm: options.searchTerm.trim() } : {}),
+        sortBy,
       },
     },
     fetchPolicy: 'network-only',

@@ -129,8 +129,23 @@ export async function getSaleContent(id: string): Promise<GetSaleContentResponse
   return { contents: data.sales.byId.contents.map(mapSaleContent) }
 }
 export async function getProductSaleHistory(req: GetProductSaleHistoryRequest): Promise<GetProductSaleHistoryResponse> {
-  const { productId, page, size, sortBy, ...filters } = req
-  const { data } = await operationRequest(graphqlClient.query({ query: ProductSalesHistoryDocument, variables: { id: productId, input: { ...filters, pagination: { page, size: clampPageSize(size) }, sortBy: gqlSort(sortBy) } }, fetchPolicy: 'no-cache' }))
+  const { productId, page, size, sortBy, preferredOrganizationId, ...filters } = req
+  const prioritizeOrganization = preferredOrganizationId && !filters.organizationId
+  const historySort = gqlSort(prioritizeOrganization && !sortBy?.length ? ['-saleDate'] : sortBy)
+  const { data } = await operationRequest(graphqlClient.query({
+    query: ProductSalesHistoryDocument,
+    variables: {
+      id: productId,
+      input: {
+        ...filters,
+        pagination: { page, size: clampPageSize(size) },
+        sortBy: prioritizeOrganization
+          ? [{ field: 'organizationMatch', argument: preferredOrganizationId, isDescending: true }, ...(historySort ?? [])]
+          : historySort,
+      },
+    },
+    fetchPolicy: 'no-cache',
+  }))
   if (!data.products.byId) throw new Error('Product not found')
   return { history: data.products.byId.saleHistory.map(item => ({
     ...item, productId: item.product.id, storageCode: item.storage.code, currencyId: item.currency.id,

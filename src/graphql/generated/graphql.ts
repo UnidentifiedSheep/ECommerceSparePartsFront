@@ -390,6 +390,7 @@ export type ProductCharacteristicCriteriaInput = {
 
 export type ProductCrossesInput = {
   pagination: PaginationInput;
+  searchTerm?: string | null | undefined;
   sortBy?: Array<SortByInput> | null | undefined;
 };
 
@@ -430,7 +431,6 @@ export type ProductSaleHistoryInput = {
   currencyId?: number | null | undefined;
   organizationId?: string | null | undefined;
   pagination: PaginationInput;
-  preferredOrganizationId?: string | null | undefined;
   showCrosses?: boolean | null | undefined;
   sortBy?: Array<SortByInput> | null | undefined;
   storageCode?: string | null | undefined;
@@ -439,7 +439,6 @@ export type ProductSaleHistoryInput = {
 export type ProductSearchCriteriaInput = {
   characteristics?: Array<ProductCharacteristicCriteriaInput> | null | undefined;
   dimensions?: ProductDimensionsCriteriaInput | null | undefined;
-  stock?: SearchIntegerRangeInput | null | undefined;
   weight?: ProductWeightCriteriaInput | null | undefined;
 };
 
@@ -491,13 +490,6 @@ export type SearchDocumentsInput = {
   sortBy?: Array<SortByInput> | null | undefined;
 };
 
-export type SearchIntegerRangeInput = {
-  gt?: number | null | undefined;
-  gte?: number | null | undefined;
-  lt?: number | null | undefined;
-  lte?: number | null | undefined;
-};
-
 export type SearchMarkupGroupsInput = {
   pagination: PaginationInput;
   searchTerm?: string | null | undefined;
@@ -533,6 +525,7 @@ export type SearchUsersInput = {
 };
 
 export type SortByInput = {
+  argument?: string | null | undefined;
   field: string;
   isDescending: boolean;
 };
