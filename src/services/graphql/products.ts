@@ -374,7 +374,7 @@ export async function mapCandidateCrossesGraphql(
 }
 
 export async function searchProductsGraphql(options: {
-  stockStorageCode?: string
+  storageCode?: string
   query?: string
   producerId?: number
   productGroupIds?: number[]
@@ -386,7 +386,7 @@ export async function searchProductsGraphql(options: {
   productCriteria?: ProductSearchCriteriaInput | null
 }): Promise<{ products: ProductSearchModel[]; total: number }> {
   const response = await searchCatalogueGraphql({
-    stockStorageCode: options.stockStorageCode,
+    storageCode: options.storageCode,
     query: options.query,
     producerIds: options.producerId === undefined ? [] : [options.producerId],
     productGroupIds: options.productGroupIds,
@@ -407,7 +407,7 @@ export async function searchProductsGraphql(options: {
 }
 
 export async function searchCatalogueGraphql(options: {
-  stockStorageCode?: string
+  storageCode?: string
   query?: string
   producerIds?: number[]
   productGroupIds?: number[]
@@ -436,8 +436,10 @@ export async function searchCatalogueGraphql(options: {
         producerIds: options.producerIds ?? [],
         productGroupIds: options.productGroupIds ?? [],
         pagination: { page: options.page, size: options.size },
-        productSortBy: mapSortBy(options.productSortBy),
-        stockStorageCode: options.stockStorageCode?.trim() || null,
+        productSortBy: mapSortBy(options.productSortBy).map(sort =>
+          sort.field === 'stock' && options.storageCode?.trim()
+            ? { ...sort, argument: options.storageCode.trim() }
+            : sort),
         catalogueCandidateSortBy: mapSortBy(options.catalogueCandidateSortBy),
         candidateMappingStatus: options.candidateMappingStatus ?? 'UNMAPPED',
         includeHighlights: options.includeHighlights ?? false,

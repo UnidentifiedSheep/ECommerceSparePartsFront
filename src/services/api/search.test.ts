@@ -22,18 +22,36 @@ describe('warehouse stock search contracts', () => {
   it('keeps total stock sorting independent of warehouse selection and preserves Long quantities', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue(catalogueResponse as never)
     const result = await searchCatalogue({ page: 0, size: 20, sortBy: { products: ['-stock'] } })
-    expect(queryInput()).toMatchObject({ stockStorageCode: null, productSortBy: [{ field: 'stock', isDescending: true }] })
+    expect(queryInput().productSortBy).toEqual([{ field: 'stock', isDescending: true }])
+    expect(queryInput()).not.toHaveProperty('stockStorageCode')
     expect(result.products.items[0]?.stock).toBe(3_000_000_000)
   })
 
   it('passes the selected warehouse through every selector search path without filtering availability locally', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue(catalogueResponse as never)
-    await searchCatalogue({ page: 1, size: 20, stockStorageCode: 'SECOND', sortBy: { products: ['stock_desc'] } })
-    expect(queryInput()).toMatchObject({ stockStorageCode: 'SECOND', pagination: { page: 1, size: 20 }, productSortBy: [{ field: 'stock', isDescending: true }] })
-    await searchProducts({ page: 0, size: 20, stockStorageCode: 'SECOND', sortBy: ['stock'] })
-    expect(queryInput()).toMatchObject({ stockStorageCode: 'SECOND', productSortBy: [{ field: 'stock', isDescending: false }] })
-    await searchProductsBySku({ sku: 'ABC', page: 0, size: 20, stockStorageCode: 'SECOND', sortBy: ['stock_desc'] })
-    expect(queryInput()).toMatchObject({ stockStorageCode: 'SECOND', productSortBy: [{ field: 'stock', isDescending: true }] })
+    await searchCatalogue({ page: 1, size: 20, storageCode: ' Main_Warehouse ', sortBy: { products: ['stock_desc'] } })
+    expect(queryInput()).toMatchObject({ pagination: { page: 1, size: 20 }, productSortBy: [{ field: 'stock', argument: 'Main_Warehouse', isDescending: true }] })
+    expect(queryInput()).not.toHaveProperty('stockStorageCode')
+    await searchProducts({ page: 0, size: 20, storageCode: 'Main_Warehouse', sortBy: ['stock'] })
+    expect(queryInput().productSortBy).toEqual([{ field: 'stock', argument: 'Main_Warehouse', isDescending: false }])
+    expect(queryInput()).not.toHaveProperty('stockStorageCode')
+    await searchProductsBySku({ sku: 'ABC', page: 0, size: 20, storageCode: 'Main_Warehouse', sortBy: ['stock_desc'] })
+    expect(queryInput().productSortBy).toEqual([{ field: 'stock', argument: 'Main_Warehouse', isDescending: true }])
+    expect(queryInput()).not.toHaveProperty('stockStorageCode')
+  })
+
+  it('scopes only product stock sorting and treats blank warehouse codes as total stock', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValue(catalogueResponse as never)
+    await searchCatalogue({ page: 0, size: 20, storageCode: 'Main_Warehouse', sortBy: { products: ['name', '-stock', 'id'], catalogueCandidates: ['name'] } })
+    expect(queryInput().productSortBy).toEqual([
+      { field: 'name', isDescending: false },
+      { field: 'stock', argument: 'Main_Warehouse', isDescending: true },
+      { field: 'id', isDescending: false },
+    ])
+    expect(queryInput().catalogueCandidateSortBy).toEqual([{ field: 'name', isDescending: false }])
+    await searchProducts({ page: 0, size: 20, storageCode: '   ', sortBy: ['-stock'] })
+    expect(queryInput().productSortBy).toEqual([{ field: 'stock', isDescending: true }])
+    expect(queryInput()).not.toHaveProperty('stockStorageCode')
   })
 
   it('does not send the removed stock criterion alongside valid weight filters or legacy saved filters', async () => {

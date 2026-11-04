@@ -437,7 +437,7 @@ async function loadProducts(resetPage: boolean) {
     const normalizedQuery = query.value.trim()
     if (canUseCatalogueSearch.value) {
       const response = await searchCatalogue({
-        stockStorageCode: props.storageCode,
+        storageCode: props.storageCode,
         query: normalizedQuery || undefined,
         targets: ['Products'],
         fields: {
@@ -464,7 +464,7 @@ async function loadProducts(resetPage: boolean) {
       const useSkuSearch = nameModes.value.length === 0 && skuModes.value.length > 0
       const response = useSkuSearch
         ? await searchProductsBySku({
-            stockStorageCode: props.storageCode,
+            storageCode: props.storageCode,
             sku: normalizedQuery,
             producerId: producerIds.value[0],
             productGroupIds: productGroupIds.value,
@@ -474,7 +474,7 @@ async function loadProducts(resetPage: boolean) {
             sortBy: sortBy.value,
           })
         : await searchProducts({
-            stockStorageCode: props.storageCode,
+            storageCode: props.storageCode,
             query: normalizedQuery || undefined,
             producerId: producerIds.value[0],
             productGroupIds: productGroupIds.value,

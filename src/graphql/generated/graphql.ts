@@ -32,7 +32,6 @@ export type CatalogueSearchInput = {
   productSortBy?: Array<SortByInput> | null | undefined;
   query?: string | null | undefined;
   skuModes?: Array<SearchMatchType> | null | undefined;
-  stockStorageCode?: string | null | undefined;
   targets: Array<SearchTarget>;
 };
 
@@ -432,7 +431,6 @@ export type ProductSaleHistoryInput = {
   currencyId?: number | null | undefined;
   organizationId?: string | null | undefined;
   pagination: PaginationInput;
-  preferredOrganizationId?: string | null | undefined;
   showCrosses?: boolean | null | undefined;
   sortBy?: Array<SortByInput> | null | undefined;
   storageCode?: string | null | undefined;
