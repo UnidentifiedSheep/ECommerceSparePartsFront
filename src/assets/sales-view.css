@@ -197,6 +197,22 @@
   color: #0f172a;
 }
 
+:deep(.sale-table-row--completed > td:first-child) {
+  box-shadow: inset 3px 0 0 #16a34a;
+}
+
+:deep(.sale-table-row--draft > td:first-child) {
+  box-shadow: inset 3px 0 0 #94a3b8;
+}
+
+:deep(.sale-table-row--deleted > td) {
+  opacity: 0.78;
+}
+
+:deep(.sale-table-row--deleted > td:first-child) {
+  box-shadow: inset 3px 0 0 #ef4444;
+}
+
 :deep(.sale-table-row:hover > td) {
   background: #f8fafc !important;
 }
