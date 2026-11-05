@@ -18,6 +18,7 @@
       </div>
     </template>
 
+    <DocumentChangeNotice :change="conflict.change.value" :loading="reloadingDocument" @reload="reloadDocument" />
     <div class="purchase-dialog-body">
       <aside class="purchase-summary">
         <div class="summary-total">
@@ -57,7 +58,7 @@
         </div>
       </aside>
 
-      <el-form label-position="top" class="purchase-form" :disabled="isSaving">
+      <el-form label-position="top" class="purchase-form" :disabled="isSaving || reloadingDocument">
         <section class="purchase-section purchase-section--main">
           <div class="section-header">
             <div>
@@ -209,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { Check, Close, Delete, Plus } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
@@ -219,7 +220,10 @@ import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
 import { calculateDeliveryCost } from '@/services/api/logistics.ts'
-import { editPurchase } from '@/services/api/purchases.ts'
+import { editPurchase, getPurchase, getPurchaseContent } from '@/services/api/purchases.ts'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import DocumentChangeNotice from '@/components/common/DocumentChangeNotice.vue'
+import { useDocumentEditConflict } from '@/composables/useDocumentEditConflict'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { useI18n } from '@/i18n'
@@ -255,10 +259,13 @@ const { locale, t } = useI18n()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   updated: [purchaseId: string]
+  reloaded: [purchase: PurchaseModel, content: PurchaseContentModel[]]
 }>()
 
 const productSelectorOpen = ref(false)
 const isSaving = ref(false)
+const reloadingDocument = ref(false)
+const conflict = useDocumentEditConflict('purchase', () => isOpen.value ? props.purchase?.id : undefined, () => isSaving.value)
 const isCalculatingLogistics = ref(false)
 const logisticsCurrencyId = ref<number>()
 let logisticsRequestId = 0
@@ -317,6 +324,7 @@ const itemsSummary = computed(() => {
 })
 
 const canSave = computed(() => (
+  !conflict.change.value && !reloadingDocument.value &&
   !!props.purchase
   && !!form.currencyId
   && form.purchaseDate !== ''
@@ -438,6 +446,24 @@ const recalculateLogistics = useDebounceFn(async () => {
     }
   }
 }, 350)
+
+async function reloadDocument() {
+  if (reloadingDocument.value || isSaving.value || !props.purchase || conflict.change.value === 'deleted') return
+  try { await ElMessageBox.confirm(t('common.live.reloadConfirm'), t('common.messages.unsavedTitle'), { type: 'warning', confirmButtonText: t('common.live.reloadDocument'), cancelButtonText: t('common.actions.cancel') }) } catch { return }
+  if (!isOpen.value || !props.purchase) return
+  const id = props.purchase.id
+  const version = conflict.version()
+  reloadingDocument.value = true
+  try {
+    const [document, content] = await Promise.all([getPurchase(id), getPurchaseContent(id)])
+    if (!isOpen.value || props.purchase?.id !== id) return
+    emit('reloaded', document.purchase, content.content)
+    await nextTick()
+    resetForm()
+    conflict.acknowledge(version)
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : t('purchases.loadContentError')) }
+  finally { reloadingDocument.value = false }
+}
 
 async function save() {
   if (isSaving.value || !canSave.value || !props.purchase || !form.currencyId) return

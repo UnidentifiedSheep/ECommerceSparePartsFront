@@ -23,6 +23,7 @@
       </div>
     </template>
 
+    <DocumentChangeNotice :change="conflict.change.value" :loading="reloadingDocument" @reload="reloadDocument" />
     <div class="sale-dialog-body">
       <aside class="sale-summary">
         <div class="summary-total">
@@ -51,7 +52,7 @@
 
       </aside>
 
-      <el-form :disabled="isSaving" label-position="top" class="sale-form">
+      <el-form :disabled="isSaving || reloadingDocument" label-position="top" class="sale-form">
         <section class="sale-section sale-section--main">
           <div class="section-header">
             <div>
@@ -296,7 +297,7 @@
       :selected-price="selectedHistoryItem ? effectivePriceWithDiscount(selectedHistoryItem) : undefined"
       :quantity="selectedHistoryItem?.count"
       :selection-key="selectedHistoryItemIndex ?? undefined"
-      :disabled="isSaving"
+      :disabled="isSaving || reloadingDocument"
       @apply-price="applyHistoryPrice"
       @apply-recommended-price="applyRecommendedPrice"
     />
@@ -329,9 +330,9 @@
 
 <script setup lang="ts">
 import { useDialogGuard } from '@/composables/useDialogGuard'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { Close, Delete, MoreFilled, Plus, RefreshRight } from '@element-plus/icons-vue'
-import { ElMessage, ElNotification } from 'element-plus'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
 import type { AppliedPriceRecommendation } from '@/services/api/priceRecommendation'
@@ -340,7 +341,9 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
 import { getProductAvailableStock, getProductsAvailableStock } from '@/services/api/products.ts'
-import { editSale, type ProductSaleHistoryModel } from '@/services/api/sales.ts'
+import { editSale, getSale, getSaleContent, type ProductSaleHistoryModel } from '@/services/api/sales.ts'
+import DocumentChangeNotice from '@/components/common/DocumentChangeNotice.vue'
+import { useDocumentEditConflict } from '@/composables/useDocumentEditConflict'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
 import { ApiError } from '@/models/errorModel'
@@ -376,6 +379,7 @@ const { locale, t } = useI18n()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   updated: [saleId: string]
+  reloaded: [sale: SaleModel, content: SaleContentModel[]]
 }>()
 
 const productSelectorOpen = ref(false)
@@ -384,6 +388,8 @@ const storageBatchesProduct = ref<EditSaleProductForm>()
 const historyPanelOpen = ref(false)
 const selectedHistoryItemIndex = ref<number | null>(null)
 const isSaving = ref(false)
+const reloadingDocument = ref(false)
+const conflict = useDocumentEditConflict('sale', () => isOpen.value ? props.sale?.id : undefined, () => isSaving.value)
 const isStockLoading = ref(false)
 const saleDiscount = ref(0)
 const isDiscountEditing = ref(false)
@@ -444,6 +450,7 @@ const itemsSummary = computed(() => {
 })
 
 const canSave = computed(() => (
+  !conflict.change.value && !reloadingDocument.value &&
   !!props.sale
   && props.sale.state !== 'Deleted'
   && !!form.currencyId
@@ -744,6 +751,24 @@ function formSnapshot() {
       comment: item.comment,
     })),
   })
+}
+
+async function reloadDocument() {
+  if (reloadingDocument.value || isSaving.value || !props.sale || conflict.change.value === 'deleted') return
+  try { await ElMessageBox.confirm(t('common.live.reloadConfirm'), t('common.messages.unsavedTitle'), { type: 'warning', confirmButtonText: t('common.live.reloadDocument'), cancelButtonText: t('common.actions.cancel') }) } catch { return }
+  if (!isOpen.value || !props.sale) return
+  const id = props.sale.id
+  const version = conflict.version()
+  reloadingDocument.value = true
+  try {
+    const [document, content] = await Promise.all([getSale(id), getSaleContent(id)])
+    if (!isOpen.value || props.sale?.id !== id) return
+    emit('reloaded', document.sale, content.contents)
+    await nextTick()
+    resetForm()
+    conflict.acknowledge(version)
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : t('sales.loadContentError')) }
+  finally { reloadingDocument.value = false }
 }
 
 async function save() {

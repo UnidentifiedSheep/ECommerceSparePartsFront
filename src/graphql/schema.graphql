@@ -1,6 +1,7 @@
 # Aligned with the public gateway SDL retrieved 2026-11-03. Execution metadata omitted.
 # Parameterized sorting and removed legacy input fields follow backend commit e427452394224e55ae0b9fb9972d40683999545f.
 # Price recommendation types follow backend PR #134 at abc3a8c.
+# Sale/purchase event types follow backend commit 8c28709b30dcdfb16bd6f3df6adf89bd2455a968.
 directive @authorize(apply: ApplyPolicy! = BEFORE_RESOLVER, policy: String, roles: [String!]) repeatable on OBJECT | FIELD_DEFINITION
 
 directive @cost(weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
@@ -45,7 +46,20 @@ type Mutation {
 
 type Subscription {
   onNotificationCreated: NotificationCreated!
+  onSaleCreated: SaleCreated!
+  onSaleUpdated: SaleUpdated!
+  onSaleDeleted: SaleDeleted!
+  onPurchaseCreated: PurchaseCreated!
+  onPurchaseUpdated: PurchaseUpdated!
+  onPurchaseDeleted: PurchaseDeleted!
 }
+
+type SaleCreated { sale: Sale! }
+type SaleUpdated { sale: Sale! }
+type SaleDeleted { sale: Sale! }
+type PurchaseCreated { purchase: Purchase! }
+type PurchaseUpdated { purchase: Purchase! }
+type PurchaseDeleted { purchaseId: UUID! }
 
 type AnalyticsQueries {
   chart(systemName: String!): Chart

@@ -65,6 +65,7 @@
         />
         <div class="sale-history__filters">
           <div v-if="canRecommend" class="sale-history__title">{{ t('sales.history.title') }}</div>
+          <el-button v-if="historyUpdatesPending" size="small" plain @click="refresh">{{ t('common.live.newChanges') }}</el-button>
           <el-radio-group
             v-if="preferredOrganizationId && !organizationId"
             v-model="onlyThisOrganization"
@@ -165,6 +166,7 @@ import { useI18n } from '@/i18n'
 import RecommendedSalePrice from './RecommendedSalePrice.vue'
 import type { AppliedPriceRecommendation } from '@/services/api/priceRecommendation'
 import { usePermissions } from '@/composables/usePermissions'
+import { useDocumentChanges } from '@/composables/useDocumentChanges'
 
 const props = defineProps<{
   product?: Pick<ProductSearchModel, 'id' | 'name' | 'sku'>
@@ -205,6 +207,12 @@ const page = ref(0)
 const pageSize = 10
 const { sortBy, toggleSort } = useMultiSort(['-saleDate'])
 const historyDebounce = useSelectionDebounce()
+const historyUpdatesPending = ref(false)
+useDocumentChanges('sale', {
+  active: () => isOpen.value && Boolean(props.product),
+  changed: () => refreshLiveHistory(),
+  reconnected: () => refreshLiveHistory(),
+})
 let requestId = 0
 onScopeDispose(() => { ++requestId })
 
@@ -275,7 +283,13 @@ async function load(reset: boolean) {
 }
 
 function refresh() {
+  historyUpdatesPending.value = false
   void load(true)
+}
+
+function refreshLiveHistory() {
+  if ((resultsElement.value?.scrollTop ?? 0) > 8 || isLoadingMore.value) historyUpdatesPending.value = true
+  else refresh()
 }
 
 function refreshAll() {

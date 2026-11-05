@@ -1,0 +1,18 @@
+subscription SaleCreated {
+  onSaleCreated { sale { id } }
+}
+subscription SaleUpdated {
+  onSaleUpdated { sale { id } }
+}
+subscription SaleDeleted {
+  onSaleDeleted { sale { id } }
+}
+subscription PurchaseCreated {
+  onPurchaseCreated { purchase { id } }
+}
+subscription PurchaseUpdated {
+  onPurchaseUpdated { purchase { id } }
+}
+subscription PurchaseDeleted {
+  onPurchaseDeleted { purchaseId }
+}
