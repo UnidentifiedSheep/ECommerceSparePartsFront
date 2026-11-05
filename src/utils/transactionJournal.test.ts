@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BalanceTransactionModel } from '@/services/api/balances'
-import { transactionFlowAmount, transactionIsCompleted, transactionIsReversed } from './transactionJournal'
+import { transactionFlowAmount, transactionIsCompleted, transactionIsReversed, transactionCanReverse } from './transactionJournal'
 
 const transfer = (overrides: Partial<BalanceTransactionModel> = {}): BalanceTransactionModel => ({
   id: 'transfer', sender: { id: 'sender' } as BalanceTransactionModel['sender'],
@@ -10,6 +10,12 @@ const transfer = (overrides: Partial<BalanceTransactionModel> = {}): BalanceTran
 })
 
 describe('transaction journal cash flow', () => {
+  it('only allows reversing completed manual transactions, including legacy numeric sources', () => {
+    expect(transactionCanReverse(transfer())).toBe(true)
+    expect(transactionCanReverse(transfer({ sourceType: 0, status: 'Completed' }))).toBe(true)
+    for (const sourceType of ['Sale', 'Purchase', 'Logistic', 1, 2, 3] as const) expect(transactionCanReverse(transfer({ sourceType }))).toBe(false)
+    for (const status of [0, 4, 5, 'Pending', 'Completed, Reversed', 'CompletionApplied'] as const) expect(transactionCanReverse(transfer({ status }))).toBe(false)
+  })
   it('keeps the general journal neutral and shows outflow for the sender and inflow for the receiver', () => {
     const row = transfer()
     expect(transactionFlowAmount(row)).toBe(100)
