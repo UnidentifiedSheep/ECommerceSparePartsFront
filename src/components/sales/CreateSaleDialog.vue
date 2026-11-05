@@ -307,9 +307,11 @@
         :currency-id="form.currencyId"
         :currency-sign="selectedCurrency?.currencySign"
         :selected-price="selectedHistoryItem ? effectivePriceWithDiscount(selectedHistoryItem) : undefined"
+        :quantity="selectedHistoryItem?.count"
         :selection-key="selectedHistoryItemIndex ?? undefined"
         :disabled="isSaving"
         @apply-price="applyHistoryPrice"
+        @apply-recommended-price="applyRecommendedPrice"
       />
       </div>
     </div>
@@ -348,6 +350,7 @@ import { Check, Close, Delete, MoreFilled, Plus, RefreshRight } from '@element-p
 import { ElMessage, ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
+import type { AppliedPriceRecommendation } from '@/services/api/priceRecommendation'
 import SaleJsonImportDialog from '@/components/sales/SaleJsonImportDialog.vue'
 import StorageContentBatchesDialog from '@/components/sales/StorageContentBatchesDialog.vue'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
@@ -621,6 +624,15 @@ function applyHistoryPrice(entry: ProductSaleHistoryModel) {
   item.price = entry.originalPrice
   item.priceWithDiscount = entry.discountedPrice
   item.discountMode = 'Manual'
+}
+
+function applyRecommendedPrice(value: AppliedPriceRecommendation) {
+  const item = selectedHistoryItem.value
+  if (!item || isSaving.value || value.productId !== item.product?.id || value.currencyId !== form.currencyId
+    || value.storageCode !== form.storageCode || value.quantity !== item.count || value.selectionKey !== selectedHistoryItemIndex.value) return
+  item.discountMode = 'Manual'
+  item.price = value.unitPrice
+  item.priceWithDiscount = undefined
 }
 
 function openStorageBatches(item: SaleItemForm) {

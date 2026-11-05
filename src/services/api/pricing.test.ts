@@ -5,6 +5,7 @@ import { ApiError } from '@/models/errorModel'
 import { getMarkupGroups, getMarkupGroupRanges, getAllMarkupGroupRanges, upsertMarkupGroup, deleteMarkupGroup } from './markups'
 import { getPriceAppliers, upsertPriceApplier, deletePriceApplier } from './priceAppliers'
 import { getPriceOffersForProduct } from './priceOffers'
+import { getProductRecommendedPrice } from './priceRecommendation'
 
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
 vi.mock('@/services/graphql/client', () => ({ graphqlClient: { query: vi.fn(), mutate: vi.fn() } }))
@@ -18,6 +19,19 @@ const queryInput = () => vi.mocked(graphqlClient.query).mock.calls[0]![0].variab
 const mutationInput = () => vi.mocked(graphqlClient.mutate).mock.calls[0]![0].variables!.input
 
 describe('Pricing GraphQL contracts', () => {
+  it('requests a rounded recommendation for the full quantity without requiring detailed offer permissions', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { recommendedPrice: { quantity: 3, missingQuantity: 0, currency: { id: 2 }, unitPrice: 4650, totalPrice: 13950 } } } } } as never)
+    expect(await getProductRecommendedPrice({ productId: 42, currencyId: 2, storageCode: 'Main_Warehouse', quantity: 3 })).toMatchObject({ quantity: 3, missingQuantity: 0, currencyId: 2, unitPrice: 4650, totalPrice: 13950 })
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables).toEqual({ id: 42, input: { currencyId: 2, storageCode: 'Main_Warehouse', quantity: 3, sources: [] } })
+    expect(print(vi.mocked(graphqlClient.query).mock.calls[0]![0].query)).not.toMatch(/\boption\s*\{/)
+  })
+  it('preserves nullable prices for insufficient offers and rejects a missing product', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { products: { byId: { recommendedPrice: { quantity: 3, missingQuantity: 2, currency: { id: 2 }, unitPrice: null, totalPrice: null } } } } } as never)
+      .mockResolvedValueOnce({ data: { products: { byId: null } } } as never)
+    const request = { productId: 42, currencyId: 2, storageCode: 'Main_Warehouse', quantity: 3 }
+    expect(await getProductRecommendedPrice(request)).toMatchObject({ missingQuantity: 2, unitPrice: null, totalPrice: null })
+    await expect(getProductRecommendedPrice(request)).rejects.toThrow('Product not found')
+  })
   it('loads group metadata without eagerly requesting ranges and keeps sourceMessageId', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { markupGroups: { search: [group] } } } as never)
     expect((await getMarkupGroups({ page: 2, size: 300, searchTerm: ' Retail ' })).groups).toEqual([{ id: 7, name: 'Retail', currencyId: 2, sourceMessageId: 'message-1' }])

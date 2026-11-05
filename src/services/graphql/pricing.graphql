@@ -5,6 +5,21 @@ fragment MarkupGroupFields on MarkupGroup {
   sourceMessageId
 }
 
+query ProductRecommendedPrice($id: Int!, $input: RecommendedPriceInput!) {
+  products {
+    byId(id: $id) {
+      id
+      recommendedPrice(input: $input) {
+        currency { id }
+        quantity
+        missingQuantity
+        unitPrice
+        totalPrice
+      }
+    }
+  }
+}
+
 fragment MarkupRangeFields on MarkupRange {
   id
   rangeStart

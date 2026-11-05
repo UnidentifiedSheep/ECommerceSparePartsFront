@@ -4,7 +4,7 @@
     class="sale-history"
     :class="{ 'sale-history--open': isOpen }"
     :style="{ zIndex: panelZIndex }"
-    :aria-label="t('sales.history.title')"
+    :aria-label="canRecommend ? t('sales.recommendation.panelTitle') : t('sales.history.title')"
   >
     <button
       v-if="!isOpen"
@@ -23,7 +23,7 @@
     <div v-if="isOpen" class="sale-history__content">
       <header class="sale-history__header">
         <div class="min-w-0">
-          <div class="sale-history__title">{{ t('sales.history.title') }}</div>
+          <div class="sale-history__title">{{ canRecommend ? t('sales.recommendation.panelTitle') : t('sales.history.title') }}</div>
           <div v-if="product" class="sale-history__product">
             <strong :title="product.name">{{ product.name }}</strong>
             <span>{{ product.sku }}</span>
@@ -39,7 +39,7 @@
             :disabled="!product"
             :aria-label="t('common.actions.refresh')"
             :title="t('common.actions.refresh')"
-            @click="refresh"
+            @click="refreshAll"
           />
           <el-button text @click="isOpen = false">
             <el-icon><ArrowRight /></el-icon>
@@ -49,7 +49,22 @@
       </header>
 
       <template v-if="product">
+        <RecommendedSalePrice
+          v-if="canRecommend"
+          ref="recommendedPriceRef"
+          :active="isOpen"
+          :product-id="product.id"
+          :storage-code="storageCode"
+          :currency-id="currencyId"
+          :currency-sign="currencySign"
+          :quantity="quantity"
+          :selection-key="selectionKey"
+          :selected-price="selectedPrice"
+          :disabled="disabled"
+          @apply="applyRecommendedPrice"
+        />
         <div class="sale-history__filters">
+          <div v-if="canRecommend" class="sale-history__title">{{ t('sales.history.title') }}</div>
           <el-radio-group
             v-if="preferredOrganizationId && !organizationId"
             v-model="onlyThisOrganization"
@@ -147,6 +162,9 @@ import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import { useMultiSort } from '@/composables/useMultiSort'
 import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
 import { useI18n } from '@/i18n'
+import RecommendedSalePrice from './RecommendedSalePrice.vue'
+import type { AppliedPriceRecommendation } from '@/services/api/priceRecommendation'
+import { usePermissions } from '@/composables/usePermissions'
 
 const props = defineProps<{
   product?: Pick<ProductSearchModel, 'id' | 'name' | 'sku'>
@@ -156,12 +174,19 @@ const props = defineProps<{
   currencyId?: number
   currencySign?: string
   selectedPrice?: number
+  quantity?: number
   selectionKey?: number
   disabled?: boolean
 }>()
 
-const emit = defineEmits<{ 'apply-price': [entry: ProductSaleHistoryModel] }>()
+const emit = defineEmits<{
+  'apply-price': [entry: ProductSaleHistoryModel]
+  'apply-recommended-price': [value: AppliedPriceRecommendation]
+}>()
+const { hasPermission } = usePermissions()
+const canRecommend = computed(() => hasPermission('PRICES_GET_STANDARD', 'PRICES_GET_DETAILED'))
 const appliedEntryId = ref<number>()
+const recommendedPriceRef = ref<InstanceType<typeof RecommendedSalePrice>>()
 const isOpen = defineModel<boolean>({ required: true })
 const { locale, t } = useI18n()
 const { nextZIndex } = useZIndex()
@@ -253,6 +278,11 @@ function refresh() {
   void load(true)
 }
 
+function refreshAll() {
+  refresh()
+  void recommendedPriceRef.value?.refresh()
+}
+
 function loadNearEnd() {
   const element = resultsElement.value
   if (!element || isLoading.value || isLoadingMore.value || !hasNext.value) return
@@ -308,6 +338,11 @@ function applyPrice(entry: ProductSaleHistoryModel) {
   if (!canApplyPrice(entry)) return
   appliedEntryId.value = entry.saleContentId
   emit('apply-price', entry)
+}
+
+function applyRecommendedPrice(value: AppliedPriceRecommendation) {
+  appliedEntryId.value = undefined
+  emit('apply-recommended-price', value)
 }
 
 watch(
