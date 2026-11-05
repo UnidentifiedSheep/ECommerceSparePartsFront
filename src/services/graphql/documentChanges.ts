@@ -1,8 +1,16 @@
 import { subscribeGraphql } from './subscriptions'
 import { SaleCreatedDocument, SaleUpdatedDocument, SaleDeletedDocument, PurchaseCreatedDocument, PurchaseUpdatedDocument, PurchaseDeletedDocument } from '@/graphql/generated/graphql'
+import { mapSale, mapPurchase } from './operationMapping'
+import type { SaleModel } from '@/models/saleModel'
+import type { PurchaseModel } from '@/models/purchaseModel'
 
 export type DocumentKind = 'sale' | 'purchase'
-export interface DocumentChange { id: string; type: 'created' | 'updated' | 'deleted' }
+export interface DocumentChange {
+  id: string
+  type: 'created' | 'updated' | 'deleted'
+  sale?: SaleModel
+  purchase?: PurchaseModel
+}
 export interface DocumentChangeListener {
   changed(change: DocumentChange): void
   reconnected(): void
@@ -39,15 +47,15 @@ export function subscribeDocumentChanges(kind: DocumentKind, sessionId: string, 
       },
       error: () => availability(true),
     })
-    const event = (type: DocumentChange['type'], id: string) => broadcast(listener => listener.changed({ type, id }))
+    const event = (change: DocumentChange) => broadcast(listener => listener.changed(change))
     const stops = kind === 'sale' ? [
-      subscribeGraphql(SaleCreatedDocument, {}, { ...callbacks(0), next: data => event('created', data.onSaleCreated.sale.id) }),
-      subscribeGraphql(SaleUpdatedDocument, {}, { ...callbacks(1), next: data => event('updated', data.onSaleUpdated.sale.id) }),
-      subscribeGraphql(SaleDeletedDocument, {}, { ...callbacks(2), next: data => event('deleted', data.onSaleDeleted.sale.id) }),
+      subscribeGraphql(SaleCreatedDocument, {}, { ...callbacks(0), next: data => event({ type: 'created', id: data.onSaleCreated.sale.id, sale: mapSale(data.onSaleCreated.sale) }) }),
+      subscribeGraphql(SaleUpdatedDocument, {}, { ...callbacks(1), next: data => event({ type: 'updated', id: data.onSaleUpdated.sale.id, sale: mapSale(data.onSaleUpdated.sale) }) }),
+      subscribeGraphql(SaleDeletedDocument, {}, { ...callbacks(2), next: data => event({ type: 'deleted', id: data.onSaleDeleted.sale.id, sale: mapSale(data.onSaleDeleted.sale) }) }),
     ] : [
-      subscribeGraphql(PurchaseCreatedDocument, {}, { ...callbacks(0), next: data => event('created', data.onPurchaseCreated.purchase.id) }),
-      subscribeGraphql(PurchaseUpdatedDocument, {}, { ...callbacks(1), next: data => event('updated', data.onPurchaseUpdated.purchase.id) }),
-      subscribeGraphql(PurchaseDeletedDocument, {}, { ...callbacks(2), next: data => event('deleted', data.onPurchaseDeleted.purchaseId) }),
+      subscribeGraphql(PurchaseCreatedDocument, {}, { ...callbacks(0), next: data => event({ type: 'created', id: data.onPurchaseCreated.purchase.id, purchase: mapPurchase(data.onPurchaseCreated.purchase) }) }),
+      subscribeGraphql(PurchaseUpdatedDocument, {}, { ...callbacks(1), next: data => event({ type: 'updated', id: data.onPurchaseUpdated.purchase.id, purchase: mapPurchase(data.onPurchaseUpdated.purchase) }) }),
+      subscribeGraphql(PurchaseDeletedDocument, {}, { ...callbacks(2), next: data => event({ type: 'deleted', id: data.onPurchaseDeleted.purchaseId }) }),
     ]
     channel = { listeners, unavailable, stop: () => stops.forEach(stop => stop()) }
     channels.set(key, channel)

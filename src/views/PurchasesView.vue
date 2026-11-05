@@ -273,7 +273,7 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
+import { sortField, toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { deletePurchase, getPurchase, getPurchaseContent, getPurchases } from '@/services/api/purchases.ts'
 import { getStorages } from '@/services/api/storages.ts'
 import { useLiveDocumentList } from '@/composables/useLiveDocumentList'
@@ -356,6 +356,10 @@ const live = useLiveDocumentList('purchase', {
   canReload: () => !queryState.restoring.value && !purchasesLoading.value && !createPurchaseDialogOpen.value && !editPurchaseDialogOpen.value && !filtersDrawerOpen.value
     && page.value === 0 && (purchasesTableRef.value?.$el.querySelector('.el-scrollbar__wrap')?.scrollTop ?? 0) < 8,
   reload: reset => loadPurchases(Boolean(reset)),
+  document: change => change.purchase,
+  requiresReload: (previous, updated) => activeFiltersCount.value > 0
+    || (sortBy.value.length ? sortBy.value.map(sortField) : ['dateTime']).some(field => field === 'totalSum'
+      ? previous.totalSum !== updated.totalSum : previous.purchaseDatetime !== updated.purchaseDatetime),
   get: async id => (await getPurchase(id)).purchase,
   removed: id => {
     if (selectedPurchase.value?.id !== id) return

@@ -1,17 +1,17 @@
 subscription SaleCreated {
-  onSaleCreated { sale { id } }
+  onSaleCreated { sale { ...SaleFields } }
 }
 subscription SaleUpdated {
-  onSaleUpdated { sale { id } }
+  onSaleUpdated { sale { ...SaleFields } }
 }
 subscription SaleDeleted {
-  onSaleDeleted { sale { id } }
+  onSaleDeleted { sale { ...SaleFields } }
 }
 subscription PurchaseCreated {
-  onPurchaseCreated { purchase { id } }
+  onPurchaseCreated { purchase { ...PurchaseFields } }
 }
 subscription PurchaseUpdated {
-  onPurchaseUpdated { purchase { id } }
+  onPurchaseUpdated { purchase { ...PurchaseFields } }
 }
 subscription PurchaseDeleted {
   onPurchaseDeleted { purchaseId }

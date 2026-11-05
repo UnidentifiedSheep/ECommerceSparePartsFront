@@ -288,7 +288,7 @@ import type { OrganizationModel, OrganizationSelection } from '@/models/organiza
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { deleteSale, getSale, getSaleContent, getSales } from '@/services/api/sales.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
+import { sortField, toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
@@ -379,6 +379,11 @@ const live = useLiveDocumentList('sale', {
   canReload: () => !queryState.restoring.value && !salesLoading.value && !createSaleDialogOpen.value && !editSaleDialogOpen.value && !filtersDrawerOpen.value
     && page.value === 0 && (salesTableRef.value?.$el.querySelector('.el-scrollbar__wrap')?.scrollTop ?? 0) < 8,
   reload: reset => loadSales(Boolean(reset)),
+  document: change => change.sale,
+  accepts: (updated, previous) => updated.rowVersion >= previous.rowVersion,
+  requiresReload: (previous, updated) => activeFiltersCount.value > 0 || previous.state !== updated.state
+    || (sortBy.value.length ? sortBy.value.map(sortField) : ['dateTime']).some(field => field === 'totalSum'
+      ? previous.totalSum !== updated.totalSum : previous.saleDatetime !== updated.saleDatetime),
   get: async id => (await getSale(id)).sale,
   keepDeleted: () => saleStates.value.includes('Deleted'),
   removed: id => {
