@@ -279,6 +279,7 @@
                   :organization-id="selectedOrganization.id"
                   :refresh-key="transactionsRefreshKey"
                   @refresh-finances="loadFinances"
+                  @reversed="handleTransactionReversed"
                 />
               </div>
             </el-tab-pane>
@@ -890,6 +891,10 @@ async function loadFinances() {
   } finally {
     financesLoading.value = false
   }
+}
+
+async function handleTransactionReversed() {
+  await Promise.all([loadFinances(), loadOrganizations(false)])
 }
 
 async function openCreateTransaction() {

@@ -25,6 +25,16 @@ const messages: Record<AppLocale, MessageTree> = {
       subtitle: 'Панель администратора',
     },
     common: {
+      live: {
+        unavailable: 'Автообновление недоступно',
+        newChanges: 'Есть изменения · Обновить список',
+        deleted: 'Документ удалён',
+        deletedDraft: 'Документ больше недоступен. Введённые данные остаются в форме.',
+        editChanged: 'Документ изменился после открытия',
+        draftPreserved: 'Ваши изменения остаются в форме. Для продолжения загрузите актуальный документ.',
+        reloadDocument: 'Загрузить актуальную версию',
+        reloadConfirm: 'Загрузить актуальную версию? Несохранённые изменения этой формы будут потеряны.',
+      },
       loadError: {
         forbiddenTitle: 'Нет доступа к данным',
         forbiddenDescription: 'Для просмотра нужны дополнительные права. Обратитесь к администратору.',
@@ -2199,6 +2209,16 @@ const messages: Record<AppLocale, MessageTree> = {
       subtitle: 'Admin panel',
     },
     common: {
+      live: {
+        unavailable: 'Live updates are unavailable',
+        newChanges: 'Updates available · Refresh list',
+        deleted: 'Document deleted',
+        deletedDraft: 'The document is no longer available. Your input remains in the form.',
+        editChanged: 'The document has changed since opening',
+        draftPreserved: 'Your changes remain in the form. Load the latest document to continue.',
+        reloadDocument: 'Load latest version',
+        reloadConfirm: 'Load the latest version? Unsaved changes in this form will be lost.',
+      },
       loadError: {
         forbiddenTitle: 'Access denied',
         forbiddenDescription: 'You need additional permissions to view this data. Contact your administrator.',
@@ -4373,6 +4393,16 @@ const messages: Record<AppLocale, MessageTree> = {
       subtitle: 'Yönetim paneli',
     },
     common: {
+      live: {
+        unavailable: 'Canlı güncellemeler kullanılamıyor',
+        newChanges: 'Güncelleme var · Listeyi yenile',
+        deleted: 'Belge silindi',
+        deletedDraft: 'Belge artık mevcut değil. Girdiğiniz bilgiler formda duruyor.',
+        editChanged: 'Belge açıldıktan sonra değiştirildi',
+        draftPreserved: 'Değişiklikleriniz formda duruyor. Devam etmek için güncel belgeyi yükleyin.',
+        reloadDocument: 'Güncel sürümü yükle',
+        reloadConfirm: 'Güncel sürüm yüklensin mi? Bu formdaki kaydedilmemiş değişiklikler kaybolacak.',
+      },
       loadError: {
         forbiddenTitle: 'Erişim izni yok',
         forbiddenDescription: 'Bu verileri görüntülemek için ek izinler gerekiyor. Yöneticinize başvurun.',

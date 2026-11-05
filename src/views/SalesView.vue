@@ -15,10 +15,11 @@
           <p>{{ activeFiltersText }}</p>
         </div>
         <div class="toolbar-actions">
+          <span v-if="live.unavailable.value" role="status">{{ t('common.live.unavailable') }}</span>
           <el-badge :value="activeFiltersCount" :hidden="activeFiltersCount === 0">
             <el-button size="large" plain @click="filtersDrawerOpen = true">{{ t('sales.filters') }}</el-button>
           </el-badge>
-          <el-button size="large" type="primary" @click="loadSales(true)">{{ t('common.actions.refresh') }}</el-button>
+          <el-button size="large" type="primary" @click="live.applyPending">{{ t('common.actions.refresh') }}</el-button>
         </div>
       </section>
 
@@ -160,6 +161,7 @@
               <h2>{{ t('sales.listTitle') }}</h2>
               <p>{{ t('sales.onPage', { count: sales.length }) }}</p>
             </div>
+            <el-button v-if="live.pending.value" size="small" plain :disabled="salesLoading || live.updating.value" @click="live.applyPending">{{ t('common.live.newChanges') }}</el-button>
           </div>
 
           <div class="sales-table-region">
@@ -249,6 +251,7 @@
       :content="saleContentToEdit"
       :currencies="currencies"
       @updated="onSaleUpdated"
+      @reloaded="(sale, content) => { saleToEdit = sale; saleContentToEdit = content }"
     />
 
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProductFilter" />
@@ -257,6 +260,7 @@
 
 <script setup lang="ts">
 import { useSelectionDebounce } from '@/composables/useSelectionDebounce'
+import { useLiveDocumentList } from '@/composables/useLiveDocumentList'
 import { useTableArrowNavigation } from '@/composables/useTableArrowNavigation'
 import { queryField, useListQueryState } from '@/composables/useListQueryState'
 import { queryText, queryStrings, queryPage, querySize, querySort, queryDates, queryIds } from '@/utils/listQuery'
@@ -284,7 +288,7 @@ import type { OrganizationModel, OrganizationSelection } from '@/models/organiza
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { deleteSale, getSale, getSaleContent, getSales } from '@/services/api/sales.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
+import { sortField, toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
@@ -369,6 +373,40 @@ const queryState = useListQueryState({
 const loadSalesDebounced = useDebounceFn(async () => {
   await loadSales(true)
 }, 300)
+
+const live = useLiveDocumentList('sale', {
+  rows: sales, selected: selectedSale,
+  canReload: () => !queryState.restoring.value && !salesLoading.value && !createSaleDialogOpen.value && !editSaleDialogOpen.value && !filtersDrawerOpen.value
+    && page.value === 0 && (salesTableRef.value?.$el.querySelector('.el-scrollbar__wrap')?.scrollTop ?? 0) < 8,
+  reload: reset => loadSales(Boolean(reset)),
+  document: change => change.sale,
+  accepts: (updated, previous) => updated.rowVersion >= previous.rowVersion,
+  requiresReload: (previous, updated) => activeFiltersCount.value > 0 || previous.state !== updated.state
+    || (sortBy.value.length ? sortBy.value.map(sortField) : ['dateTime']).some(field => field === 'totalSum'
+      ? previous.totalSum !== updated.totalSum : previous.saleDatetime !== updated.saleDatetime),
+  get: async id => (await getSale(id)).sale,
+  keepDeleted: () => saleStates.value.includes('Deleted'),
+  removed: id => {
+    if (selectedSale.value?.id !== id) return
+    void selectSale(undefined)
+    ElMessage.info(t('common.live.deleted'))
+  },
+  refreshSelected: refreshLiveSale,
+  syncSelection: async () => { await nextTick(); salesTableRef.value?.setCurrentRow(selectedSale.value) },
+})
+
+async function refreshLiveSale(sale: SaleModel) {
+  const version = ++contentRequestVersion
+  contentDebounce.cancel()
+  try {
+    const response = await getSaleContent(sale.id)
+    if (selectedSale.value?.id !== sale.id || version !== contentRequestVersion) return
+    selectedSale.value = sale
+    saleContent.value = response.contents
+  } finally {
+    if (selectedSale.value?.id === sale.id && version === contentRequestVersion) contentLoading.value = false
+  }
+}
 
 function formatDate(value?: string | null) {
   return formatLocalDateTime(value, t('sales.noData'))
@@ -582,7 +620,7 @@ async function selectSaleFromRoute() {
 }
 
 async function handleCurrentSaleChange(sale?: SaleModel) {
-  if (isSettingCurrentSale.value) return
+  if (isSettingCurrentSale.value || live.updating.value) return
   await selectSale(sale)
 }
 

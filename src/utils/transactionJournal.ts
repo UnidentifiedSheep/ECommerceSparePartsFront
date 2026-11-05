@@ -18,3 +18,7 @@ export function transactionIsCompleted(row: BalanceTransactionModel): boolean {
   return typeof row.status === 'number' ? (row.status & 1) !== 0 : row.status.split(',').some(status => status.trim() === 'Completed')
 }
 
+export function transactionCanReverse(row: BalanceTransactionModel): boolean {
+  return (row.sourceType === 'Manual' || row.sourceType === 0) && transactionIsCompleted(row) && !transactionIsReversed(row)
+}
+

@@ -25,14 +25,13 @@
       <div v-if="loading && transactions.length === 0" class="journal-empty" role="status"><el-icon class="is-loading"><Loading /></el-icon>{{ t('organizationPage.loadingTransactions') }}</div>
       <el-empty v-else-if="!transactions.length && !error" :description="t('organizationPage.noTransactions')" :image-size="56" />
       <article v-for="row in transactions" :key="row.id" class="operation-item" role="listitem">
-        <component
-          :is="canOpenDocument(row) ? 'button' : 'div'"
-          class="operation-row"
-          :class="{ 'operation-row--link': canOpenDocument(row), 'operation-row--reversed': reversed(row) }"
-          :type="canOpenDocument(row) ? 'button' : undefined"
-          :disabled="canOpenDocument(row) ? !!openingDocumentId || reversed(row) : undefined"
-          :title="canOpenDocument(row) ? t(row.sourceType === 'Sale' ? 'transactions.openSale' : 'transactions.openPurchase') : undefined"
-          @click="openDocument(row)"
+        <button
+          class="operation-row operation-row--link"
+          :class="{ 'operation-row--reversed': reversed(row) }"
+          type="button"
+          :disabled="!!openingDocumentId"
+          :title="canOpenDocument(row) && !reversed(row) ? t(row.sourceType === 'Sale' ? 'transactions.openSale' : 'transactions.openPurchase') : t('transactions.detailsTitle')"
+          @click="openRow(row)"
         >
           <el-icon class="flow-icon" :class="{ 'is-receipt': impact(row) > 0 && !reversed(row) }"><component :is="impact(row) > 0 ? BottomLeft : TopRight" /></el-icon>
           <span class="operation-main">
@@ -43,8 +42,8 @@
             <strong class="transaction-amount" :class="{ 'is-receipt': impact(row) > 0 && !reversed(row), 'is-reversed': reversed(row) }">{{ money(row) }}</strong>
             <time :datetime="row.transactionDate">{{ date(row.transactionDate) }}</time>
           </span>
-          <el-icon v-if="canOpenDocument(row)" class="document-arrow" :class="{ 'is-loading': openingDocumentId === row.id }"><component :is="openingDocumentId === row.id ? Loading : ArrowRight" /></el-icon>
-        </component>
+          <el-icon class="document-arrow" :class="{ 'is-loading': openingDocumentId === row.id }"><component :is="openingDocumentId === row.id ? Loading : ArrowRight" /></el-icon>
+        </button>
       </article>
     </div>
     <div class="journal-status" role="status">
@@ -52,11 +51,21 @@
       <span v-else-if="!hasNext && transactions.length && !error">{{ t('organizationPage.transactionsEnd') }}</span>
       <span v-else-if="transactions.length">{{ t('organizationPage.transactionsLoaded', { count: transactions.length }) }}</span>
     </div>
+    <TransactionDetailsDrawer
+      v-model="detailsOpen"
+      :transaction="selectedTransaction"
+      :currencies="currencies"
+      :organization="transactionOrganization"
+      convention="account"
+      :navigation-loading="Boolean(openingDocumentId)"
+      @open-document="openDocument"
+      @reversed="handleReversed"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onScopeDispose, ref, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowRight, BottomLeft, TopRight, Refresh, Filter, Loading } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
@@ -68,14 +77,22 @@ import { getPurchaseByTransactionId } from '@/services/api/purchases'
 import { usePermissions } from '@/composables/usePermissions'
 import { useI18n } from '@/i18n'
 import { organizationTransactionAmount } from '@/utils/organizationTransactionAmount'
+import { transactionIsCompleted, transactionIsReversed } from '@/utils/transactionJournal'
+import TransactionDetailsDrawer from '@/components/transactions/TransactionDetailsDrawer.vue'
 
 const props = defineProps<{ organizationId: string; refreshKey: number }>()
-const emit = defineEmits<{ refreshFinances: [] }>()
+const emit = defineEmits<{ refreshFinances: []; reversed: [] }>()
 const { t, locale } = useI18n()
 const router = useRouter()
 const { hasPermission } = usePermissions()
 const scrollElement = ref<HTMLElement>()
 const openingDocumentId = ref('')
+const detailsOpen = ref(false)
+const selectedTransaction = ref<BalanceTransactionModel>()
+const transactionOrganization = computed(() => {
+  const row = selectedTransaction.value
+  return row?.sender.id === props.organizationId ? row.sender : row?.receiver.id === props.organizationId ? row.receiver : undefined
+})
 const period = ref<[string, string] | null>(null)
 const currencyId = ref<number>()
 const showReversed = ref(false)
@@ -140,8 +157,19 @@ function loadNearEnd() {
   const scroll = scrollElement.value
   if (scroll && scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight <= 80) void load()
 }
-function reversed(row: BalanceTransactionModel) { return typeof row.status === 'number' ? (row.status & 4) !== 0 : row.status.includes('Reversed') }
-function completed(row: BalanceTransactionModel) { return typeof row.status === 'number' ? (row.status & 1) !== 0 : row.status.includes('Completed') }
+function reversed(row: BalanceTransactionModel) { return transactionIsReversed(row) }
+function completed(row: BalanceTransactionModel) { return transactionIsCompleted(row) }
+function openRow(row: BalanceTransactionModel) {
+  if (canOpenDocument(row) && !reversed(row)) return openDocument(row)
+  selectedTransaction.value = row
+  detailsOpen.value = true
+}
+function handleReversed() {
+  detailsOpen.value = false
+  selectedTransaction.value = undefined
+  emit('reversed')
+  void reload()
+}
 function direction(row: BalanceTransactionModel) {
   if (row.sender.id === row.receiver.id) return t('organizationPage.internalTransfer')
   if (row.receiver.type === 'System') return t('organizationPage.toSystem')
@@ -181,7 +209,11 @@ function money(row: BalanceTransactionModel) {
   return `${prefix}${Math.abs(row.amount).toLocaleString(locale.value, { maximumFractionDigits: 2 })} ${currency?.currencySign || currency?.shortName || t('transactions.unknownCurrency', { id: row.currencyId })}`
 }
 function date(value: string) { return new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) }
-watch([() => props.organizationId, () => props.refreshKey, currencyId, period, showReversed], reload, { immediate: true })
+watch([() => props.organizationId, () => props.refreshKey, currencyId, period, showReversed], () => {
+  detailsOpen.value = false
+  selectedTransaction.value = undefined
+  return reload()
+}, { immediate: true })
 </script>
 
 <style scoped>

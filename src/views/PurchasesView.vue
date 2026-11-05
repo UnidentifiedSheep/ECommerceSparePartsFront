@@ -15,10 +15,11 @@
           <p>{{ activeFiltersText }}</p>
         </div>
         <div class="toolbar-actions">
+          <span v-if="live.unavailable.value" role="status">{{ t('common.live.unavailable') }}</span>
           <el-badge :value="activeFiltersCount" :hidden="activeFiltersCount === 0">
             <el-button size="large" plain @click="filtersDrawerOpen = true">{{ t('purchases.filters') }}</el-button>
           </el-badge>
-          <el-button size="large" type="primary" @click="loadPurchases(true)">{{ t('common.actions.refresh') }}</el-button>
+          <el-button size="large" type="primary" @click="live.applyPending">{{ t('common.actions.refresh') }}</el-button>
         </div>
       </section>
 
@@ -138,6 +139,7 @@
               <h2>{{ t('purchases.listTitle') }}</h2>
               <p>{{ t('purchases.onPage', { count: purchases.length }) }}</p>
             </div>
+            <el-button v-if="live.pending.value" size="small" plain :disabled="purchasesLoading || live.updating.value" @click="live.applyPending">{{ t('common.live.newChanges') }}</el-button>
           </div>
 
           <div class="purchases-table-region">
@@ -230,11 +232,12 @@
 
     <EditPurchaseDialog
       v-model="editPurchaseDialogOpen"
-      :purchase="selectedPurchase"
-      :content="purchaseContent"
+      :purchase="purchaseToEdit"
+      :content="purchaseContentToEdit"
       :currencies="currencies"
       :storages="storages"
       @updated="onPurchaseUpdated"
+      @reloaded="(purchase, content) => { purchaseToEdit = purchase; purchaseContentToEdit = content }"
     />
 
     <ProductSelectorDialog v-model="productSelectorOpen" @select="addProductFilter" />
@@ -270,9 +273,10 @@ import type { StorageModel } from '@/models/storageModel.ts'
 import type { OrganizationSelection } from '@/models/organizationModel.ts'
 import { getCurrencies } from '@/services/api/currencies.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
-import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
+import { sortField, toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { deletePurchase, getPurchase, getPurchaseContent, getPurchases } from '@/services/api/purchases.ts'
 import { getStorages } from '@/services/api/storages.ts'
+import { useLiveDocumentList } from '@/composables/useLiveDocumentList'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 
@@ -304,6 +308,8 @@ const contentLoading = ref(false)
 const isSettingCurrentPurchase = ref(false)
 const createPurchaseDialogOpen = ref(false)
 const editPurchaseDialogOpen = ref(false)
+const purchaseToEdit = ref<PurchaseModel>()
+const purchaseContentToEdit = ref<PurchaseContentModel[]>([])
 const editPurchaseLoadingId = ref<string>()
 const deletingPurchaseId = ref<string>()
 const productSelectorOpen = ref(false)
@@ -344,6 +350,38 @@ const queryState = useListQueryState({
 const loadPurchasesDebounced = useDebounceFn(async () => {
   await loadPurchases(true)
 }, 300)
+
+const live = useLiveDocumentList('purchase', {
+  rows: purchases, selected: selectedPurchase,
+  canReload: () => !queryState.restoring.value && !purchasesLoading.value && !createPurchaseDialogOpen.value && !editPurchaseDialogOpen.value && !filtersDrawerOpen.value
+    && page.value === 0 && (purchasesTableRef.value?.$el.querySelector('.el-scrollbar__wrap')?.scrollTop ?? 0) < 8,
+  reload: reset => loadPurchases(Boolean(reset)),
+  document: change => change.purchase,
+  requiresReload: (previous, updated) => activeFiltersCount.value > 0
+    || (sortBy.value.length ? sortBy.value.map(sortField) : ['dateTime']).some(field => field === 'totalSum'
+      ? previous.totalSum !== updated.totalSum : previous.purchaseDatetime !== updated.purchaseDatetime),
+  get: async id => (await getPurchase(id)).purchase,
+  removed: id => {
+    if (selectedPurchase.value?.id !== id) return
+    void selectPurchase(undefined)
+    ElMessage.info(t('common.live.deleted'))
+  },
+  refreshSelected: refreshLivePurchase,
+  syncSelection: async () => { await nextTick(); purchasesTableRef.value?.setCurrentRow(selectedPurchase.value) },
+})
+
+async function refreshLivePurchase(purchase: PurchaseModel) {
+  const version = ++contentRequestVersion
+  contentDebounce.cancel()
+  try {
+    const response = await getPurchaseContent(purchase.id)
+    if (selectedPurchase.value?.id !== purchase.id || version !== contentRequestVersion) return
+    selectedPurchase.value = purchase
+    purchaseContent.value = response.content
+  } finally {
+    if (selectedPurchase.value?.id === purchase.id && version === contentRequestVersion) contentLoading.value = false
+  }
+}
 
 function formatDate(value?: string | null) {
   return formatLocalDateTime(value, t('purchases.noData'))
@@ -474,7 +512,7 @@ async function loadPurchases(resetPage: boolean, navigation?: { page: number; di
 }
 
 async function handleCurrentPurchaseChange(purchase?: PurchaseModel) {
-  if (isSettingCurrentPurchase.value) return
+  if (isSettingCurrentPurchase.value || live.updating.value) return
   await selectPurchase(purchase)
 }
 
@@ -522,7 +560,11 @@ async function openEditPurchase(purchase: PurchaseModel) {
 
   editPurchaseLoadingId.value = purchase.id
   try {
-    if (await selectPurchase(purchase, true)) editPurchaseDialogOpen.value = true
+    if (await selectPurchase(purchase, true)) {
+      purchaseToEdit.value = purchase
+      purchaseContentToEdit.value = [...purchaseContent.value]
+      editPurchaseDialogOpen.value = true
+    }
   } finally {
     editPurchaseLoadingId.value = undefined
   }
@@ -616,6 +658,9 @@ watch(currencyIds, async () => loadPurchases(true), { deep: true })
 watch(selectedProducts, async () => loadPurchases(true), { deep: true })
 watch(searchTerm, () => { if (!queryState.restoring.value) loadPurchasesDebounced() })
 watch(() => route.query.purchaseId, async () => selectPurchaseFromRoute())
+watch(editPurchaseDialogOpen, open => {
+  if (!open) { purchaseToEdit.value = undefined; purchaseContentToEdit.value = [] }
+})
 
 onMounted(async () => {
   await queryState.restoreInitial()
