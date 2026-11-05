@@ -223,38 +223,6 @@
   background: var(--app-primary-soft) !important;
 }
 
-.sale-state {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  border: 1px solid #d9e1ec;
-  border-radius: 6px;
-  padding: 2px 8px;
-  color: #334155;
-  background: #f8fafc;
-  font-size: 12px;
-  line-height: 18px;
-  font-weight: 650;
-}
-
-.sale-state--completed {
-  border-color: #bbf7d0;
-  color: #166534;
-  background: #f0fdf4;
-}
-
-.sale-state--draft {
-  border-color: #d7dee9;
-  color: #475569;
-  background: #f8fafc;
-}
-
-.sale-state--deleted {
-  border-color: #fecdd3;
-  color: #991b1b;
-  background: #fff1f2;
-}
-
 .sale-amount {
   color: #0f172a;
   font-weight: 750;

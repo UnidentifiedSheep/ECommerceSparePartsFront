@@ -1,4 +1,41 @@
-# Organization finances — design QA
+# Sale price recommendation — design QA (2026-11-05)
+
+final result: passed
+
+## Scope and evidence
+
+- Source: `/workspace/generated_images/exec-a8cd32dd-b88a-4433-9d31-a9d7009b9e62.png` (1672 × 941).
+- Browser-rendered production components: `/workspace/shared/recommendation-qa/desktop.png`, `mobile.png`, `edit.png`.
+- Desktop viewport: 1920 × 1080 CSS px, device scale factor 1; mobile: 390 × 844 CSS px, device scale factor 1.
+- Full comparison: `/workspace/shared/recommendation-qa/comparison-full.jpg`. Source resized uniformly to the desktop viewport, adjacent to implementation. Browser chrome/background differs because the isolated harness mounts the actual sale dialogs rather than the application shell. Those unchanged regions are outside this feature's scope.
+- Focused comparison: `/workspace/shared/recommendation-qa/comparison-panel.jpg`. Source sidebar normalized from 349 × 770 to 400 × 884, adjacent to the actual 400 × 884 sidebar.
+- State: selected product 202.336-01, warehouse ОСНОВНОЙ, RUB, quantity 1, unapplied recommendation 4 650 ₽, sale price 0. History fixture repeats representative rows; chronology differences are fixture data, not sorting behavior.
+
+## Findings and comparison history
+
+No actionable P0/P1/P2 visual finding remains in the feature scope. Full-view and focused comparisons were opened and reviewed together. The compact recommendation stays above history, with price, unit, quantity/total, explicit apply action and a quiet explanatory line. History retains its filters, dense rows and its own scrolling region. Mobile keeps the entire recommendation and action inside the panel bounds.
+
+- Typography: existing application fonts retained; 24 px recommendation price, 12 px supporting text, and native small Element Plus button. Generated mock typography is approximate; existing production sizes are intentionally preserved for surrounding history.
+- Spacing/layout: existing 400 px sidebar, 16 px outer insets, 12 px block padding. The recommendation occupies about 140 px. Existing main sale form is not redesigned.
+- Colors/tokens: application primary/soft-primary/text/border tokens retained, so user appearance settings continue to apply. The mock's pale green recommendation and stronger price hierarchy are preserved.
+- Assets: no raster art is introduced by this feature. Existing Element Plus icons remain unchanged.
+- Copy: recommendation heading, unit, quantity/total, explanatory line, loading/error/shortage states and apply action are localized in RU/EN/TR. The recommendation is distinct from historical sale prices.
+
+## Interaction verification
+
+Chromium used the actual create/edit sale dialogs with deterministic local GraphQL responses; it did not create live sales. Verified explicit application in both dialogs, reset of an existing item discount, no automatic price overwrite, quantity debounce, currency recalculation with late-response protection, insufficient-offer state without an apply action, retry after a failed calculation, history remaining usable during a pricing error, no recalculation when toggling historical crosses, permission-based hiding, and mobile bounds. Browser page errors: zero in the final run.
+
+`npm run check` passed: lint, TypeScript, 41 files / 275 tests, production build. Unit tests cover request inputs, nullable prices, no detailed-offer field selection, debounce, stale responses, close/disposal cancellation and retry.
+
+The live gateway did not yet publish recommendedPrice during verification. Runtime behavior was checked against backend PR #134 at abc3a8c using local responses; live integration must be validated after deployment. This is a deployment dependency, not a claim of verified live pricing.
+
+## Follow-up polish
+
+No blocking visual changes. Detailed offer breakdown is intentionally outside the selected mock and is not requested with standard pricing permissions.
+
+---
+
+# Organization finances — previous design QA
 
 final result: passed
 

@@ -190,13 +190,6 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column :label="t('common.labels.status')" width="108">
-              <template #default="{ row }">
-                <span class="sale-state" :class="`sale-state--${row.state.toLowerCase()}`">
-                  {{ t(`sales.states.${row.state}`) }}
-                </span>
-              </template>
-            </el-table-column>
             <el-table-column prop="storageCode" :label="t('sales.storage')" min-width="100" show-overflow-tooltip />
             <el-table-column prop="dateTime" min-width="132">
               <template #header><SortableColumnHeader :label="t('common.labels.date')" field="dateTime" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSortToggle" /></template>
