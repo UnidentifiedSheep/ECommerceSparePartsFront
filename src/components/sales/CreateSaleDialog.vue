@@ -233,7 +233,7 @@
                     <el-input-number
                       v-model="item.count"
                       :min="1"
-                      :max="availableStockForItem(item)"
+                      :max="quantityInputMax(item)"
                       :precision="0"
                       :controls="false"
                       class="w-full"
@@ -321,10 +321,14 @@
         <div class="footer-total">
           <span>{{ t('sales.payable') }}</span>
           <strong>{{ formatCurrency(saleTotal, selectedCurrency?.currencySign) }}</strong>
+          <p v-if="saveIssue" id="sale-create-validation" class="sale-create-validation" role="status">
+            {{ t(`sales.validation.${saveIssue.code}`, { position: saveIssue.position ?? '' }) }}
+            <el-button v-if="saveIssue.code === 'stockLoadFailed'" size="small" text @click="loadCurrentProductStocks">{{ t('common.actions.refresh') }}</el-button>
+          </p>
         </div>
         <div class="footer-actions">
           <el-button size="large" :disabled="isSaving" @click="closeGuard.requestClose">{{ t('common.actions.cancel') }}</el-button>
-          <el-button size="large" type="primary" :disabled="!canSave || jsonImportOpen" :loading="isSaving" @click="save()">
+          <el-button size="large" type="primary" :disabled="!canSave" :aria-describedby="saveIssue ? 'sale-create-validation' : undefined" :loading="isSaving" @click="save()">
             {{ t('sales.create') }}
           </el-button>
         </div>
@@ -368,6 +372,7 @@ import { useI18n } from '@/i18n'
 import { useDialogGuard } from '@/composables/useDialogGuard.ts'
 import { usePermissions } from '@/composables/usePermissions'
 import { saleImportStockExceeded, type SaleImportRow } from '@/models/saleJsonImport'
+import { saleCreationIssue } from '@/models/saleCreationValidation'
 
 interface SaleItemForm {
   product?: ProductSearchModel
@@ -402,6 +407,7 @@ const historyPanelOpen = ref(false)
 const selectedHistoryItemIndex = ref<number | null>(null)
 const isSaving = ref(false)
 const isStockLoading = ref(false)
+const stockLoadFailed = ref(false)
 const saleDiscount = ref(0)
 const isDiscountEditing = ref(false)
 const discountDraftPercent = ref<number>()
@@ -455,7 +461,7 @@ const remainingPayment = computed(() => (
 ))
 
 const completionSteps = computed(() => [
-  { label: t('sales.buyer'), done: !!form.buyer },
+  { label: t('sales.buyer'), done: !!form.buyer?.member?.user.id },
   { label: t('common.labels.storage'), done: !!form.storageCode },
   { label: t('common.labels.currency'), done: !!form.currencyId },
   { label: t('sales.positions'), done: form.items.length > 0 },
@@ -467,22 +473,18 @@ const itemsSummary = computed(() => {
     : t('sales.itemsSummary', { positions: form.items.length, count: totalItemCount.value })
 })
 
-const canSave = computed(() => (
-  !!form.buyer
-  && !!form.currencyId
-  && !!form.storageCode
-  && !isStockLoading.value
-  && form.saleDateTime !== ''
-  && form.items.length > 0
-  && form.items.every((item) => (
-    item.product
-    && item.count > 0
-    && !hasStockError(item)
-    && item.price > 0
-    && effectivePriceWithDiscount(item) > 0
-    && effectivePriceWithDiscount(item) <= item.price
-  ))
-))
+const saveIssue = computed(() => saleCreationIssue({
+  buyerSelected: Boolean(form.buyer),
+  buyerMemberSelected: Boolean(form.buyer?.member?.user.id),
+  currencyId: form.currencyId,
+  storageCode: form.storageCode,
+  date: form.saleDateTime,
+  stockLoading: isStockLoading.value,
+  stockLoadFailed: stockLoadFailed.value,
+  importing: jsonImportOpen.value,
+  items: form.items.map(item => ({ productId: item.product?.id, count: item.count, available: availableStockForItem(item), price: item.price, discountedPrice: item.priceWithDiscount })),
+}))
+const canSave = computed(() => !saveIssue.value)
 
 const closeGuard = useDialogGuard(isOpen, computed(() => isSaving.value || jsonImportOpen.value), () => ({ ...form, saleDiscount: saleDiscount.value, items: form.items.map(({ product, count, price, priceWithDiscount, discountMode, comment }) => ({ productId: product?.id, count, price, priceWithDiscount, discountMode, comment })) }))
 
@@ -500,6 +502,9 @@ function addImportedItems(rows: SaleImportRow[]) {
 }
 
 function resetForm() {
+  ++stockRequestId
+  isStockLoading.value = false
+  stockLoadFailed.value = false
   form.buyer = undefined
   form.currencyId = resolveDefaultCurrencyId(props.currencies)
   form.storageCode = undefined
@@ -565,6 +570,7 @@ async function loadCurrentProductStocks() {
   const storageCode = form.storageCode
   const ids = [...new Set(form.items.map((item) => item.product?.id).filter((id): id is number => Boolean(id)))]
   const requestId = ++stockRequestId
+  stockLoadFailed.value = false
   form.items.forEach(item => { item.availableStock = 0 })
 
   if (!storageCode || ids.length === 0) {
@@ -587,6 +593,7 @@ async function loadCurrentProductStocks() {
     })
   } catch (error) {
     if (requestId === stockRequestId) {
+      stockLoadFailed.value = true
       ElMessage.error(error instanceof Error ? error.message : t('sales.loadStockError'))
     }
   } finally {
@@ -728,6 +735,12 @@ function availableStockForItem(item: SaleItemForm) {
   return Math.max(item.availableStock - otherItemsProductCount(item), 0)
 }
 
+function quantityInputMax(item: SaleItemForm) {
+  // Keep the draft quantity when stock is loading or decreases; validation blocks overselling.
+  const available = availableStockForItem(item)
+  return Math.max(1, Number.isFinite(available) ? available : 0, Number.isFinite(item.count) ? item.count : 1)
+}
+
 function hasStockError(item: SaleItemForm) {
   return item.count > availableStockForItem(item)
 }
@@ -827,6 +840,7 @@ watch(
 <style scoped src="@/assets/sale-dialog.css"></style>
 
 <style>
+.sale-create-validation { max-width: 640px; margin: 6px 0 0; color: var(--app-text-muted); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
 .sale-heading-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .create-sale-dialog.create-sale-dialog--history-open {
   margin-right: 0;
