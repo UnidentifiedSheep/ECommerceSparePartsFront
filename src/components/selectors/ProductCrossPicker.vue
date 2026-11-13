@@ -27,7 +27,16 @@
     >
       <el-table-column prop="sku" min-width="170">
         <template #header><SortableColumnHeader :label="t('products.sku')" field="sku" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" /></template>
-        <template #default="{ row }"><ProductSkuCell :sku="row.sku" :indicator="row.indicator" /></template>
+        <template #default="{ row }">
+          <span
+            class="product-cross-picker__pick-target"
+            role="button"
+            tabindex="0"
+            :aria-label="`${t('products.pick')} ${row.sku}`"
+            @keydown.enter.prevent.stop="selectProduct(row)"
+            @keydown.space.prevent.stop="selectProduct(row)"
+          ><ProductSkuCell :sku="row.sku" :indicator="row.indicator" /></span>
+        </template>
       </el-table-column>
       <el-table-column prop="name" min-width="250" show-overflow-tooltip>
         <template #header><SortableColumnHeader :label="t('common.labels.name')" field="name" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" /></template>
@@ -43,11 +52,6 @@
           <SortableColumnHeader v-else :label="t('products.stock')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
         </template>
         <template #default="{ row }"><ProductStockCell :stock="storageCode ? row.availableStock ?? 0 : row.stock" /></template>
-      </el-table-column>
-      <el-table-column fixed="right" column-key="actions" class-name="product-cross-picker__actions-cell" label="" width="104" align="right">
-        <template #default="{ row }">
-          <el-button size="small" type="primary" plain :disabled="isLoading" @click.stop="selectProduct(row)" @dblclick.stop>{{ t('products.pick') }}</el-button>
-        </template>
       </el-table-column>
     </el-table>
     <ZeroPagination v-if="!loadError" v-model:page="page" v-model:size="size" :has-next="hasNext && !isLoading" />
@@ -108,8 +112,8 @@ function selectProduct(product: ProductSearchModel) {
   if (!isLoading.value && !loadError.value) emit('select', product)
 }
 
-function handleProductClick(product: ProductSearchModel, column: { columnKey?: string }) {
-  if (column.columnKey === 'actions' || window.getSelection()?.isCollapsed === false) return
+function handleProductClick(product: ProductSearchModel) {
+  if (window.getSelection()?.isCollapsed === false) return
   selectedProductId.value = product.id
   selectProduct(product)
 }
@@ -175,7 +179,8 @@ onBeforeUnmount(() => { requestId += 1 })
 .product-cross-picker__summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--el-text-color-regular); font-size: 12px; }
 :deep(.el-table__header th) { background: var(--app-surface-muted, #f7f9fa); }
 :deep(.el-table__row) { cursor: pointer; }
-:deep(td.product-cross-picker__actions-cell) { cursor: default; }
+.product-cross-picker__pick-target { display: inline-flex; max-width: 100%; border-radius: 2px; }
+.product-cross-picker__pick-target:focus-visible { outline: 2px solid var(--app-primary); outline-offset: 2px; }
 :deep(.product-cross-picker__selected > td.el-table__cell) { background: var(--app-primary-soft); }
 @media (max-width: 760px) {
   .product-cross-picker__heading { align-items: flex-start; flex-direction: column; gap: 10px; }
