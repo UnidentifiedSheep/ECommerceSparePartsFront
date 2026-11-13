@@ -6,6 +6,7 @@
     width="min(1040px, calc(100vw - 24px))"
     top="min(8vh, 64px)"
     class="product-selector-dialog"
+    @closed="emit('closed')"
   >
     <ProductCrossPicker
       v-if="isOpen && crossProduct"
@@ -239,6 +240,7 @@ const { hasPermission } = usePermissions()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   select: [product: ProductSearchModel]
+  closed: []
 }>()
 
 const canUseCatalogueSearch = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))

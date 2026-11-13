@@ -1,9 +1,9 @@
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="inline">
   <aside
     class="sale-history"
-    :class="{ 'sale-history--open': isOpen }"
-    :style="{ zIndex: panelZIndex }"
+    :class="{ 'sale-history--open': isOpen, 'sale-history--inline': inline }"
+    :style="inline ? undefined : { zIndex: panelZIndex }"
     :aria-label="canRecommend ? t('sales.recommendation.panelTitle') : t('sales.history.title')"
   >
     <button
@@ -41,7 +41,7 @@
             :title="t('common.actions.refresh')"
             @click="refreshAll"
           />
-          <el-button text @click="isOpen = false">
+          <el-button v-if="!inline" text @click="isOpen = false">
             <el-icon><ArrowRight /></el-icon>
             {{ t('sales.history.hide') }}
           </el-button>
@@ -107,14 +107,15 @@
                 <SortableColumnHeader :label="t('sales.history.buyPriceColumn')" field="averageBuyPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
               </div>
             </div>
-            <button
+            <component
+              :is="readOnly ? 'div' : 'button'"
               v-for="entry in history"
               :key="entry.saleContentId"
-              type="button"
+              :type="readOnly ? undefined : 'button'"
               class="sale-history__entry"
               :class="{ 'is-applied': appliedEntryId === entry.saleContentId && selectedPrice === entry.discountedPrice }"
-              :disabled="!canApplyPrice(entry)"
-              :aria-pressed="appliedEntryId === entry.saleContentId && selectedPrice === entry.discountedPrice"
+              :disabled="readOnly ? undefined : !canApplyPrice(entry)"
+              :aria-pressed="readOnly ? undefined : appliedEntryId === entry.saleContentId && selectedPrice === entry.discountedPrice"
               :title="entryTitle(entry)"
               @click="applyPrice(entry)"
             >
@@ -134,12 +135,12 @@
                 <span><span class="sr-only">{{ t('common.labels.count') }}: </span>{{ entry.quantity.toLocaleString(locale) }}</span>
                 <span :title="t('sales.history.averageBuyPrice')"><span class="sr-only">{{ t('sales.history.averageBuyPrice') }}: </span>{{ formatMoney(entry.averageBuyPrice, entry.currency?.currencySign) }}</span>
               </span>
-            </button>
+            </component>
             <div v-if="isLoadingMore" class="sale-history__loading-more" role="status">{{ t('sales.history.loading') }}</div>
           </div>
         </div>
 
-        <footer class="sale-history__footer">
+        <footer v-if="!readOnly" class="sale-history__footer">
           <span class="sale-history__hint" role="status">{{ hasAppliedPrice ? t('sales.history.priceApplied') : t('sales.history.applyHint') }}</span>
         </footer>
       </template>
@@ -179,6 +180,8 @@ const props = defineProps<{
   quantity?: number
   selectionKey?: number
   disabled?: boolean
+  inline?: boolean
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -186,7 +189,7 @@ const emit = defineEmits<{
   'apply-recommended-price': [value: AppliedPriceRecommendation]
 }>()
 const { hasPermission } = usePermissions()
-const canRecommend = computed(() => hasPermission('PRICES_GET_STANDARD', 'PRICES_GET_DETAILED'))
+const canRecommend = computed(() => !props.readOnly && hasPermission('PRICES_GET_STANDARD', 'PRICES_GET_DETAILED'))
 const appliedEntryId = ref<number>()
 const recommendedPriceRef = ref<InstanceType<typeof RecommendedSalePrice>>()
 const isOpen = defineModel<boolean>({ required: true })
@@ -335,7 +338,7 @@ function entryTitle(entry: ProductSaleHistoryModel) {
   const date = new Date(entry.saleDate)
   const dateTime = Number.isNaN(date.getTime()) ? entry.saleDate : new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(date)
   return [
-    canApplyPrice(entry) ? t('sales.history.applyPrice', { price: formatMoney(entry.discountedPrice, entry.currency?.currencySign) }) : t('sales.history.priceUnavailable'),
+    props.readOnly ? undefined : canApplyPrice(entry) ? t('sales.history.applyPrice', { price: formatMoney(entry.discountedPrice, entry.currency?.currencySign) }) : t('sales.history.priceUnavailable'),
     entry.productId !== props.product?.id ? t('sales.history.cross') : undefined,
     entry.product ? [entry.product.sku, entry.product.producerName, entry.product.name].filter(Boolean).join(' · ') : undefined,
     dateTime,
@@ -345,7 +348,7 @@ function entryTitle(entry: ProductSaleHistoryModel) {
 }
 
 function canApplyPrice(entry: ProductSaleHistoryModel) {
-  return !props.disabled && props.currencyId === entry.currencyId && Number.isFinite(entry.discountedPrice) && entry.discountedPrice >= 0
+  return !props.readOnly && !props.disabled && props.currencyId === entry.currencyId && Number.isFinite(entry.discountedPrice) && entry.discountedPrice >= 0
 }
 
 function applyPrice(entry: ProductSaleHistoryModel) {
@@ -404,6 +407,15 @@ watch(
   height: min(884px, 90vh);
   border-radius: 0 8px 8px 0;
 }
+.sale-history.sale-history--inline {
+  position: static;
+  width: 100%;
+  height: min(680px, 70dvh);
+  border: 0;
+  border-radius: 0;
+}
+.sale-history--inline .sale-history__entry { cursor: default; }
+.sale-history.sale-history--inline .sale-history__entry:hover { background: transparent; }
 .sale-history__toggle {
   display: flex;
   width: 100%;
