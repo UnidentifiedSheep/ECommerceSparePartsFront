@@ -59,9 +59,9 @@ const segments = computed<TextSegment[]>(() => {
 
 .search-highlight {
   border-radius: 2px;
-  background: #dff4e8;
+  background: #fde047;
   padding: 0 1px;
-  color: #065f46;
+  color: #422006;
   font: inherit;
   font-weight: 700;
 }

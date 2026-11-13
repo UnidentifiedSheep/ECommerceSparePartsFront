@@ -23,8 +23,7 @@
       :row-class-name="productRowClass"
       height="min(420px, calc(100dvh - 330px))"
       :empty-text="t('products.details.noCrosses')"
-      @row-click="selectedProductId = $event.id"
-      @row-dblclick="selectProduct"
+      @row-click="handleProductClick"
     >
       <el-table-column prop="sku" min-width="170">
         <template #header><SortableColumnHeader :label="t('products.sku')" field="sku" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" /></template>
@@ -45,7 +44,7 @@
         </template>
         <template #default="{ row }"><ProductStockCell :stock="storageCode ? row.availableStock ?? 0 : row.stock" /></template>
       </el-table-column>
-      <el-table-column fixed="right" label="" width="104" align="right">
+      <el-table-column fixed="right" column-key="actions" class-name="product-cross-picker__actions-cell" label="" width="104" align="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" plain :disabled="isLoading" @click.stop="selectProduct(row)" @dblclick.stop>{{ t('products.pick') }}</el-button>
         </template>
@@ -109,6 +108,12 @@ function selectProduct(product: ProductSearchModel) {
   if (!isLoading.value && !loadError.value) emit('select', product)
 }
 
+function handleProductClick(product: ProductSearchModel, column: { columnKey?: string }) {
+  if (column.columnKey === 'actions' || window.getSelection()?.isCollapsed === false) return
+  selectedProductId.value = product.id
+  selectProduct(product)
+}
+
 async function loadCrosses() {
   const currentRequestId = ++requestId
   isLoading.value = true
@@ -170,6 +175,7 @@ onBeforeUnmount(() => { requestId += 1 })
 .product-cross-picker__summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--el-text-color-regular); font-size: 12px; }
 :deep(.el-table__header th) { background: var(--app-surface-muted, #f7f9fa); }
 :deep(.el-table__row) { cursor: pointer; }
+:deep(td.product-cross-picker__actions-cell) { cursor: default; }
 :deep(.product-cross-picker__selected > td.el-table__cell) { background: var(--app-primary-soft); }
 @media (max-width: 760px) {
   .product-cross-picker__heading { align-items: flex-start; flex-direction: column; gap: 10px; }

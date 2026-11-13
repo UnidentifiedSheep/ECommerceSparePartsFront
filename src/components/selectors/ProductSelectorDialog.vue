@@ -144,8 +144,7 @@
         class="product-selector-results"
         height="min(420px, calc(100dvh - 330px))"
         :empty-text="t('products.notFound')"
-        @row-click="selectedProductId = $event.id"
-        @row-dblclick="selectProduct"
+        @row-click="handleProductClick"
       >
         <el-table-column prop="sku" :label="t('products.sku')" min-width="180">
           <template #header>
@@ -179,7 +178,7 @@
             <ProductStockCell :stock="storageCode ? row.availableStock ?? 0 : row.stock" />
           </template>
         </el-table-column>
-        <el-table-column fixed="right" label="" width="180" align="right">
+        <el-table-column fixed="right" column-key="actions" class-name="product-selector-actions-cell" label="" width="180" align="right">
           <template #default="{ row }">
             <div class="product-selector-row-actions" @click.stop @dblclick.stop>
               <el-button size="small" plain :data-crosses-for="row.id" :aria-label="t('products.crossPicker.open', { sku: row.sku })" @click="openCrosses(row)">{{ t('products.crosses') }}</el-button>
@@ -334,6 +333,12 @@ function selectProduct(product: ProductSearchModel) {
   if (isLoading.value) return
   emit('select', product)
   isOpen.value = false
+}
+
+function handleProductClick(product: ProductSearchModel, column: { columnKey?: string }) {
+  if (column.columnKey === 'actions' || window.getSelection()?.isCollapsed === false) return
+  selectedProductId.value = product.id
+  selectProduct(product)
 }
 
 function openCrosses(product: ProductSearchModel) {
@@ -762,7 +767,10 @@ onMounted(async () => {
 }
 
 .product-highlight-toggle__sample {
-  color: #047857;
+  background: #fde047;
+  color: #422006;
+  border-radius: 2px;
+  padding: 0 2px;
   font-size: 12px;
   font-weight: 750;
 }
@@ -794,6 +802,8 @@ onMounted(async () => {
 .product-selector-results :deep(.el-table__row) {
   cursor: pointer;
 }
+
+.product-selector-results :deep(td.product-selector-actions-cell) { cursor: default; }
 
 .product-selector-results :deep(.product-selector-row--selected > td.el-table__cell) {
   background: #eef6f1;
