@@ -19,7 +19,7 @@
     </template>
 
     <DocumentChangeNotice :change="conflict.change.value" :loading="reloadingDocument" @reload="reloadDocument" />
-    <div class="purchase-dialog-body">
+    <div ref="lineNavigationRoot" class="purchase-dialog-body" @keydown="lineNavigation.onKeydown">
       <aside class="purchase-summary">
         <div class="summary-total">
           <span>{{ t('purchases.total') }}</span>
@@ -125,7 +125,7 @@
               <div class="section-title">{{ t('purchases.positions') }}</div>
               <div class="section-subtitle">{{ itemsSummary }}</div>
             </div>
-            <el-button :icon="Plus" type="primary" @click="productSelectorOpen = true">
+            <el-button data-add-product :icon="Plus" type="primary" @click="productSelectorOpen = true">
               {{ t('purchases.addProduct') }}
             </el-button>
           </div>
@@ -140,6 +140,7 @@
               v-for="(item, index) in form.items"
               :key="item.id ?? `new-${index}`"
               class="purchase-item"
+              :data-line-index="index"
             >
               <div class="item-product">
                 <div class="item-index">{{ index + 1 }}</div>
@@ -164,11 +165,11 @@
               <div class="item-controls">
                 <label>
                   <span>{{ t('common.labels.count') }}</span>
-                  <el-input-number v-model="item.count" :min="1" :precision="0" :controls="false" class="w-full" />
+                  <el-input-number v-model="item.count" data-line-field="count" :min="1" :precision="0" :controls="false" class="w-full" />
                 </label>
                 <label>
                   <span>{{ t('common.labels.price') }}</span>
-                  <el-input-number v-model="item.price" :min="0" :precision="2" :controls="false" class="w-full" />
+                  <el-input-number v-model="item.price" data-line-field="price" :min="0" :precision="2" :controls="false" class="w-full" />
                 </label>
                 <label>
                   <span>{{ t('purchases.amount') }}</span>
@@ -205,13 +206,14 @@
       </div>
     </template>
 
-    <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" />
+    <ProductSelectorDialog v-model="productSelectorOpen" @select="addProduct" @closed="lineNavigation.focusPending" />
   </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
+import { useDocumentLineNavigation } from '@/composables/useDocumentLineNavigation'
 import { Check, Close, Delete, Plus } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
@@ -263,6 +265,8 @@ const emit = defineEmits<{
 }>()
 
 const productSelectorOpen = ref(false)
+const lineNavigation = useDocumentLineNavigation(() => productSelectorOpen.value)
+const lineNavigationRoot = lineNavigation.root
 const isSaving = ref(false)
 const reloadingDocument = ref(false)
 const conflict = useDocumentEditConflict('purchase', () => isOpen.value ? props.purchase?.id : undefined, () => isSaving.value)
@@ -377,6 +381,7 @@ function addProduct(product: ProductSearchModel) {
     calculateLogistics: form.withLogistics,
     comment: '',
   })
+  void lineNavigation.focusQuantity(form.items.length - 1)
 }
 
 function removeItem(index: number) {

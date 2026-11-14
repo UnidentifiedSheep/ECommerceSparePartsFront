@@ -154,6 +154,10 @@
             />
           </el-tab-pane>
 
+          <el-tab-pane v-if="canViewSalesHistory" :label="t('sales.history.title')" name="history" lazy>
+            <ProductSaleHistoryPanel v-if="activeTab === 'history'" :key="product.id" :model-value="true" :product="product" inline read-only />
+          </el-tab-pane>
+
           <el-tab-pane v-if="canViewEans" label="EAN" name="eans" lazy>
             <ProductEansPanel
               :eans="product.eans ?? []"
@@ -250,6 +254,7 @@ import ProductCharacteristicsPanel from '@/components/products/ProductCharacteri
 import ProductContentDialog from '@/components/products/ProductContentDialog.vue'
 import ProductContentPanel from '@/components/products/ProductContentPanel.vue'
 import ProductCrossesPanel from '@/components/products/ProductCrossesPanel.vue'
+import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
 import ProductEditDialog from '@/components/products/ProductEditDialog.vue'
 import ProductEansPanel from '@/components/products/ProductEansPanel.vue'
 import ProductImageGallery from '@/components/products/ProductImageGallery.vue'
@@ -288,7 +293,7 @@ import { groupCatalogueCandidateNames, type CatalogueNameGroup } from '@/utils/c
 import { useMultiSort } from '@/composables/useMultiSort.ts'
 import { createProductEanGraphql, deleteProductEanGraphql } from '@/services/graphql/products.ts'
 
-type ProductTab = 'crosses' | 'storage' | 'content' | 'eans'
+type ProductTab = 'crosses' | 'storage' | 'content' | 'eans' | 'history'
 
 const route = useRoute()
 const router = useRouter()
@@ -310,6 +315,7 @@ const loadedTabs = ref<Record<ProductTab, boolean>>({
   storage: false,
   content: false,
   eans: false,
+  history: false,
 })
 
 const page = ref(0)
@@ -331,7 +337,7 @@ const storageContentPage = ref(0)
 const storageContentSize = ref(20)
 const storageContentHasNext = ref(false)
 const showZeroStorageContent = ref(false)
-const { sortBy: crossesSortBy, toggleSort: toggleCrossesSort } = useMultiSort()
+const { sortBy: crossesSortBy, toggleSort: toggleCrossesSort } = useMultiSort(['-count'])
 const { sortBy: storageSortBy, toggleSort: toggleStorageSort } = useMultiSort()
 
 const isLoading = ref(false)
@@ -360,6 +366,7 @@ const editingCharacteristic = ref<ProductCharacteristicModel>()
 const canEditProduct = computed(() => hasPermission('ARTICLES_EDIT'))
 const canDeleteProduct = computed(() => hasPermission('ARTICLES_DELETE'))
 const canViewEans = computed(() => hasPermission('ARTICLE_EANS_GET'))
+const canViewSalesHistory = computed(() => hasPermission('SALES_GET'))
 const canEditEans = computed(() => canViewEans.value && hasPermission('ARTICLE_EANS_EDIT'))
 const canCreateCrosses = computed(() => hasPermission('ARTICLE_CROSSES_CREATE'))
 const canAddImages = computed(() => hasPermission('ARTICLE_IMAGES_CREATE'))
@@ -679,6 +686,7 @@ async function loadProduct(includeCrosses = false) {
     canReviewCatalogueCandidates.value && canEditProduct.value,
     includeCrosses ? size.value : undefined,
     canViewEans.value,
+    crossesSortBy.value,
   )
   product.value = response.product
   catalogueCandidate.value = response.catalogueCandidate
@@ -826,12 +834,12 @@ function resetPageState() {
   productContent.value = []
   alternativeProductNames.value = []
   page.value = 0
-  crossesSortBy.value = []
+  crossesSortBy.value = ['-count']
   storageContentPage.value = 0
   storageSortBy.value = []
   hasNext.value = false
   storageContentHasNext.value = false
-  loadedTabs.value = { crosses: false, storage: false, content: false, eans: false }
+  loadedTabs.value = { crosses: false, storage: false, content: false, eans: false, history: false }
 }
 
 async function loadInitialDetails() {

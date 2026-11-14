@@ -56,6 +56,11 @@
       </div>
 
       <div class="organization-party-card__actions">
+        <button v-if="filterable" type="button" class="organization-party-card__action is-primary" @click.stop="useInFilter">
+          <el-icon><Filter /></el-icon>
+          <span>{{ t('organizations.useInFilter') }}</span>
+          <el-icon class="organization-party-card__action-arrow"><ArrowRight /></el-icon>
+        </button>
         <button
           type="button"
           class="organization-party-card__action"
@@ -86,7 +91,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'
-import { ArrowRight, OfficeBuilding, User } from '@element-plus/icons-vue'
+import { ArrowRight, Filter, OfficeBuilding, User } from '@element-plus/icons-vue'
 import OrganizationApproximateBalance from '@/components/organizations/OrganizationApproximateBalance.vue'
 import type { OrganizationModel } from '@/models/organizationModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
@@ -97,11 +102,20 @@ const props = withDefaults(defineProps<{
   user?: UserModel
   placement?: 'top-start' | 'right-start' | 'bottom-start' | 'left-start'
   triggerEntity?: 'organization' | 'user'
+  filterable?: boolean
 }>(), {
   user: undefined,
   placement: 'right-start',
   triggerEntity: 'organization',
+  filterable: false,
 })
+
+const emit = defineEmits<{ 'filter-organization': [organization: OrganizationModel] }>()
+
+function useInFilter() {
+  visible.value = false
+  emit('filter-organization', props.organization)
+}
 
 const router = useRouter()
 const { t } = useI18n()

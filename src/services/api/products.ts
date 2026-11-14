@@ -182,12 +182,14 @@ export async function getProductById(
   includeCatalogueCandidate = false,
   crossesPageSize?: number,
   includeEans = false,
+  crossesSortBy: string[] = [],
 ): Promise<GetProductByIdResponse> {
   const { product, catalogueCandidate } = await getProductByIdGraphql(
     productId,
     includeCatalogueCandidate,
     crossesPageSize === undefined ? undefined : clampPageSize(crossesPageSize),
     includeEans,
+    crossesSortBy,
   )
   if (!product) throw new Error(`Product ${productId} not found`)
   return { product, catalogueCandidate }

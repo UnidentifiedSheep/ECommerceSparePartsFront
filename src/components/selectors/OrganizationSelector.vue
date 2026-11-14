@@ -256,6 +256,7 @@ const organizationsLoading = ref(false)
 const includeHidden = ref(false)
 const branches = reactive<Record<string, MemberBranch>>({})
 let organizationsRequestId = 0
+let memberSelectionRequestId = 0
 onScopeDispose(() => { disposed = true; ++organizationsRequestId })
 onClickOutside(treeElement, () => { open.value = false }, { ignore: [triggerElement] })
 
@@ -401,6 +402,7 @@ function orderOrganizations(items: OrganizationModel[]) {
 }
 
 function handleOrganizationClick(organization: OrganizationModel) {
+  const selectionRequestId = ++memberSelectionRequestId
   if (props.organizationOnly) {
     selectOrganization(organization)
     return
@@ -411,13 +413,21 @@ function handleOrganizationClick(organization: OrganizationModel) {
     return
   }
 
-  void toggleOrganization(organization)
+  void toggleOrganization(organization, selectionRequestId)
 }
 
-async function toggleOrganization(organization: OrganizationModel) {
+async function toggleOrganization(organization: OrganizationModel, selectionRequestId: number) {
   const state = branch(organization.id)
+  const listRequestId = organizationsRequestId
   state.expanded = !state.expanded
   if (state.expanded && !state.loaded) await loadMembers(organization.id)
+
+  // Select only a complete singleton list, and only while this click is still current.
+  if (!disposed && open.value && !props.disabled
+    && selectionRequestId === memberSelectionRequestId && listRequestId === organizationsRequestId
+    && state.expanded && state.loaded && !state.hasNext && state.members.length === 1) {
+    selectMember(organization, state.members[0]!)
+  }
 }
 
 async function loadMembers(organizationId: string) {
@@ -524,6 +534,7 @@ function organizationDetails(organization: OrganizationModel) {
 
 watch(open, (visible) => {
   if (!visible) {
+    ++memberSelectionRequestId
     searchDebounce.cancel()
     ++organizationsRequestId
     organizationsLoading.value = false

@@ -1,5 +1,5 @@
 <template>
-  <div class="stock-cell" :class="stateClass">
+  <div class="stock-cell" :class="{ 'stock-cell--empty': normalizedStock <= 0 }" :style="{ color: productStockColor(normalizedStock) }">
     <span class="stock-cell__rail">
       <span class="stock-cell__fill" :style="{ width: fillWidth }" />
     </span>
@@ -10,6 +10,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from '@/i18n'
+import { productStockColor } from '@/utils/productStockColor'
 
 const props = defineProps<{
   stock: number
@@ -32,12 +33,6 @@ const fillWidth = computed(() => {
   return `${Math.min(100, Math.max(18, scaled))}%`
 })
 
-const stateClass = computed(() => {
-  const value = normalizedStock.value
-  if (value <= 0) return 'stock-cell--empty'
-  if (value <= 5) return 'stock-cell--low'
-  return 'stock-cell--ok'
-})
 </script>
 
 <style scoped>
@@ -77,11 +72,4 @@ const stateClass = computed(() => {
   color: #b91c1c;
 }
 
-.stock-cell--low {
-  color: #b45309;
-}
-
-.stock-cell--ok {
-  color: #047857;
-}
 </style>

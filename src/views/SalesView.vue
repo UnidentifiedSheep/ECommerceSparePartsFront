@@ -13,6 +13,10 @@
         <div>
           <h2>{{ t('sales.searchTitle') }}</h2>
           <p>{{ activeFiltersText }}</p>
+          <div v-if="selectedBuyerOrganizations.length || selectedProducts.length" class="filter-tags">
+            <el-tag v-for="buyer in selectedBuyerOrganizations" :key="`organization-${buyer.id}`" closable @close="removeBuyerFilter(buyer.id)">{{ buyer.name }}</el-tag>
+            <el-tag v-for="product in selectedProducts" :key="`product-${product.id}`" closable @close="removeProductFilter(product.id)">{{ product.sku || product.name }}</el-tag>
+          </div>
         </div>
         <div class="toolbar-actions">
           <span v-if="live.unavailable.value" role="status">{{ t('common.live.unavailable') }}</span>
@@ -109,11 +113,10 @@
                 <span>{{ t('sales.addBuyer') }}</span>
                 <div class="picker-row">
                   <OrganizationSelector
-                    v-model="buyerOrganizationToAdd"
+                    @update:model-value="addBuyerFilter"
                     organization-only
                     :placeholder="t('sales.buyer')"
                   />
-                  <el-button :disabled="!buyerOrganizationToAdd" @click="addBuyerFilter">{{ t('common.actions.add') }}</el-button>
                 </div>
                 <div v-if="selectedBuyerOrganizations.length > 0" class="filter-tags">
                   <el-tag
@@ -183,11 +186,13 @@
             <el-table-column :label="t('sales.buyer')" min-width="140">
               <template #default="{ row }">
                 <div class="document-party-cell">
-                  <OrganizationPartyHoverCard :organization="row.organization" :user="row.buyer" />
+                  <OrganizationPartyHoverCard :organization="row.organization" :user="row.buyer" filterable @filter-organization="useOrganizationFilter" />
                   <OrganizationPartyHoverCard
                     :organization="row.organization"
                     :user="row.buyer"
                     trigger-entity="user"
+                    filterable
+                    @filter-organization="useOrganizationFilter"
                   />
                 </div>
               </template>
@@ -305,7 +310,6 @@ const selectedSale = ref<SaleModel>()
 const saleContent = ref<SaleContentModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const selectedBuyerOrganizations = ref<OrganizationModel[]>([])
-const buyerOrganizationToAdd = ref<OrganizationSelection>()
 const currencyIds = ref<number[]>([])
 const defaultSaleStates: SaleState[] = ['Completed']
 const saleStates = ref<SaleState[]>([...defaultSaleStates])
@@ -426,7 +430,6 @@ function saleRowClassName({ row }: { row: SaleModel }) {
 function resetFilters() {
   dateRange.value = null
   selectedBuyerOrganizations.value = []
-  buyerOrganizationToAdd.value = undefined
   currencyIds.value = []
   saleStates.value = [...defaultSaleStates]
   selectedProducts.value = []
@@ -448,15 +451,18 @@ async function applyDrawerFilters() {
   await loadSales(true)
 }
 
-function addBuyerFilter() {
-  if (!buyerOrganizationToAdd.value) return
+function addBuyerFilter(selection?: OrganizationSelection) {
+  if (!selection) return
 
-  const organizationId = buyerOrganizationToAdd.value.organization.id
+  const organizationId = selection.organization.id
   const exists = selectedBuyerOrganizations.value.some((buyer) => buyer.id === organizationId)
   if (!exists) {
-    selectedBuyerOrganizations.value.push(buyerOrganizationToAdd.value.organization)
+    selectedBuyerOrganizations.value.push(selection.organization)
   }
-  buyerOrganizationToAdd.value = undefined
+}
+
+function useOrganizationFilter(organization: OrganizationModel) {
+  selectedBuyerOrganizations.value = [organization]
 }
 
 function removeBuyerFilter(id: string) {

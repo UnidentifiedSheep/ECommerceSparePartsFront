@@ -1,9 +1,9 @@
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="inline">
   <aside
     class="sale-history"
-    :class="{ 'sale-history--open': isOpen }"
-    :style="{ zIndex: panelZIndex }"
+    :class="{ 'sale-history--open': isOpen, 'sale-history--inline': inline }"
+    :style="inline ? undefined : { zIndex: panelZIndex }"
     :aria-label="canRecommend ? t('sales.recommendation.panelTitle') : t('sales.history.title')"
   >
     <button
@@ -24,11 +24,11 @@
       <header class="sale-history__header">
         <div class="min-w-0">
           <div class="sale-history__title">{{ canRecommend ? t('sales.recommendation.panelTitle') : t('sales.history.title') }}</div>
-          <div v-if="product" class="sale-history__product">
+          <div v-if="product && !inline" class="sale-history__product">
             <strong :title="product.name">{{ product.name }}</strong>
             <span>{{ product.sku }}</span>
           </div>
-          <div v-else class="sale-history__hint">{{ t('sales.history.selectPosition') }}</div>
+          <div v-else-if="!product" class="sale-history__hint">{{ t('sales.history.selectPosition') }}</div>
         </div>
         <div class="sale-history__header-actions">
           <el-button
@@ -41,7 +41,7 @@
             :title="t('common.actions.refresh')"
             @click="refreshAll"
           />
-          <el-button text @click="isOpen = false">
+          <el-button v-if="!inline" text @click="isOpen = false">
             <el-icon><ArrowRight /></el-icon>
             {{ t('sales.history.hide') }}
           </el-button>
@@ -78,6 +78,7 @@
           </el-radio-group>
           <div class="sale-history__filter-row">
             <el-checkbox v-model="showCrosses" @change="refresh">{{ t('sales.history.showCrosses') }}</el-checkbox>
+            <el-tag v-if="inline && historyOrganization" closable @close="clearHistoryOrganization">{{ historyOrganization.name }}</el-tag>
           </div>
         </div>
 
@@ -107,14 +108,15 @@
                 <SortableColumnHeader :label="t('sales.history.buyPriceColumn')" field="averageBuyPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
               </div>
             </div>
-            <button
+            <component
+              :is="readOnly ? 'div' : 'button'"
               v-for="entry in history"
               :key="entry.saleContentId"
-              type="button"
+              :type="readOnly ? undefined : 'button'"
               class="sale-history__entry"
               :class="{ 'is-applied': appliedEntryId === entry.saleContentId && selectedPrice === entry.discountedPrice }"
-              :disabled="!canApplyPrice(entry)"
-              :aria-pressed="appliedEntryId === entry.saleContentId && selectedPrice === entry.discountedPrice"
+              :disabled="readOnly ? undefined : !canApplyPrice(entry)"
+              :aria-pressed="readOnly ? undefined : appliedEntryId === entry.saleContentId && selectedPrice === entry.discountedPrice"
               :title="entryTitle(entry)"
               @click="applyPrice(entry)"
             >
@@ -123,10 +125,21 @@
                 <time :datetime="entry.saleDate">{{ formatDate(entry.saleDate) }}</time>
               </span>
               <span class="sale-history__identity">
-                <span v-if="entry.product" class="sale-history__entry-product" :class="{ 'is-match': matchesSku(entry) }" :title="matchesSku(entry) ? t('sales.history.sameSku') : entry.product.name">
+                <span v-if="entry.product && (!readOnly || entry.productId !== product.id)" class="sale-history__entry-product" :class="{ 'is-match': matchesSku(entry) }" :title="matchesSku(entry) ? t('sales.history.sameSku') : entry.product.name">
                   {{ entry.product.sku }}<span v-if="entry.product.producerName"> · {{ entry.product.producerName }}</span>
                 </span>
-                <span v-if="entry.organization" class="sale-history__organization" :class="{ 'is-match': matchesOrganization(entry) }" :title="entry.organization.name">
+                <button
+                  v-if="entry.organization && inline && readOnly && !organizationId"
+                  type="button"
+                  class="sale-history__organization sale-history__organization-filter"
+                  :class="{ 'is-match': matchesOrganization(entry) }"
+                  :title="t('organizations.useInFilter')"
+                  :aria-label="`${t('organizations.useInFilter')}: ${entry.organization.name}`"
+                  @click.stop="filterHistoryOrganization(entry.organization)"
+                >
+                  {{ entry.organization.name }}<el-icon><Filter /></el-icon>
+                </button>
+                <span v-else-if="entry.organization" class="sale-history__organization" :class="{ 'is-match': matchesOrganization(entry) }" :title="entry.organization.name">
                   {{ entry.organization.name }}
                 </span>
               </span>
@@ -134,12 +147,12 @@
                 <span><span class="sr-only">{{ t('common.labels.count') }}: </span>{{ entry.quantity.toLocaleString(locale) }}</span>
                 <span :title="t('sales.history.averageBuyPrice')"><span class="sr-only">{{ t('sales.history.averageBuyPrice') }}: </span>{{ formatMoney(entry.averageBuyPrice, entry.currency?.currencySign) }}</span>
               </span>
-            </button>
+            </component>
             <div v-if="isLoadingMore" class="sale-history__loading-more" role="status">{{ t('sales.history.loading') }}</div>
           </div>
         </div>
 
-        <footer class="sale-history__footer">
+        <footer v-if="!readOnly" class="sale-history__footer">
           <span class="sale-history__hint" role="status">{{ hasAppliedPrice ? t('sales.history.priceApplied') : t('sales.history.applyHint') }}</span>
         </footer>
       </template>
@@ -151,7 +164,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { useResizeObserver } from '@vueuse/core'
-import { ArrowLeft, ArrowRight, Refresh } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Filter, Refresh } from '@element-plus/icons-vue'
 import { useZIndex } from 'element-plus'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import {
@@ -179,6 +192,8 @@ const props = defineProps<{
   quantity?: number
   selectionKey?: number
   disabled?: boolean
+  inline?: boolean
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -186,7 +201,7 @@ const emit = defineEmits<{
   'apply-recommended-price': [value: AppliedPriceRecommendation]
 }>()
 const { hasPermission } = usePermissions()
-const canRecommend = computed(() => hasPermission('PRICES_GET_STANDARD', 'PRICES_GET_DETAILED'))
+const canRecommend = computed(() => !props.readOnly && hasPermission('PRICES_GET_STANDARD', 'PRICES_GET_DETAILED'))
 const appliedEntryId = ref<number>()
 const recommendedPriceRef = ref<InstanceType<typeof RecommendedSalePrice>>()
 const isOpen = defineModel<boolean>({ required: true })
@@ -202,7 +217,19 @@ const errorMessage = ref('')
 const hasNext = ref(false)
 const showCrosses = ref(false)
 const onlyThisOrganization = ref(false)
-const effectiveOrganizationId = computed(() => props.organizationId || (onlyThisOrganization.value ? props.preferredOrganizationId : undefined))
+const historyOrganization = ref<ProductSaleHistoryModel['organization']>()
+const effectiveOrganizationId = computed(() => props.organizationId || historyOrganization.value?.id || (onlyThisOrganization.value ? props.preferredOrganizationId : undefined))
+
+function filterHistoryOrganization(organization: NonNullable<ProductSaleHistoryModel['organization']>) {
+  if (historyOrganization.value?.id === organization.id) return
+  historyOrganization.value = organization
+  refresh()
+}
+
+function clearHistoryOrganization() {
+  historyOrganization.value = undefined
+  refresh()
+}
 const page = ref(0)
 const pageSize = 10
 const { sortBy, toggleSort } = useMultiSort(['-saleDate'])
@@ -227,7 +254,7 @@ function matchesSku(entry: ProductSaleHistoryModel) {
 }
 
 function matchesOrganization(entry: ProductSaleHistoryModel) {
-  const organizationId = props.organizationId || props.preferredOrganizationId
+  const organizationId = effectiveOrganizationId.value || props.preferredOrganizationId
   return Boolean(organizationId && entry.organization?.id === organizationId)
 }
 
@@ -335,9 +362,9 @@ function entryTitle(entry: ProductSaleHistoryModel) {
   const date = new Date(entry.saleDate)
   const dateTime = Number.isNaN(date.getTime()) ? entry.saleDate : new Intl.DateTimeFormat(locale.value, { dateStyle: 'short', timeStyle: 'short' }).format(date)
   return [
-    canApplyPrice(entry) ? t('sales.history.applyPrice', { price: formatMoney(entry.discountedPrice, entry.currency?.currencySign) }) : t('sales.history.priceUnavailable'),
+    props.readOnly ? undefined : canApplyPrice(entry) ? t('sales.history.applyPrice', { price: formatMoney(entry.discountedPrice, entry.currency?.currencySign) }) : t('sales.history.priceUnavailable'),
     entry.productId !== props.product?.id ? t('sales.history.cross') : undefined,
-    entry.product ? [entry.product.sku, entry.product.producerName, entry.product.name].filter(Boolean).join(' · ') : undefined,
+    entry.product && (!props.readOnly || entry.productId !== props.product?.id) ? [entry.product.sku, entry.product.producerName, entry.product.name].filter(Boolean).join(' · ') : undefined,
     dateTime,
     entry.organization?.name,
     entry.storageCode,
@@ -345,7 +372,7 @@ function entryTitle(entry: ProductSaleHistoryModel) {
 }
 
 function canApplyPrice(entry: ProductSaleHistoryModel) {
-  return !props.disabled && props.currencyId === entry.currencyId && Number.isFinite(entry.discountedPrice) && entry.discountedPrice >= 0
+  return !props.readOnly && !props.disabled && props.currencyId === entry.currencyId && Number.isFinite(entry.discountedPrice) && entry.discountedPrice >= 0
 }
 
 function applyPrice(entry: ProductSaleHistoryModel) {
@@ -404,6 +431,15 @@ watch(
   height: min(884px, 90vh);
   border-radius: 0 8px 8px 0;
 }
+.sale-history.sale-history--inline {
+  position: static;
+  width: 100%;
+  height: min(680px, 70dvh);
+  border: 0;
+  border-radius: 0;
+}
+.sale-history--inline .sale-history__entry { cursor: default; }
+.sale-history.sale-history--inline .sale-history__entry:hover { background: transparent; }
 .sale-history__toggle {
   display: flex;
   width: 100%;
@@ -465,7 +501,7 @@ watch(
   padding: 0 16px 12px;
   border-bottom: 1px solid var(--app-border);
 }
-.sale-history__filter-row { display: flex; align-items: center; gap: 12px; }
+.sale-history__filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .sale-history__filter-row :deep(.el-checkbox) { flex: 0 0 auto; height: 28px; margin: 0; }
 .sale-history__results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .sale-history__list { min-width: 0; }
@@ -511,6 +547,11 @@ watch(
 .sale-history__identity > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 4px; border-radius: 3px; }
 .sale-history__entry-product { min-width: 0; font-weight: 600; }
 .sale-history__organization { min-width: 0; color: var(--app-text-muted); text-align: right; }
+.sale-history__organization-filter { display: inline-flex; justify-content: flex-end; align-items: center; gap: 6px; border: 0; background: transparent; font: inherit; cursor: pointer; }
+.sale-history__organization-filter .el-icon { flex: none; color: var(--app-primary); }
+.sale-history__organization-filter:hover,
+.sale-history__organization-filter:focus-visible { color: var(--app-primary); outline: 2px solid var(--app-primary); outline-offset: 1px; }
+.sale-history--inline .sale-history__organization { grid-column: 2; }
 .sale-history__entry-product.is-match { background: var(--app-primary-soft); color: var(--app-primary); box-shadow: inset 0 0 0 1px var(--app-border-strong); }
 .sale-history__organization.is-match { background: #fffbeb; color: #92400e; }
 .sale-history__details { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: baseline; gap: 8px; color: var(--app-text-muted); font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; }

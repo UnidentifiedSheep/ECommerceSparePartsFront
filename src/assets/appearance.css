@@ -46,4 +46,4 @@
   --el-table-row-hover-bg-color: var(--app-primary-soft);
   --el-table-current-row-bg-color: var(--app-primary-soft);
 }
-::selection { background: var(--app-primary-soft); color: var(--app-primary); }
+::selection { background: var(--app-primary); color: #fff; }

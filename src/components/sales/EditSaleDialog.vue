@@ -24,7 +24,7 @@
     </template>
 
     <DocumentChangeNotice :change="conflict.change.value" :loading="reloadingDocument" @reload="reloadDocument" />
-    <div class="sale-dialog-body">
+    <div ref="lineNavigationRoot" class="sale-dialog-body" @keydown="lineNavigation.onKeydown">
       <aside class="sale-summary">
         <div class="summary-total">
           <span>{{ t('sales.payable') }}</span>
@@ -149,7 +149,7 @@
               <div class="section-title">{{ t('sales.salePositions') }}</div>
               <div class="section-subtitle">{{ itemsSummary }}</div>
             </div>
-            <el-button :icon="Plus" type="primary" @click="productSelectorOpen = true">
+            <el-button data-add-product :icon="Plus" type="primary" @click="productSelectorOpen = true">
               {{ t('sales.addProduct') }}
             </el-button>
           </div>
@@ -164,6 +164,7 @@
               v-for="(item, index) in form.items"
               :key="item.id ?? `new-${index}`"
               class="sale-item"
+              :data-line-index="index"
               :class="{
                 'sale-item--selected': selectedHistoryItemIndex === index,
                 'sale-item--draft': item.id == null,
@@ -189,7 +190,7 @@
                       <button
                         type="button"
                         class="stock-badge"
-                        :class="stockColorClass(availableProductStock(item))"
+                        :style="{ color: productStockColor(availableProductStock(item)) }"
                         :disabled="!props.sale?.storageCode"
                         @click="openStorageBatches(item)"
                       >
@@ -206,6 +207,7 @@
                     <span>{{ t('common.labels.count') }}</span>
                     <el-input-number
                       v-model="item.count"
+                      data-line-field="count"
                       :min="1"
                       :precision="0"
                       :controls="false"
@@ -217,7 +219,7 @@
                   </label>
                   <label :class="{ 'item-field--error': item.price <= 0 }">
                     <span>{{ t('common.labels.price') }}</span>
-                    <el-input-number v-model="item.price" :min="0" :precision="2" :controls="false" class="w-full" />
+                    <el-input-number v-model="item.price" data-line-field="price" :min="0" :precision="2" :controls="false" class="w-full" />
                     <small v-if="item.price <= 0" class="item-field-error">
                       {{ t('sales.priceRequired') }}
                     </small>
@@ -317,7 +319,7 @@
       </div>
     </template>
 
-    <ProductSelectorDialog v-model="productSelectorOpen" :storage-code="props.sale?.storageCode" @select="addProduct" />
+    <ProductSelectorDialog v-model="productSelectorOpen" :storage-code="props.sale?.storageCode" @select="addProduct" @closed="lineNavigation.focusPending" />
     <StorageContentBatchesDialog
       v-model="storageBatchesOpen"
       :storage-code="props.sale?.storageCode"
@@ -343,6 +345,8 @@ import type { SaleContentModel, SaleModel } from '@/models/saleModel.ts'
 import { getProductAvailableStock, getProductsAvailableStock } from '@/services/api/products.ts'
 import { editSale, getSale, getSaleContent, type ProductSaleHistoryModel } from '@/services/api/sales.ts'
 import DocumentChangeNotice from '@/components/common/DocumentChangeNotice.vue'
+import { useDocumentLineNavigation } from '@/composables/useDocumentLineNavigation'
+import { productStockColor } from '@/utils/productStockColor'
 import { useDocumentEditConflict } from '@/composables/useDocumentEditConflict'
 import { formatLocalDateTime, toLocalDateTimeInputValue } from '@/utils/dateTime.ts'
 import { resolveDefaultCurrencyId } from '@/utils/defaultCurrency.ts'
@@ -383,6 +387,8 @@ const emit = defineEmits<{
 }>()
 
 const productSelectorOpen = ref(false)
+const lineNavigation = useDocumentLineNavigation(() => productSelectorOpen.value)
+const lineNavigationRoot = lineNavigation.root
 const storageBatchesOpen = ref(false)
 const storageBatchesProduct = ref<EditSaleProductForm>()
 const historyPanelOpen = ref(false)
@@ -564,6 +570,7 @@ async function addProduct(product: ProductSearchModel) {
   selectedHistoryItemIndex.value = form.items.length - 1
   historyPanelOpen.value = true
   applyDiscountModesToItems()
+  void lineNavigation.focusQuantity(form.items.length - 1)
 }
 
 async function loadProductStorageStock(productId: number) {
@@ -719,12 +726,6 @@ function availableStockForItem(item: EditSaleItemForm) {
 
 function hasStockError(item: EditSaleItemForm) {
   return item.count > availableStockForItem(item)
-}
-
-function stockColorClass(stock: number) {
-  if (stock <= 0) return 'stock-value stock-value--danger'
-  if (stock <= 5) return 'stock-value stock-value--warning'
-  return 'stock-value stock-value--ok'
 }
 
 function formatDate(value?: string | null) {

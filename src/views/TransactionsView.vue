@@ -59,10 +59,10 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column v-if="!compactTransfer" key="sender" :label="t('transactions.sender')" min-width="180"><template #default="{ row }"><OrganizationPartyHoverCard :organization="row.sender" /></template></el-table-column>
-            <el-table-column v-if="!compactTransfer" key="receiver" :label="t('transactions.receiver')" min-width="180"><template #default="{ row }"><OrganizationPartyHoverCard :organization="row.receiver" /></template></el-table-column>
+            <el-table-column v-if="!compactTransfer" key="sender" :label="t('transactions.sender')" min-width="180"><template #default="{ row }"><OrganizationPartyHoverCard :organization="row.sender" filterable @filter-organization="useOrganizationFilter" /></template></el-table-column>
+            <el-table-column v-if="!compactTransfer" key="receiver" :label="t('transactions.receiver')" min-width="180"><template #default="{ row }"><OrganizationPartyHoverCard :organization="row.receiver" filterable @filter-organization="useOrganizationFilter" /></template></el-table-column>
             <el-table-column v-else key="parties" :label="t('transactions.transferParties')" min-width="195">
-              <template #default="{ row }"><div class="compact-parties"><OrganizationPartyHoverCard :organization="row.sender" /><el-icon><ArrowRight /></el-icon><OrganizationPartyHoverCard :organization="row.receiver" /></div></template>
+              <template #default="{ row }"><div class="compact-parties"><OrganizationPartyHoverCard :organization="row.sender" filterable @filter-organization="useOrganizationFilter" /><el-icon><ArrowRight /></el-icon><OrganizationPartyHoverCard :organization="row.receiver" filterable @filter-organization="useOrganizationFilter" /></div></template>
             </el-table-column>
             <el-table-column :label="t('transactions.amount')" min-width="145" align="right"><template #default="{ row }"><strong class="transaction-amount" :class="amountClass(row)">{{ rowMoney(row) }}</strong></template></el-table-column>
           </el-table>
@@ -142,6 +142,11 @@ const tableNavigation = useTableArrowNavigation({
 const currencies = ref<CurrencyModel[]>([])
 const sender = ref<OrganizationSelection | undefined>()
 const receiver = ref<OrganizationSelection | undefined>()
+function useOrganizationFilter(organization: OrganizationSelection['organization']) {
+  filters.logicalOperator = 'Or'
+  sender.value = { organization }
+  receiver.value = undefined
+}
 const canLoadMore = ref(false)
 const loadMoreError = ref('')
 const dateRange = ref<[string, string] | null>(null)

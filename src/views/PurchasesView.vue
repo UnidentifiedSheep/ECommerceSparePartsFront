@@ -13,6 +13,10 @@
         <div>
           <h2>{{ t('purchases.searchTitle') }}</h2>
           <p>{{ activeFiltersText }}</p>
+          <div v-if="selectedSuppliers.length || selectedProducts.length" class="filter-tags">
+            <el-tag v-for="supplier in selectedSuppliers" :key="`organization-${supplier.organization.id}`" closable @close="removeSupplierFilter(supplier.organization.id)">{{ supplier.organization.name }}</el-tag>
+            <el-tag v-for="product in selectedProducts" :key="`product-${product.id}`" closable @close="removeProductFilter(product.id)">{{ product.sku || product.name }}</el-tag>
+          </div>
         </div>
         <div class="toolbar-actions">
           <span v-if="live.unavailable.value" role="status">{{ t('common.live.unavailable') }}</span>
@@ -87,11 +91,10 @@
                 <span>{{ t('purchases.addSupplier') }}</span>
                 <div class="picker-row">
                   <OrganizationSelector
-                    v-model="supplierToAdd"
-                    :member-required="false"
+                    organization-only
+                    @update:model-value="addSupplierFilter"
                     :placeholder="t('purchases.supplier')"
                   />
-                  <el-button :disabled="!supplierToAdd" @click="addSupplierFilter">{{ t('common.actions.add') }}</el-button>
                 </div>
                 <div v-if="selectedSuppliers.length > 0" class="filter-tags">
                   <el-tag
@@ -164,11 +167,15 @@
                       <OrganizationPartyHoverCard
                         :organization="row.supplierOrganization"
                         :user="row.supplier"
+                        filterable
+                        @filter-organization="useOrganizationFilter"
                       />
                       <OrganizationPartyHoverCard
                         :organization="row.supplierOrganization"
                         :user="row.supplier"
                         trigger-entity="user"
+                        filterable
+                        @filter-organization="useOrganizationFilter"
                       />
                     </div>
                   </template>
@@ -289,7 +296,6 @@ const purchaseContent = ref<PurchaseContentModel[]>([])
 const currencies = ref<CurrencyModel[]>([])
 const storages = ref<StorageModel[]>([])
 const selectedSuppliers = ref<OrganizationSelection[]>([])
-const supplierToAdd = ref<OrganizationSelection>()
 const currencyIds = ref<number[]>([])
 const selectedProducts = ref<ProductSearchModel[]>([])
 const searchTerm = ref<string>()
@@ -394,7 +400,6 @@ function formatCurrency(value: number, sign?: string) {
 function resetFilters() {
   dateRange.value = null
   selectedSuppliers.value = []
-  supplierToAdd.value = undefined
   currencyIds.value = []
   selectedProducts.value = []
   searchTerm.value = undefined
@@ -410,14 +415,17 @@ async function handleSortToggle(field: string, event: MouseEvent) {
   await loadPurchases(true)
 }
 
-function addSupplierFilter() {
-  if (!supplierToAdd.value) return
+function addSupplierFilter(selection?: OrganizationSelection) {
+  if (!selection) return
 
-  const exists = selectedSuppliers.value.some((supplier) => supplier.organization.id === supplierToAdd.value?.organization.id)
+  const exists = selectedSuppliers.value.some((supplier) => supplier.organization.id === selection.organization.id)
   if (!exists) {
-    selectedSuppliers.value.push(supplierToAdd.value)
+    selectedSuppliers.value.push(selection)
   }
-  supplierToAdd.value = undefined
+}
+
+function useOrganizationFilter(organization: OrganizationSelection['organization']) {
+  selectedSuppliers.value = [{ organization }]
 }
 
 function removeSupplierFilter(id: string) {

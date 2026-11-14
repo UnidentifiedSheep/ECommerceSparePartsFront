@@ -6,6 +6,7 @@
     width="min(1040px, calc(100vw - 24px))"
     top="min(8vh, 64px)"
     class="product-selector-dialog"
+    @closed="emit('closed')"
   >
     <ProductCrossPicker
       v-if="isOpen && crossProduct"
@@ -144,15 +145,21 @@
         class="product-selector-results"
         height="min(420px, calc(100dvh - 330px))"
         :empty-text="t('products.notFound')"
-        @row-click="selectedProductId = $event.id"
-        @row-dblclick="selectProduct"
+        @row-click="handleProductClick"
       >
         <el-table-column prop="sku" :label="t('products.sku')" min-width="180">
           <template #header>
             <SortableColumnHeader :label="t('products.sku')" field="sku" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
           </template>
           <template #default="{ row }">
-            <ProductSkuCell :sku="row.sku" :indicator="row.indicator" :highlight="highlightedSku(row)" />
+            <span
+              class="product-selector-pick-target"
+              role="button"
+              tabindex="0"
+              :aria-label="`${t('products.pick')} ${row.sku}`"
+              @keydown.enter.prevent.stop="selectProduct(row)"
+              @keydown.space.prevent.stop="selectProduct(row)"
+            ><ProductSkuCell :sku="row.sku" :indicator="row.indicator" :highlight="highlightedSku(row)" /></span>
           </template>
         </el-table-column>
         <el-table-column prop="name" :label="t('common.labels.name')" min-width="300" show-overflow-tooltip>
@@ -179,11 +186,10 @@
             <ProductStockCell :stock="storageCode ? row.availableStock ?? 0 : row.stock" />
           </template>
         </el-table-column>
-        <el-table-column fixed="right" label="" width="180" align="right">
+        <el-table-column fixed="right" column-key="actions" class-name="product-selector-actions-cell" label="" width="94" align="right">
           <template #default="{ row }">
             <div class="product-selector-row-actions" @click.stop @dblclick.stop>
               <el-button size="small" plain :data-crosses-for="row.id" :aria-label="t('products.crossPicker.open', { sku: row.sku })" @click="openCrosses(row)">{{ t('products.crosses') }}</el-button>
-              <el-button size="small" type="primary" plain @click="selectProduct(row)">{{ t('products.pick') }}</el-button>
             </div>
           </template>
         </el-table-column>
@@ -234,6 +240,7 @@ const { hasPermission } = usePermissions()
 const isOpen = defineModel<boolean>({ required: true })
 const emit = defineEmits<{
   select: [product: ProductSearchModel]
+  closed: []
 }>()
 
 const canUseCatalogueSearch = computed(() => hasPermission('CATALOGUE_CANDIDATES_REVIEW'))
@@ -334,6 +341,12 @@ function selectProduct(product: ProductSearchModel) {
   if (isLoading.value) return
   emit('select', product)
   isOpen.value = false
+}
+
+function handleProductClick(product: ProductSearchModel, column: { columnKey?: string }) {
+  if (column.columnKey === 'actions' || window.getSelection()?.isCollapsed === false) return
+  selectedProductId.value = product.id
+  selectProduct(product)
 }
 
 function openCrosses(product: ProductSearchModel) {
@@ -762,7 +775,10 @@ onMounted(async () => {
 }
 
 .product-highlight-toggle__sample {
-  color: #047857;
+  background: #fde047;
+  color: #422006;
+  border-radius: 2px;
+  padding: 0 2px;
   font-size: 12px;
   font-weight: 750;
 }
@@ -794,6 +810,10 @@ onMounted(async () => {
 .product-selector-results :deep(.el-table__row) {
   cursor: pointer;
 }
+
+.product-selector-results :deep(td.product-selector-actions-cell) { cursor: default; }
+.product-selector-pick-target { display: inline-flex; max-width: 100%; border-radius: 2px; }
+.product-selector-pick-target:focus-visible { outline: 2px solid var(--app-primary); outline-offset: 2px; }
 
 .product-selector-results :deep(.product-selector-row--selected > td.el-table__cell) {
   background: #eef6f1;

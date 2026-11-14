@@ -261,6 +261,7 @@ export async function getProductByIdGraphql(
   includeCatalogueCandidate = false,
   crossesPageSize?: number,
   includeEans = false,
+  crossesSortBy: string[] = [],
 ): Promise<{
   product: ProductModel | null
   catalogueCandidate: CatalogueCandidateReviewModel | null
@@ -269,7 +270,7 @@ export async function getProductByIdGraphql(
     query: ProductByIdDocument,
     variables: {
       id: productId,
-      crossesInput: { pagination: { page: 0, size: crossesPageSize ?? 1 }, sortBy: [] },
+      crossesInput: { pagination: { page: 0, size: crossesPageSize ?? 1 }, sortBy: mapSortBy(crossesSortBy) },
       includeCrosses: crossesPageSize !== undefined,
       includeCatalogueCandidate,
       includeEans,
