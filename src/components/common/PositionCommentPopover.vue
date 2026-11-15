@@ -11,6 +11,7 @@
     <template #reference>
       <span
         class="position-comment-trigger"
+        :class="{ 'position-comment-trigger--match': hasQueryMatch }"
         tabindex="0"
         title=""
         :aria-label="t('common.labels.comment')"
@@ -20,18 +21,21 @@
         <el-icon aria-hidden="true"><ChatLineSquare /></el-icon>
       </span>
     </template>
-    <div class="position-comment-text">{{ comment }}</div>
+    <div class="position-comment-text"><QueryHighlightedText :text="comment ?? ''" :query="query" /></div>
   </el-popover>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ChatLineSquare } from '@element-plus/icons-vue'
 import { useI18n } from '@/i18n'
+import QueryHighlightedText from '@/components/common/QueryHighlightedText.vue'
+import { queryTextSegments } from '@/utils/queryHighlights'
 
-const props = defineProps<{ comment?: string | null }>()
+const props = defineProps<{ comment?: string | null; query?: string }>()
 const { t } = useI18n()
 const visible = ref(false)
+const hasQueryMatch = computed(() => queryTextSegments(props.comment ?? '', props.query).some(segment => segment.highlighted))
 
 watch(() => props.comment, () => { visible.value = false })
 </script>
@@ -54,6 +58,7 @@ watch(() => props.comment, () => { visible.value = false })
   outline-offset: 1px;
   border-radius: var(--el-border-radius-small);
 }
+.position-comment-trigger--match { border-radius: 4px; background: #fde047; color: #422006; }
 .position-comment-trigger :deep(.el-icon) { font-size: 16px; }
 .position-comment-text {
   max-height: min(280px, 50dvh);

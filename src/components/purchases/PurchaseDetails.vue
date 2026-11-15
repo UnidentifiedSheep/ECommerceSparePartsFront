@@ -33,18 +33,19 @@
         </div>
 
         <div v-loading="loading" class="content-list">
-          <article v-for="row in content" :key="row.id" class="content-row">
+          <article v-for="row in highlightedContent" :key="row.id" class="content-row">
             <div class="product-cell" :title="[row.product.sku, row.product.producerName, row.product.name].filter(Boolean).join(' · ')">
               <div class="product-heading">
                 <RouterLink v-if="row.product.id" :to="{ name: 'product-details', params: { id: row.product.id } }" class="product-link">
-                  {{ row.product.sku || row.product.name || t('purchases.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
+                  <QueryHighlightedText :text="row.product.sku || row.product.name || t('purchases.unnamed')" :query="searchQuery" :sku="Boolean(row.product.sku)" /><span v-if="row.product.producerName"> • <QueryHighlightedText :text="row.product.producerName" :query="searchQuery" /></span>
                 </RouterLink>
                 <strong v-else class="product-link">
-                  {{ row.product.sku || row.product.name || t('purchases.unnamed') }}<span v-if="row.product.producerName"> • {{ row.product.producerName }}</span>
+                  <QueryHighlightedText :text="row.product.sku || row.product.name || t('purchases.unnamed')" :query="searchQuery" :sku="Boolean(row.product.sku)" /><span v-if="row.product.producerName"> • <QueryHighlightedText :text="row.product.producerName" :query="searchQuery" /></span>
                 </strong>
-                <PositionCommentPopover :comment="row.comment" />
+                <PositionCommentPopover :comment="row.comment" :query="searchQuery" />
               </div>
-              <span v-if="row.product.name && row.product.name !== row.product.sku" class="product-meta">{{ row.product.name }}</span>
+              <span v-if="row.product.name && row.product.name !== row.product.sku" class="product-meta"><QueryHighlightedText :text="row.product.name" :query="searchQuery" preview /></span>
+              <span v-if="row.commentPreview" class="product-meta product-comment-match"><QueryHighlightedText :text="row.commentPreview" :query="searchQuery" /></span>
             </div>
             <span class="content-value content-value--count">{{ row.count.toLocaleString(locale) }}</span>
             <span class="content-value" :title="formatCurrency(row.price, purchase.currency.currencySign)">{{ formatCurrency(row.price, purchase.currency.currencySign) }}</span>
@@ -68,7 +69,7 @@
 
         <section v-if="purchase.comment" class="details-comment">
           <span>{{ t('common.labels.comment') }}</span>
-          <p>{{ purchase.comment }}</p>
+          <p><QueryHighlightedText :text="purchase.comment" :query="searchQuery" /></p>
         </section>
 
         <el-collapse v-if="purchase.logistics" class="logistics-summary">
@@ -100,21 +101,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
 import type { LogisticPricingType } from '@/enums/logisticPricingType.ts'
 import type { RouteType } from '@/enums/routeType.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
+import QueryHighlightedText from '@/components/common/QueryHighlightedText.vue'
+import { queryMatchPreview } from '@/utils/queryHighlights'
 import PositionCommentPopover from '@/components/common/PositionCommentPopover.vue'
 
 const { locale, t } = useI18n()
 
-defineProps<{
+const props = defineProps<{
   purchase?: PurchaseModel
   content: PurchaseContentModel[]
   loading: boolean
+  searchQuery?: string
 }>()
+
+const highlightedContent = computed(() => props.content.map(row => ({ ...row, commentPreview: queryMatchPreview(row.comment, props.searchQuery, 16) })))
 
 function formatDate(value?: string | null) {
   return formatLocalDateTime(value, t('purchases.noData'))
@@ -135,6 +142,7 @@ function routeTypeLabel(type: RouteType) {
 
 <style scoped>
 .purchase-details { display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; }
+.product-comment-match { white-space: pre-wrap; }
 .details-header {
   display: flex;
   flex: none;
