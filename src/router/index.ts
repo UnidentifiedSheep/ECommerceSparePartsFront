@@ -10,7 +10,6 @@ import NotFoundView from '@/views/NotFoundView.vue'
 import PasswordRecoveryView from '@/views/PasswordRecoveryView.vue'
 import PasswordResetView from '@/views/PasswordResetView.vue'
 import VerifyEmailView from '@/views/VerifyEmailView.vue'
-import PermissionsView from '@/views/PermissionsView.vue'
 import ProductDetailsView from '@/views/ProductDetailsView.vue'
 import ProductsView from '@/views/ProductsView.vue'
 import ProductGroupsView from '@/views/ProductGroupsView.vue'
@@ -89,12 +88,6 @@ const routes = [
         path: '/price-appliers',
         name: 'price-appliers',
         component: PriceAppliersView,
-        meta: { requiresAuth: true },
-      },
-      {
-        path: '/permissions',
-        name: 'permissions',
-        component: PermissionsView,
         meta: { requiresAuth: true },
       },
       {

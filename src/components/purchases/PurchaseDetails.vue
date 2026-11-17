@@ -50,19 +50,6 @@
             <span class="content-value content-value--count">{{ row.count.toLocaleString(locale) }}</span>
             <span class="content-value" :title="formatCurrency(row.price, purchase.currency.currencySign)">{{ formatCurrency(row.price, purchase.currency.currencySign) }}</span>
             <strong class="content-value content-value--total" :title="formatCurrency(row.totalSum, purchase.currency.currencySign)">{{ formatCurrency(row.totalSum, purchase.currency.currencySign) }}</strong>
-
-            <el-collapse v-if="row.logistics" class="row-logistics">
-              <el-collapse-item :name="row.id">
-                <template #title>
-                  <span class="logistics-trigger">{{ t('purchases.logistics') }} · {{ formatCurrency(row.logistics.price, purchase.logistics?.currency.currencySign) }}</span>
-                </template>
-                <div class="logistics-values">
-                  <div><span>{{ t('purchases.cost') }}</span><strong>{{ formatCurrency(row.logistics.price, purchase.logistics?.currency.currencySign) }}</strong></div>
-                  <div><span>{{ t('purchases.weight') }}</span><strong>{{ row.logistics.weightKg.toLocaleString(locale) }} {{ t('purchases.kg') }}</strong></div>
-                  <div><span>{{ t('purchases.volume') }}</span><strong>{{ row.logistics.areaM3.toLocaleString(locale) }} {{ t('purchases.m3') }}</strong></div>
-                </div>
-              </el-collapse-item>
-            </el-collapse>
           </article>
           <el-empty v-if="!loading && content.length === 0" :description="t('purchases.notFound')" />
         </div>
@@ -71,25 +58,6 @@
           <span>{{ t('common.labels.comment') }}</span>
           <p><QueryHighlightedText :text="purchase.comment" :query="searchQuery" /></p>
         </section>
-
-        <el-collapse v-if="purchase.logistics" class="logistics-summary">
-          <el-collapse-item name="purchase-logistics">
-            <template #title>
-              <span class="summary-collapse-title">{{ t('purchases.logistics') }} · {{ pricingTypeLabel(purchase.logistics.pricingModel) }}</span>
-            </template>
-            <div class="logistics-values logistics-values--summary">
-              <div><span>{{ t('purchases.routeType') }}</span><strong>{{ routeTypeLabel(purchase.logistics.routeType) }}</strong></div>
-              <div><span>{{ t('purchases.pricing') }}</span><strong>{{ pricingTypeLabel(purchase.logistics.pricingModel) }}</strong></div>
-              <div><span>{{ t('purchases.perKg') }}</span><strong>{{ formatCurrency(purchase.logistics.priceKg, purchase.logistics.currency.currencySign) }}</strong></div>
-              <div><span>{{ t('purchases.perM3') }}</span><strong>{{ formatCurrency(purchase.logistics.pricePerM3, purchase.logistics.currency.currencySign) }}</strong></div>
-              <div><span>{{ t('purchases.perOrder') }}</span><strong>{{ formatCurrency(purchase.logistics.pricePerOrder, purchase.logistics.currency.currencySign) }}</strong></div>
-              <div><span>{{ t('purchases.minimumPrice') }}</span><strong>{{ purchase.logistics.minimumPrice ? formatCurrency(purchase.logistics.minimumPrice, purchase.logistics.currency.currencySign) : t('purchases.notSet') }}</strong></div>
-            </div>
-            <el-tag v-if="purchase.logistics.minimumPriceApplied" class="minimum-price-tag" type="warning" effect="light">
-              {{ t('purchases.minimumPriceApplied') }}
-            </el-tag>
-          </el-collapse-item>
-        </el-collapse>
       </div>
     </template>
 
@@ -103,8 +71,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
-import type { LogisticPricingType } from '@/enums/logisticPricingType.ts'
-import type { RouteType } from '@/enums/routeType.ts'
 import { formatLocalDateTime } from '@/utils/dateTime.ts'
 import { useI18n } from '@/i18n'
 import OrganizationPartyHoverCard from '@/components/organizations/OrganizationPartyHoverCard.vue'
@@ -131,13 +97,6 @@ function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
 
-function pricingTypeLabel(type: LogisticPricingType) {
-  return t(`purchases.pricingTypes.${type}`)
-}
-
-function routeTypeLabel(type: RouteType) {
-  return t(`purchases.routeTypes.${type}`)
-}
 </script>
 
 <style scoped>
@@ -180,25 +139,9 @@ a.product-link:hover { color: var(--app-primary); text-decoration: underline; }
 .content-value { min-width: 0; overflow: hidden; color: var(--app-text); font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 500; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .content-value--count { text-align: center; }
 .content-value--total { font-weight: 700; }
-.row-logistics { grid-column: 1 / -1; }
-.row-logistics,
-.logistics-summary { --el-collapse-border-color: transparent; --el-collapse-header-height: 30px; }
-.row-logistics :deep(.el-collapse-item__header),
-.logistics-summary :deep(.el-collapse-item__header) { color: var(--app-text-muted); font-size: 12px; }
-.row-logistics :deep(.el-collapse-item__content),
-.logistics-summary :deep(.el-collapse-item__content) { padding-bottom: 8px; }
-.logistics-trigger,
-.summary-collapse-title { font-weight: 650; }
-.logistics-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.logistics-values div { min-width: 0; }
-.logistics-values span { display: block; color: var(--app-text-muted); font-size: 11px; }
-.logistics-values strong { display: block; overflow: hidden; margin-top: 3px; color: var(--app-text); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.details-comment,
-.logistics-summary { margin: 12px 14px 0; border-top: 1px solid var(--app-border); padding-top: 10px; }
+.details-comment { margin: 12px 14px 0; border-top: 1px solid var(--app-border); padding-top: 10px; }
 .details-comment span { color: var(--app-text-muted); font-size: 12px; font-weight: 650; }
 .details-comment p { margin: 4px 0 0; color: var(--app-text); font-size: 13px; line-height: 1.4; }
-.logistics-summary { margin-bottom: 14px; }
-.minimum-price-tag { margin-top: 8px; }
 .purchase-details-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
 .purchase-details-empty h2 { margin: 0; color: var(--app-text); font-size: 16px; }
 .purchase-details-empty p { margin: 7px 0 0; color: var(--app-text-muted); font-size: 13px; }

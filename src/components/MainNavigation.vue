@@ -63,7 +63,6 @@
       <el-menu-item v-if="canOpen('/users')" index="/users" @click="openRoute('/users')"><span class="main-nav__item-label" :title="t('nav.users')">{{ t('nav.users') }}</span><PinMenuButton path="/users" /></el-menu-item>
       <el-menu-item v-if="canViewOrganizations" index="/organizations" @click="openRoute('/organizations')"><span class="main-nav__item-label" :title="t('nav.organizations')">{{ t('nav.organizations') }}</span><PinMenuButton path="/organizations" /></el-menu-item>
       <el-menu-item v-if="canOpen('/roles')" index="/roles" @click="openRoute('/roles')"><span class="main-nav__item-label" :title="t('nav.roles')">{{ t('nav.roles') }}</span><PinMenuButton path="/roles" /></el-menu-item>
-      <el-menu-item v-if="canOpen('/permissions')" index="/permissions" @click="openRoute('/permissions')"><span class="main-nav__item-label" :title="t('nav.permissions')">{{ t('nav.permissions') }}</span><PinMenuButton path="/permissions" /></el-menu-item>
       <el-menu-item v-if="canOpen('/currencies')" index="/currencies" @click="openRoute('/currencies')"><span class="main-nav__item-label" :title="t('nav.currencies')">{{ t('nav.currencies') }}</span><PinMenuButton path="/currencies" /></el-menu-item>
       <el-menu-item v-if="canOpen('/service-settings')" index="/service-settings" @click="openRoute('/service-settings')"><span class="main-nav__item-label" :title="t('nav.serviceSettings')">{{ t('nav.serviceSettings') }}</span><PinMenuButton path="/service-settings" /></el-menu-item>
     </el-sub-menu>
@@ -131,7 +130,7 @@ function canOpen(path: string) {
   return Boolean(entry && canAccessNavigation(entry, hasPermission))
 }
 const operationsRoutes = ['/purchases', '/sales', '/transactions']
-const adminRoutes = ['/users', '/organizations', '/roles', '/permissions', '/currencies', '/service-settings']
+const adminRoutes = ['/users', '/organizations', '/roles', '/currencies', '/service-settings']
 const pricingRoutes = ['/markups', '/price-appliers']
 const controlRoutes = ['/jobs', '/documents', '/extensions']
 

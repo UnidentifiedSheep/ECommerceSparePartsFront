@@ -1,4 +1,7 @@
-import api, { clampPageSize } from '@/services/api/api.ts'
+import { clampPageSize } from '@/services/api/api.ts'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import { ManagedRolesDocument, ManagedRoleDocument, UpsertRoleDocument, AddPermissionToRoleDocument } from '@/graphql/generated/graphql'
 import type { PermissionModel } from '@/models/permissionModel.ts'
 
 export interface RoleModel {
@@ -37,30 +40,20 @@ export interface AddPermissionToRoleRequest {
 }
 
 export async function getRoles(req: GetRolesRequest): Promise<GetRolesResponse> {
-  const resp = await api.get<GetRolesResponse>('/main/roles', {
-    params: {
-      ...req,
-      size: clampPageSize(req.size),
-    },
-  })
-
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: ManagedRolesDocument, variables: { input: { searchTerm: req.searchTerm, pagination: { page: req.page, size: clampPageSize(req.size) } } }, fetchPolicy: 'no-cache' }))
+  return { roles: data.roles.list }
 }
 
 export async function getRole(roleSystemName: string): Promise<GetRoleResponse> {
-  const resp = await api.get<GetRoleResponse>(`/main/roles/${encodeURIComponent(roleSystemName)}`)
-  return {
-    role: resp.data.role,
-    permissions: resp.data.permissions ?? [],
-  }
+  const { data } = await operationRequest(graphqlClient.query({ query: ManagedRoleDocument, variables: { name: roleSystemName }, fetchPolicy: 'no-cache' }))
+  if (!data.roles.byName) throw new Error('Role not found')
+  return { role: data.roles.byName, permissions: data.roles.byName.permissions }
 }
 
 export async function upsertRole(req: UpsertRoleRequest): Promise<void> {
-  await api.post('/main/roles', req)
+  await operationRequest(graphqlClient.mutate({ mutation: UpsertRoleDocument, variables: { input: req } }))
 }
 
 export async function addPermissionToRole(roleSystemName: string, permissionSystemName: string): Promise<void> {
-  await api.post(`/main/roles/${encodeURIComponent(roleSystemName)}/permissions/`, {
-    permissionName: permissionSystemName,
-  } satisfies AddPermissionToRoleRequest)
+  await operationRequest(graphqlClient.mutate({ mutation: AddPermissionToRoleDocument, variables: { input: { roleName: roleSystemName, permissionName: permissionSystemName } } }))
 }

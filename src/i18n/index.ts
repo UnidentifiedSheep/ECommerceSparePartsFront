@@ -348,6 +348,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     permissions: {
       title: 'Разрешения',
+      enterCode: 'Введите системный код разрешения',
       description: 'Справочник permissions, доступных в системе.',
       listTitle: 'Список разрешений',
       sourceHint: 'Справочник доступных прав доступа',
@@ -1098,7 +1099,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     storages: {
       title: 'Склады',
-      description: 'Управление складами, владельцами и маршрутами.',
+      description: 'Управление складами и их параметрами.',
       searchPlaceholder: 'Название или описание',
       storageType: 'Тип склада',
       resetFilters: 'Сбросить фильтры',
@@ -2549,6 +2550,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     permissions: {
       title: 'Permissions',
+      enterCode: 'Enter a permission system code',
       description: 'Directory of permissions available in the system.',
       listTitle: 'Permission list',
       sourceHint: 'Available permissions reference',
@@ -3299,7 +3301,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     storages: {
       title: 'Storages',
-      description: 'Manage storages, owners, and routes.',
+      description: 'Manage warehouses and their settings.',
       searchPlaceholder: 'Name or description',
       storageType: 'Storage type',
       resetFilters: 'Reset filters',
@@ -4750,6 +4752,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     permissions: {
       title: 'İzinler',
+      enterCode: 'İzin sistem kodunu girin',
       description: 'Sistemde kullanılabilen izinlerin dizini.',
       listTitle: 'İzin listesi',
       sourceHint: 'Kullanılabilir izinler referansı',
@@ -5500,7 +5503,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
     storages: {
       title: 'Depolar',
-      description: 'Depoları, sahipleri ve rotaları yönetin.',
+      description: 'Depoları ve ayarlarını yönetin.',
       searchPlaceholder: 'Ad veya açıklama',
       storageType: 'Depo tipi',
       resetFilters: 'Filtreleri sıfırla',

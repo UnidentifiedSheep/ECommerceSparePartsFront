@@ -102,23 +102,10 @@
           </div>
         </section>
 
-        <el-form v-if="canManageRolePermissions" label-position="top">
-        <el-form-item :label="t('permissions.title')">
-          <el-select
-            v-model="permissionToAdd"
-            filterable
-            class="w-full"
-            :loading="permissionsLoading"
-            :placeholder="t('roles.selectPermission')"
-          >
-            <el-option
-              v-for="permission in availablePermissions"
-              :key="permission.systemName"
-              :label="permissionOptionLabel(permission)"
-              :value="permission.systemName"
-            />
-          </el-select>
-        </el-form-item>
+        <el-form v-if="canManageRolePermissions" label-position="top" @submit.prevent="addPermission">
+          <el-form-item :label="t('permissions.title')">
+            <el-input v-model.trim="permissionToAdd" :placeholder="t('permissions.enterCode')" />
+          </el-form-item>
         </el-form>
       </div>
       <template #footer>
@@ -137,7 +124,6 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElNotification } from 'element-plus'
 import ZeroPagination from '@/components/common/ZeroPagination.vue'
 import type { PermissionModel } from '@/models/permissionModel.ts'
-import { getPermissions } from '@/services/api/permissions.ts'
 import {
   addPermissionToRole,
   getRole,
@@ -155,7 +141,6 @@ const { hasPermission } = usePermissions()
 const canEditRoles = computed(() => hasPermission('ROLES_CREATE'))
 const canManageRolePermissions = computed(() => hasPermission('ROLES_PERMISSIONS_CREATE'))
 const roles = ref<RoleModel[]>([])
-const permissions = ref<PermissionModel[]>([])
 const searchTerm = ref('')
 const page = ref(0)
 const limit = ref(20)
@@ -165,14 +150,12 @@ const roleDialogOpen = ref(false)
 const roleDialogMode = ref<RoleDialogMode>('create')
 const isSavingRole = ref(false)
 const permissionDialogOpen = ref(false)
-const permissionsLoading = ref(false)
 const isAddingPermission = ref(false)
 const roleDetailsLoading = ref(false)
 const selectedRole = ref<RoleModel | null>(null)
 const rolePermissions = ref<PermissionModel[]>([])
 const permissionToAdd = ref('')
 let rolesRequestId = 0
-let permissionsRequestId = 0
 let roleDetailsRequestId = 0
 
 const roleForm = reactive({
@@ -192,10 +175,6 @@ const permissionDialogTitle = computed(() => {
     : t('roles.addPermission')
 })
 const canSaveRole = computed(() => canEditRoles.value && roleForm.name.trim() !== '')
-const rolePermissionNames = computed(() => new Set(rolePermissions.value.map((permission) => permission.systemName)))
-const availablePermissions = computed(() => (
-  permissions.value.filter((permission) => !rolePermissionNames.value.has(permission.systemName))
-))
 
 function openCreateDialog() {
   if (!canEditRoles.value) return
@@ -218,10 +197,7 @@ async function openPermissionDialog(role: RoleModel) {
   rolePermissions.value = []
   permissionToAdd.value = ''
   permissionDialogOpen.value = true
-  await Promise.all([
-    permissions.value.length === 0 ? loadPermissions() : Promise.resolve(),
-    loadRoleDetails(role.systemName),
-  ])
+  await loadRoleDetails(role.systemName)
 }
 
 async function loadRolesPage(resetPage = false) {
@@ -240,21 +216,6 @@ async function loadRolesPage(resetPage = false) {
   } finally {
     if (requestId === rolesRequestId) {
       isLoading.value = false
-    }
-  }
-}
-
-async function loadPermissions() {
-  if (!canManageRolePermissions.value) return
-  const requestId = ++permissionsRequestId
-  permissionsLoading.value = true
-  try {
-    const resp = await getPermissions()
-    if (requestId !== permissionsRequestId) return
-    permissions.value = resp.permissions
-  } finally {
-    if (requestId === permissionsRequestId) {
-      permissionsLoading.value = false
     }
   }
 }
@@ -301,10 +262,7 @@ async function addPermission() {
   isAddingPermission.value = true
   try {
     await addPermissionToRole(selectedRole.value.systemName, permissionToAdd.value)
-    const addedPermission = permissions.value.find((permission) => permission.systemName === permissionToAdd.value)
-    if (addedPermission && !rolePermissionNames.value.has(addedPermission.systemName)) {
-      rolePermissions.value = [...rolePermissions.value, addedPermission]
-    }
+    await loadRoleDetails(selectedRole.value.systemName)
     permissionToAdd.value = ''
     ElNotification({
       title: t('common.labels.success'),
@@ -316,24 +274,14 @@ async function addPermission() {
   }
 }
 
-function permissionOptionLabel(permission: PermissionModel) {
-  return `${permission.name} (${permission.systemName})`
-}
-
 watch(page, async () => loadRolesPage())
 watch(limit, async () => loadRolesPage(true))
 watch(locale, async () => {
-  await Promise.all([
-    loadRolesPage(),
-    loadPermissions(),
-  ])
+  await loadRolesPage()
 })
 
 onMounted(async () => {
-  await Promise.all([
-    loadRolesPage(),
-    loadPermissions(),
-  ])
+  await loadRolesPage()
 })
 
 const draftGuard0 = useDialogGuard(roleDialogOpen, computed(() => isSavingRole.value), () => roleForm)

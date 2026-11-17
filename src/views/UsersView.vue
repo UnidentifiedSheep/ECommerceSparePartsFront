@@ -257,21 +257,6 @@
                       <div v-if="userPhones.length === 0" class="text-sm text-slate-400">{{ t('users.noPhones') }}</div>
                     </div>
 
-                  <div class="flex items-center justify-between">
-                    <el-divider content-position="left">{{ t('users.storages') }}</el-divider>
-                    <el-button v-if="canAddUserStorage" size="small" type="primary" @click="openAddStorageDialog">{{ t('users.addStorage') }}</el-button>
-                  </div>
-                  <div class="grid gap-3 pb-4">
-                    <div v-for="storage in userStorages" :key="storage.code" class="flex items-center justify-between rounded-lg bg-slate-50 p-3">
-                      <div>
-                        <div class="font-medium text-slate-900">{{ storage.code }}</div>
-                        <div class="text-sm text-slate-500">{{ storage.location || t('users.locationMissing') }}</div>
-                      </div>
-                      <el-button v-if="canDeleteUserStorage" size="small" type="danger" plain @click="detachStorage(storage.code)">{{ t('common.actions.delete') }}</el-button>
-                    </div>
-                    <div v-if="userStorages.length === 0" class="text-sm text-slate-400">{{ t('users.noStorages') }}</div>
-                  </div>
-
                   <el-collapse v-model="openDetailsSections" class="user-details-collapse">
                     <el-collapse-item name="permissions">
                       <template #title>
@@ -309,7 +294,6 @@
                             round
                             :closable="canManageUserPermissions"
                             :disable-transitions="true"
-                            @click="openPermission(permission)"
                             @close="confirmRemovePermission(permission)"
                           >
                             {{ permission }}
@@ -549,25 +533,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="storageDialogOpen" :before-close="draftGuard2.beforeClose" :title="t('users.addStorageToUser')" width="520">
-      <el-form label-position="top">
-        <el-form-item :label="t('common.labels.storage')">
-          <el-select v-model="storageToAttach" filterable class="w-full" :placeholder="t('users.selectStorage')">
-            <el-option
-              v-for="storage in attachableStorages"
-              :key="storage.code"
-              :label="storage.code"
-              :value="storage.code"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="draftGuard2.requestClose">{{ t('common.actions.cancel') }}</el-button>
-        <el-button type="primary" :loading="storageAttachLoading" @click="attachStorage">{{ t('common.actions.add') }}</el-button>
-      </template>
-    </el-dialog>
-
     <el-dialog v-model="editInfoDialogOpen" :before-close="draftGuard3.beforeClose" :title="t('users.editInfo')" width="560">
       <el-form label-position="top">
         <div class="grid grid-cols-2 gap-4">
@@ -643,8 +608,10 @@
             clearable
             :disabled="permissionAttachLoading"
             filterable
+            allow-create
+            default-first-option
             class="w-full"
-            :placeholder="t('users.selectPermissions')"
+            :placeholder="t('permissions.enterCode')"
           >
             <el-option
               v-for="permission in attachablePermissions"
@@ -690,25 +657,20 @@ import UserColumnFilter from '@/components/users/UserColumnFilter.vue'
 import { buildUserSearch, userSearchFields, type UserSearchFilters } from '@/utils/userSearch.ts'
 import { PhoneType } from '@/enums/phoneType.ts'
 import { ApiError } from '@/models/errorModel.ts'
-import type { StorageModel } from '@/models/storageModel.ts'
 import type { UserModel } from '@/models/userModel.ts'
 import type { OrganizationModel } from '@/models/organizationModel.ts'
 import { usePermissions } from '@/composables/usePermissions.ts'
 import { getRoles, type RoleModel } from '@/services/api/roles.ts'
-import { getStorages } from '@/services/api/storages.ts'
-import { getPermissions } from '@/services/api/permissions.ts'
 import type { PermissionModel } from '@/models/permissionModel.ts'
 import type { UserEmailModel } from '@/services/api/users.ts'
 import {
   addEmailToUser,
   addPermissionsToUser,
   addRolesToUser,
-  addStorageToUser,
   createUser,
   editUserInfo,
   getEmailOptions,
   getUserFullInfo,
-  getUserStorages,
   getUserOrganizations,
   getUsers,
   makeUserEmailPrimary,
@@ -716,7 +678,6 @@ import {
   requestUserEmailVerification,
   removePermissionFromUser,
   removeRoleFromUser,
-  removeStorageFromUser,
   type UserPhoneModel,
   type EmailType,
 } from '@/services/api/users.ts'
@@ -751,8 +712,6 @@ const canEditUserInfo = canCreateUsers
 const canManageUserEmails = computed(() => hasPermission('USERS_MAILS_CREATE'))
 const canManageUserRoles = computed(() => hasPermission('USERS_ROLES_CREATE'))
 const canManageUserPermissions = computed(() => hasPermission('USERS_PERMISSIONS_CREATE'))
-const canAddUserStorage = computed(() => hasPermission('USERS_STORAGES_ADD'))
-const canDeleteUserStorage = computed(() => hasPermission('USERS_STORAGES_DELETE'))
 const canViewOrganizations = computed(() => hasPermission('ORGANIZATIONS_GET'))
 const selectedUser = ref<UserModel>()
 const searchTerm = ref<string>()
@@ -792,7 +751,6 @@ const userRoles = ref<string[]>([])
 const userPermissions = ref<string[]>([])
 const userEmails = ref<UserEmailModel[]>([])
 const userPhones = ref<UserPhoneModel[]>([])
-const userStorages = ref<StorageModel[]>([])
 const userOrganizations = ref<OrganizationModel[]>([])
 const userOrganizationsPage = ref(0)
 const userOrganizationsHasNext = ref(false)
@@ -800,12 +758,8 @@ const userOrganizationsLoading = ref(false)
 const userOrganizationsError = ref('')
 const permissionsCatalog = ref<PermissionModel[]>([])
 const openDetailsSections = ref<string[]>([])
-let permissionsCatalogRequestId = 0
 let rolesRequestId = 0
 
-const allStorages = ref<StorageModel[]>([])
-const storageDialogOpen = ref(false)
-const storageToAttach = ref<string>()
 const editInfoDialogOpen = ref(false)
 const permissionDialogOpen = ref(false)
 const roleDialogOpen = ref(false)
@@ -914,10 +868,6 @@ const canSaveEditInfo = computed(() => (
   && editInfoForm.surname.trim() !== ''
   && !editInfoSaving.value
 ))
-const attachableStorages = computed(() => {
-  const attached = new Set(userStorages.value.map((storage) => storage.code))
-  return allStorages.value.filter((storage) => !attached.has(storage.code))
-})
 const permissionsBySystemName = computed(() => new Map(
   permissionsCatalog.value.map((permission) => [permission.systemName, permission]),
 ))
@@ -1294,9 +1244,9 @@ function clearDetails() {
   userOrganizationsLoading.value = false
   userRoles.value = []
   userPermissions.value = []
+  permissionsCatalog.value = []
   userEmails.value = []
   userPhones.value = []
-  userStorages.value = []
   userOrganizations.value = []
   userOrganizationsPage.value = 0
   userOrganizationsHasNext.value = false
@@ -1328,14 +1278,14 @@ async function selectUser(user?: UserModel) {
   detailsLoading.value = true
   if (!await detailsDebounce.wait() || requestId !== detailsRequestId) return
   try {
-    const fullInfo = await getUserFullInfo(user.id, true)
+    const fullInfo = await getUserFullInfo(user.id)
     if (requestId !== detailsRequestId) return
     selectedUser.value = fullInfo.user
     userRoles.value = fullInfo.roles
     userPermissions.value = fullInfo.permissions
+    permissionsCatalog.value = fullInfo.permissionDetails
     userEmails.value = fullInfo.emails
     userPhones.value = fullInfo.phones
-    userStorages.value = fullInfo.storages
     void loadUserOrganizations(user.id, true)
   } finally {
     if (requestId === detailsRequestId) detailsLoading.value = false
@@ -1474,31 +1424,6 @@ async function saveCreateUser() {
   } finally {
     createUserSaving.value = false
   }
-}
-
-async function loadAllStorages() {
-  const resp = await getStorages({ page: 0, limit: 200 })
-  allStorages.value = resp.storages
-}
-
-async function loadPermissionsCatalog() {
-  const requestId = ++permissionsCatalogRequestId
-  const resp = await getPermissions()
-  if (requestId !== permissionsCatalogRequestId) return
-  permissionsCatalog.value = resp.permissions
-}
-
-function openAddStorageDialog() {
-  if (!canAddUserStorage.value) return
-  storageToAttach.value = undefined
-  storageDialogOpen.value = true
-}
-
-function openPermission(permission: string) {
-  router.push({
-    name: 'permissions',
-    query: { search: permission },
-  })
 }
 
 function openAddPermissionDialog() {
@@ -1793,46 +1718,6 @@ async function setUserPrimaryEmail(email: string) {
   }
 }
 
-async function attachStorage() {
-  if (storageAttachLoading.value) return
-  storageAttachLoading.value = true
-  try {
-    if (!canAddUserStorage.value || !selectedUser.value || !storageToAttach.value) return
-
-    await addStorageToUser({
-      userId: selectedUser.value.id,
-      storageCode: storageToAttach.value,
-    })
-
-    ElNotification({
-      title: t('common.labels.success'),
-      message: t('users.storageAttached'),
-      type: 'success',
-    })
-
-    storageDialogOpen.value = false
-    userStorages.value = (await getUserStorages(selectedUser.value.id)).storages
-  } finally { storageAttachLoading.value = false }
-}
-
-async function detachStorage(storageCode: string) {
-  if (!canDeleteUserStorage.value || !selectedUser.value) return
-
-  await removeStorageFromUser({
-    userId: selectedUser.value.id,
-    storageCode,
-  })
-
-  ElNotification({
-    title: t('common.labels.success'),
-    message: t('users.storageDetached'),
-    type: 'success',
-  })
-
-  userStorages.value = userStorages.value.filter((storage) => storage.code !== storageCode)
-}
-
-
 watch(limit, async () => loadUsers(true))
 watch(page, async () => loadUsers(false))
 watch(() => JSON.stringify(userSearch.value.request), () => { if (!queryState.restoring.value) loadUsersDebounced() })
@@ -1850,22 +1735,17 @@ watch(createUserDialogOpen, (isOpen) => {
   createUserNameRequestId += 1
 })
 watch(locale, async () => {
-  await Promise.all([
-    loadPermissionsCatalog(),
-    loadRoles(undefined, true),
-  ])
+  await loadRoles(undefined, true)
 })
 watch(() => route.query.userId, async () => selectUserFromRoute())
 onMounted(async () => {
   await queryState.restoreInitial()
-  await Promise.all([loadUsers(false), loadAllStorages(), loadRoles(), loadEmailOptions(), loadPermissionsCatalog()])
+  await Promise.all([loadUsers(false), loadRoles(), loadEmailOptions()])
   await selectUserFromRoute()
 })
 
-const storageAttachLoading = ref(false)
 const draftGuard0 = useDialogGuard(createUserDialogOpen, computed(() => createUserSaving.value), () => createUserForm)
 const draftGuard1 = useDialogGuard(addEmailDialogOpen, computed(() => addingEmail.value), () => addEmailForm)
-const draftGuard2 = useDialogGuard(storageDialogOpen, computed(() => storageAttachLoading.value), () => storageToAttach.value)
 const draftGuard3 = useDialogGuard(editInfoDialogOpen, computed(() => editInfoSaving.value), () => editInfoForm)
 const draftGuard4 = useDialogGuard(roleDialogOpen, computed(() => roleAttachLoading.value), () => rolesToAttach.value)
 const draftGuard5 = useDialogGuard(permissionDialogOpen, computed(() => permissionAttachLoading.value), () => permissionsToAttach.value)

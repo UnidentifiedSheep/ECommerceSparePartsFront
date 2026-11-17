@@ -13,7 +13,6 @@ export function mapSale(sale: SaleFieldsFragment): SaleModel {
 export function mapPurchase(purchase: PurchaseFieldsFragment): PurchaseModel {
   return {
     ...purchase, supplier: mapGqlUser(purchase.supplier), supplierOrganization: mapGqlOrganization(purchase.supplierOrganization), storageCode: purchase.storage.code,
-    logistics: purchase.logistics ? { ...purchase.logistics, pricingModel: modelEnum(purchase.logistics.pricingModel) as NonNullable<PurchaseModel['logistics']>['pricingModel'], routeType: modelEnum(purchase.logistics.routeType) as NonNullable<PurchaseModel['logistics']>['routeType'] } : null,
   }
 }
 export function mapSaleContent(content: SaleContentFieldsFragment): SaleContentModel {

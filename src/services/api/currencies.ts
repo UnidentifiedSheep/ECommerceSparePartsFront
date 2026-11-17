@@ -1,7 +1,8 @@
 import type { CurrencyModel } from '@/models/currencyModel.ts'
-import api, { clampPageSize } from '@/services/api/api.ts'
+import { clampPageSize } from '@/services/api/api.ts'
 import { graphqlClient } from '@/services/graphql/client'
 import { CurrencyHistoryDocument } from '@/graphql/generated/graphql'
+import { AllCurrenciesDocument, BaseCurrencyDocument, CreateCurrencyDocument, UpdateCurrencyRatesDocument } from '@/graphql/generated/graphql'
 import { operationRequest } from '@/services/graphql/operationErrors'
 
 export interface GetCurrenciesResponse {
@@ -42,13 +43,13 @@ export interface CreateCurrencyResponse {
 }
 
 export async function getCurrencies(): Promise<GetCurrenciesResponse> {
-  const resp = await api.get<GetCurrenciesResponse>('/main/currencies')
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: AllCurrenciesDocument, fetchPolicy: 'no-cache' }))
+  return { currencies: data.currencies.list }
 }
 
 export async function getBaseCurrency(): Promise<GetBaseCurrencyResponse> {
-  const resp = await api.get<GetBaseCurrencyResponse>('/main/currencies/base')
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: BaseCurrencyDocument, fetchPolicy: 'no-cache' }))
+  return { currency: data.currencies.base }
 }
 
 export async function getCurrencyHistory(req: GetCurrencyHistoryRequest): Promise<GetCurrencyHistoryResponse> {
@@ -62,10 +63,11 @@ export async function getCurrencyHistory(req: GetCurrencyHistoryRequest): Promis
 }
 
 export async function createCurrency(req: CreateCurrencyRequest): Promise<CreateCurrencyResponse> {
-  const resp = await api.post<CreateCurrencyResponse>('/main/currencies', req)
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateCurrencyDocument, variables: { input: req } }))
+  if (!data) throw new Error('Currency creation returned no data')
+  return { id: data.currencies.create.id }
 }
 
 export async function updateCurrencyRates(): Promise<void> {
-  await api.post('/main/currencies/update')
+  await operationRequest(graphqlClient.mutate({ mutation: UpdateCurrencyRatesDocument }))
 }

@@ -18,17 +18,15 @@ fragment OrganizationFinancesFields on OrganizationFinances {
 }
 query ListUsers($input: GetUsersInput!) { users { list(input: $input) { ...UserDetailsFields } } }
 query SearchUsers($input: SearchUsersInput!) { users { search(input: $input) { ...UserDetailsFields } } }
-query UserDetails($id: UUID!, $includeInfo: Boolean!, $includeStorages: Boolean!) {
+query UserDetails($id: UUID!, $includeInfo: Boolean!) {
   users { byId(id: $id) {
     ...UserDetailsFields
-    storages @include(if: $includeStorages) { code type location description }
     emails @include(if: $includeInfo) { ...UserEmailFields }
     phones @include(if: $includeInfo) { number type isConfirmed isPrimary }
     roles @include(if: $includeInfo) { systemName localizedName }
     permissions @include(if: $includeInfo) { systemName name description }
   } }
 }
-query UserStorages($id: UUID!) { users { byId(id: $id) { storages { code type location description } } } }
 query ListOrganizations($input: GetOrganizationsInput!) { organizations { list(input: $input) { ...OrganizationFields } } }
 query OrganizationById($id: UUID!) { organizations { byId(id: $id) { ...OrganizationFields } } }
 query OrganizationMembers($id: UUID!, $input: OrganizationMembersInput!) {
@@ -48,8 +46,6 @@ mutation AddUserRoles($input: UserRolesInput!) { users { addRoles(input: $input)
 mutation RemoveUserRoles($input: UserRolesInput!) { users { removeRoles(input: $input) { id } } }
 mutation AddUserPermissions($input: UserPermissionsInput!) { users { addPermissions(input: $input) { id } } }
 mutation RemoveUserPermissions($input: UserPermissionsInput!) { users { removePermissions(input: $input) { id } } }
-mutation AddUserStorage($input: UserStorageInput!) { users { addStorage(input: $input) { id } } }
-mutation RemoveUserStorage($input: UserStorageInput!) { users { removeStorage(input: $input) { id } } }
 mutation CreateOrganization($input: CreateOrganizationInput!) { organizations { create(input: $input) { ...OrganizationFields } } }
 mutation UpdateOrganization($input: UpdateOrganizationInput!) { organizations { update(input: $input) { ...OrganizationFields } } }
 mutation AddOrganizationMember($input: OrganizationMemberRoleInput!) { organizations { addMember(input: $input) { id } } }

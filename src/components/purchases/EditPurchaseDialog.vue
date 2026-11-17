@@ -96,23 +96,6 @@
               </el-select>
             </el-form-item>
 
-            <el-form-item :label="t('purchases.logistics')" class="span-3">
-              <div class="flex h-8 items-center">
-                <el-switch v-model="form.withLogistics" :active-text="t('purchases.yes')" :inactive-text="t('purchases.no')" />
-              </div>
-            </el-form-item>
-
-            <el-form-item v-if="form.withLogistics" :label="t('purchases.departureStorage')" class="span-6">
-              <el-select v-model="form.storageFrom" filterable clearable class="w-full" :placeholder="t('purchases.selectStorage')">
-                <el-option
-                  v-for="storage in storages"
-                  :key="storage.code"
-                  :label="storage.code"
-                  :value="storage.code"
-                />
-              </el-select>
-            </el-form-item>
-
             <el-form-item :label="t('common.labels.comment')" class="span-12">
               <el-input v-model="form.comment" type="textarea" :rows="2" :placeholder="t('purchases.commentPlaceholder')" />
             </el-form-item>
@@ -150,15 +133,6 @@
                     <span class="sku-pill">{{ item.product.sku || '—' }}</span>
                     <span v-if="item.product.producerName">{{ item.product.producerName }}</span>
                   </div>
-                  <div v-if="form.withLogistics && item.calculateLogistics" class="item-logistics">
-                    <template v-if="isCalculatingLogistics">{{ t('purchases.calculatingLogistics') }}</template>
-                    <template v-else-if="item.logisticsSkipped">
-                      {{ item.logisticsReasons?.join(', ') || t('purchases.logisticsNotCalculated') }}
-                    </template>
-                    <template v-else-if="item.logisticsCost !== undefined">
-                      {{ t('purchases.logisticsCost', { value: formatCurrency(item.logisticsCost, logisticsCurrencySign) }) }}
-                    </template>
-                  </div>
                 </div>
               </div>
 
@@ -179,9 +153,6 @@
 
               <div class="item-comment">
                 <el-input v-model="item.comment" :placeholder="t('purchases.itemCommentPlaceholder')" />
-                <el-checkbox v-model="item.calculateLogistics" :disabled="!form.withLogistics">
-                  {{ t('purchases.calculateLogistics') }}
-                </el-checkbox>
               </div>
 
               <el-button class="remove-item-button" :icon="Delete" text type="danger" @click="removeItem(index)" />
@@ -212,7 +183,6 @@
 
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { useDebounceFn } from '@vueuse/core'
 import { useDocumentLineNavigation } from '@/composables/useDocumentLineNavigation'
 import { Check, Close, Delete, Plus } from '@element-plus/icons-vue'
 import { ElNotification } from 'element-plus'
@@ -221,7 +191,6 @@ import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { ProductSearchModel } from '@/models/productSearchModel.ts'
 import type { PurchaseContentModel, PurchaseModel } from '@/models/purchaseModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
-import { calculateDeliveryCost } from '@/services/api/logistics.ts'
 import { editPurchase, getPurchase, getPurchaseContent } from '@/services/api/purchases.ts'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import DocumentChangeNotice from '@/components/common/DocumentChangeNotice.vue'
@@ -243,11 +212,7 @@ interface EditPurchaseItemForm {
   product: EditPurchaseProductForm
   count: number
   price: number
-  calculateLogistics: boolean
   comment: string
-  logisticsCost?: number
-  logisticsSkipped?: boolean
-  logisticsReasons?: string[] | null
 }
 
 const props = defineProps<{
@@ -270,26 +235,16 @@ const lineNavigationRoot = lineNavigation.root
 const isSaving = ref(false)
 const reloadingDocument = ref(false)
 const conflict = useDocumentEditConflict('purchase', () => isOpen.value ? props.purchase?.id : undefined, () => isSaving.value)
-const isCalculatingLogistics = ref(false)
-const logisticsCurrencyId = ref<number>()
-let logisticsRequestId = 0
 
 const form = reactive({
   currencyId: undefined as number | undefined,
   purchaseDate: '',
   comment: '',
-  withLogistics: false,
-  storageFrom: undefined as string | undefined,
   items: [] as EditPurchaseItemForm[],
 })
 
 const selectedCurrency = computed(() => (
   props.currencies.find((currency) => currency.id === form.currencyId)
-))
-
-const logisticsCurrencySign = computed(() => (
-  props.currencies.find((currency) => currency.id === logisticsCurrencyId.value)?.currencySign
-  ?? selectedCurrency.value?.currencySign
 ))
 
 const supplierName = computed(() => {
@@ -310,16 +265,7 @@ const completionSteps = computed(() => [
   { label: t('common.labels.currency'), done: !!form.currencyId },
   { label: t('common.labels.date'), done: form.purchaseDate !== '' },
   { label: t('purchases.positions'), done: form.items.length > 0 },
-  ...(form.withLogistics ? [{
-    label: t('purchases.logistics'),
-    done: !!form.storageFrom && !isCalculatingLogistics.value && !hasSkippedLogistics.value,
-  }] : []),
 ])
-
-const hasSkippedLogistics = computed(() => (
-  form.withLogistics
-  && form.items.some((item) => item.calculateLogistics && item.logisticsSkipped)
-))
 
 const itemsSummary = computed(() => {
   return form.items.length === 0
@@ -334,12 +280,8 @@ const canSave = computed(() => (
   && form.purchaseDate !== ''
   && form.items.length > 0
   && form.items.every((item) => item.product.id > 0 && item.count > 0 && item.price >= 0)
-  && (!form.withLogistics || !!form.storageFrom)
-  && !isCalculatingLogistics.value
-  && !hasSkippedLogistics.value
 ))
-
-const closeGuard = useDialogGuard(isOpen, isSaving, () => ({ ...form, items: form.items.map(({ product, count, price, calculateLogistics, comment }) => ({ productId: product?.id, count, price, calculateLogistics, comment })) }))
+const closeGuard = useDialogGuard(isOpen, computed(() => isSaving.value || reloadingDocument.value), () => ({ ...form, items: form.items.map(({ product, count, price, comment }) => ({ productId: product.id, count, price, comment })) }))
 
 function resetForm() {
   form.currencyId = props.purchase?.currency.id ?? resolveDefaultCurrencyId(props.currencies)
@@ -347,8 +289,6 @@ function resetForm() {
     ? toLocalDateTimeInputValue(new Date(props.purchase.purchaseDatetime))
     : toLocalDateTimeInputValue(new Date())
   form.comment = props.purchase?.comment ?? ''
-  form.withLogistics = !!props.purchase?.logistics
-  form.storageFrom = undefined
   form.items = props.content
     .filter((item) => item.product.id !== undefined)
     .map((item) => ({
@@ -361,11 +301,8 @@ function resetForm() {
       },
       count: item.count,
       price: item.price,
-      calculateLogistics: !!item.logistics,
       comment: item.comment ?? '',
-      logisticsCost: item.logistics?.price,
     }))
-  clearLogisticsPreview(false)
 }
 
 function addProduct(product: ProductSearchModel) {
@@ -378,7 +315,6 @@ function addProduct(product: ProductSearchModel) {
     },
     count: 1,
     price: 0,
-    calculateLogistics: form.withLogistics,
     comment: '',
   })
   void lineNavigation.focusQuantity(form.items.length - 1)
@@ -395,62 +331,6 @@ function formatDate(value?: string | null) {
 function formatCurrency(value: number, sign?: string) {
   return `${value.toLocaleString(locale.value)} ${sign ?? ''}`.trim()
 }
-
-function clearLogisticsPreview(clearCost = true) {
-  logisticsCurrencyId.value = undefined
-  form.items.forEach((item) => {
-    if (clearCost) item.logisticsCost = undefined
-    item.logisticsSkipped = undefined
-    item.logisticsReasons = undefined
-  })
-}
-
-const recalculateLogistics = useDebounceFn(async () => {
-  const requestId = ++logisticsRequestId
-  const itemsToCalculate = form.items
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.calculateLogistics && item.product.id > 0 && item.count > 0)
-
-  form.items.forEach((item) => {
-    if (!item.calculateLogistics) {
-      item.logisticsCost = undefined
-      item.logisticsSkipped = undefined
-      item.logisticsReasons = undefined
-    }
-  })
-
-  if (!form.withLogistics || !form.storageFrom || !props.purchase?.storageCode || itemsToCalculate.length === 0) {
-    clearLogisticsPreview()
-    return
-  }
-
-  isCalculatingLogistics.value = true
-  try {
-    const resp = await calculateDeliveryCost({
-      storageFrom: form.storageFrom,
-      storageTo: props.purchase.storageCode,
-      mode: 'Soft',
-      items: itemsToCalculate.map(({ item }) => ({
-        productId: item.product.id,
-        quantity: item.count,
-      })),
-    })
-
-    if (requestId !== logisticsRequestId) return
-
-    logisticsCurrencyId.value = resp.deliveryCost.currencyId
-    itemsToCalculate.forEach(({ item }, index) => {
-      const logisticsItem = resp.deliveryCost.items[index]
-      item.logisticsCost = logisticsItem?.count ?? 0
-      item.logisticsSkipped = logisticsItem?.skipped ?? true
-      item.logisticsReasons = logisticsItem?.reasons ?? null
-    })
-  } finally {
-    if (requestId === logisticsRequestId) {
-      isCalculatingLogistics.value = false
-    }
-  }
-}, 350)
 
 async function reloadDocument() {
   if (reloadingDocument.value || isSaving.value || !props.purchase || conflict.change.value === 'deleted') return
@@ -483,12 +363,9 @@ async function save() {
         productId: item.product.id,
         count: item.count,
         price: item.price,
-        calculateLogistics: form.withLogistics && item.calculateLogistics,
         comment: item.comment.trim() || null,
       })),
-      withLogistics: form.withLogistics,
       comment: form.comment.trim() || null,
-      storageFrom: form.withLogistics ? form.storageFrom ?? null : null,
     })
 
     ElNotification({
@@ -508,33 +385,6 @@ watch(isOpen, (open) => {
   if (open) resetForm()
 })
 
-watch(() => form.withLogistics, (enabled) => {
-  if (!enabled) {
-    form.storageFrom = undefined
-    form.items.forEach((item) => {
-      item.calculateLogistics = false
-    })
-    clearLogisticsPreview()
-  }
-})
-
-watch(
-  () => ({
-    open: isOpen.value,
-    withLogistics: form.withLogistics,
-    storageFrom: form.storageFrom,
-    storageCode: props.purchase?.storageCode,
-    items: form.items.map((item) => ({
-      productId: item.product.id,
-      count: item.count,
-      calculateLogistics: item.calculateLogistics,
-    })),
-  }),
-  (state) => {
-    if (state.open) recalculateLogistics()
-  },
-  { deep: true },
-)
 </script>
 
 <style scoped src="@/assets/edit-purchase-dialog.css"></style>
