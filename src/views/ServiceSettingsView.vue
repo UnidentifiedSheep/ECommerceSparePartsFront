@@ -188,7 +188,6 @@ const { hasPermission } = usePermissions()
 const canManageSettings = computed(() => hasPermission('OPTIONS_GET'))
 const knownServices: ServiceCard[] = [
   { key: 'main', available: true },
-  { key: 'pricing', available: true },
   { key: 'search', available: true },
 ]
 

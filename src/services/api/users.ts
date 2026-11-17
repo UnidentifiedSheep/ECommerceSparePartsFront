@@ -1,20 +1,19 @@
 import { PhoneType } from '@/enums/phoneType'
-import { StorageType } from '@/enums/storageType'
-import type { StorageModel } from '@/models/storageModel'
 import type { OrganizationModel, OrganizationType } from '@/models/organizationModel'
 import type { UserInfoModel, UserModel } from '@/models/userModel'
-import api, { clampPageSize } from './api'
+import type { PermissionModel } from '@/models/permissionModel'
+import { clampPageSize } from './api'
+import { EmailOptionsDocument } from '@/graphql/generated/graphql'
 import { graphqlClient } from '@/services/graphql/client'
 import { mapGqlUser, mapGqlOrganization } from '@/services/graphql/partyMapping'
 import { organizationsInput } from './organizations'
 import { useAuthStore } from '@/stores/authStore'
 import {
-  UserPreviewDocument, ListOrganizationsDocument, ListUsersDocument, SearchUsersDocument, UserDetailsDocument, UserStoragesDocument,
+  UserPreviewDocument, ListOrganizationsDocument, ListUsersDocument, SearchUsersDocument, UserDetailsDocument,
   CreateUserDocument, EditUserInfoDocument, AddUserEmailDocument, RemoveUserEmailDocument,
   RequestUserEmailVerificationDocument, RequestMyEmailVerificationDocument,
   MakeUserEmailPrimaryDocument, MakeMyEmailPrimaryDocument,
   AddUserRolesDocument, RemoveUserRolesDocument, AddUserPermissionsDocument, RemoveUserPermissionsDocument,
-  AddUserStorageDocument, RemoveUserStorageDocument,
   type GetUsersInput, type EmailType as GqlEmailType, type PhoneType as GqlPhoneType,
 } from '@/graphql/generated/graphql'
 
@@ -111,11 +110,7 @@ export interface GetUserFullInfoResponse {
   phones: UserPhoneModel[]
   roles: string[]
   permissions: string[]
-  storages: StorageModel[]
-}
-
-export interface GetUserStoragesResponse {
-  storages: StorageModel[]
+  permissionDetails: PermissionModel[]
 }
 
 export interface GetUserOrganizationsRequest {
@@ -129,16 +124,6 @@ export interface GetUserOrganizationsRequest {
 
 export interface GetUserOrganizationsResponse {
   organizations: OrganizationModel[]
-}
-
-export interface AddStorageToUserRequest {
-  userId: string
-  storageCode: string
-}
-
-export interface RemoveStorageFromUserRequest {
-  userId: string
-  storageCode: string
 }
 
 export interface AddPermissionToUserRequest {
@@ -196,31 +181,25 @@ export async function editUserInfo(req: EditUserInfoRequest): Promise<EditUserIn
   return { userInfo: { ...data.users.editInfo.info, description: data.users.editInfo.info.description ?? undefined } }
 }
 export async function getEmailOptions(): Promise<GetEmailOptionsResponse> {
-  // Email constraints are not exposed by the GraphQL schema yet.
-  return (await api.get<GetEmailOptionsResponse>('/main/options/emails')).data
+  const { data } = await graphqlClient.query({ query: EmailOptionsDocument, fetchPolicy: 'no-cache' })
+  return { emailOptions: data.options.emails }
 }
-export async function getUserFullInfo(userId: string, withStorages = false): Promise<GetUserFullInfoResponse> {
+export async function getUserFullInfo(userId: string): Promise<GetUserFullInfoResponse> {
   const permissions = useAuthStore().user?.permissions ?? []
   const includeInfo = permissions.some(permission => permission.trim().replace(/[._]/g, '').toUpperCase() === 'USERSINFOGET')
-  const includeStorages = withStorages && permissions.some(permission => permission.trim().replace(/[._]/g, '').toUpperCase() === 'USERSSTORAGESGET')
-  const { data } = await graphqlClient.query({ query: UserDetailsDocument, variables: { id: userId, includeInfo, includeStorages }, fetchPolicy: 'no-cache' })
+  const { data } = await graphqlClient.query({ query: UserDetailsDocument, variables: { id: userId, includeInfo }, fetchPolicy: 'no-cache' })
   const user = data.users.byId
   if (!user) throw new Error('User not found')
   const phoneTypes = { MOBILE: PhoneType.Mobile, WORK: PhoneType.Work, HOME: PhoneType.Home, UNKNOWN: PhoneType.Unknown }
   const emailTypes = { PERSONAL: 'Personal', WORK: 'Work', UNKNOWN: 'Unknown' }
   return {
     user: mapGqlUser(user),
-    storages: user.storages?.map(mapGqlStorage) ?? [],
     emails: user.emails?.map(email => ({ ...email, emailType: emailTypes[email.emailType] })) ?? [],
     phones: user.phones?.map(phone => ({ ...phone, type: phoneTypes[phone.type] })) ?? [],
     roles: user.roles?.map(role => role.systemName) ?? [],
     permissions: user.permissions?.map(permission => permission.systemName) ?? [],
+    permissionDetails: user.permissions ?? [],
   }
-}
-export async function getUserStorages(userId: string): Promise<GetUserStoragesResponse> {
-  const { data } = await graphqlClient.query({ query: UserStoragesDocument, variables: { id: userId }, fetchPolicy: 'no-cache' })
-  if (!data.users.byId) throw new Error('User not found')
-  return { storages: data.users.byId.storages.map(mapGqlStorage) }
 }
 export async function getUserOrganizations(userId: string, req: GetUserOrganizationsRequest): Promise<GetUserOrganizationsResponse> {
   const input = organizationsInput(req)
@@ -249,12 +228,6 @@ export async function requestUserEmailVerification(req: RequestUserEmailVerifica
 export async function makeUserEmailPrimary(req: RequestUserEmailVerificationRequest): Promise<void> {
   await graphqlClient.mutate({ mutation: MakeUserEmailPrimaryDocument, variables: { input: req } })
 }
-export async function addStorageToUser(req: AddStorageToUserRequest): Promise<void> {
-  await graphqlClient.mutate({ mutation: AddUserStorageDocument, variables: { input: req } })
-}
-export async function removeStorageFromUser(req: RemoveStorageFromUserRequest): Promise<void> {
-  await graphqlClient.mutate({ mutation: RemoveUserStorageDocument, variables: { input: req } })
-}
 export async function addEmailToUser(req: AddEmailToUserRequest): Promise<void> {
   await graphqlClient.mutate({ mutation: AddUserEmailDocument, variables: { input: { userId: req.userId, email: req.email, type: req.emailType.toUpperCase() as GqlEmailType } } })
 }
@@ -263,10 +236,6 @@ export async function requestMyEmailVerification(email: string): Promise<void> {
 }
 export async function makeMyEmailPrimary(email: string): Promise<void> {
   await graphqlClient.mutate({ mutation: MakeMyEmailPrimaryDocument, variables: { email } })
-}
-
-function mapGqlStorage(storage: { code: string; type: 'WAREHOUSE' | 'SUPPLIER_STORAGE'; location?: string | null; description?: string | null }): StorageModel {
-  return { ...storage, location: storage.location ?? undefined, description: storage.description ?? undefined, type: storage.type === 'WAREHOUSE' ? StorageType.Warehouse : StorageType.SupplierStorage }
 }
 
 export async function getUserPreview(userId: string) {

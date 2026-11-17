@@ -1,0 +1,50 @@
+fragment ManagedProducer on Producer { id name description }
+query ManagedProducers($input: GetProducersInput!) { producers { list(input: $input) { ...ManagedProducer } } }
+mutation CreateProducer($input: CreateProducerInput!) { producers { create(input: $input) { ...ManagedProducer } } }
+mutation EditProducer($producerId: Int!, $input: PatchProducerInput!) { producers { edit(producerId: $producerId, input: $input) { ...ManagedProducer } } }
+mutation DeleteProducer($id: Int!) { producers { delete(id: $id) } }
+query ProducerAliases($id: Int!) { producers { byId(id: $id) { id aliases } } }
+mutation AddProducerAlias($input: ProducerAliasInput!) { producers { addAlias(input: $input) { id } } }
+mutation DeleteProducerAlias($input: ProducerAliasInput!) { producers { deleteAlias(input: $input) { id } } }
+query ProducerSupplierMappings($id: Int!) { producers { byId(id: $id) { id supplierMappings { id producer { id } supplier supplierProducerName } } } }
+mutation CreateProducerSupplierMapping($input: CreateProducerSupplierMappingInput!) { producers { createSupplierMapping(input: $input) { id producer { id } supplier supplierProducerName } } }
+mutation DeleteProducerSupplierMapping($id: Int!) { producers { deleteSupplierMapping(id: $id) } }
+
+query AllCurrencies { currencies { list { ...OperationCurrency } } }
+query BaseCurrency { currencies { base { ...OperationCurrency } } }
+mutation CreateCurrency($input: CreateCurrencyInput!) { currencies { create(input: $input) { id } } }
+mutation UpdateCurrencyRates { currencies { updateRates } }
+
+fragment ManagedRole on Role { systemName localizedName description createdAt updatedAt whoCreated whoUpdated }
+query ManagedRoles($input: GetRolesInput!) { roles { list(input: $input) { ...ManagedRole } } }
+query ManagedRole($name: String!) { roles { byName(name: $name) { ...ManagedRole permissions { systemName name description } } } }
+mutation UpsertRole($input: UpsertRoleInput!) { roles { upsert(input: $input) { systemName } } }
+mutation AddPermissionToRole($input: AddPermissionToRoleInput!) { roles { addPermission(input: $input) { systemName } } }
+query EmailOptions { options { emails { maxEmailCount minEmailCount } } }
+
+fragment ManagedStorage on Storage { code description location type }
+query ManagedStorages($input: GetStoragesInput!) { storages { list(input: $input) { ...ManagedStorage } } }
+query ManagedStorage($code: String!) { storages { byCode(code: $code) { ...ManagedStorage } } }
+mutation CreateStorage($input: CreateStorageInput!) { storages { create(input: $input) { code } } }
+mutation EditStorage($code: String!, $input: PatchStorageInput!) { storages { edit(code: $code, input: $input) { code } } }
+mutation DeleteStorage($code: String!) { storages { delete(code: $code) } }
+mutation AddStorageContent($input: AddStorageContentInput!) { storageContents { add(input: $input) } }
+mutation EditStorageContents($items: [EditStorageContentInput!]!) { storageContents { edit(items: $items) } }
+mutation ZeroStorageContent($contentId: Int!, $rowVersion: UnsignedInt!) { storageContents { setToZero(contentId: $contentId, rowVersion: $rowVersion) } }
+
+query Uploads($input: GetUploadsInput!) { uploads { list(input: $input) { files { key size lastModified fullPath } nextCursor hasMore } } }
+mutation CreateUploadRequest($input: CreateUploadRequestInput!) { uploads { createRequest(input: $input) } }
+mutation CompleteUpload($fileName: String!) { uploads { complete(fileName: $fileName) } }
+
+mutation AddProductContents($productId: Int!, $items: [ProductContentItemInput!]!) { products { addContent(productId: $productId, items: $items) { id } } }
+mutation RemoveProductContent($productId: Int!, $childProductId: Int!) { products { removeContent(productId: $productId, childProductId: $childProductId) { id } } }
+mutation SetProductContentCount($productId: Int!, $childProductId: Int!, $quantity: Int!) { products { setContentCount(productId: $productId, childProductId: $childProductId, quantity: $quantity) { id } } }
+mutation UpsertProductCharacteristics($items: [UpsertProductCharacteristicInput!]!) { products { upsertCharacteristics(items: $items) } }
+mutation DeleteProductCharacteristic($productId: Int!, $characteristicId: Int!) { products { deleteCharacteristic(productId: $productId, characteristicId: $characteristicId) { id } } }
+mutation CreateProductCrosses($linkages: [ProductLinkageInput!]!) { products { createCrosses(linkages: $linkages) } }
+mutation RemoveProductImage($productId: Int!, $imagePath: String!) { products { removeImage(productId: $productId, imagePath: $imagePath) { id } } }
+query ProductMeasurements($id: Int!) { products { byId(id: $id) { id size { length width height unit volumeM3 } weight { weight unit } } } }
+mutation SetProductSize($input: SetProductSizeInput!) { products { setSize(input: $input) { id } } }
+mutation DeleteProductSize($productId: Int!) { products { deleteSize(productId: $productId) { id } } }
+mutation SetProductWeight($input: SetProductWeightInput!) { products { setWeight(input: $input) { id } } }
+mutation DeleteProductWeight($productId: Int!) { products { deleteWeight(productId: $productId) { id } } }

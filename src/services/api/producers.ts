@@ -4,8 +4,15 @@ import type {
   ProducerSupplierMappingModel,
   Supplier,
 } from '@/models/producerModel.ts'
-import api, { clampPageSize } from '@/services/api/api.ts'
+import { clampPageSize } from '@/services/api/api.ts'
 import { getProducersByIdsGraphql } from '@/services/graphql/products.ts'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import {
+  ManagedProducersDocument, CreateProducerDocument, EditProducerDocument, DeleteProducerDocument,
+  ProducerAliasesDocument, AddProducerAliasDocument, DeleteProducerAliasDocument,
+  ProducerSupplierMappingsDocument, CreateProducerSupplierMappingDocument, DeleteProducerSupplierMappingDocument,
+} from '@/graphql/generated/graphql'
 
 interface PatchField<T> {
   isSet: boolean
@@ -49,15 +56,6 @@ export interface EditProducerResponse {
   producer: ProducerModel
 }
 
-interface ProducerAliasWireModel {
-  producerId: number
-  alias: string
-}
-
-interface GetProducerAliasesWireResponse {
-  aliases: ProducerAliasWireModel[]
-}
-
 export interface GetProducerAliasesResponse {
   aliases: ProducerAliasModel[]
 }
@@ -93,24 +91,15 @@ export interface CreateProducerSupplierMappingResponse {
   producerSupplierMapping: ProducerSupplierMappingModel
 }
 
-function toProducerAlias(item: ProducerAliasWireModel): ProducerAliasModel {
-  return {
-    producerId: item.producerId,
-    alias: item.alias,
-  }
+const supplierValues = { Armtek: 'ARMTEK', FavoritParts: 'FAVORIT_PARTS', Tmtr: 'TMTR' } as const
+function mapSupplierMapping(item: { id: number; producer: { id: number }; supplier: string; supplierProducerName: string }): ProducerSupplierMappingModel {
+  const supplier = item.supplier === 'ARMTEK' ? 'Armtek' : item.supplier === 'FAVORIT_PARTS' ? 'FavoritParts' : 'Tmtr'
+  return { id: item.id, producerId: item.producer.id, supplier, supplierProducerName: item.supplierProducerName }
 }
 
 export async function getProducers(req: GetProducersRequest): Promise<GetProducersResponse> {
-  const params = new URLSearchParams()
-  if (req.searchTerm) params.set('searchTerm', req.searchTerm)
-  req.ids?.forEach((id) => params.append('ids', String(id)))
-  params.set('page', String(req.page))
-  params.set('limit', String(clampPageSize(req.limit)))
-
-  const resp = await api.get<GetProducersResponse>('/main/producers', {
-    params,
-  })
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: ManagedProducersDocument, variables: { input: { searchTerm: req.searchTerm, ids: req.ids, pagination: { page: req.page, size: clampPageSize(req.limit) } } }, fetchPolicy: 'no-cache' }))
+  return { producers: data.producers.list }
 }
 
 export async function getProducersByIds(ids: number[]): Promise<ProducerModel[]> {
@@ -120,11 +109,9 @@ export async function getProducersByIds(ids: number[]): Promise<ProducerModel[]>
 }
 
 export async function createProducer(req: CreateProducerRequest): Promise<CreateProducerResponse> {
-  const resp = await api.post<CreateProducerResponse>('/main/producers', {
-    newProducer: req,
-  })
-
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateProducerDocument, variables: { input: req } }))
+  if (!data) throw new Error('Producer creation returned no data')
+  return { producer: data.producers.create }
 }
 
 export async function editProducer(req: EditProducerRequest): Promise<EditProducerResponse> {
@@ -133,65 +120,50 @@ export async function editProducer(req: EditProducerRequest): Promise<EditProduc
   if (req.name !== undefined) payload.name = patchField(req.name)
   if (req.description !== undefined) payload.description = patchField(req.description)
 
-  const resp = await api.patch<EditProducerResponse>(`/main/producers/${req.id}`, {
-    editProducer: payload,
-  })
-
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: EditProducerDocument, variables: { producerId: req.id, input: payload } }))
+  if (!data) throw new Error('Producer update returned no data')
+  return { producer: data.producers.edit }
 }
 
 export async function deleteProducer(id: number) {
-  await api.delete(`/main/producers/${id}`)
+  await operationRequest(graphqlClient.mutate({ mutation: DeleteProducerDocument, variables: { id } }))
 }
 
 export async function getProducerAliases(producerId: number, page = 0, limit = 100): Promise<GetProducerAliasesResponse> {
-  const resp = await api.get<GetProducerAliasesWireResponse>(`/main/producers/${producerId}/aliases`, {
-    params: { page, limit: clampPageSize(limit) },
-  })
-  return {
-    aliases: resp.data.aliases.map(toProducerAlias),
-  }
+  const { data } = await operationRequest(graphqlClient.query({ query: ProducerAliasesDocument, variables: { id: producerId }, fetchPolicy: 'no-cache' }))
+  if (!data.producers.byId) throw new Error('Producer not found')
+  const size = clampPageSize(limit)
+  return { aliases: data.producers.byId.aliases.slice(page * size, (page + 1) * size).map(alias => ({ producerId, alias })) }
 }
 
 export async function addProducerAlias(req: AddProducerAliasRequest) {
-  await api.post(`/main/producers/${req.producerId}/aliases`, {
-    alias: req.alias,
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: AddProducerAliasDocument, variables: { input: req } }))
 }
 
 export async function deleteProducerAlias(req: DeleteProducerAliasRequest) {
-  await api.delete(`/main/producers/${req.producerId}/aliases/${encodeURIComponent(req.alias)}`)
+  await operationRequest(graphqlClient.mutate({ mutation: DeleteProducerAliasDocument, variables: { input: req } }))
 }
 
 export async function getProducerSupplierMappings(
   req: GetProducerSupplierMappingsRequest,
 ): Promise<GetProducerSupplierMappingsResponse> {
-  const resp = await api.get<GetProducerSupplierMappingsResponse>(
-    `/main/producers/${req.producerId}/mappings/suppliers`,
-    {
-      params: {
-        supplier: req.suppliers,
-        page: req.page ?? 0,
-        limit: clampPageSize(req.limit ?? 100),
-      },
-    },
-  )
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: ProducerSupplierMappingsDocument, variables: { id: req.producerId }, fetchPolicy: 'no-cache' }))
+  if (!data.producers.byId) throw new Error('Producer not found')
+  const mappings = data.producers.byId.supplierMappings.map(mapSupplierMapping).filter(item => !req.suppliers?.length || req.suppliers.includes(item.supplier))
+  const page = req.page ?? 0
+  const size = clampPageSize(req.limit ?? 100)
+  return { mappings: mappings.slice(page * size, (page + 1) * size) }
 }
 
 export async function createProducerSupplierMapping(
   req: CreateProducerSupplierMappingRequest,
 ): Promise<CreateProducerSupplierMappingResponse> {
-  const resp = await api.post<CreateProducerSupplierMappingResponse>(
-    `/main/producers/${req.producerId}/mappings/suppliers`,
-    {
-      supplier: req.supplier,
-      supplierProducerName: req.supplierProducerName,
-    },
-  )
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateProducerSupplierMappingDocument, variables: { input: { ...req, supplier: supplierValues[req.supplier] } } }))
+  if (!data) throw new Error('Producer mapping creation returned no data')
+  return { producerSupplierMapping: mapSupplierMapping(data.producers.createSupplierMapping) }
 }
 
 export async function deleteProducerSupplierMapping(producerId: number, mappingId: number): Promise<void> {
-  await api.delete(`/main/producers/${producerId}/mappings/suppliers/${mappingId}`)
+  void producerId
+  await operationRequest(graphqlClient.mutate({ mutation: DeleteProducerSupplierMappingDocument, variables: { id: mappingId } }))
 }

@@ -155,6 +155,7 @@
                 @row-click="tableNavigation.onRowClick"
                 v-loading="purchasesLoading"
                 :data="purchases"
+                row-key="id"
                 class="w-full"
                 height="100%"
                 highlight-current-row
@@ -225,6 +226,7 @@
               :purchase="selectedPurchase"
               :content="purchaseContent"
               :loading="contentLoading"
+              :search-query="searchTerm"
             />
         </section>
       </div>
@@ -521,6 +523,7 @@ async function loadPurchases(resetPage: boolean, navigation?: { page: number; di
 
 async function handleCurrentPurchaseChange(purchase?: PurchaseModel) {
   if (isSettingCurrentPurchase.value || live.updating.value) return
+  if (purchase && purchase.id === selectedPurchase.value?.id) return
   await selectPurchase(purchase)
 }
 

@@ -12,7 +12,7 @@ const user = { id: 'user-1', userName: 'alice', info: { name: 'Alice', surname: 
 const org = { id: 'org-1', type: 'BUSINESS', name: 'ACME', systemName: 'acme', isHidden: false, approximateBalanceInBaseCurrency: 10, owner: user }
 const currency = { id: 1, name: 'Ruble', shortName: 'RUB', code: 'RUB', currencySign: '₽' }
 const sale = { id: 'sale-1', buyer: user, organization: org, currency, comment: null, saleDatetime: '2026-10-27T10:00:00Z', storage: { code: 'MAIN' }, state: 'COMPLETED', rowVersion: 7, totalSum: 100 }
-const purchase = { id: 'purchase-1', supplier: user, supplierOrganization: org, currency, purchaseDatetime: sale.saleDatetime, storage: { code: 'MAIN' }, totalSum: 100, logistics: { routeId: 'route-1', pricingModel: 'PER_WEIGHT', routeType: 'INTER_CITY', priceKg: 10, pricePerM3: 0, pricePerOrder: 0, minimumPrice: 0, minimumPriceApplied: false, currency } }
+const purchase = { id: 'purchase-1', supplier: user, supplierOrganization: org, currency, purchaseDatetime: sale.saleDatetime, storage: { code: 'MAIN' }, totalSum: 100 }
 const product = { id: 1, sku: 'ABC', name: 'Part', producer: { id: 1, name: 'ACME' } }
 beforeEach(() => { vi.mocked(graphqlClient.query).mockReset(); vi.mocked(graphqlClient.mutate).mockReset() })
 const input = () => vi.mocked(graphqlClient.query).mock.calls[0]![0].variables!.input
@@ -48,22 +48,25 @@ describe('GraphQL operation contracts', () => {
     expect(mutationInput()).toMatchObject({ payedSum: 50, forcePayment: true, saleDateTime: '2026-10-27T10:00:00.000Z' })
     expect(mutationInput()).not.toHaveProperty('confirmationCode')
   })
-  it('loads purchase filters and logistics with the correct model enum values', async () => {
+  it('loads purchase filters using server pagination and sorting', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { purchases: { list: [purchase] } } } as never)
     const result = await getPurchases({ page: 1, limit: 500, supplierOrganizationIds: [org.id], sortBy: ['dateTime_desc'] })
     expect(input()).toMatchObject({ pagination: { page: 1, size: 100 }, supplierOrganizationIds: [org.id], sortBy: [{ field: 'dateTime', isDescending: true }] })
-    expect(result.purchases[0]?.logistics).toMatchObject({ pricingModel: 'PerWeight', routeType: 'InterCity' })
+    expect(result.purchases[0]?.supplierOrganization.id).toBe(org.id)
   })
-  it('maps purchase content logistics and sends the contents field on creation and update', async () => {
-    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { purchases: { byId: { contents: [{ id: 1, count: 1, price: 10, totalSum: 10, comment: null, product, logistics: { weightKg: 1, areaM3: 0.1, price: 5 } }] } } } } as never)
-    expect((await getPurchaseContent(purchase.id)).content[0]).toMatchObject({ product: { sku: 'ABC', producerName: 'ACME' }, logistics: { price: 5 } })
+  it('maps purchase content and sends the supported contents field on creation and update', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { purchases: { byId: { contents: [{ id: 1, count: 1, price: 10, totalSum: 10, comment: null, product }] } } } } as never)
+    expect((await getPurchaseContent(purchase.id)).content[0]).toMatchObject({ product: { sku: 'ABC', producerName: 'ACME' }, count: 1, price: 10 })
+    expect(print(vi.mocked(graphqlClient.query).mock.calls[0]![0].query)).not.toContain('logistics')
     vi.mocked(graphqlClient.mutate).mockResolvedValue({ data: { purchases: { create: purchase } } } as never)
-    const contents = [{ productId: 1, count: 2, price: 10, calculateLogistics: true }]
-    await createPurchase({ supplierUserId: user.id, supplierOrganizationId: org.id, currencyId: 1, storageCode: 'MAIN', purchaseDate: sale.saleDatetime, purchaseContent: contents, withLogistics: true, storageFrom: 'SOURCE' })
-    expect(mutationInput()).toMatchObject({ contents, withLogistics: true, storageFrom: 'SOURCE', forcePayment: true })
+    const contents = [{ productId: 1, count: 2, price: 10 }]
+    await createPurchase({ supplierUserId: user.id, supplierOrganizationId: org.id, currencyId: 1, storageCode: 'MAIN', purchaseDate: sale.saleDatetime, purchaseContent: contents })
+    expect(mutationInput()).toMatchObject({ contents, forcePayment: true })
+    expect(mutationInput()).not.toHaveProperty('withLogistics')
+    expect(mutationInput()).not.toHaveProperty('storageFrom')
     expect(mutationInput()).not.toHaveProperty('purchaseContent')
     vi.mocked(graphqlClient.mutate).mockClear()
-    await editPurchase(purchase.id, { currencyId: 1, content: contents, purchaseDateTime: sale.saleDatetime, withLogistics: true })
+    await editPurchase(purchase.id, { currencyId: 1, content: contents, purchaseDateTime: sale.saleDatetime })
     expect(mutationInput()).toMatchObject({ purchaseId: purchase.id, contents })
   })
   it('queries history with crosses and maps identity and currency per entry', async () => {

@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { Box, Coin, Collection, DataAnalysis, Document, House, Key, Lock, Money, OfficeBuilding, Setting, ShoppingCart, Tickets, User } from '@element-plus/icons-vue'
+import { Box, Coin, Collection, DataAnalysis, Document, House, Key, Money, OfficeBuilding, Setting, ShoppingCart, Tickets, User } from '@element-plus/icons-vue'
 
 export interface NavigationEntry { path: string; label: string; icon: Component; permissions: string[] }
 export const navigationEntries: NavigationEntry[] = [
@@ -14,7 +14,6 @@ export const navigationEntries: NavigationEntry[] = [
   { path: '/users', label: 'nav.users', icon: User, permissions: ['USERS_GET'] },
   { path: '/organizations', label: 'nav.organizations', icon: OfficeBuilding, permissions: ['ORGANIZATIONS_GET'] },
   { path: '/roles', label: 'nav.roles', icon: Key, permissions: ['ROLES_GET'] },
-  { path: '/permissions', label: 'nav.permissions', icon: Lock, permissions: ['PERMISSIONS_GET'] },
   { path: '/currencies', label: 'nav.currencies', icon: Coin, permissions: ['CURRENCIES_GET'] },
   { path: '/service-settings', label: 'nav.serviceSettings', icon: Setting, permissions: ['OPTIONS_GET'] },
   { path: '/markups', label: 'nav.markup', icon: Money, permissions: ['MARKUP_GET'] },

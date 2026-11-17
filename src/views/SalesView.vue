@@ -177,6 +177,7 @@
             @row-click="tableNavigation.onRowClick"
             v-loading="salesLoading"
             :data="sales"
+            row-key="id"
             class="w-full"
             height="100%"
             highlight-current-row
@@ -238,6 +239,7 @@
             :sale="selectedSale"
             :content="saleContent"
             :loading="contentLoading"
+            :search-query="searchTerm"
           />
         </section>
       </div>
@@ -627,6 +629,7 @@ async function selectSaleFromRoute() {
 
 async function handleCurrentSaleChange(sale?: SaleModel) {
   if (isSettingCurrentSale.value || live.updating.value) return
+  if (sale && sale.id === selectedSale.value?.id) return
   await selectSale(sale)
 }
 

@@ -15,11 +15,9 @@ fragment SaleContentFields on SaleContent {
 fragment PurchaseFields on Purchase {
   id supplier { ...OperationUser } supplierOrganization { ...OperationOrganization }
   comment purchaseDatetime totalSum storage { code } currency { ...OperationCurrency }
-  logistics { routeId pricingModel routeType priceKg pricePerM3 pricePerOrder minimumPrice minimumPriceApplied currency { ...OperationCurrency } }
 }
 fragment PurchaseContentFields on PurchaseContent {
   id count price totalSum comment product { id sku name producer { name } }
-  logistics { weightKg areaM3 price }
 }
 fragment TransactionFields on Transaction {
   id amount transactionDate type sourceType isCompleted isReversed reversedAt

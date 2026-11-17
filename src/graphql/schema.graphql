@@ -1,78 +1,61 @@
-# Aligned with the public gateway SDL retrieved 2026-11-03. Execution metadata omitted.
-# Parameterized sorting and removed legacy input fields follow backend commit e427452394224e55ae0b9fb9972d40683999545f.
-# Price recommendation types follow backend PR #134 at abc3a8c.
-# Sale/purchase event types follow backend commit 8c28709b30dcdfb16bd6f3df6adf89bd2455a968.
-directive @authorize(apply: ApplyPolicy! = BEFORE_RESOLVER, policy: String, roles: [String!]) repeatable on OBJECT | FIELD_DEFINITION
-
-directive @cost(weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
-
-type Query {
-  analytics: AnalyticsQueries!
-  catalogue: CatalogueQueries!
-  catalogueCandidates: CatalogueCandidateQueries!
-  characteristics: CharacteristicQueries!
-  currencies: CurrencyQueries!
-  documents: DocumentQueries!
-  markupGroups: MarkupGroupQueries!
-  notifications: NotificationQueries!
-  organizations: OrganizationQueries!
-  priceAppliers: PriceApplierQueries!
-  producers: ProducerQueries!
-  productGroups: ProductGroupQueries!
-  products: ProductQueries!
-  purchases: PurchaseQueries!
-  sales: SaleQueries!
-  storageContents: StorageContentQueries!
-  transactions: TransactionQueries!
-  users: UserQueries!
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
 }
 
-type Mutation {
-  catalogueCandidates: CatalogueCandidateMutations!
-  characteristics: CharacteristicMutations!
-  documents: DocumentMutations!
-  markupGroups: MarkupGroupMutations!
-  notifications: NotificationMutations!
-  organizations: OrganizationMutations!
-  priceAppliers: PriceApplierMutations!
-  productEans: ProductEanMutation!
-  productGroups: ProductGroupMutations!
-  products: ProductMutations!
-  purchases: PurchaseMutations!
-  sales: SaleMutations!
-  transactions: TransactionMutations!
-  users: UserMutations!
+input AddPermissionToRoleInput {
+  roleName: String!
+  permissionName: String!
 }
 
-type Subscription {
-  onNotificationCreated: NotificationCreated!
-  onSaleCreated: SaleCreated!
-  onSaleUpdated: SaleUpdated!
-  onSaleDeleted: SaleDeleted!
-  onPurchaseCreated: PurchaseCreated!
-  onPurchaseUpdated: PurchaseUpdated!
-  onPurchaseDeleted: PurchaseDeleted!
+input AddStorageContentInput {
+  storageCode: String!
+  items: [NewStorageContentInput!]!
 }
 
-type SaleCreated { sale: Sale! }
-type SaleUpdated { sale: Sale! }
-type SaleDeleted { sale: Sale! }
-type PurchaseCreated { purchase: Purchase! }
-type PurchaseUpdated { purchase: Purchase! }
-type PurchaseDeleted { purchaseId: UUID! }
+input AddUserEmailInput {
+  userId: UUID!
+  email: String!
+  type: EmailType!
+}
 
 type AnalyticsQueries {
-  chart(systemName: String!): Chart
-  charts: [Chart!]!
+  charts: [Chart!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  chart(systemName: String!): Chart @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+"The `Any` scalar type represents any valid GraphQL value."
+scalar Any @specifiedBy(url: "https://scalars.graphql.org/chillicream/any.html")
+
+"Defines when a policy shall be executed."
+enum ApplyPolicy {
+  "After the resolver was executed."
+  AFTER_RESOLVER
+  "Before the resolver was executed."
+  BEFORE_RESOLVER
+  "The policy is applied in the validation step before the execution."
+  VALIDATION
+}
+
+enum CandidateMappingStatus {
+  UNMAPPED
+  MAPPED
+  ALL
+}
+
+input CandidateToCatalogueInput {
+  id: UUID!
+  selectedName: String
 }
 
 type CatalogueCandidate {
-  crosses: CatalogueCandidateCrosses!
-  id: UUID!
-  producer: Producer!
-  product: Product
-  sku: String!
-  supplierProducts: [SupplierProduct!]!
+  crosses: CatalogueCandidateCrosses! @cost(weight: "10")
+  id: UUID! @shareable
+  producer: Producer! @cost(weight: "10")
+  product: Product @cost(weight: "10")
+  sku: String! @cost(weight: "10")
+  supplierProducts: [SupplierProduct!]! @cost(weight: "10")
 }
 
 type CatalogueCandidateCrosses {
@@ -81,47 +64,67 @@ type CatalogueCandidateCrosses {
 }
 
 type CatalogueCandidateMutations {
-  candidateToCatalogue(input: CandidateToCatalogueInput!): Product!
-  mapCrosses(input: MaxCandidateCrossesInput!): [CatalogueCandidate!]!
+  candidateToCatalogue(input: CandidateToCatalogueInput!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  mapCrosses(input: MaxCandidateCrossesInput!): [CatalogueCandidate!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 type CatalogueCandidateQueries {
-  byId(id: UUID!): CatalogueCandidate
-  byProductId(productId: Int!): CatalogueCandidate
+  byId(id: UUID!): CatalogueCandidate @authorize(policy: "GraphQL.Permission.All") @lookup @cost(weight: "10")
+  byProductId(productId: Int!): CatalogueCandidate @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 type CatalogueQueries {
-  search(input: CatalogueSearchInput!): CatalogueSearchResult!
+  search(input: CatalogueSearchInput!): CatalogueSearchResult! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+input CatalogueSearchInput {
+  query: String
+  targets: [SearchTarget!]!
+  skuModes: [SearchMatchType!]
+  nameModes: [SearchMatchType!]
+  producerIds: [Int!]
+  productGroupIds: [Int!]
+  candidateMappingStatus: CandidateMappingStatus
+  pagination: PaginationInput!
+  productSortBy: [SortByInput!]
+  catalogueCandidateSortBy: [SortByInput!]
+  productCriteria: ProductSearchCriteriaInput
+  includeHighlights: Boolean
 }
 
 type CatalogueSearchResult {
-  catalogues: SearchCatalogueSectionOfCatalogueCandidate!
   products: SearchCatalogueSectionOfProduct!
+  catalogues: SearchCatalogueSectionOfCatalogueCandidate!
+}
+
+input ChangeOrderStatusInput {
+  orderId: UUID!
+  rowVersion: UnsignedInt!
 }
 
 type Characteristic {
-  id: Int!
+  id: Int! @shareable
   name: String!
   normalizedName: String!
 }
 
 type CharacteristicMutations {
-  delete(id: Int!): Boolean!
-  upsert(input: UpsertCharacteristicInput!): Characteristic!
+  upsert(input: UpsertCharacteristicInput!): Characteristic! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(id: Int!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 type CharacteristicQueries {
-  byIds(ids: [Int!]!): [Characteristic!]!
-  search(input: SearchCharacteristicsInput!): [Characteristic!]!
+  byIds(ids: [Int!]!): [Characteristic!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  search(input: SearchCharacteristicsInput!): [Characteristic!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 type Chart {
-  data(queryInput: Any!): ChartData!
-  dataPointSchema: ObjectSchema!
-  description: String!
-  name: String!
-  queryInputSchema: ObjectSchema!
+  data(queryInput: Any!): ChartData! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
   systemName: String!
+  name: String!
+  description: String!
+  queryInputSchema: ObjectSchema!
+  dataPointSchema: ObjectSchema!
 }
 
 type ChartData {
@@ -129,15 +132,121 @@ type ChartData {
   nextCursor: String
 }
 
-type CsvColumnSchema {
+input CreateCurrencyInput {
+  shortName: String!
+  name: String!
+  currencySign: String!
+  code: String!
+}
+
+input CreateGenerationRequestInput {
+  documentSystemName: String!
+  documentRequest: String!
+}
+
+input CreateOrganizationInput {
+  ownerId: UUID!
+  name: String!
+  systemName: String!
+}
+
+input CreateProducerInput {
+  name: String!
   description: String
+}
+
+input CreateProducerSupplierMappingInput {
+  producerId: Int!
+  supplier: Supplier!
+  supplierProducerName: String!
+}
+
+input CreateProductInput {
+  sku: String!
+  name: String!
+  producerId: Int!
+  description: String
+  indicator: String
+  groupId: Int
+}
+
+input CreatePurchaseInput {
+  supplierUserId: UUID!
+  supplierOrganizationId: UUID!
+  storageCode: String!
+  currencyId: Int!
+  purchaseDate: DateTime!
+  contents: [NewPurchaseContentInput!]!
+  comment: String
+  payedSum: Decimal
+  forcePayment: Boolean
+}
+
+input CreateSaleInput {
+  userId: UUID!
+  organizationId: UUID!
+  storageCode: String!
+  currencyId: Int!
+  saleDateTime: DateTime!
+  contents: [NewSaleContentInput!]!
+  comment: String
+  payedSum: Decimal
+  forcePayment: Boolean
+}
+
+input CreateStorageInput {
+  code: String!
+  description: String
+  location: String
+  type: StorageType!
+}
+
+input CreateTransactionInput {
+  organizationId: UUID!
+  direction: SystemTransactionDirection!
+  amount: Decimal!
+  currencyId: Int!
+  transactionDateTime: DateTime!
+  forcePayment: Boolean
+}
+
+input CreateUploadRequestInput {
+  fileName: String!
+  contentType: String!
+}
+
+input CreateUserEmailInput {
+  email: String!
+  type: EmailType!
+  isPrimary: Boolean!
+  isConfirmed: Boolean!
+}
+
+input CreateUserInput {
+  userName: String!
+  password: String!
+  userInfo: UserInfoInput!
+  emails: [CreateUserEmailInput!]!
+  phones: [CreateUserPhoneInput!]!
+  roles: [String!]!
+}
+
+input CreateUserPhoneInput {
+  number: String!
+  type: PhoneType!
+  isPrimary: Boolean!
+  isConfirmed: Boolean!
+}
+
+type CsvColumnSchema {
+  propertyName: String!
+  names: [String!]!
+  type: SchemaValueType!
+  required: Boolean!
+  labelKey: String
   descriptionKey: String
   label: String
-  labelKey: String
-  names: [String!]!
-  propertyName: String!
-  required: Boolean!
-  type: SchemaValueType!
+  description: String
 }
 
 type CsvSchema {
@@ -145,773 +254,38 @@ type CsvSchema {
 }
 
 type Currency {
-  code: String!
-  history(pagination: PaginationInput!): [CurrencyRateHistory!]!
-  id: Int!
-  name: String!
+  history(pagination: PaginationInput!): [CurrencyRateHistory!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  id: Int! @shareable
   shortName: String!
+  name: String!
   sign: String!
+  code: String!
+}
+
+type CurrencyMutations {
+  create(input: CreateCurrencyInput!): Currency! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  updateRates: Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 type CurrencyQueries {
-  byId(id: Int!): Currency
+  byId(id: Int!): Currency @lookup @cost(weight: "10")
+  list: [Currency!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  base: Currency! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 type CurrencyRateHistory {
-  createdAt: DateTime!
-  fromCurrency: Currency!
+  fromCurrency: Currency! @cost(weight: "10")
+  toCurrency: Currency! @cost(weight: "10")
   id: Int!
   rate: Decimal!
-  toCurrency: Currency!
-}
-
-type DocumentDefinition {
-  description: String!
-  documentGroup: String!
-  name: String!
-  requestSchema: ObjectSchema!
-  supportedDocumentTypes: [DocumentType!]!
-  systemName: String!
-  templateSchema: ObjectSchema!
-}
-
-type DocumentGenerationRequest {
   createdAt: DateTime!
-  documentSystemName: String!
-  expiresAt: DateTime
-  fileLink: DocumentLink
-  generatedAt: DateTime
-  jobId: UUID!
-  requesterId: UUID
-  requestId: UUID!
-  status: JobStatus!
 }
 
-type DocumentLink {
-  expiresAtUtc: DateTime!
-  url: String!
-}
-
-type DocumentMutations {
-  createGenerationRequest(input: CreateGenerationRequestInput!): DocumentGenerationRequest!
-}
-
-type DocumentQueries {
-  available: [DocumentDefinition!]!
-  byId(requestId: UUID!): DocumentGenerationRequest
-  byIds(requestIds: [UUID!]!): [DocumentGenerationRequest!]!
-  search(input: SearchDocumentsInput!): [DocumentGenerationRequest!]!
-}
-
-type FieldSchema {
-  accepts: [String!]!
-  control: InputControlType
-  dependency: SchemaDependency
-  description: String
-  descriptionKey: String
-  label: String
-  labelKey: String
-  name: String!
-  nestedSchema: ObjectSchema
-  required: Boolean!
-  type: SchemaValueType!
-}
-
-type Highlight {
-  field: String!
-  fragments: [String!]!
-}
-
-type Highlights {
-  items: [Highlight!]!
-}
-
-type MarkupGroup {
-  currency: Currency!
-  id: Int!
-  name: String
-  ranges(pagination: PaginationInput!): [MarkupRange!]!
-  sourceMessageId: UUID
-}
-
-type MarkupGroupMutations {
-  delete(id: Int!): Boolean!
-  upsert(input: UpsertMarkupGroupInput!): MarkupGroup!
-}
-
-type MarkupGroupQueries {
-  byId(id: Int!): MarkupGroup
-  search(input: SearchMarkupGroupsInput!): [MarkupGroup!]!
-}
-
-type MarkupRange {
-  id: Int!
-  markup: Decimal!
-  rangeEnd: Decimal!
-  rangeStart: Decimal!
-}
-
-type Notification {
-  createdAt: DateTime!
-  id: Int!
-  seenAt: DateTime
-  text: String!
-  userId: UUID!
-}
-
-type NotificationCreated {
-  notification: Notification!
-}
-
-type NotificationMutations {
-  see(ids: [Int!]!): Boolean!
-  send(input: SendNotificationInput!): Boolean!
-  upsertPreferences(input: UpsertNotificationPreferencesInput!): Boolean!
-}
-
-type NotificationPreference {
-  channelName: String!
-  enabled: Boolean!
-  localizableChannelName: String!
-  userId: UUID!
-}
-
-type NotificationQueries {
-  byId(id: Int!): Notification
-  list(input: ListNotificationsInput!): [Notification!]!
-  myPreferences: [NotificationPreference!]!
-}
-
-type ObjectSchema {
-  csvSchema: CsvSchema
-  fields: [FieldSchema!]!
-  version: Int!
-}
-
-type Organization {
-  approximateBalanceInBaseCurrency: Decimal
-  finances: OrganizationFinances!
-  id: UUID!
-  isHidden: Boolean!
-  members(input: OrganizationMembersInput!): [OrganizationMember!]!
-  name: String!
-  owner: User!
-  systemName: String!
-  transactions(input: OrganizationTransactionsInput!): [Transaction!]!
-  type: OrganizationType!
-}
-
-type OrganizationBalance {
-  balance: Decimal!
-  currency: Currency!
-}
-
-type OrganizationFinances {
-  balances: [OrganizationBalance!]!
-  financialProfile: OrganizationFinancialProfile
-}
-
-type OrganizationFinancialProfile {
-  minimalAllowedBalance: Decimal!
-  netPositionInBaseCurrency: Decimal!
-}
-
-type OrganizationMember {
-  organization: Organization!
-  role: OrganizationRole!
-  user: User!
-}
-
-type OrganizationMutations {
-  addMember(input: OrganizationMemberRoleInput!): Organization!
-  changeMemberRole(input: OrganizationMemberRoleInput!): Organization!
-  create(input: CreateOrganizationInput!): Organization!
-  removeMember(input: OrganizationMemberInput!): Organization!
-  update(input: UpdateOrganizationInput!): Organization!
-  updateFinancialProfile(input: UpdateOrganizationFinancialProfileInput!): Organization!
-}
-
-type OrganizationQueries {
-  byId(id: UUID!): Organization
-  bySystemName(systemName: String!): Organization!
-  isSystemNameAvailable(systemName: String!): Boolean!
-  list(input: GetOrganizationsInput!): [Organization!]!
-}
-
-type Permission {
-  description: String!
-  name: String!
-  systemName: String!
-}
-
-type PriceApplier {
-  dslLogic: String
-  isDynamic: Boolean!
-  name: String!
-  states: [PriceApplierState!]!
-  systemName: String!
-}
-
-type PriceApplierMutations {
-  delete(systemName: String!): Boolean!
-  upsert(input: UpsertPriceApplierInput!): PriceApplier!
-}
-
-type PriceApplierQueries {
-  bySystemName(systemName: String!): PriceApplier!
-  list(usage: PriceOfferSourceType!): [PriceApplier!]!
-}
-
-type PriceApplierState {
-  enabled: Boolean!
-  order: Int!
-  priceApplierSystemName: String!
-  usage: PriceOfferSourceType!
-}
-
-type PriceOffer {
-  availableQuantity: Int!
-  currency: Currency!
-  daysToRefund: Int!
-  deliveryDate: DateTime
-  deliveryProbability: Int!
-  expiresAt: DateTime!
-  guaranteedDeliveryDate: DateTime
-  id: UUID!
-  minimumPurchaseQuantity: Int!
-  offerForStorage: String!
-  orderTill: DateTime
-  product: Product!
-  purchasePrice: Decimal!
-  quantityCoefficient: Int!
-  source: PriceOfferSource!
-}
-
-type PriceOption {
-  currency: Currency!
-  deliveryProbability: Int!
-  deliveryTime: Duration!
-  forStorage: String!
-  guaranteedDeliveryTime: Duration!
-  markup: Decimal!
-  offer: PriceOffer!
-  priceOfferId: UUID!
-  score: Decimal!
-  sellPrice: Decimal!
-}
-
-type PriceRecommendation {
-  currency: Currency!
-  items: [PriceRecommendationItem!]!
-  missingQuantity: Int!
-  quantity: Int!
-  totalPrice: Decimal
-  unitPrice: Decimal
-}
-
-type PriceRecommendationItem {
-  option: PriceOption!
-  quantity: Int!
-  unitPrice: Decimal!
-}
-
-type Producer {
-  aliases: [String!]!
-  description: String
-  id: Int!
-  name: String!
-  supplierMappings: [ProducerSupplierMapping!]!
-}
-
-type ProducerQueries {
-  byId(id: Int!): Producer
-  byIds(ids: [Int!]!): [Producer!]!
-  search(input: ProducerSearchInput!): [Producer!]!
-}
-
-type ProducerSupplierMapping {
-  id: Int!
-  producer: Producer!
-  supplier: Supplier!
-  supplierProducerName: String!
-}
-
-type Product {
-  availableStock(input: ProductAvailableStocksInput!): Int!
-  characteristics: [ProductCharacteristic!]!
-  contents: [ProductContent!]!
-  crosses(input: ProductCrossesInput!): [Product!]!
-  description: String
-  eans: [String!]!
-  group: ProductGroup
-  id: Int!
-  images: [String!]!
-  indicator: String
-  name: String!
-  offers(input: ProductOffersInput!): [PriceOption!]!
-  recommendedPrice(input: RecommendedPriceInput!): PriceRecommendation!
-  pair: Product
-  producer: Producer!
-  rowVersion: UnsignedInt!
-  saleHistory(input: ProductSaleHistoryInput!): [ProductSaleHistory!]!
-  size: ProductSize
-  sku: String!
-  stock: Long!
-  storageContents(input: ProductStorageContentsInput!): [StorageContent!]!
-  weight: ProductWeight
-}
-
-type ProductCharacteristic {
-  characteristic: Characteristic!
-  value: String!
-}
-
-type ProductContent {
-  product: Product!
-  quantity: Int!
-}
-
-type ProductEanMutation {
-  create(input: ProductEanInput!): Boolean!
-  delete(input: ProductEanInput!): Boolean!
-}
-
-type ProductGroup {
-  id: Int!
-  name: String!
-  normalizedName: String!
-}
-
-type ProductGroupMutations {
-  upsert(input: UpsertProductGroupInput!): ProductGroup!
-}
-
-type ProductGroupQueries {
-  byIds(ids: [Int!]!): [ProductGroup!]!
-  search(input: SearchProductGroupsInput!): [ProductGroup!]!
-}
-
-type ProductMutations {
-  create(products: [CreateProductInput!]!): [Product!]!
-  delete(input: DeleteProductInput!): Boolean!
-  patch(input: PatchProductInput!, productId: Int!): Product!
-}
-
-type ProductQueries {
-  byEan(input: ProductsByEanInput!): [Product!]!
-  byId(id: Int!): Product
-  byIds(ids: [Int!]!): [Product!]!
-  resolve(references: [ProductReferenceInput!]!): [ResolvedProductReference!]!
-}
-
-type ProductSaleHistory {
-  averageBuyPrice: Decimal!
-  createdBy: User
-  currency: Currency!
-  discountedPrice: Decimal!
-  organization: Organization!
-  originalPrice: Decimal!
-  product: Product!
-  quantity: Int!
-  saleContentId: Int!
-  saleDate: DateTime!
-  storage: Storage!
-}
-
-type ProductSize {
-  height: Decimal!
-  length: Decimal!
-  unit: DimensionUnit!
-  volumeM3: Decimal!
-  width: Decimal!
-}
-
-type ProductWeight {
-  unit: WeightUnit!
-  weight: Decimal!
-}
-
-type Purchase {
-  comment: String
-  contents: [PurchaseContent!]!
-  currency: Currency!
-  id: UUID!
-  logistics: PurchaseLogistic
-  purchaseDatetime: DateTime!
-  storage: Storage!
-  supplier: User!
-  supplierOrganization: Organization!
-  totalSum: Decimal!
-  transaction: Transaction!
-}
-
-type PurchaseContent {
-  comment: String
-  count: Int!
-  id: Int!
-  logistics: PurchaseContentLogistic
-  price: Decimal!
-  product: Product!
-  totalSum: Decimal!
-}
-
-type PurchaseContentLogistic {
-  areaM3: Decimal!
-  price: Decimal!
-  weightKg: Decimal!
-}
-
-type PurchaseLogistic {
-  currency: Currency!
-  minimumPrice: Decimal
-  minimumPriceApplied: Boolean!
-  priceKg: Decimal!
-  pricePerM3: Decimal!
-  pricePerOrder: Decimal!
-  pricingModel: LogisticPricingType!
-  routeId: UUID!
-  routeType: RouteType!
-  transaction: Transaction
-}
-
-type PurchaseMutations {
-  create(input: CreatePurchaseInput!): Purchase!
-  delete(input: DeletePurchaseInput!): UUID!
-  update(input: UpdatePurchaseInput!): Purchase!
-}
-
-type PurchaseQueries {
-  byId(id: UUID!): Purchase
-  byTransactionId(transactionId: UUID!): Purchase!
-  list(input: GetPurchasesInput!): [Purchase!]!
-}
-
-type ResolvedProductReference {
-  producer: Producer
-  producerName: String!
-  product: Product
-  productId: Int
-  sku: String!
-  supplier: Supplier
-}
-
-type Role {
-  createdAt: DateTime!
-  description: String
-  localizedName: String
-  permissions: [Permission!]!
-  systemName: String!
-  updatedAt: DateTime!
-  whoCreated: UUID
-  whoUpdated: UUID
-}
-
-type Sale {
-  buyer: User!
-  comment: String
-  contents: [SaleContent!]!
-  currency: Currency!
-  id: UUID!
-  organization: Organization!
-  rowVersion: UnsignedInt!
-  saleDatetime: DateTime!
-  state: SaleState!
-  storage: Storage!
-  totalSum: Decimal!
-  transaction: Transaction!
-}
-
-type SaleContent {
-  comment: String
-  count: Int!
-  details: [SaleContentDetail!]!
-  discountedPrice: Decimal!
-  id: Int!
-  originalPrice: Decimal!
-  product: Product!
-  totalSum: Decimal!
-}
-
-type SaleContentDetail {
-  buyPrice: Decimal!
-  count: Int!
-  currency: Currency!
-  id: Int!
-  purchaseDatetime: DateTime!
-  saleContentId: Int!
-  storageContentId: Int!
-}
-
-type SaleMutations {
-  create(input: CreateSaleInput!): Sale!
-  delete(input: DeleteSaleInput!): UUID!
-  update(input: UpdateSaleInput!): Sale!
-}
-
-type SaleQueries {
-  byId(id: UUID!): Sale
-  byTransactionId(transactionId: UUID!): Sale!
-  list(input: GetSalesInput!): [Sale!]!
-}
-
-type SchemaDependency {
-  entityName: String!
-  fieldName: String
-}
-
-type SearchCatalogueSectionItemOfCatalogueCandidate {
-  highlights: Highlights
-  item: CatalogueCandidate!
-}
-
-type SearchCatalogueSectionItemOfProduct {
-  highlights: Highlights
-  item: Product!
-}
-
-type SearchCatalogueSectionOfCatalogueCandidate {
-  items: [SearchCatalogueSectionItemOfCatalogueCandidate!]!
-  total: Long!
-}
-
-type SearchCatalogueSectionOfProduct {
-  items: [SearchCatalogueSectionItemOfProduct!]!
-  total: Long!
-}
-
-type Storage {
-  code: String!
-  description: String
-  location: String
-  type: StorageType!
-}
-
-type StorageContent {
-  buyPrice: Decimal!
-  count: Int!
-  currency: Currency!
-  id: Int!
-  product: Product!
-  purchaseDatetime: DateTime!
-  rowVersion: UnsignedInt!
-  storage: Storage!
-}
-
-type StorageContentQueries {
-  search(input: StorageContentsSearchInput!): [StorageContent!]!
-}
+"The `DateTime` scalar type represents a date and time with time zone offset information."
+scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/chillicream/date-time.html")
 
-type SupplierProduct {
-  candidateId: UUID
-  crosses: [SupplierProduct!]!
-  id: Int!
-  names: [SupplierProductName!]!
-  producer: String!
-  sku: String!
-  supplier: Supplier!
-}
-
-type SupplierProductName {
-  id: Int!
-  name: String!
-  supplierProductId: Int!
-}
-
-type Transaction {
-  amount: Decimal!
-  currency: Currency!
-  id: UUID!
-  isCompleted: Boolean!
-  isReversed: Boolean!
-  purchase: Purchase
-  receiver: Organization!
-  reversedAt: DateTime
-  reversedBy: User
-  sale: Sale
-  sender: Organization!
-  sourceType: TransactionSourceType!
-  transactionDate: DateTime!
-  type: TransactionType!
-}
-
-type TransactionMutations {
-  create(input: CreateTransactionInput!): Transaction!
-  reverse(input: ReverseTransactionInput!): Transaction!
-}
-
-type TransactionQueries {
-  byId(id: UUID!): Transaction
-  list(input: GetTransactionsInput!): [Transaction!]!
-}
-
-type User {
-  accessFailedCount: Int!
-  createdAt: DateTime!
-  emails: [UserEmail!]!
-  id: UUID!
-  info: UserInfo
-  lastLoginAt: DateTime
-  lockoutEnd: DateTime
-  normalizedUserName: String!
-  organizations(input: UserOrganizationsInput!): [Organization!]!
-  permissions: [Permission!]!
-  phones: [UserPhone!]!
-  roles: [Role!]!
-  storages: [Storage!]!
-  twoFactorEnabled: Boolean!
-  updatedAt: DateTime!
-  userName: String!
-}
-
-type UserEmail {
-  confirmed: Boolean!
-  confirmedAt: DateTime
-  createdAt: DateTime!
-  email: String!
-  emailType: EmailType!
-  isPrimary: Boolean!
-  updatedAt: DateTime!
-}
-
-type UserInfo {
-  description: String
-  name: String!
-  surname: String!
-}
-
-type UserMutations {
-  addEmail(input: AddUserEmailInput!): User!
-  addPermissions(input: UserPermissionsInput!): User!
-  addRoles(input: UserRolesInput!): User!
-  addStorage(input: UserStorageInput!): User!
-  create(input: CreateUserInput!): User!
-  editInfo(input: EditUserInfoInput!): User!
-  makeEmailPrimary(input: UserEmailInput!): User!
-  makeMyEmailPrimary(email: String!): User!
-  removeEmail(input: UserEmailInput!): User!
-  removePermissions(input: UserPermissionsInput!): User!
-  removeRoles(input: UserRolesInput!): User!
-  removeStorage(input: UserStorageInput!): User!
-  requestEmailVerification(input: UserEmailInput!): Boolean!
-  requestMyEmailVerification(email: String!): Boolean!
-}
-
-type UserPhone {
-  isConfirmed: Boolean!
-  isPrimary: Boolean!
-  number: String!
-  type: PhoneType!
-}
-
-type UserQueries {
-  byId(id: UUID!): User
-  list(input: GetUsersInput!): [User!]!
-  search(input: SearchUsersInput!): [User!]!
-}
-
-input AddUserEmailInput {
-  email: String!
-  type: EmailType!
-  userId: UUID!
-}
-
-input CandidateToCatalogueInput {
-  id: UUID!
-  selectedName: String
-}
-
-input CatalogueSearchInput {
-  candidateMappingStatus: CandidateMappingStatus
-  catalogueCandidateSortBy: [SortByInput!]
-  includeHighlights: Boolean
-  nameModes: [SearchMatchType!]
-  pagination: PaginationInput!
-  producerIds: [Int!]
-  productCriteria: ProductSearchCriteriaInput
-  productGroupIds: [Int!]
-  productSortBy: [SortByInput!]
-  query: String
-  skuModes: [SearchMatchType!]
-  targets: [SearchTarget!]!
-}
-
-input CreateGenerationRequestInput {
-  documentRequest: String!
-  documentSystemName: String!
-}
-
-input CreateOrganizationInput {
-  name: String!
-  ownerId: UUID!
-  systemName: String!
-}
-
-input CreateProductInput {
-  description: String
-  groupId: Int
-  indicator: String
-  name: String!
-  producerId: Int!
-  sku: String!
-}
-
-input CreatePurchaseInput {
-  comment: String
-  contents: [NewPurchaseContentInput!]!
-  currencyId: Int!
-  forcePayment: Boolean
-  payedSum: Decimal
-  purchaseDate: DateTime!
-  storageCode: String!
-  storageFrom: String
-  supplierOrganizationId: UUID!
-  supplierUserId: UUID!
-  withLogistics: Boolean
-}
-
-input CreateSaleInput {
-  comment: String
-  contents: [NewSaleContentInput!]!
-  currencyId: Int!
-  forcePayment: Boolean
-  organizationId: UUID!
-  payedSum: Decimal
-  saleDateTime: DateTime!
-  storageCode: String!
-  userId: UUID!
-}
-
-input CreateTransactionInput {
-  amount: Decimal!
-  currencyId: Int!
-  direction: SystemTransactionDirection!
-  forcePayment: Boolean
-  organizationId: UUID!
-  transactionDateTime: DateTime!
-}
-
-input CreateUserEmailInput {
-  email: String!
-  isConfirmed: Boolean!
-  isPrimary: Boolean!
-  type: EmailType!
-}
-
-input CreateUserInput {
-  emails: [CreateUserEmailInput!]!
-  password: String!
-  phones: [CreateUserPhoneInput!]!
-  roles: [String!]!
-  userInfo: UserInfoInput!
-  userName: String!
-}
-
-input CreateUserPhoneInput {
-  isConfirmed: Boolean!
-  isPrimary: Boolean!
-  number: String!
-  type: PhoneType!
-}
+"The `Decimal` scalar type represents a decimal floating-point number with high precision."
+scalar Decimal @specifiedBy(url: "https://scalars.graphql.org/chillicream/decimal.html")
 
 input DeleteProductInput {
   productId: Int!
@@ -923,26 +297,88 @@ input DeletePurchaseInput {
 }
 
 input DeleteSaleInput {
-  rowVersion: UnsignedInt!
   saleId: UUID!
+  rowVersion: UnsignedInt!
 }
 
+enum DimensionUnit {
+  CENTIMETER
+  METER
+  MILLIMETER
+}
+
+type DocumentDefinition {
+  systemName: String!
+  documentGroup: String!
+  name: String!
+  description: String!
+  supportedDocumentTypes: [DocumentType!]!
+  requestSchema: ObjectSchema!
+  templateSchema: ObjectSchema!
+}
+
+type DocumentGenerationRequest {
+  jobId: UUID! @cost(weight: "10")
+  status: JobStatus! @cost(weight: "10")
+  documentSystemName: String! @cost(weight: "10")
+  requesterId: UUID @cost(weight: "10")
+  createdAt: DateTime! @cost(weight: "10")
+  generatedAt: DateTime @cost(weight: "10")
+  expiresAt: DateTime @cost(weight: "10")
+  fileLink: DocumentLink @cost(weight: "10")
+  requestId: UUID!
+}
+
+type DocumentLink {
+  url: String!
+  expiresAtUtc: DateTime!
+}
+
+type DocumentMutations {
+  createGenerationRequest(input: CreateGenerationRequestInput!): DocumentGenerationRequest! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+}
+
+type DocumentQueries {
+  available: [DocumentDefinition!]! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+  byId(requestId: UUID!): DocumentGenerationRequest @lookup @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+  byIds(requestIds: [UUID!]!): [DocumentGenerationRequest!]! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+  search(input: SearchDocumentsInput!): [DocumentGenerationRequest!]! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+}
+
+enum DocumentType {
+  PDF
+  EXCEL
+  HTML
+  DOCX
+}
+
+"The `Duration` scalar type represents a duration of time."
+scalar Duration @specifiedBy(url: "https://scalars.graphql.org/chillicream/duration.html")
+
 input EditPurchaseContentInput {
-  calculateLogistics: Boolean!
-  comment: String
-  count: Int!
   id: Int
-  price: Decimal!
   productId: Int!
+  count: Int!
+  price: Decimal!
+  comment: String
 }
 
 input EditSaleContentInput {
-  comment: String
-  count: Int!
   id: Int
+  productId: Int!
+  count: Int!
   price: Decimal!
   priceWithDiscount: Decimal!
-  productId: Int!
+  comment: String
+}
+
+input EditStorageContentInput {
+  id: Int!
+  rowVersion: UnsignedInt!
+  count: GqlPatchFieldOfInt32Input
+  purchaseDatetime: GqlPatchFieldOfDateTimeInput
+  buyPrice: GqlPatchFieldOfDecimalInput
+  currencyId: GqlPatchFieldOfInt32Input
 }
 
 input EditUserInfoInput {
@@ -950,75 +386,146 @@ input EditUserInfoInput {
   userInfo: UserInfoInput!
 }
 
+type EmailOptions {
+  maxEmailCount: Int!
+  minEmailCount: Int!
+}
+
+enum EmailType {
+  PERSONAL
+  WORK
+  UNKNOWN
+}
+
+type FieldSchema {
+  name: String!
+  type: SchemaValueType!
+  labelKey: String
+  descriptionKey: String
+  label: String
+  description: String
+  required: Boolean!
+  control: InputControlType
+  accepts: [String!]!
+  dependency: SchemaDependency
+  nestedSchema: ObjectSchema
+}
+
+scalar FieldSelectionMap
+
+scalar FieldSelectionSet
+
+input GetOrdersInput {
+  pagination: PaginationInput!
+  rangeStartDate: DateTime
+  rangeEndDate: DateTime
+  organizationIds: [UUID!]
+  userIds: [UUID!]
+  currencyIds: [Int!]
+  productIds: [Int!]
+  statuses: [OrderStatus!]
+  fulfillmentStatuses: [OrderFulfillmentStatus!]
+  sources: [OrderSource!]
+  sortBy: [SortByInput!]
+  searchTerm: String
+}
+
 input GetOrganizationsInput {
+  pagination: PaginationInput!
+  sortBy: [SortByInput!]
+  searchTerm: String
+  userId: UUID
   ids: [UUID!]
+  types: [OrganizationType!]
+  showHidden: Boolean
+}
+
+input GetProducersInput {
   pagination: PaginationInput!
   searchTerm: String
-  showHidden: Boolean
-  sortBy: [SortByInput!]
-  types: [OrganizationType!]
-  userId: UUID
+  ids: [Int!]
 }
 
 input GetPurchasesInput {
-  currencyIds: [Int!]
   pagination: PaginationInput!
-  productIds: [Int!]
-  rangeEndDate: DateTime
   rangeStartDate: DateTime
-  searchTerm: String
-  sortBy: [SortByInput!]
+  rangeEndDate: DateTime
   supplierOrganizationIds: [UUID!]
+  currencyIds: [Int!]
+  productIds: [Int!]
+  sortBy: [SortByInput!]
+  searchTerm: String
+}
+
+input GetRolesInput {
+  pagination: PaginationInput!
+  searchTerm: String
 }
 
 input GetSalesInput {
-  currencyIds: [Int!]
-  organizationIds: [UUID!]
   pagination: PaginationInput!
-  productIds: [Int!]
-  rangeEndDate: DateTime
   rangeStartDate: DateTime
-  searchTerm: String
-  sortBy: [SortByInput!]
+  rangeEndDate: DateTime
+  organizationIds: [UUID!]
+  currencyIds: [Int!]
+  productIds: [Int!]
   states: [SaleState!]
+  sortBy: [SortByInput!]
+  searchTerm: String
+}
+
+input GetStoragesInput {
+  pagination: PaginationInput!
+  searchTerm: String
+  type: StorageType
 }
 
 input GetTransactionsInput {
-  currencyId: Int
   cursor: GqlCursorOfNullableOfTransactionCursorValueInput!
-  logicalOperation: LogicalOperation
-  rangeEnd: DateTime
   rangeStart: DateTime
-  receiverId: UUID
+  rangeEnd: DateTime
+  currencyId: Int
   senderId: UUID
+  receiverId: UUID
+  logicalOperation: LogicalOperation
   skipReversed: Boolean
 }
 
+input GetUploadsInput {
+  cursor: String
+  size: Int!
+}
+
 input GetUsersInput {
-  description: String
-  email: String
+  pagination: PaginationInput!
   id: UUID
   name: String
-  pagination: PaginationInput!
-  phone: String
-  roles: [String!]
   surname: String
+  email: String
+  phone: String
   userName: String
+  description: String
+  roles: [String!]
 }
 
 input GqlCursorOfNullableOfDateTimeInput {
-  size: Int!
   value: DateTime
+  size: Int!
 }
 
 input GqlCursorOfNullableOfTransactionCursorValueInput {
-  size: Int!
   value: TransactionCursorValueInput
+  size: Int!
 }
 
 input GqlPatchFieldOfBooleanInput {
   isSet: Boolean!
   value: Boolean!
+}
+
+input GqlPatchFieldOfDateTimeInput {
+  isSet: Boolean!
+  value: DateTime!
 }
 
 input GqlPatchFieldOfDecimalInput {
@@ -1036,375 +543,23 @@ input GqlPatchFieldOfNullableOfInt32Input {
   value: Int
 }
 
+input GqlPatchFieldOfStorageTypeInput {
+  isSet: Boolean!
+  value: StorageType!
+}
+
 input GqlPatchFieldOfStringInput {
   isSet: Boolean!
   value: String
 }
 
-input ListNotificationsInput {
-  cursor: GqlCursorOfNullableOfDateTimeInput!
-}
-
-input MaxCandidateCrossesInput {
-  candidateId: UUID!
-  crossCandidateIds: [UUID!]!
-  linkageType: ProductLinkageType!
-}
-
-input NewPurchaseContentInput {
-  calculateLogistics: Boolean!
-  comment: String
-  count: Int!
-  price: Decimal!
-  productId: Int!
-}
-
-input NewSaleContentInput {
-  comment: String
-  count: Int!
-  price: Decimal!
-  priceWithDiscount: Decimal!
-  productId: Int!
-}
-
-input OrganizationMemberInput {
-  organizationId: UUID!
-  userId: UUID!
-}
-
-input OrganizationMemberRoleInput {
-  organizationId: UUID!
-  role: OrganizationRole!
-  userId: UUID!
-}
-
-input OrganizationMembersInput {
-  pagination: PaginationInput!
-}
-
-input OrganizationTransactionsInput {
-  currencyId: Int
-  cursor: GqlCursorOfNullableOfTransactionCursorValueInput!
-  rangeEnd: DateTime
-  rangeStart: DateTime
-  skipReversed: Boolean
-}
-
-input PaginationInput {
-  page: Int!
-  size: Int!
-}
-
-input PatchProductInput {
-  description: GqlPatchFieldOfStringInput
-  groupId: GqlPatchFieldOfNullableOfInt32Input
-  indicator: GqlPatchFieldOfStringInput
-  name: GqlPatchFieldOfStringInput
-  packingUnit: GqlPatchFieldOfNullableOfInt32Input
-  pairId: GqlPatchFieldOfNullableOfInt32Input
-  producerId: GqlPatchFieldOfInt32Input
-  sku: GqlPatchFieldOfStringInput
-}
-
-input ProducerSearchInput {
-  pagination: PaginationInput!
-  query: String
-}
-
-input ProductAvailableStocksInput {
-  storageCode: String!
-}
-
-input ProductCharacteristicCriteriaInput {
-  characteristicId: Int!
-  exists: Boolean
-  numericRange: SearchNumericRangeInput
-  values: [String!]
-}
-
-input ProductCrossesInput {
-  pagination: PaginationInput!
-  searchTerm: String
-  sortBy: [SortByInput!]
-}
-
-input ProductDimensionsCriteriaInput {
-  height: SearchNumericRangeInput
-  length: SearchNumericRangeInput
-  unit: DimensionUnit!
-  volume: SearchNumericRangeInput
-  width: SearchNumericRangeInput
-}
-
-input ProductEanInput {
-  ean: String!
-  productId: Int!
-}
-
-input ProductOffersInput {
-  currencyId: Int!
-  pagination: PaginationInput!
-  sortBy: [SortByInput!]
-  sources: [PriceOfferSource!]!
-  storageCode: String!
-}
-
-input ProductReferenceInput {
-  producerName: String!
-  sku: String!
-  supplier: Supplier
-}
-
-input ProductSaleHistoryInput {
-  currencyId: Int
-  organizationId: UUID
-  pagination: PaginationInput!
-  showCrosses: Boolean
-  sortBy: [SortByInput!]
-  storageCode: String
-}
-
-input RecommendedPriceInput {
-  currencyId: Int!
-  quantity: Int!
-  sources: [PriceOfferSource!]!
-  storageCode: String!
-}
-
-input ProductsByEanInput {
-  ean: String!
-  pagination: PaginationInput!
-}
-
-input ProductSearchCriteriaInput {
-  characteristics: [ProductCharacteristicCriteriaInput!]
-  dimensions: ProductDimensionsCriteriaInput
-  weight: ProductWeightCriteriaInput
-}
-
-input ProductStorageContentsInput {
-  pagination: PaginationInput!
-  showZeroCount: Boolean!
-  storageCode: String
-}
-
-input ProductWeightCriteriaInput {
-  range: SearchNumericRangeInput!
-  unit: WeightUnit!
-}
-
-input ReverseTransactionInput {
-  forcePayment: Boolean
-  transactionId: UUID!
-}
-
-input SearchCharacteristicsInput {
-  pagination: PaginationInput!
-  searchTerm: String
-  sortBy: [SortByInput!]
-}
-
-input SearchDocumentsInput {
-  documentSystemName: String
-  pagination: PaginationInput!
-  requesterId: UUID
-  sortBy: [SortByInput!]
-}
-
-input SearchMarkupGroupsInput {
-  pagination: PaginationInput!
-  searchTerm: String
-}
-
-input SearchNumericRangeInput {
-  gt: Decimal
-  gte: Decimal
-  lt: Decimal
-  lte: Decimal
-}
-
-input SearchProductGroupsInput {
-  pagination: PaginationInput!
-  searchTerm: String
-  sortBy: [SortByInput!]
-}
-
-input SearchUsersInput {
-  pagination: PaginationInput!
-  roles: [String!]
-  searchTerm: String!
-}
-
-input SendNotificationInput {
-  message: String!
-  userId: UUID!
-}
-
-input SortByInput {
-  argument: String
+type Highlight {
   field: String!
-  isDescending: Boolean!
+  fragments: [String!]!
 }
 
-input StorageContentsSearchInput {
-  pagination: PaginationInput!
-  productId: Int
-  showZeroCount: Boolean!
-  sortBy: [SortByInput!]
-  storageCode: String
-}
-
-input TransactionCursorValueInput {
-  id: UUID!
-  transactionDate: DateTime!
-}
-
-input UpdateOrganizationFinancialProfileInput {
-  minimalAllowedBalance: GqlPatchFieldOfDecimalInput
-  organizationId: UUID!
-}
-
-input UpdateOrganizationInput {
-  isHidden: GqlPatchFieldOfBooleanInput
-  name: GqlPatchFieldOfStringInput
-  organizationId: UUID!
-}
-
-input UpdatePurchaseInput {
-  comment: String
-  contents: [EditPurchaseContentInput!]!
-  currencyId: Int!
-  purchaseDateTime: DateTime!
-  purchaseId: UUID!
-  storageFrom: String
-  withLogistics: Boolean
-}
-
-input UpdateSaleInput {
-  comment: String
-  contents: [EditSaleContentInput!]!
-  currencyId: Int!
-  forcePayment: Boolean
-  rowVersion: UnsignedInt!
-  saleDateTime: DateTime!
-  saleId: UUID!
-}
-
-input UpsertCharacteristicInput {
-  id: Int
-  name: String!
-}
-
-input UpsertMarkupGroupInput {
-  currencyId: Int!
-  id: Int
-  name: String
-  ranges: [UpsertMarkupRangeInput!]!
-}
-
-input UpsertMarkupRangeInput {
-  markup: Decimal!
-  rangeEnd: Decimal!
-  rangeStart: Decimal!
-}
-
-input UpsertNotificationPreferenceInput {
-  channelName: String!
-  isEnabled: Boolean!
-}
-
-input UpsertNotificationPreferencesInput {
-  preferences: [UpsertNotificationPreferenceInput!]!
-}
-
-input UpsertPriceApplierInput {
-  dslLogic: String
-  name: String
-  states: [UpsertPriceApplierStateInput!]!
-  systemName: String!
-}
-
-input UpsertPriceApplierStateInput {
-  enabled: Boolean!
-  order: Int
-  usage: PriceOfferSourceType!
-}
-
-input UpsertProductGroupInput {
-  id: Int
-  name: String!
-}
-
-input UserEmailInput {
-  email: String!
-  userId: UUID!
-}
-
-input UserInfoInput {
-  description: String
-  name: String!
-  surname: String!
-}
-
-input UserOrganizationsInput {
-  ids: [UUID!]
-  pagination: PaginationInput!
-  searchTerm: String
-  showHidden: Boolean
-  sortBy: [SortByInput!]
-  types: [OrganizationType!]
-}
-
-input UserPermissionsInput {
-  permissions: [String!]!
-  userId: UUID!
-}
-
-input UserRolesInput {
-  roles: [String!]!
-  userId: UUID!
-}
-
-input UserStorageInput {
-  storageCode: String!
-  userId: UUID!
-}
-
-"""Defines when a policy shall be executed."""
-enum ApplyPolicy {
-  """Before the resolver was executed."""
-  BEFORE_RESOLVER
-
-  """After the resolver was executed."""
-  AFTER_RESOLVER
-
-  """The policy is applied in the validation step before the execution."""
-  VALIDATION
-}
-
-enum CandidateMappingStatus {
-  UNMAPPED
-  MAPPED
-  ALL
-}
-
-enum DimensionUnit {
-  MILLIMETER
-  CENTIMETER
-  METER
-}
-
-enum DocumentType {
-  PDF
-  EXCEL
-  HTML
-  DOCX
-}
-
-enum EmailType {
-  PERSONAL
-  WORK
-  UNKNOWN
+type Highlights {
+  items: [Highlight!]!
 }
 
 enum InputControlType {
@@ -1428,18 +583,258 @@ enum JobStatus {
   BLOCKED
 }
 
+input ListNotificationsInput {
+  cursor: GqlCursorOfNullableOfDateTimeInput!
+}
+
 enum LogicalOperation {
   AND
   OR
 }
 
-enum LogisticPricingType {
-  NONE
-  PER_ORDER
-  PER_AREA
-  PER_WEIGHT
-  PER_AREA_AND_WEIGHT
-  PER_AREA_OR_WEIGHT
+"The `Long` scalar type represents a signed 64-bit integer."
+scalar Long @specifiedBy(url: "https://scalars.graphql.org/chillicream/long.html")
+
+type MarkupGroup {
+  name: String @cost(weight: "10")
+  sourceMessageId: UUID @cost(weight: "10")
+  ranges(pagination: PaginationInput!): [MarkupRange!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  id: Int!
+  currency: Currency! @cost(weight: "10")
+}
+
+type MarkupGroupMutations {
+  upsert(input: UpsertMarkupGroupInput!): MarkupGroup! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(id: Int!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type MarkupGroupQueries {
+  byId(id: Int!): MarkupGroup @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  search(input: SearchMarkupGroupsInput!): [MarkupGroup!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type MarkupRange {
+  id: Int!
+  rangeStart: Decimal!
+  rangeEnd: Decimal!
+  markup: Decimal!
+}
+
+input MaxCandidateCrossesInput {
+  candidateId: UUID!
+  crossCandidateIds: [UUID!]!
+  linkageType: ProductLinkageType!
+}
+
+type Mutation {
+  orders: OrderMutations!
+  users: UserMutations!
+  roles: RoleMutations!
+  currencies: CurrencyMutations!
+  producers: ProducerMutations!
+  storages: StorageMutations!
+  uploads: UploadMutations!
+  storageContents: StorageContentMutations!
+  organizations: OrganizationMutations!
+  transactions: TransactionMutations!
+  purchases: PurchaseMutations!
+  sales: SaleMutations!
+  catalogueCandidates: CatalogueCandidateMutations!
+  notifications: NotificationMutations!
+  documents: DocumentMutations!
+  productGroups: ProductGroupMutations!
+  characteristics: CharacteristicMutations!
+  products: ProductMutations!
+  productEans: ProductEanMutation!
+  markupGroups: MarkupGroupMutations!
+  priceAppliers: PriceApplierMutations!
+}
+
+input NewPurchaseContentInput {
+  productId: Int!
+  count: Int!
+  price: Decimal!
+  comment: String
+}
+
+input NewSaleContentInput {
+  productId: Int!
+  count: Int!
+  price: Decimal!
+  priceWithDiscount: Decimal!
+  comment: String
+}
+
+input NewStorageContentInput {
+  productId: Int!
+  currencyId: Int!
+  buyPrice: Decimal!
+  count: Int!
+  purchaseDate: DateTime!
+}
+
+type Notification {
+  id: Int!
+  userId: UUID!
+  text: String!
+  createdAt: DateTime!
+  seenAt: DateTime
+}
+
+type NotificationCreated {
+  notification: Notification!
+}
+
+type NotificationMutations {
+  see(ids: [Int!]!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  send(input: SendNotificationInput!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  upsertPreferences(input: UpsertNotificationPreferencesInput!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type NotificationPreference {
+  userId: UUID!
+  channelName: String!
+  localizableChannelName: String!
+  enabled: Boolean!
+}
+
+type NotificationQueries {
+  byId(id: Int!): Notification @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  myPreferences: [NotificationPreference!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(input: ListNotificationsInput!): [Notification!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type ObjectSchema {
+  version: Int!
+  fields: [FieldSchema!]!
+  csvSchema: CsvSchema
+}
+
+type OptionQueries {
+  emails: EmailOptions! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type Order {
+  organization: Organization! @cost(weight: "10")
+  user: User @cost(weight: "10")
+  currency: Currency! @cost(weight: "10")
+  source: OrderSource! @cost(weight: "10")
+  status: OrderStatus! @cost(weight: "10")
+  fulfillmentStatus: OrderFulfillmentStatus! @cost(weight: "10")
+  confirmedBy: User @cost(weight: "10")
+  confirmedAt: DateTime @cost(weight: "10")
+  createdAt: DateTime! @cost(weight: "10")
+  updatedAt: DateTime! @cost(weight: "10")
+  rowVersion: UnsignedInt! @cost(weight: "10")
+  items: [OrderItem!]! @cost(weight: "10")
+  id: UUID!
+}
+
+enum OrderFulfillmentStatus {
+  NOT_AVAILABLE
+  PARTIALLY_AVAILABLE
+  FULLY_AVAILABLE
+}
+
+type OrderItem {
+  id: Int!
+  product: Product!
+  count: Int!
+  unitPrice: Decimal
+  totalPrice: Decimal
+  priceOrigin: PriceOrigin!
+}
+
+type OrderMutations {
+  upsert(input: UpsertOrderInput!): Order! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  confirm(input: ChangeOrderStatusInput!): Order! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  complete(input: ChangeOrderStatusInput!): Order! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  cancel(input: ChangeOrderStatusInput!): Order! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(input: ChangeOrderStatusInput!): Order! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type OrderQueries {
+  byId(id: UUID!): Order @lookup @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+  byIds(ids: [UUID!]!): [Order!]! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+  list(input: GetOrdersInput!): [Order!]! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+}
+
+enum OrderSource {
+  MANUAL
+  ONLINE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  DELETED
+}
+
+type Organization {
+  type: OrganizationType! @cost(weight: "10")
+  name: String! @cost(weight: "10")
+  systemName: String! @cost(weight: "10")
+  isHidden: Boolean! @cost(weight: "10")
+  owner: User! @cost(weight: "10")
+  approximateBalanceInBaseCurrency: Decimal @cost(weight: "10")
+  members(input: OrganizationMembersInput!): [OrganizationMember!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  transactions(input: OrganizationTransactionsInput!): [Transaction!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  finances: OrganizationFinances! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  id: UUID!
+}
+
+type OrganizationBalance {
+  currency: Currency! @cost(weight: "10")
+  balance: Decimal!
+}
+
+type OrganizationFinances {
+  financialProfile: OrganizationFinancialProfile
+  balances: [OrganizationBalance!]!
+}
+
+type OrganizationFinancialProfile {
+  netPositionInBaseCurrency: Decimal!
+  minimalAllowedBalance: Decimal!
+}
+
+type OrganizationMember {
+  organization: Organization!
+  user: User!
+  role: OrganizationRole!
+}
+
+input OrganizationMemberInput {
+  organizationId: UUID!
+  userId: UUID!
+}
+
+input OrganizationMemberRoleInput {
+  organizationId: UUID!
+  userId: UUID!
+  role: OrganizationRole!
+}
+
+input OrganizationMembersInput {
+  pagination: PaginationInput!
+}
+
+type OrganizationMutations {
+  create(input: CreateOrganizationInput!): Organization! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  update(input: UpdateOrganizationInput!): Organization! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  addMember(input: OrganizationMemberRoleInput!): Organization! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  changeMemberRole(input: OrganizationMemberRoleInput!): Organization! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  removeMember(input: OrganizationMemberInput!): Organization! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  updateFinancialProfile(input: UpdateOrganizationFinancialProfileInput!): Organization! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type OrganizationQueries {
+  byId(id: UUID!): Organization @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  bySystemName(systemName: String!): Organization! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(input: GetOrganizationsInput!): [Organization!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  isSystemNameAvailable(systemName: String!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 enum OrganizationRole {
@@ -1449,10 +844,56 @@ enum OrganizationRole {
   MEMBER
 }
 
+input OrganizationTransactionsInput {
+  cursor: GqlCursorOfNullableOfTransactionCursorValueInput!
+  rangeStart: DateTime
+  rangeEnd: DateTime
+  currencyId: Int
+  skipReversed: Boolean
+}
+
 enum OrganizationType {
   INDIVIDUAL
   BUSINESS
   SYSTEM
+}
+
+type Pagination {
+  page: Int!
+  size: Int!
+}
+
+input PaginationInput {
+  page: Int!
+  size: Int!
+}
+
+input PatchProducerInput {
+  name: GqlPatchFieldOfStringInput
+  description: GqlPatchFieldOfStringInput
+}
+
+input PatchProductInput {
+  sku: GqlPatchFieldOfStringInput
+  name: GqlPatchFieldOfStringInput
+  producerId: GqlPatchFieldOfInt32Input
+  description: GqlPatchFieldOfStringInput
+  packingUnit: GqlPatchFieldOfNullableOfInt32Input
+  indicator: GqlPatchFieldOfStringInput
+  groupId: GqlPatchFieldOfNullableOfInt32Input
+  pairId: GqlPatchFieldOfNullableOfInt32Input
+}
+
+input PatchStorageInput {
+  description: GqlPatchFieldOfStringInput
+  location: GqlPatchFieldOfStringInput
+  type: GqlPatchFieldOfStorageTypeInput
+}
+
+type Permission {
+  name: String! @cost(weight: "10")
+  description: String! @cost(weight: "10")
+  systemName: String! @shareable
 }
 
 enum PhoneType {
@@ -1460,6 +901,49 @@ enum PhoneType {
   WORK
   HOME
   UNKNOWN
+}
+
+type PriceApplier {
+  systemName: String!
+  name: String!
+  isDynamic: Boolean!
+  dslLogic: String
+  states: [PriceApplierState!]!
+}
+
+type PriceApplierMutations {
+  upsert(input: UpsertPriceApplierInput!): PriceApplier! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(systemName: String!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type PriceApplierQueries {
+  bySystemName(systemName: String!): PriceApplier! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(usage: PriceOfferSourceType!): [PriceApplier!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type PriceApplierState {
+  priceApplierSystemName: String!
+  usage: PriceOfferSourceType!
+  order: Int!
+  enabled: Boolean!
+}
+
+type PriceOffer {
+  id: UUID!
+  offerForStorage: String!
+  purchasePrice: Decimal!
+  source: PriceOfferSource!
+  availableQuantity: Int!
+  minimumPurchaseQuantity: Int!
+  quantityCoefficient: Int!
+  daysToRefund: Int!
+  deliveryDate: DateTime
+  guaranteedDeliveryDate: DateTime
+  deliveryProbability: Int!
+  orderTill: DateTime
+  expiresAt: DateTime!
+  product: Product!
+  currency: Currency! @cost(weight: "10")
 }
 
 enum PriceOfferSource {
@@ -1474,6 +958,178 @@ enum PriceOfferSourceType {
   OUR_WAREHOUSE
 }
 
+type PriceOption {
+  priceOfferId: UUID!
+  score: Decimal!
+  sellPrice: Decimal!
+  markup: Decimal!
+  forStorage: String!
+  deliveryTime: Duration!
+  guaranteedDeliveryTime: Duration!
+  deliveryProbability: Int!
+  offer: PriceOffer!
+  currency: Currency! @cost(weight: "10")
+}
+
+enum PriceOrigin {
+  NONE
+  PRICING_SERVICE
+  MANUAL
+}
+
+type PriceRecommendation {
+  quantity: Int!
+  missingQuantity: Int!
+  unitPrice: Decimal
+  totalPrice: Decimal
+  items: [PriceRecommendationItem!]!
+  currency: Currency! @cost(weight: "10")
+}
+
+type PriceRecommendationItem {
+  quantity: Int!
+  unitPrice: Decimal!
+  option: PriceOption! @authorize(policy: "GraphQL.Permission.All")
+}
+
+type Producer {
+  aliases: [String!]! @cost(weight: "10")
+  description: String @cost(weight: "10")
+  id: Int! @shareable
+  name: String! @cost(weight: "10")
+  supplierMappings: [ProducerSupplierMapping!]! @cost(weight: "10")
+}
+
+input ProducerAliasInput {
+  producerId: Int!
+  alias: String!
+}
+
+type ProducerMutations {
+  create(input: CreateProducerInput!): Producer! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  edit(producerId: Int!, input: PatchProducerInput!): Producer! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(id: Int!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  addAlias(input: ProducerAliasInput!): Producer! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  deleteAlias(input: ProducerAliasInput!): Producer! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  createSupplierMapping(input: CreateProducerSupplierMappingInput!): ProducerSupplierMapping! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  deleteSupplierMapping(id: Int!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type ProducerQueries {
+  byId(id: Int!): Producer @lookup @cost(weight: "10")
+  byIds(ids: [Int!]!): [Producer!]! @cost(weight: "10")
+  list(input: GetProducersInput!): [Producer!]! @cost(weight: "10")
+  search(input: ProducerSearchInput!): [Producer!]! @cost(weight: "10")
+}
+
+input ProducerSearchInput {
+  query: String
+  pagination: PaginationInput!
+}
+
+type ProducerSupplierMapping {
+  id: Int!
+  supplier: Supplier!
+  supplierProducerName: String!
+  producer: Producer!
+}
+
+type Product {
+  availableStock(input: ProductAvailableStocksInput!): Int! @cost(weight: "10")
+  characteristics: [ProductCharacteristic!]! @cost(weight: "10")
+  contents: [ProductContent!]! @cost(weight: "10")
+  crosses(input: ProductCrossesInput!): [Product!]! @cost(weight: "10")
+  description: String @cost(weight: "10")
+  eans: [String!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  group: ProductGroup @cost(weight: "10")
+  id: Int! @shareable
+  images: [String!]! @cost(weight: "10")
+  indicator: String @cost(weight: "10")
+  name: String! @cost(weight: "10")
+  offers(input: ProductOffersInput!): [PriceOption!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  pair: Product @cost(weight: "10")
+  producer: Producer! @cost(weight: "10")
+  recommendedPrice(input: RecommendedPriceInput!): PriceRecommendation! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+  rowVersion: UnsignedInt! @cost(weight: "10")
+  saleHistory(input: ProductSaleHistoryInput!): [ProductSaleHistory!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  size: ProductSize @cost(weight: "10")
+  sku: String! @cost(weight: "10")
+  stock: Long! @cost(weight: "10")
+  storageContents(input: ProductStorageContentsInput!): [StorageContent!]! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+  weight: ProductWeight @cost(weight: "10")
+}
+
+input ProductAvailableStocksInput {
+  storageCode: String!
+}
+
+type ProductCharacteristic {
+  characteristic: Characteristic!
+  value: String!
+}
+
+input ProductCharacteristicCriteriaInput {
+  characteristicId: Int!
+  values: [String!]
+  numericRange: SearchNumericRangeInput
+  exists: Boolean
+}
+
+type ProductContent {
+  quantity: Int!
+  product: Product!
+}
+
+input ProductContentItemInput {
+  childProductId: Int!
+  quantity: Int!
+}
+
+input ProductCrossesInput {
+  pagination: PaginationInput!
+  searchTerm: String
+  sortBy: [SortByInput!]
+}
+
+input ProductDimensionsCriteriaInput {
+  unit: DimensionUnit!
+  length: SearchNumericRangeInput
+  width: SearchNumericRangeInput
+  height: SearchNumericRangeInput
+  volume: SearchNumericRangeInput
+}
+
+input ProductEanInput {
+  productId: Int!
+  ean: String!
+}
+
+type ProductEanMutation {
+  create(input: ProductEanInput!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(input: ProductEanInput!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type ProductGroup {
+  name: String! @cost(weight: "10")
+  normalizedName: String! @cost(weight: "10")
+  id: Int! @shareable
+}
+
+type ProductGroupMutations {
+  upsert(input: UpsertProductGroupInput!): ProductGroup! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type ProductGroupQueries {
+  byIds(ids: [Int!]!): [ProductGroup!]! @cost(weight: "10")
+  search(input: SearchProductGroupsInput!): [ProductGroup!]! @cost(weight: "10")
+}
+
+input ProductLinkageInput {
+  productId: Int!
+  crossProductId: Int!
+  linkageType: ProductLinkageType!
+}
+
 enum ProductLinkageType {
   SINGLE_CROSS
   FULL_CROSS
@@ -1481,16 +1137,285 @@ enum ProductLinkageType {
   FULL_RIGHT_TO_LEFT_CROSS
 }
 
-enum RouteType {
-  INTRA_CITY
-  INTER_CITY
-  INTERNATIONAL
+type ProductMutations {
+  create(products: [CreateProductInput!]!): [Product!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  patch(productId: Int!, input: PatchProductInput!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(input: DeleteProductInput!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  setSize(input: SetProductSizeInput!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  deleteSize(productId: Int!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  setWeight(input: SetProductWeightInput!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  deleteWeight(productId: Int!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  upsertCharacteristics(items: [UpsertProductCharacteristicInput!]!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  deleteCharacteristic(productId: Int!, characteristicId: Int!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  addContent(productId: Int!, items: [ProductContentItemInput!]!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  removeContent(productId: Int!, childProductId: Int!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  setContentCount(productId: Int!, childProductId: Int!, quantity: Int!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  removeImage(productId: Int!, imagePath: String!): Product! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  createCrosses(linkages: [ProductLinkageInput!]!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+input ProductOffersInput {
+  currencyId: Int!
+  storageCode: String!
+  sources: [PriceOfferSource!]!
+  pagination: PaginationInput!
+  sortBy: [SortByInput!]
+}
+
+type ProductQueries {
+  byId(id: Int!): Product @authorize(policy: "GraphQL.Permission.All") @lookup @cost(weight: "10")
+  byIds(ids: [Int!]!): [Product!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  byEan(input: ProductsByEanInput!): [Product!]! @authorize(policy: "GraphQL.Permission.All") @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  resolve(references: [ProductReferenceInput!]!): [ResolvedProductReference!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+input ProductReferenceInput {
+  sku: String!
+  producerName: String!
+  supplier: Supplier
+}
+
+type ProductSaleHistory {
+  currency: Currency! @cost(weight: "10")
+  saleContentId: Int!
+  product: Product!
+  organization: Organization!
+  storage: Storage!
+  quantity: Int!
+  originalPrice: Decimal!
+  discountedPrice: Decimal!
+  averageBuyPrice: Decimal!
+  saleDate: DateTime!
+  createdBy: User
+}
+
+input ProductSaleHistoryInput {
+  pagination: PaginationInput!
+  storageCode: String
+  organizationId: UUID
+  currencyId: Int
+  sortBy: [SortByInput!]
+  showCrosses: Boolean
+}
+
+input ProductSearchCriteriaInput {
+  weight: ProductWeightCriteriaInput
+  dimensions: ProductDimensionsCriteriaInput
+  characteristics: [ProductCharacteristicCriteriaInput!]
+}
+
+type ProductSize {
+  length: Decimal!
+  width: Decimal!
+  height: Decimal!
+  unit: DimensionUnit!
+  volumeM3: Decimal!
+}
+
+input ProductStorageContentsInput {
+  pagination: PaginationInput!
+  storageCode: String
+  showZeroCount: Boolean!
+}
+
+type ProductWeight {
+  weight: Decimal!
+  unit: WeightUnit!
+}
+
+input ProductWeightCriteriaInput {
+  range: SearchNumericRangeInput!
+  unit: WeightUnit!
+}
+
+input ProductsByEanInput {
+  ean: String!
+  pagination: PaginationInput!
+}
+
+type Purchase {
+  supplier: User! @cost(weight: "10")
+  supplierOrganization: Organization! @cost(weight: "10")
+  comment: String @cost(weight: "10")
+  purchaseDatetime: DateTime! @cost(weight: "10")
+  transaction: Transaction! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  totalSum: Decimal! @cost(weight: "10")
+  storage: Storage! @cost(weight: "10")
+  currency: Currency! @cost(weight: "10")
+  contents: [PurchaseContent!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  id: UUID!
+}
+
+type PurchaseContent {
+  id: Int!
+  count: Int!
+  price: Decimal!
+  totalSum: Decimal!
+  comment: String
+  product: Product!
+}
+
+type PurchaseCreated {
+  purchase: Purchase!
+}
+
+type PurchaseDeleted {
+  purchaseId: UUID!
+}
+
+type PurchaseMutations {
+  create(input: CreatePurchaseInput!): Purchase! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  update(input: UpdatePurchaseInput!): Purchase! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(input: DeletePurchaseInput!): UUID! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type PurchaseQueries {
+  byId(id: UUID!): Purchase @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  byTransactionId(transactionId: UUID!): Purchase! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(input: GetPurchasesInput!): [Purchase!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type PurchaseUpdated {
+  purchase: Purchase!
+}
+
+type Query {
+  analytics: AnalyticsQueries!
+  catalogue: CatalogueQueries!
+  catalogueCandidates: CatalogueCandidateQueries!
+  characteristics: CharacteristicQueries!
+  currencies: CurrencyQueries!
+  documents: DocumentQueries!
+  markupGroups: MarkupGroupQueries!
+  notifications: NotificationQueries!
+  options: OptionQueries!
+  orders: OrderQueries!
+  organizations: OrganizationQueries!
+  priceAppliers: PriceApplierQueries!
+  producers: ProducerQueries! @shareable
+  productGroups: ProductGroupQueries!
+  products: ProductQueries! @shareable
+  purchases: PurchaseQueries!
+  roles: RoleQueries!
+  sales: SaleQueries!
+  storageContents: StorageContentQueries!
+  storages: StorageQueries!
+  transactions: TransactionQueries!
+  uploads: UploadQueries!
+  users: UserQueries!
+}
+
+input RecommendedPriceInput {
+  currencyId: Int!
+  storageCode: String!
+  quantity: Int!
+  sources: [PriceOfferSource!]!
+}
+
+type ResolvedProductReference {
+  sku: String!
+  producerName: String!
+  supplier: Supplier
+  productId: Int
+  product: Product
+  producer: Producer
+}
+
+input ReverseTransactionInput {
+  transactionId: UUID!
+  forcePayment: Boolean
+}
+
+type Role {
+  localizedName: String @cost(weight: "10")
+  description: String @cost(weight: "10")
+  createdAt: DateTime! @cost(weight: "10")
+  updatedAt: DateTime! @cost(weight: "10")
+  whoCreated: UUID @cost(weight: "10")
+  whoUpdated: UUID @cost(weight: "10")
+  permissions: [Permission!]! @cost(weight: "10")
+  systemName: String! @shareable
+}
+
+type RoleMutations {
+  upsert(input: UpsertRoleInput!): Role! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  addPermission(input: AddPermissionToRoleInput!): Role! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type RoleQueries {
+  byName(name: String! @is(field: "systemName")): Role @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(input: GetRolesInput!): [Role!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type Sale {
+  buyer: User! @cost(weight: "10")
+  organization: Organization! @cost(weight: "10")
+  comment: String @cost(weight: "10")
+  saleDatetime: DateTime! @cost(weight: "10")
+  transaction: Transaction! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  totalSum: Decimal! @cost(weight: "10")
+  storage: Storage! @cost(weight: "10")
+  rowVersion: UnsignedInt! @cost(weight: "10")
+  state: SaleState! @cost(weight: "10")
+  currency: Currency! @cost(weight: "10")
+  contents: [SaleContent!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  id: UUID!
+}
+
+type SaleContent {
+  details: [SaleContentDetail!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  id: Int!
+  count: Int!
+  originalPrice: Decimal!
+  totalSum: Decimal!
+  comment: String
+  discountedPrice: Decimal!
+  product: Product!
+}
+
+type SaleContentDetail {
+  currency: Currency! @cost(weight: "10")
+  id: Int!
+  saleContentId: Int!
+  storageContentId: Int!
+  buyPrice: Decimal!
+  count: Int!
+  purchaseDatetime: DateTime!
+}
+
+type SaleCreated {
+  sale: Sale!
+}
+
+type SaleDeleted {
+  sale: Sale!
+}
+
+type SaleMutations {
+  create(input: CreateSaleInput!): Sale! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  update(input: UpdateSaleInput!): Sale! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(input: DeleteSaleInput!): UUID! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type SaleQueries {
+  byId(id: UUID!): Sale @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  byTransactionId(transactionId: UUID!): Sale! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(input: GetSalesInput!): [Sale!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 enum SaleState {
   DRAFT
   COMPLETED
   DELETED
+}
+
+type SaleUpdated {
+  sale: Sale!
+}
+
+type SchemaDependency {
+  entityName: String!
+  fieldName: String
 }
 
 enum SchemaValueType {
@@ -1503,6 +1428,44 @@ enum SchemaValueType {
   OBJECT
 }
 
+type SearchCatalogueSectionItemOfCatalogueCandidate {
+  item: CatalogueCandidate!
+  highlights: Highlights
+}
+
+type SearchCatalogueSectionItemOfProduct {
+  item: Product!
+  highlights: Highlights
+}
+
+type SearchCatalogueSectionOfCatalogueCandidate {
+  items: [SearchCatalogueSectionItemOfCatalogueCandidate!]!
+  total: Long!
+}
+
+type SearchCatalogueSectionOfProduct {
+  items: [SearchCatalogueSectionItemOfProduct!]!
+  total: Long!
+}
+
+input SearchCharacteristicsInput {
+  searchTerm: String
+  sortBy: [SortByInput!]
+  pagination: PaginationInput!
+}
+
+input SearchDocumentsInput {
+  requesterId: UUID
+  documentSystemName: String
+  pagination: PaginationInput!
+  sortBy: [SortByInput!]
+}
+
+input SearchMarkupGroupsInput {
+  searchTerm: String
+  pagination: PaginationInput!
+}
+
 enum SearchMatchType {
   EXACT
   STARTS_WITH
@@ -1510,14 +1473,121 @@ enum SearchMatchType {
   FUZZY
 }
 
+input SearchNumericRangeInput {
+  gt: Decimal
+  gte: Decimal
+  lt: Decimal
+  lte: Decimal
+}
+
+input SearchProductGroupsInput {
+  searchTerm: String
+  sortBy: [SortByInput!]
+  pagination: PaginationInput!
+}
+
 enum SearchTarget {
   PRODUCTS
   CATALOGUE_CANDIDATES
 }
 
+input SearchUsersInput {
+  searchTerm: String!
+  roles: [String!]
+  pagination: PaginationInput!
+}
+
+input SendNotificationInput {
+  userId: UUID!
+  message: String!
+}
+
+input SetProductSizeInput {
+  productId: Int!
+  length: Decimal!
+  width: Decimal!
+  height: Decimal!
+  unit: DimensionUnit!
+}
+
+input SetProductWeightInput {
+  productId: Int!
+  weight: Decimal!
+  unit: WeightUnit!
+}
+
+type SortBy {
+  argument: String
+  field: String!
+  isDescending: Boolean!
+}
+
+input SortByInput {
+  argument: String
+  field: String!
+  isDescending: Boolean!
+}
+
+type Storage {
+  description: String @cost(weight: "10")
+  location: String @cost(weight: "10")
+  type: StorageType! @cost(weight: "10")
+  code: String!
+}
+
+type StorageContent {
+  currency: Currency! @cost(weight: "10")
+  id: Int!
+  count: Int!
+  buyPrice: Decimal!
+  purchaseDatetime: DateTime!
+  rowVersion: UnsignedInt!
+  storage: Storage!
+  product: Product!
+}
+
+type StorageContentMutations {
+  add(input: AddStorageContentInput!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  edit(items: [EditStorageContentInput!]!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  setToZero(contentId: Int!, rowVersion: UnsignedInt!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type StorageContentQueries {
+  search(input: StorageContentsSearchInput!): [StorageContent!]! @authorize(policy: "GraphQL.Permission.Any") @cost(weight: "10")
+}
+
+input StorageContentsSearchInput {
+  productId: Int
+  storageCode: String
+  sortBy: [SortByInput!]
+  pagination: PaginationInput!
+  showZeroCount: Boolean!
+}
+
+type StorageMutations {
+  create(input: CreateStorageInput!): Storage! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  edit(code: String!, input: PatchStorageInput!): Storage! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  delete(code: String!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type StorageQueries {
+  byCode(code: String!): Storage @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(input: GetStoragesInput!): [Storage!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
 enum StorageType {
   WAREHOUSE
   SUPPLIER_STORAGE
+}
+
+type Subscription {
+  onNotificationCreated: NotificationCreated! @eventStream(message: "notification { id }") @authorize(policy: "GraphQL.Permission.All")
+  onPurchaseCreated: PurchaseCreated! @eventStream(message: "purchase { id }") @authorize(policy: "GraphQL.Permission.All")
+  onPurchaseUpdated: PurchaseUpdated! @eventStream(message: "purchase { id }") @authorize(policy: "GraphQL.Permission.All")
+  onPurchaseDeleted: PurchaseDeleted! @eventStream(message: "purchaseId") @authorize(policy: "GraphQL.Permission.All")
+  onSaleCreated: SaleCreated! @eventStream(message: "sale { id }") @authorize(policy: "GraphQL.Permission.All")
+  onSaleUpdated: SaleUpdated! @eventStream(message: "sale { id }") @authorize(policy: "GraphQL.Permission.All")
+  onSaleDeleted: SaleDeleted! @eventStream(message: "sale { id }") @authorize(policy: "GraphQL.Permission.All")
 }
 
 enum Supplier {
@@ -1526,9 +1596,57 @@ enum Supplier {
   TMTR
 }
 
+type SupplierProduct {
+  crosses: [SupplierProduct!]! @cost(weight: "10")
+  id: Int! @shareable
+  sku: String!
+  producer: String!
+  candidateId: UUID
+  supplier: Supplier!
+  names: [SupplierProductName!]!
+}
+
+type SupplierProductName {
+  id: Int! @shareable
+  supplierProductId: Int!
+  name: String!
+}
+
 enum SystemTransactionDirection {
   USER_TO_SYSTEM
   SYSTEM_TO_USER
+}
+
+type Transaction {
+  amount: Decimal! @cost(weight: "10")
+  transactionDate: DateTime! @cost(weight: "10")
+  type: TransactionType! @cost(weight: "10")
+  sourceType: TransactionSourceType! @cost(weight: "10")
+  sender: Organization! @cost(weight: "10")
+  receiver: Organization! @cost(weight: "10")
+  currency: Currency! @cost(weight: "10")
+  isCompleted: Boolean! @cost(weight: "10")
+  isReversed: Boolean! @cost(weight: "10")
+  reversedAt: DateTime @cost(weight: "10")
+  reversedBy: User @cost(weight: "10")
+  sale: Sale @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  purchase: Purchase @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  id: UUID!
+}
+
+input TransactionCursorValueInput {
+  id: UUID!
+  transactionDate: DateTime!
+}
+
+type TransactionMutations {
+  create(input: CreateTransactionInput!): Transaction! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  reverse(input: ReverseTransactionInput!): Transaction! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type TransactionQueries {
+  byId(id: UUID!): Transaction @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(input: GetTransactionsInput!): [Transaction!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
 }
 
 enum TransactionSourceType {
@@ -1545,35 +1663,255 @@ enum TransactionType {
   ADJUSTMENT
 }
 
+"The `UUID` scalar type represents a Universally Unique Identifier (UUID) as defined by RFC 9562."
+scalar UUID @specifiedBy(url: "https://scalars.graphql.org/chillicream/uuid.html")
+
+"The `UnsignedInt` scalar type represents an unsigned 32-bit integer."
+scalar UnsignedInt @specifiedBy(url: "https://scalars.graphql.org/chillicream/unsigned-int.html")
+
+input UpdateOrganizationFinancialProfileInput {
+  organizationId: UUID!
+  minimalAllowedBalance: GqlPatchFieldOfDecimalInput
+}
+
+input UpdateOrganizationInput {
+  organizationId: UUID!
+  name: GqlPatchFieldOfStringInput
+  isHidden: GqlPatchFieldOfBooleanInput
+}
+
+input UpdatePurchaseInput {
+  purchaseId: UUID!
+  currencyId: Int!
+  purchaseDateTime: DateTime!
+  contents: [EditPurchaseContentInput!]!
+  comment: String
+}
+
+input UpdateSaleInput {
+  saleId: UUID!
+  rowVersion: UnsignedInt!
+  currencyId: Int!
+  saleDateTime: DateTime!
+  contents: [EditSaleContentInput!]!
+  comment: String
+  forcePayment: Boolean
+}
+
+type UploadMutations {
+  createRequest(input: CreateUploadRequestInput!): String! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  complete(fileName: String!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type UploadQueries {
+  list(input: GetUploadsInput!): UploadedFilesPage! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type UploadedFile {
+  key: String!
+  size: Long!
+  lastModified: DateTime
+  fullPath: String!
+}
+
+type UploadedFilesPage {
+  files: [UploadedFile!]!
+  nextCursor: String
+  hasMore: Boolean!
+}
+
+input UpsertCharacteristicInput {
+  id: Int
+  name: String!
+}
+
+input UpsertMarkupGroupInput {
+  id: Int
+  name: String
+  currencyId: Int!
+  ranges: [UpsertMarkupRangeInput!]!
+}
+
+input UpsertMarkupRangeInput {
+  rangeStart: Decimal!
+  rangeEnd: Decimal!
+  markup: Decimal!
+}
+
+input UpsertNotificationPreferenceInput {
+  channelName: String!
+  isEnabled: Boolean!
+}
+
+input UpsertNotificationPreferencesInput {
+  preferences: [UpsertNotificationPreferenceInput!]!
+}
+
+input UpsertOrderInput {
+  id: UUID
+  rowVersion: UnsignedInt
+  organizationId: UUID!
+  userId: UUID
+  currencyId: Int!
+  items: [UpsertOrderItemInput!]!
+}
+
+input UpsertOrderItemInput {
+  id: Int
+  productId: Int!
+  count: Int!
+  unitPrice: Decimal
+}
+
+input UpsertPriceApplierInput {
+  systemName: String!
+  name: String
+  dslLogic: String
+  states: [UpsertPriceApplierStateInput!]!
+}
+
+input UpsertPriceApplierStateInput {
+  usage: PriceOfferSourceType!
+  order: Int
+  enabled: Boolean!
+}
+
+input UpsertProductCharacteristicInput {
+  productId: Int!
+  characteristicId: Int!
+  value: String!
+}
+
+input UpsertProductGroupInput {
+  id: Int
+  name: String!
+}
+
+input UpsertRoleInput {
+  name: String!
+  description: String
+}
+
+type User {
+  userName: String! @cost(weight: "10")
+  normalizedUserName: String! @cost(weight: "10")
+  createdAt: DateTime! @cost(weight: "10")
+  updatedAt: DateTime! @cost(weight: "10")
+  twoFactorEnabled: Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  lockoutEnd: DateTime @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  accessFailedCount: Int! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  lastLoginAt: DateTime @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  info: UserInfo @cost(weight: "10")
+  emails: [UserEmail!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  phones: [UserPhone!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  roles: [Role!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  permissions: [Permission!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  id: UUID! @shareable
+}
+
+type UserEmail {
+  email: String!
+  confirmed: Boolean!
+  emailType: EmailType!
+  isPrimary: Boolean!
+  confirmedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input UserEmailInput {
+  userId: UUID!
+  email: String!
+}
+
+type UserInfo {
+  name: String!
+  surname: String!
+  description: String
+}
+
+input UserInfoInput {
+  name: String!
+  surname: String!
+  description: String
+}
+
+type UserMutations {
+  create(input: CreateUserInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  editInfo(input: EditUserInfoInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  addEmail(input: AddUserEmailInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  removeEmail(input: UserEmailInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  requestEmailVerification(input: UserEmailInput!): Boolean! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  makeEmailPrimary(input: UserEmailInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  addRoles(input: UserRolesInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  removeRoles(input: UserRolesInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  addPermissions(input: UserPermissionsInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  removePermissions(input: UserPermissionsInput!): User! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  requestMyEmailVerification(email: String!): Boolean! @authorize @cost(weight: "10")
+  makeMyEmailPrimary(email: String!): User! @authorize @cost(weight: "10")
+}
+
+input UserPermissionsInput {
+  userId: UUID!
+  permissions: [String!]!
+}
+
+type UserPhone {
+  number: String!
+  type: PhoneType!
+  isConfirmed: Boolean!
+  isPrimary: Boolean!
+}
+
+type UserQueries {
+  byId(id: UUID!): User @lookup @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  list(input: GetUsersInput!): [User!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  search(input: SearchUsersInput!): [User!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+input UserRolesInput {
+  userId: UUID!
+  roles: [String!]!
+}
+
 enum WeightUnit {
   GRAM
   KILOGRAM
   TONNE
 }
 
-"""The `Any` scalar type represents any valid GraphQL value."""
-scalar Any @specifiedBy(url: "https://scalars.graphql.org/chillicream/any.html")
+"The authorize directive."
+directive @authorize(
+  "The name of the authorization policy that determines access to the annotated resource."
+  policy: String
+  "Roles that are allowed to access the annotated resource."
+  roles: [String!]
+  "Defines when the authorize directive shall be applied. By default the authorize directive is applied before the resolver is executed."
+  apply: ApplyPolicy! = BEFORE_RESOLVER
+) repeatable on OBJECT | FIELD_DEFINITION
+
+"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response."
+directive @cost(
+  "The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc."
+  weight: String!
+) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
+
+directive @eventStream(message: FieldSelectionSet!, topics: [String!], broker: String) on FIELD_DEFINITION
 
 """
-The `DateTime` scalar type represents a date and time with time zone offset information.
+The @is directive is utilized on lookup fields to describe how the arguments
+can be mapped from the entity type that the lookup field resolves.
 """
-scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/chillicream/date-time.html")
+directive @is(
+  "The field selection map syntax."
+  field: FieldSelectionMap!
+) on ARGUMENT_DEFINITION
 
 """
-The `Decimal` scalar type represents a decimal floating-point number with high precision.
+The @lookup directive is used within a source schema to specify output fields
+that can be used by the distributed GraphQL executor to resolve an entity by
+a stable key.
 """
-scalar Decimal @specifiedBy(url: "https://scalars.graphql.org/chillicream/decimal.html")
+directive @lookup on FIELD_DEFINITION
 
-"""The `Duration` scalar type represents a duration of time."""
-scalar Duration @specifiedBy(url: "https://scalars.graphql.org/chillicream/duration.html")
-
-"""The `Long` scalar type represents a signed 64-bit integer."""
-scalar Long @specifiedBy(url: "https://scalars.graphql.org/chillicream/long.html")
-
-"""The `UnsignedInt` scalar type represents an unsigned 32-bit integer."""
-scalar UnsignedInt @specifiedBy(url: "https://scalars.graphql.org/chillicream/unsigned-int.html")
-
-"""
-The `UUID` scalar type represents a Universally Unique Identifier (UUID) as defined by RFC 9562.
-"""
-scalar UUID @specifiedBy(url: "https://scalars.graphql.org/chillicream/uuid.html")
+directive @shareable repeatable on OBJECT | FIELD_DEFINITION

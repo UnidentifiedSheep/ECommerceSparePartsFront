@@ -21,6 +21,14 @@ import {
   createProductsGraphql,
 } from '@/services/graphql/products.ts'
 import type { PatchProductInput } from '@/graphql/generated/graphql.ts'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import {
+  AddProductContentsDocument, RemoveProductContentDocument, SetProductContentCountDocument,
+  UpsertProductCharacteristicsDocument, DeleteProductCharacteristicDocument, CreateProductCrossesDocument,
+  RemoveProductImageDocument, ProductMeasurementsDocument, SetProductSizeDocument, DeleteProductSizeDocument,
+  SetProductWeightDocument, DeleteProductWeightDocument,
+} from '@/graphql/generated/graphql'
 
 export interface CreateProductRequestItem {
   sku: string
@@ -246,43 +254,27 @@ export async function getProductContent(productId: number): Promise<GetProductCo
 }
 
 export async function addProductContent(req: AddProductContentRequest): Promise<void> {
-  await api.post(`/main/products/${req.productId}/contents`, {
-    content: {
-      [req.childProductId]: req.count,
-    },
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: AddProductContentsDocument, variables: { productId: req.productId, items: [{ childProductId: req.childProductId, quantity: req.count }] } }))
 }
 
 export async function editProductContent(req: EditProductContentRequest): Promise<void> {
-  await api.patch(`/main/products/${req.productId}/contents/${req.childProductId}`, {
-    count: req.count,
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: SetProductContentCountDocument, variables: { productId: req.productId, childProductId: req.childProductId, quantity: req.count } }))
 }
 
 export async function deleteProductContent(productId: number, childProductId: number): Promise<void> {
-  await api.delete(`/main/products/${productId}/contents/${childProductId}`)
+  await operationRequest(graphqlClient.mutate({ mutation: RemoveProductContentDocument, variables: { productId, childProductId } }))
 }
 
 export async function addProductCharacteristic(req: AddProductCharacteristicRequest): Promise<void> {
-  await api.put('/main/products/characteristics/', {
-    characteristics: [
-      {
-        productId: req.productId,
-        characteristicId: req.characteristicId,
-        value: req.value,
-      },
-    ],
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: UpsertProductCharacteristicsDocument, variables: { items: [req] } }))
 }
 
 export async function editProductCharacteristic(req: EditProductCharacteristicRequest): Promise<void> {
-  await api.put(`/main/products/${req.productId}/characteristics/${req.characteristicId}`, {
-    value: req.value,
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: UpsertProductCharacteristicsDocument, variables: { items: [req] } }))
 }
 
 export async function deleteProductCharacteristic(productId: number, characteristicId: number): Promise<void> {
-  await api.delete(`/main/products/${productId}/characteristics/${characteristicId}`)
+  await operationRequest(graphqlClient.mutate({ mutation: DeleteProductCharacteristicDocument, variables: { productId, characteristicId } }))
 }
 
 export async function createProducts(req: CreateProductsRequest): Promise<CreateProductsResponse> {
@@ -295,7 +287,8 @@ export async function deleteProduct(productId: number, rowVersion: number): Prom
 }
 
 export async function createProductCrosses(req: CreateProductCrossesRequest): Promise<void> {
-  await api.post('/main/products/crosses', req)
+  const linkageTypes = { SingleCross: 'SINGLE_CROSS', FullCross: 'FULL_CROSS', FullLeftToRightCross: 'FULL_LEFT_TO_RIGHT_CROSS', FullRightToLeftCross: 'FULL_RIGHT_TO_LEFT_CROSS' } as const
+  await operationRequest(graphqlClient.mutate({ mutation: CreateProductCrossesDocument, variables: { linkages: req.linkages.map(item => ({ ...item, linkageType: linkageTypes[item.linkageType] })) } }))
 }
 
 export async function editProduct(req: EditProductRequest): Promise<void> {
@@ -324,35 +317,37 @@ export async function uploadProductImages(productId: number, files: File[]): Pro
 }
 
 export async function deleteProductImage(productId: number, imagePath: string): Promise<void> {
-  await api.delete(`/main/products/${productId}/imgs`, {
-    params: {
-      imagePath,
-    },
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: RemoveProductImageDocument, variables: { productId, imagePath } }))
 }
 
 export async function getProductSize(productId: number): Promise<GetProductSizeResponse> {
-  const resp = await api.get<GetProductSizeResponse>(`/main/products/${productId}/sizes`)
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: ProductMeasurementsDocument, variables: { id: productId }, fetchPolicy: 'no-cache' }))
+  const size = data.products.byId?.size
+  if (!size) throw new Error('Product size not found')
+  return { productSize: { ...size, productId } }
 }
 
 export async function setProductSize(productId: number, req: SetProductSizeRequest): Promise<void> {
-  await api.put(`/main/products/${productId}/sizes`, req)
+  const units = { Millimeter: 'MILLIMETER', Centimeter: 'CENTIMETER', Meter: 'METER' } as const
+  await operationRequest(graphqlClient.mutate({ mutation: SetProductSizeDocument, variables: { input: { ...req, productId, unit: units[req.unit] } } }))
 }
 
 export async function deleteProductSize(productId: number): Promise<void> {
-  await api.delete(`/main/products/${productId}/sizes`)
+  await operationRequest(graphqlClient.mutate({ mutation: DeleteProductSizeDocument, variables: { productId } }))
 }
 
 export async function getProductWeight(productId: number): Promise<GetProductWeightResponse> {
-  const resp = await api.get<GetProductWeightResponse>(`/main/products/${productId}/weights`)
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: ProductMeasurementsDocument, variables: { id: productId }, fetchPolicy: 'no-cache' }))
+  const weight = data.products.byId?.weight
+  if (!weight) throw new Error('Product weight not found')
+  return { productWeight: { ...weight, productId } }
 }
 
 export async function setProductWeight(productId: number, req: SetProductWeightRequest): Promise<void> {
-  await api.put(`/main/products/${productId}/weights`, req)
+  const units = { Gram: 'GRAM', Kilogram: 'KILOGRAM', Tonne: 'TONNE' } as const
+  await operationRequest(graphqlClient.mutate({ mutation: SetProductWeightDocument, variables: { input: { ...req, productId, unit: units[req.unit] } } }))
 }
 
 export async function deleteProductWeight(productId: number): Promise<void> {
-  await api.delete(`/main/products/${productId}/weights`)
+  await operationRequest(graphqlClient.mutate({ mutation: DeleteProductWeightDocument, variables: { productId } }))
 }

@@ -36,18 +36,18 @@ describe('GraphQL users', () => {
     expect(result.users[0]?.name).toBe('alice')
   })
   it('loads only fields allowed by permissions and maps enums/objects for existing UI', async () => {
-    permissions.value = ['users.info.get', 'USERS_STORAGES_GET']
-    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { users: { byId: { ...user, roles: [{ systemName: 'ADMIN' }], permissions: [{ systemName: 'users.get' }], emails: [{ email: 'a@b.com', emailType: 'WORK', confirmed: false, isPrimary: true }], phones: [{ number: '+123', type: 'MOBILE', isConfirmed: false, isPrimary: true }], storages: [{ code: 'A', type: 'SUPPLIER_STORAGE', location: null, description: null }] } } } } as never)
-    const result = await getUserFullInfo(user.id, true)
-    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables).toEqual({ id: user.id, includeInfo: true, includeStorages: true })
-    expect(result).toMatchObject({ roles: ['ADMIN'], permissions: ['users.get'], phones: [{ type: 'Mobile' }], emails: [{ emailType: 'Work' }], storages: [{ code: 'A', type: 'SupplierStorage' }] })
+    permissions.value = ['users.info.get']
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { users: { byId: { ...user, roles: [{ systemName: 'ADMIN' }], permissions: [{ systemName: 'users.get' }], emails: [{ email: 'a@b.com', emailType: 'WORK', confirmed: false, isPrimary: true }], phones: [{ number: '+123', type: 'MOBILE', isConfirmed: false, isPrimary: true }] } } } } as never)
+    const result = await getUserFullInfo(user.id)
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables).toEqual({ id: user.id, includeInfo: true })
+    expect(result).toMatchObject({ roles: ['ADMIN'], permissions: ['users.get'], phones: [{ type: 'Mobile' }], emails: [{ emailType: 'Work' }] })
   })
   it('skips protected details without permission and handles a missing user', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { users: { byId: user } } } as never).mockResolvedValueOnce({ data: { users: { byId: null } } } as never)
-    const result = await getUserFullInfo(user.id, true)
-    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables).toEqual({ id: user.id, includeInfo: false, includeStorages: false })
+    const result = await getUserFullInfo(user.id)
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables).toEqual({ id: user.id, includeInfo: false })
     expect(result.roles).toEqual([])
-    expect(result.storages).toEqual([])
+    expect(result).not.toHaveProperty('storages')
     await expect(getUserFullInfo('missing')).rejects.toThrow('User not found')
   })
   it('creates with GraphQL enums and maps the returned user', async () => {

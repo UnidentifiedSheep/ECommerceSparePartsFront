@@ -35,7 +35,6 @@ export interface NewPurchaseContentRequest {
   productId: number
   count: number
   price: number
-  calculateLogistics: boolean
   comment?: string | null
 }
 
@@ -50,10 +49,8 @@ export interface CreatePurchaseRequest {
   storageCode: string
   purchaseDate: string
   purchaseContent: NewPurchaseContentRequest[]
-  withLogistics: boolean
   comment?: string | null
   payedSum?: number | null
-  storageFrom?: string | null
 }
 
 export interface EditPurchaseRequest {
@@ -61,8 +58,6 @@ export interface EditPurchaseRequest {
   currencyId: number
   comment?: string | null
   purchaseDateTime: string
-  withLogistics: boolean
-  storageFrom?: string | null
 }
 
 export interface CreatePurchaseResponse {

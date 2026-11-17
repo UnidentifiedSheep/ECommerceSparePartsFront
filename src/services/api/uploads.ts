@@ -1,5 +1,8 @@
 import axios from 'axios'
-import api from '@/services/api/api.ts'
+import { clampPageSize } from '@/services/api/api.ts'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import { UploadsDocument, CreateUploadRequestDocument, CompleteUploadDocument } from '@/graphql/generated/graphql'
 import { t } from '@/i18n'
 
 export interface UploadFileModel {
@@ -31,23 +34,13 @@ export interface CreateUploadResponse {
 }
 
 export async function getUploads(req: GetUploadsRequest = {}): Promise<GetUploadsResponse> {
-  const resp = await api.get<GetUploadsResponse>('/main/uploads', {
-    params: {
-      cursor: req.cursor || undefined,
-      size: req.size ?? 100,
-    },
-  })
-
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: UploadsDocument, variables: { input: { cursor: req.cursor || undefined, size: clampPageSize(req.size ?? 100) } }, fetchPolicy: 'no-cache' }))
+  return data.uploads.list
 }
 
 export async function uploadFile(file: File): Promise<UploadFileModel> {
-  const createResp = await api.post<CreateUploadResponse>('/main/uploads/create', {
-    fileName: file.name,
-    contentType: file.type || 'application/octet-stream',
-  } satisfies CreateUploadRequest)
-
-  const uploadUrl = createResp.data.uploadUrl ?? createResp.data.UploadUrl
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateUploadRequestDocument, variables: { input: { fileName: file.name, contentType: file.type || 'application/octet-stream' } } }))
+  const uploadUrl = data?.uploads.createRequest
   if (!uploadUrl) {
     throw new Error(t('common.messages.uploadUrlMissing'))
   }
@@ -58,9 +51,7 @@ export async function uploadFile(file: File): Promise<UploadFileModel> {
     },
   })
 
-  await api.post('/main/uploads/complete', {
-    fileName: file.name,
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: CompleteUploadDocument, variables: { fileName: file.name } }))
 
   return {
     key: file.name,

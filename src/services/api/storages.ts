@@ -1,35 +1,21 @@
-import type { CurrencyModel } from '@/models/currencyModel.ts'
 import type { StorageContentModel } from '@/models/storageContentModel.ts'
 import type { StorageModel } from '@/models/storageModel.ts'
-import type { StorageRouteModel } from '@/models/storageRouteModel.ts'
-import { mapUserModel, type UserModel } from '@/models/userModel.ts'
-import type { StorageType } from '@/enums/storageType.ts'
-import type { LogisticPricingType } from '@/enums/logisticPricingType.ts'
-import type { RouteType } from '@/enums/routeType.ts'
-import api, { clampPageSize } from '@/services/api/api.ts'
+import { StorageType } from '@/enums/storageType.ts'
+import { clampPageSize } from '@/services/api/api.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
 import { searchStorageContentsGraphql } from '@/services/graphql/products.ts'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import { ManagedStoragesDocument, ManagedStorageDocument, CreateStorageDocument, EditStorageDocument, DeleteStorageDocument, AddStorageContentDocument, EditStorageContentsDocument, ZeroStorageContentDocument } from '@/graphql/generated/graphql'
+
+const storageTypes = { Warehouse: 'WAREHOUSE', SupplierStorage: 'SUPPLIER_STORAGE' } as const
+function mapStorage(storage: { code: string; description?: string | null; location?: string | null; type: 'WAREHOUSE' | 'SUPPLIER_STORAGE' }): StorageModel {
+  return { code: storage.code, description: storage.description ?? undefined, location: storage.location ?? undefined, type: storage.type === 'WAREHOUSE' ? StorageType.Warehouse : StorageType.SupplierStorage }
+}
 
 interface PatchField<T> {
   isSet: boolean
   value: T
-}
-
-interface StorageRouteDto {
-  id: string
-  fromStorageCode: string
-  toStorageCode: string
-  distanceM: number
-  routeType: RouteType
-  pricingModel: LogisticPricingType
-  deliveryTimeMinutes: number
-  pricePerKg: number
-  pricePerM3: number
-  pricePerOrder: number
-  isActive: boolean
-  currency: CurrencyModel
-  minimumPrice?: number
-  carrierId?: string
 }
 
 function patchField<T>(value: T): PatchField<T> {
@@ -37,10 +23,6 @@ function patchField<T>(value: T): PatchField<T> {
     isSet: true,
     value,
   }
-}
-
-function mapStorageRoute(dto: StorageRouteDto): StorageRouteModel {
-  return dto
 }
 
 export interface GetStoragesRequest {
@@ -84,66 +66,6 @@ export interface DeleteStorageRequest {
   code: string
 }
 
-export interface GetStorageOwnersResponse {
-  owners: UserModel[]
-}
-
-export interface GetStorageOwnersRequest {
-  storageCode: string
-  page: number
-  size: number
-}
-
-export interface GetStorageRoutesRequest {
-  from?: string
-  to?: string
-  isActive?: boolean
-  page: number
-  limit: number
-}
-
-export interface GetStorageRoutesResponse {
-  storageRoutes: StorageRouteModel[]
-}
-
-export interface GetStorageRouteResponse {
-  storageRoute: StorageRouteModel
-}
-
-export interface CreateStorageRouteRequest {
-  storageFrom: string
-  storageTo: string
-  distance: number
-  routeType: RouteType
-  pricingType: LogisticPricingType
-  deliveryTime: number
-  priceKg: number
-  priceM3: number
-  currencyId: number
-  pricePerOrder: number
-  minimumPrice?: number
-  carrierId?: string
-}
-
-export interface CreateStorageRouteResponse {
-  routeId: string
-}
-
-export interface EditStorageRouteRequest {
-  id: string
-  distanceM?: number
-  routeType?: RouteType
-  pricingModel?: LogisticPricingType
-  deliveryTimeMinutes?: number
-  priceKg?: number
-  pricePerM3?: number
-  pricePerOrder?: number
-  isActive?: boolean
-  currencyId?: number
-  minimumPrice?: number | null
-  carrierId?: string | null
-}
-
 export interface GetStorageContentRequest {
   storageCode?: string
   productId?: number
@@ -181,23 +103,20 @@ export interface EditStorageContentRequest {
 }
 
 export async function getStorages(req: GetStoragesRequest): Promise<GetStoragesResponse> {
-  const resp = await api.get<GetStoragesResponse>('/main/storages', {
-    params: {
-      ...req,
-      limit: clampPageSize(req.limit),
-    },
-  })
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: ManagedStoragesDocument, variables: { input: { pagination: { page: req.page, size: clampPageSize(req.limit) }, searchTerm: req.searchTerm, type: req.type ? storageTypes[req.type] : undefined } }, fetchPolicy: 'no-cache' }))
+  return { storages: data.storages.list.map(mapStorage) }
 }
 
 export async function getStorage(req: GetStorageRequest): Promise<GetStorageResponse> {
-  const resp = await api.get<GetStorageResponse>(`/main/storages/${req.code}`)
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.query({ query: ManagedStorageDocument, variables: { code: req.code }, fetchPolicy: 'no-cache' }))
+  if (!data.storages.byCode) throw new Error('Storage not found')
+  return { storage: mapStorage(data.storages.byCode) }
 }
 
 export async function createStorage(req: CreateStorageRequest): Promise<CreateStorageResponse> {
-  const resp = await api.post<CreateStorageResponse>('/main/storages', req)
-  return resp.data
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateStorageDocument, variables: { input: { ...req, type: storageTypes[req.type] } } }))
+  if (!data) throw new Error('Storage creation returned no data')
+  return { code: data.storages.create.code }
 }
 
 export async function editStorage(req: EditStorageRequest) {
@@ -205,75 +124,13 @@ export async function editStorage(req: EditStorageRequest) {
 
   if (req.description !== undefined) payload.description = patchField(req.description)
   if (req.location !== undefined) payload.location = patchField(req.location)
-  if (req.type !== undefined) payload.type = patchField(req.type)
+  if (req.type !== undefined) payload.type = patchField(storageTypes[req.type])
 
-  await api.patch(`/main/storages/${req.storageCode}`, {
-    editStorage: payload,
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: EditStorageDocument, variables: { code: req.storageCode, input: payload } }))
 }
 
 export async function deleteStorage(req: DeleteStorageRequest) {
-  await api.delete(`/main/storages/${req.code}`)
-}
-
-export async function getStorageOwners(req: GetStorageOwnersRequest): Promise<GetStorageOwnersResponse> {
-  const resp = await api.get<{ owners: UserModel[] }>(`/main/storages/${req.storageCode}/owners`, {
-    params: {
-      ...req,
-      size: clampPageSize(req.size),
-    },
-  })
-  return {
-    owners: resp.data.owners.map(mapUserModel),
-  }
-}
-
-export async function getStorageRoutes(req: GetStorageRoutesRequest): Promise<GetStorageRoutesResponse> {
-  const resp = await api.get<{ storageRoutes: StorageRouteDto[] }>(`/main/storages/routes`, {
-    params: {
-      ...req,
-      limit: clampPageSize(req.limit),
-    },
-  })
-  return {
-    storageRoutes: resp.data.storageRoutes.map(mapStorageRoute),
-  }
-}
-
-export async function getStorageRoute(id: string): Promise<GetStorageRouteResponse> {
-  const resp = await api.get<{ storageRoute: StorageRouteDto }>(`/main/storages/routes/${id}`)
-  return {
-    storageRoute: mapStorageRoute(resp.data.storageRoute),
-  }
-}
-
-export async function createStorageRoute(req: CreateStorageRouteRequest): Promise<CreateStorageRouteResponse> {
-  const resp = await api.post<CreateStorageRouteResponse>('/main/storages/routes', req)
-  return resp.data
-}
-
-export async function editStorageRoute(req: EditStorageRouteRequest) {
-  const payload: Record<string, PatchField<unknown>> = {}
-
-  if (req.distanceM !== undefined) payload.distanceM = patchField(req.distanceM)
-  if (req.routeType !== undefined) payload.routeType = patchField(req.routeType)
-  if (req.pricingModel !== undefined) payload.pricingModel = patchField(req.pricingModel)
-  if (req.deliveryTimeMinutes !== undefined) payload.deliveryTimeMinutes = patchField(req.deliveryTimeMinutes)
-  if (req.priceKg !== undefined) payload.priceKg = patchField(req.priceKg)
-  if (req.pricePerM3 !== undefined) payload.pricePerM3 = patchField(req.pricePerM3)
-  if (req.pricePerOrder !== undefined) payload.pricePerOrder = patchField(req.pricePerOrder)
-  if (req.isActive !== undefined) payload.isActive = patchField(req.isActive)
-  if (req.currencyId !== undefined) payload.currencyId = patchField(req.currencyId)
-  if (req.minimumPrice !== undefined) payload.minimumPrice = patchField(req.minimumPrice)
-  if (req.carrierId !== undefined) payload.carrierId = patchField(req.carrierId)
-
-  await api.patch(`/main/storages/routes/${req.id}`, {
-    patchStorageRoute: payload,
-  })
-}
-
-export async function deleteStorageRoute(id: string) {
-  await api.delete(`/main/storages/routes/${id}`)
+  await operationRequest(graphqlClient.mutate({ mutation: DeleteStorageDocument, variables: { code: req.code } }))
 }
 
 export async function getStorageContent(req: GetStorageContentRequest): Promise<GetStorageContentResponse> {
@@ -295,13 +152,7 @@ export async function getStorageContent(req: GetStorageContentRequest): Promise<
 }
 
 export async function addStorageContent(req: AddStorageContentRequest) {
-  await api.post('/main/storages/contents', {
-    ...req,
-    storageContent: req.storageContent.map((item) => ({
-      ...item,
-      purchaseDate: toUtcDateTimeString(item.purchaseDate),
-    })),
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: AddStorageContentDocument, variables: { input: { storageCode: req.storageCode, items: req.storageContent.map(item => ({ ...item, purchaseDate: toUtcDateTimeString(item.purchaseDate) })) } } }))
 }
 
 export async function editStorageContent(req: EditStorageContentRequest) {
@@ -312,18 +163,9 @@ export async function editStorageContent(req: EditStorageContentRequest) {
   if (req.buyPrice !== undefined) model.buyPrice = patchField(req.buyPrice)
   if (req.currencyId !== undefined) model.currencyId = patchField(req.currencyId)
 
-  await api.patch('/main/storages/contents', {
-    editedFields: {
-      [req.id]: {
-        model,
-        rowVersion: req.rowVersion,
-      },
-    },
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: EditStorageContentsDocument, variables: { items: [{ id: req.id, rowVersion: req.rowVersion, ...model }] } }))
 }
 
 export async function deleteStorageContent(id: number, rowVersion: number) {
-  await api.delete(`/main/storages/contents/${id}`, {
-    params: { rowVersion },
-  })
+  await operationRequest(graphqlClient.mutate({ mutation: ZeroStorageContentDocument, variables: { contentId: id, rowVersion } }))
 }
