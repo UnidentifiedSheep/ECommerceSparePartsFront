@@ -2,11 +2,13 @@
   <div class="analytics-page">
     <PageHeader :title="t('analyticsRuns.title')" :description="t('analyticsRuns.description')">
       <template #actions>
+        <el-button v-if="canCreate" type="primary" :disabled="!definitions.length || !!createdJob && !jobFinished" @click="createOpen = true">{{ t('analysisCreate.title') }}</el-button>
         <el-button v-if="canView" :icon="Refresh" :loading="loading" @click="reload">{{ t('common.actions.refresh') }}</el-button>
       </template>
     </PageHeader>
     <el-empty v-if="!canView" :description="t('analyticsRuns.noPermission')" />
-    <section v-else class="analytics-panel" :aria-label="t('analyticsRuns.title')">
+    <AnalysisJobNotice v-if="canView && createdJob" :initial-job="createdJob" :name="createdName" @finished="jobCompleted" @results="showCreatedResults" @dismiss="createdJob = undefined; jobFinished = true" />
+    <section v-if="canView" class="analytics-panel" :aria-label="t('analyticsRuns.title')">
       <div class="analytics-filters">
         <label class="analysis-filter">
           <span>{{ t('analyticsRuns.analysisType') }}</span>
@@ -35,7 +37,7 @@
           <thead><tr><th scope="col">{{ t('analyticsRuns.analysisType') }}</th><th scope="col">{{ t('analyticsRuns.period') }}</th><th scope="col">{{ t('analyticsRuns.createdAt') }}</th><th scope="col" class="number">{{ t('analyticsRuns.productsCount') }}</th><th scope="col">{{ t('analyticsRuns.pinning') }}</th></tr></thead>
           <tbody>
             <tr v-for="run in runs" :key="run.id">
-              <td class="analysis-name">{{ analysisName(run.analysisType) }}</td>
+              <td class="analysis-name"><button class="run-link" type="button" @click="openRun(run.id)">{{ analysisName(run.analysisType) }}</button></td>
               <td>{{ formatPeriod(run) }}</td>
               <td><time :datetime="run.createdAt">{{ formatDate(run.createdAt) }}</time></td>
               <td class="number">{{ run.itemsCount.toLocaleString(locale) }}</td>
@@ -49,6 +51,8 @@
       </div>
       <footer class="analytics-footer" role="status">{{ t('analyticsRuns.loaded', { count: runs.length }) }}</footer>
     </section>
+    <AnalyticsRunDrawer v-model="detailsOpen" :run-id="selectedRunId" />
+    <CreateAnalysisDialog v-model="createOpen" :definitions="definitions" @created="handleCreated" />
   </div>
 </template>
 
@@ -57,6 +61,10 @@ import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { useResizeObserver } from '@vueuse/core'
 import { Refresh, StarFilled } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import AnalyticsRunDrawer from '@/components/analytics/AnalyticsRunDrawer.vue'
+import CreateAnalysisDialog from '@/components/analytics/CreateAnalysisDialog.vue'
+import AnalysisJobNotice from '@/components/analytics/AnalysisJobNotice.vue'
+import type { JobModel } from '@/services/api/jobs'
 import DataLoadError from '@/components/common/DataLoadError.vue'
 import { useI18n } from '@/i18n'
 import { usePermissions } from '@/composables/usePermissions'
@@ -68,6 +76,17 @@ import { schemaMonthToUtc } from '@/utils/schemaInputs'
 const { t, locale } = useI18n()
 const { hasPermission } = usePermissions()
 const canView = computed(() => hasPermission('CHARTS_GET'))
+const canCreate = computed(() => canView.value && hasPermission('JOBS_CREATE'))
+const createOpen = ref(false)
+const createdJob = ref<JobModel>()
+const createdName = ref(''), createdType = ref('')
+const jobFinished = ref(true)
+function handleCreated(value: { job: JobModel; analysisType: string; name: string }) { createdJob.value = value.job; createdName.value = value.name; createdType.value = value.analysisType; jobFinished.value = ['Succeeded', 'Failed', 'Cancelled'].includes(value.job.status) }
+function jobCompleted(status: string) { jobFinished.value = true; if (status === 'Succeeded') void load(true) }
+function showCreatedResults() {
+  if (analysisType.value === createdType.value && !period.value && pinned.value === 'all') void load(true)
+  else { analysisType.value = createdType.value; period.value = null; pinned.value = 'all' }
+}
 const analysisType = ref('')
 const pinned = ref<'all' | 'pinned' | 'unpinned'>('all')
 const period = ref<[string, string] | null>(null)
@@ -75,6 +94,9 @@ const scrollElement = ref<HTMLElement>()
 const definitions = ref<AnalysisDefinition[]>([])
 const definitionsLoading = ref(false)
 const definitionsError = ref<DataLoadErrorKind | null>(null)
+const detailsOpen = ref(false)
+const selectedRunId = ref<string>()
+function openRun(id: string) { selectedRunId.value = id; detailsOpen.value = true }
 let definitionsRequest = 0
 let definitionsController: AbortController | undefined
 const filters = computed(() => ({
@@ -133,12 +155,15 @@ useResizeObserver(scrollElement, loadNearEnd)
 .pinned-filter { flex: 1 1 190px; }
 .period-filter :deep(.el-date-editor) { width: 100%; }
 .list-description { padding: 10px 16px; color: var(--app-text-muted); font-size: 12px; }
-.analytics-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.analytics-scroll { position: relative; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .analytics-scroll:focus-visible { outline: 2px solid var(--app-primary); outline-offset: -2px; }
 .analytics-table { width: 100%; min-width: 650px; border-collapse: separate; border-spacing: 0; color: var(--app-text); font-size: 13px; }
 .analytics-table th, .analytics-table td { padding: 13px 16px; border-bottom: 1px solid var(--app-border); text-align: left; white-space: nowrap; }
 .analytics-table th { position: sticky; top: 0; z-index: 1; background: var(--app-surface-muted, var(--app-bg-soft)); color: var(--app-text-muted); font-size: 12px; font-weight: 600; }
 .analysis-name { font-weight: 600; }
+.run-link { border: 0; padding: 0; background: transparent; color: var(--app-primary); font: inherit; text-align: left; cursor: pointer; }
+.run-link:hover { text-decoration: underline; }
+.run-link:focus-visible { outline: 2px solid var(--app-primary); outline-offset: 3px; }
 .analytics-table .number { text-align: right; font-variant-numeric: tabular-nums; }
 .analytics-table td:nth-child(5) { min-width: 130px; }
 .analytics-footer { padding: 12px 16px; border-top: 1px solid var(--app-border); color: var(--app-text-muted); font-size: 12px; }

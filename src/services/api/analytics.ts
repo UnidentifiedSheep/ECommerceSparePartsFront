@@ -6,6 +6,35 @@ import { getGraphqlErrors } from '@/services/graphql/auth'
 import { t } from '@/i18n'
 import { AnalyticsRunsDocument, AvailableAnalysesDocument, type AnalyticsRunsQuery, type AvailableAnalysesQuery } from '@/graphql/generated/graphql'
 import { clampPageSize } from './api'
+import { AnalysisDefinitionDocument, AnalyticsRunDetailsDocument, AnalysisRunItemsDocument, AnalyticsItemProductsDocument, type AnalysisDefinitionQuery, type AnalyticsRunDetailsQuery, type AnalyticsItemProductsQuery } from '@/graphql/generated/graphql'
+import { parseAbcXyzPoint, type AbcClass, type XyzFilter } from '@/models/abcXyz'
+
+export type AnalysisRunDetails = NonNullable<AnalyticsRunDetailsQuery['analytics']['run']>
+export type AnalysisItemProduct = AnalyticsItemProductsQuery['products']['byIds'][number]
+export type AnalysisConfiguration = Omit<NonNullable<AnalysisDefinitionQuery['analytics']['analysis']>, 'parametersSchema'> & { parametersSchema: ObjectSchema }
+
+export async function getAnalysisDefinition(systemName: string, signal?: AbortSignal): Promise<AnalysisConfiguration | null> {
+  const { data } = await operationRequest(graphqlClient.query({ query: AnalysisDefinitionDocument, variables: { systemName }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
+  const definition = data.analytics.analysis
+  return definition ? { ...definition, parametersSchema: normalizeObjectSchema(definition.parametersSchema) } : null
+}
+export async function getAnalyticsRun(id: string, signal?: AbortSignal): Promise<AnalysisRunDetails | null> {
+  const { data } = await operationRequest(graphqlClient.query({ query: AnalyticsRunDetailsDocument, variables: { id }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
+  return data.analytics.run
+}
+export async function getAnalysisProducts(ids: number[], signal?: AbortSignal): Promise<AnalysisItemProduct[]> {
+  if (!ids.length) return []
+  const { data } = await operationRequest(graphqlClient.query({ query: AnalyticsItemProductsDocument, variables: { ids: [...new Set(ids)] }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
+  return data.products.byIds
+}
+export async function getAbcXyzItems(systemName: string, input: { runId: string; abc?: AbcClass; xyz?: XyzFilter; cursor?: number; size: number }, signal?: AbortSignal) {
+  const { data } = await operationRequest(graphqlClient.query({ query: AnalysisRunItemsDocument, variables: { systemName, queryInput: { ...input, size: clampPageSize(input.size) } }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
+  if (!data.analytics.chart) throw new Error(t('analysisDetails.unavailable'))
+  const result = data.analytics.chart.data
+  const nextCursor = result.nextCursor == null ? null : Number(result.nextCursor)
+  if (nextCursor !== null && (!/^\d+$/.test(result.nextCursor!) || !Number.isSafeInteger(nextCursor) || nextCursor < 0)) throw new Error(t('analysisDetails.invalidData'))
+  return { points: result.dataPoints.map(parseAbcXyzPoint), nextCursor }
+}
 
 export type AnalysisDefinition = AvailableAnalysesQuery['analytics']['analyses'][number]
 export type AnalyticsRun = AnalyticsRunsQuery['analytics']['runs'][number]

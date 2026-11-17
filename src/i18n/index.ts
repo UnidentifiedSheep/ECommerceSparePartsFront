@@ -11,6 +11,17 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
+    analysisCreate: {
+      title: 'Создать расчёт', submit: 'Запустить расчёт', selectType: 'Выберите вид анализа.', submitted: 'Задача расчёта создана.', failed: 'Не удалось запустить расчёт.',
+      completed: 'Расчёт завершён. Результат доступен в списке сохранённых расчётов.', showResults: 'Показать расчёты', statusError: 'Не удалось обновить состояние задачи. Можно повторить запрос.',
+    },
+    analysisDetails: {
+      title: 'Результат анализа', created: 'Создан', notFound: 'Расчёт не найден или уже удалён.', unsupported: 'Просмотр этого типа или версии анализа пока не поддерживается.',
+      periods: 'Месяцев', total: 'Итого', fullSummary: 'Сводка по всему расчёту', matrix: 'Матрица ABC/XYZ', allAbc: 'Все классы ABC', allXyz: 'Все классы XYZ',
+      rankOrder: 'Товары в порядке ранга. Выберите ячейку матрицы, чтобы отфильтровать список.', rank: 'Ранг', product: 'Товар', revenue: 'Выручка в базовой валюте',
+      share: 'Доля', cumulative: 'Накопленная доля', empty: 'В этой группе товаров нет.', loaded: 'Загружено товаров: {count}', productFallback: 'Товар №{id}',
+      productsError: 'Не удалось загрузить названия товаров.', invalidData: 'Получены некорректные данные анализа.', unavailable: 'Данные расчёта недоступны.', parameters: 'Параметры расчёта',
+    },
     analyticsRuns: {
       title: 'Аналитика', description: 'Сохранённые расчёты и результаты анализа.', loading: 'Загружаем расчёты…',
       noPermission: 'Нет разрешения на просмотр аналитики',
@@ -2226,6 +2237,17 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   en: {
+    analysisCreate: {
+      title: 'Create analysis run', submit: 'Run analysis', selectType: 'Select an analysis type.', submitted: 'Analysis job created.', failed: 'Could not start the analysis.',
+      completed: 'Analysis completed. The result is available in saved runs.', showResults: 'Show runs', statusError: 'Could not refresh job status. You can retry the request.',
+    },
+    analysisDetails: {
+      title: 'Analysis result', created: 'Created', notFound: 'This run was not found or has been deleted.', unsupported: 'This analysis type or version is not supported yet.',
+      periods: 'Months', total: 'Total', fullSummary: 'Summary of the entire run', matrix: 'ABC/XYZ matrix', allAbc: 'All ABC classes', allXyz: 'All XYZ classes',
+      rankOrder: 'Products are ordered by rank. Select a matrix cell to filter the list.', rank: 'Rank', product: 'Product', revenue: 'Revenue in base currency',
+      share: 'Share', cumulative: 'Cumulative share', empty: 'No products in this group.', loaded: 'Products loaded: {count}', productFallback: 'Product #{id}',
+      productsError: 'Could not load product names.', invalidData: 'Invalid analysis data received.', unavailable: 'Run data is unavailable.', parameters: 'Run parameters',
+    },
     analyticsRuns: {
       title: 'Analytics', description: 'Saved calculations and analysis results.', loading: 'Loading runs…',
       noPermission: 'You do not have permission to view analytics',
@@ -4441,6 +4463,17 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   tr: {
+    analysisCreate: {
+      title: 'Hesaplama oluştur', submit: 'Analizi başlat', selectType: 'Bir analiz türü seçin.', submitted: 'Analiz görevi oluşturuldu.', failed: 'Analiz başlatılamadı.',
+      completed: 'Analiz tamamlandı. Sonuç kaydedilen hesaplamalarda bulunabilir.', showResults: 'Hesaplamaları göster', statusError: 'Görev durumu güncellenemedi. İsteği yeniden deneyebilirsiniz.',
+    },
+    analysisDetails: {
+      title: 'Analiz sonucu', created: 'Oluşturulma', notFound: 'Hesaplama bulunamadı veya silinmiş.', unsupported: 'Bu analiz türü veya sürümü henüz desteklenmiyor.',
+      periods: 'Ay', total: 'Toplam', fullSummary: 'Hesaplamanın tamamının özeti', matrix: 'ABC/XYZ matrisi', allAbc: 'Tüm ABC sınıfları', allXyz: 'Tüm XYZ sınıfları',
+      rankOrder: 'Ürünler sıraya göre gösterilir. Listeyi filtrelemek için bir matris hücresi seçin.', rank: 'Sıra', product: 'Ürün', revenue: 'Temel para biriminde ciro',
+      share: 'Pay', cumulative: 'Kümülatif pay', empty: 'Bu grupta ürün yok.', loaded: 'Yüklenen ürün: {count}', productFallback: 'Ürün #{id}',
+      productsError: 'Ürün adları yüklenemedi.', invalidData: 'Geçersiz analiz verisi alındı.', unavailable: 'Hesaplama verileri kullanılamıyor.', parameters: 'Hesaplama parametreleri',
+    },
     analyticsRuns: {
       title: 'Analitik', description: 'Kaydedilen hesaplamalar ve analiz sonuçları.', loading: 'Hesaplamalar yükleniyor…',
       noPermission: 'Analitiği görüntüleme izniniz yok',

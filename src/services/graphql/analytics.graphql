@@ -17,6 +17,22 @@ query AvailableAnalyses {
   analytics { analyses { systemName name description } }
 }
 
+query AnalysisDefinition($systemName: String!) {
+  analytics { analysis(systemName: $systemName) { systemName name description lrtSystemName itemsChartSystemName schemaVersion parametersSchema { ...ChartSchema } } }
+}
+
+query AnalyticsRunDetails($id: UUID!) {
+  analytics { run(id: $id) { id analysisType schemaVersion createdAt periodStart periodEnd itemsCount isPinned jobId parameters summary } }
+}
+
+query AnalysisRunItems($systemName: String!, $queryInput: Any!) {
+  analytics { chart(systemName: $systemName) { data(queryInput: $queryInput) { dataPoints nextCursor } } }
+}
+
+query AnalyticsItemProducts($ids: [Int!]!) {
+  products { byIds(ids: $ids) { id sku name producer { name } } }
+}
+
 query AnalyticsRuns($input: GetAnalyticsRunsInput!) {
   analytics {
     runs(input: $input) {

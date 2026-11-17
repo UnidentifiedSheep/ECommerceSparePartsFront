@@ -197,6 +197,11 @@ export async function getServiceJobState(serviceKey: string, jobId: string): Pro
   return resp.data
 }
 
+export async function getServiceJob(serviceKey: string, jobId: string): Promise<CreateJobResponse> {
+  const response = await api.get<CreateJobResponse>(`/${serviceKey}/jobs/${encodeURIComponent(jobId)}`)
+  return response.data
+}
+
 export async function createServiceJob(serviceKey: string, req: CreateJobRequest): Promise<CreateJobResponse> {
   const resp = await api.post<CreateJobResponse>(`/${serviceKey}/jobs`, req)
   return resp.data

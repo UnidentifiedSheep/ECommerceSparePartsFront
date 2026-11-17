@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { print } from 'graphql'
 import { graphqlClient } from '@/services/graphql/client'
-import { getCharts, querySalesProfitChart, getAnalyticsRuns, getAnalyses } from './analytics'
+import { getCharts, querySalesProfitChart, getAnalyticsRuns, getAnalyses, getAbcXyzItems, getAnalysisProducts } from './analytics'
 
 vi.mock('@/services/graphql/client', () => ({ graphqlClient: { query: vi.fn() } }))
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
@@ -9,6 +9,21 @@ beforeEach(() => vi.resetAllMocks())
 const input = { startDate: '2026-11-01T00:00:00Z', endDate: '2026-11-01T23:59:59Z', granularity: 'Day' as const, size: 100 }
 
 describe('Main GraphQL analytics', () => {
+  it('converts rank cursors back to numbers and keeps Unclassified distinct from Z', async () => {
+    const point = { productId: 1, rank: 40, value: 10, share: 0.1, cumulativeShare: 1, abc: 'B', quantity: 1, revenue: 10, periodsCount: 1 }
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { chart: { data: { dataPoints: [point], nextCursor: '40' } } } } } as never)
+    expect((await getAbcXyzItems('Items', { runId: 'run-1', xyz: 'Unclassified', cursor: 20, size: 40 })).nextCursor).toBe(40)
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]?.[0].variables).toEqual({ systemName: 'Items', queryInput: { runId: 'run-1', xyz: 'Unclassified', cursor: 20, size: 40 } })
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { analytics: { chart: { data: { dataPoints: [], nextCursor: 'bad' } } } } } as never)
+    await expect(getAbcXyzItems('Items', { runId: 'run-1', size: 40 })).rejects.toThrow()
+  })
+  it('batches unique product IDs and avoids empty product requests', async () => {
+    expect(await getAnalysisProducts([])).toEqual([])
+    expect(graphqlClient.query).not.toHaveBeenCalled()
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { products: { byIds: [] } } } as never)
+    await getAnalysisProducts([1, 2, 1])
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]?.[0].variables).toEqual({ ids: [1, 2] })
+  })
   it('reads analysis labels without loading schemas or result details', async () => {
     const definitions = [{ systemName: 'AbcXyz', name: 'ABC/XYZ', description: 'Analysis' }]
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { analyses: definitions } } } as never)
