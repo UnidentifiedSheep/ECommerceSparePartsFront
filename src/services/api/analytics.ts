@@ -4,6 +4,32 @@ import { operationRequest } from '@/services/graphql/operationErrors'
 import { AvailableChartsDocument, SalesProfitChartDocument } from '@/graphql/generated/graphql'
 import { getGraphqlErrors } from '@/services/graphql/auth'
 import { t } from '@/i18n'
+import { AnalyticsRunsDocument, AvailableAnalysesDocument, type AnalyticsRunsQuery, type AvailableAnalysesQuery } from '@/graphql/generated/graphql'
+import { clampPageSize } from './api'
+
+export type AnalysisDefinition = AvailableAnalysesQuery['analytics']['analyses'][number]
+export type AnalyticsRun = AnalyticsRunsQuery['analytics']['runs'][number]
+export interface AnalyticsRunCursor { id: string; createdAt: string }
+export interface AnalyticsRunsFilters {
+  analysisType?: string
+  isPinned?: boolean
+  periodFrom?: string
+  periodTo?: string
+}
+
+export async function getAnalyses(signal?: AbortSignal): Promise<AnalysisDefinition[]> {
+  const { data } = await operationRequest(graphqlClient.query({ query: AvailableAnalysesDocument, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
+  return data.analytics.analyses
+}
+
+export async function getAnalyticsRuns(filters: AnalyticsRunsFilters, cursor: AnalyticsRunCursor | null, size = 20, signal?: AbortSignal): Promise<AnalyticsRun[]> {
+  const { data } = await operationRequest(graphqlClient.query({
+    query: AnalyticsRunsDocument,
+    variables: { input: { ...filters, cursor: { size: clampPageSize(size), value: cursor } } },
+    fetchPolicy: 'no-cache', context: { fetchOptions: { signal } },
+  }))
+  return data.analytics.runs
+}
 
 export interface ChartModel {
   systemName: string

@@ -12,6 +12,18 @@ fragment ChartSchema on ObjectSchema {
 query AvailableCharts {
   analytics { charts { systemName name description queryInputSchema { ...ChartSchema } dataPointSchema { ...ChartSchema } } }
 }
+
+query AvailableAnalyses {
+  analytics { analyses { systemName name description } }
+}
+
+query AnalyticsRuns($input: GetAnalyticsRunsInput!) {
+  analytics {
+    runs(input: $input) {
+      id analysisType schemaVersion createdAt periodStart periodEnd itemsCount isPinned
+    }
+  }
+}
 query SalesProfitChart($systemName: String!, $queryInput: Any!) {
   analytics { chart(systemName: $systemName) { systemName data(queryInput: $queryInput) { dataPoints nextCursor } } }
 }

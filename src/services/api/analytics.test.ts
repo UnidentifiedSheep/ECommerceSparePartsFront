@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { print } from 'graphql'
 import { graphqlClient } from '@/services/graphql/client'
-import { getCharts, querySalesProfitChart } from './analytics'
+import { getCharts, querySalesProfitChart, getAnalyticsRuns, getAnalyses } from './analytics'
 
 vi.mock('@/services/graphql/client', () => ({ graphqlClient: { query: vi.fn() } }))
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
@@ -9,6 +9,22 @@ beforeEach(() => vi.resetAllMocks())
 const input = { startDate: '2026-11-01T00:00:00Z', endDate: '2026-11-01T23:59:59Z', granularity: 'Day' as const, size: 100 }
 
 describe('Main GraphQL analytics', () => {
+  it('reads analysis labels without loading schemas or result details', async () => {
+    const definitions = [{ systemName: 'AbcXyz', name: 'ABC/XYZ', description: 'Analysis' }]
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { analyses: definitions } } } as never)
+    expect(await getAnalyses()).toEqual(definitions)
+    const document = print(vi.mocked(graphqlClient.query).mock.calls[0]![0].query)
+    expect(document).not.toContain('parametersSchema')
+  })
+  it('sends false pin filters and exact cursor timestamps without loading item or summary payloads', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { runs: [] } } } as never)
+    const filters = { isPinned: false, analysisType: 'AbcXyz', periodFrom: '2026-01-01T00:00:00.000Z', periodTo: '2026-12-01T00:00:00.000Z' }
+    const cursor = { id: 'run-1', createdAt: '2026-11-17T00:00:00.123456Z' }
+    await getAnalyticsRuns(filters, cursor, 20)
+    const query = vi.mocked(graphqlClient.query).mock.calls[0]![0]
+    expect(query.variables).toEqual({ input: { ...filters, cursor: { size: 20, value: cursor } } })
+    expect(print(query.query)).not.toMatch(/\b(summary|parameters)\b/)
+  })
   it('normalizes GraphQL schema enums and preserves field dependencies', async () => {
     const schema = { version: 1, fields: [{ name: 'organizationId', type: 'STRING', required: false, control: 'ENTITY_SELECTOR', accepts: [], dependency: { entityName: 'Organization', fieldName: 'id' } }] }
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { charts: [{ systemName: 'SalesProfitOverTimeChartDataSource', name: 'Profit', description: '', queryInputSchema: schema, dataPointSchema: { version: 1, fields: [] } }] } } } as never)

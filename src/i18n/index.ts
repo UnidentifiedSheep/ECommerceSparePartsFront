@@ -11,6 +11,14 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
+    analyticsRuns: {
+      title: 'Аналитика', description: 'Сохранённые расчёты и результаты анализа.', loading: 'Загружаем расчёты…',
+      noPermission: 'Нет разрешения на просмотр аналитики',
+      analysisType: 'Анализ', allAnalyses: 'Все виды анализа', periodFilter: 'Период анализа',
+      period: 'Период', createdAt: 'Создан', productsCount: 'Товаров', pinning: 'Закрепление',
+      allRuns: 'Все расчёты', pinnedOnly: 'Только закреплённые', unpinnedOnly: 'Без закрепления', pinned: 'Закреплён',
+      newestFirst: 'Сначала новые расчёты', empty: 'По выбранным фильтрам расчётов пока нет.', loaded: 'Загружено расчётов: {count}',
+    },
     schemaInputs: {
       enums: { Revenue: 'Выручка', Quantity: 'Количество', Unclassified: 'Без классификации' },
       invalidField: 'Проверьте значение в поле «{field}».',
@@ -172,7 +180,7 @@ const messages: Record<AppLocale, MessageTree> = {
       priceAppliers: 'Правила цены',
       control: 'Контроль',
       extensions: 'Расширения',
-      analytics: 'Метрики',
+      analytics: 'Аналитика',
       jobs: 'Задачи',
       documents: 'Документы',
     },
@@ -2218,6 +2226,14 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   en: {
+    analyticsRuns: {
+      title: 'Analytics', description: 'Saved calculations and analysis results.', loading: 'Loading runs…',
+      noPermission: 'You do not have permission to view analytics',
+      analysisType: 'Analysis', allAnalyses: 'All analysis types', periodFilter: 'Analysis period',
+      period: 'Period', createdAt: 'Created', productsCount: 'Products', pinning: 'Pinning',
+      allRuns: 'All runs', pinnedOnly: 'Pinned only', unpinnedOnly: 'Unpinned only', pinned: 'Pinned',
+      newestFirst: 'Newest runs first', empty: 'No runs match these filters yet.', loaded: 'Runs loaded: {count}',
+    },
     schemaInputs: {
       enums: { Revenue: 'Revenue', Quantity: 'Quantity', Unclassified: 'Unclassified' },
       invalidField: 'Check the value in “{field}”.',
@@ -2379,7 +2395,7 @@ const messages: Record<AppLocale, MessageTree> = {
       priceAppliers: 'Price rules',
       control: 'Control',
       extensions: 'Extensions',
-      analytics: 'Metrics',
+      analytics: 'Analytics',
       jobs: 'Jobs',
       documents: 'Documents',
     },
@@ -4425,6 +4441,14 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   tr: {
+    analyticsRuns: {
+      title: 'Analitik', description: 'Kaydedilen hesaplamalar ve analiz sonuçları.', loading: 'Hesaplamalar yükleniyor…',
+      noPermission: 'Analitiği görüntüleme izniniz yok',
+      analysisType: 'Analiz', allAnalyses: 'Tüm analiz türleri', periodFilter: 'Analiz dönemi',
+      period: 'Dönem', createdAt: 'Oluşturulma', productsCount: 'Ürün', pinning: 'Sabitleme',
+      allRuns: 'Tüm hesaplamalar', pinnedOnly: 'Yalnızca sabitlenenler', unpinnedOnly: 'Sabitlenmemiş olanlar', pinned: 'Sabitlendi',
+      newestFirst: 'En yeni hesaplamalar önce', empty: 'Bu filtrelerle eşleşen hesaplama henüz yok.', loaded: 'Yüklenen hesaplama: {count}',
+    },
     schemaInputs: {
       enums: { Revenue: 'Ciro', Quantity: 'Miktar', Unclassified: 'Sınıflandırılmamış' },
       invalidField: '“{field}” alanındaki değeri kontrol edin.',
@@ -4586,7 +4610,7 @@ const messages: Record<AppLocale, MessageTree> = {
       priceAppliers: 'Fiyat kuralları',
       control: 'Kontrol',
       extensions: 'Eklentiler',
-      analytics: 'Metrikler',
+      analytics: 'Analitik',
       jobs: 'Görevler',
       documents: 'Belgeler',
     },
