@@ -339,6 +339,7 @@ export type InputControlType =
   | 'DATE_PICKER'
   | 'ENTITY_SELECTOR'
   | 'ENUM_SELECTOR'
+  | 'MONTH_PICKER'
   | 'NAMED_OBJECT_SELECTOR'
   | 'TEXT_FIELD'
   | 'UPLOAD_FILE';

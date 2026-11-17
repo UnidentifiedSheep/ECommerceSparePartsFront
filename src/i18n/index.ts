@@ -11,6 +11,11 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
+    schemaInputs: {
+      enums: { Revenue: 'Выручка', Quantity: 'Количество', Unclassified: 'Без классификации' },
+      invalidField: 'Проверьте значение в поле «{field}».',
+      loadPartyError: 'Не удалось загрузить выбранную организацию или пользователя.',
+    },
     pinnedNavigation: {
       title: 'Быстрая навигация', hint: 'Закрепляйте разделы звёздочкой в меню или добавляйте их здесь. Меняйте порядок, подписи и цвета.',
       pin: 'Закрепить: {name}', unpin: 'Открепить: {name}', configure: 'Настроить быструю навигацию',
@@ -2213,6 +2218,11 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   en: {
+    schemaInputs: {
+      enums: { Revenue: 'Revenue', Quantity: 'Quantity', Unclassified: 'Unclassified' },
+      invalidField: 'Check the value in “{field}”.',
+      loadPartyError: 'Could not load the selected organization or user.',
+    },
     pinnedNavigation: {
       title: 'Quick navigation', hint: 'Pin sections using the star in the menu or add them here. Adjust their order, labels and colors.',
       pin: 'Pin: {name}', unpin: 'Unpin: {name}', configure: 'Configure quick navigation',
@@ -4415,6 +4425,11 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   tr: {
+    schemaInputs: {
+      enums: { Revenue: 'Ciro', Quantity: 'Miktar', Unclassified: 'Sınıflandırılmamış' },
+      invalidField: '“{field}” alanındaki değeri kontrol edin.',
+      loadPartyError: 'Seçilen kuruluş veya kullanıcı yüklenemedi.',
+    },
     pinnedNavigation: {
       title: 'Hızlı gezinme', hint: 'Menüdeki yıldızla bölümleri sabitleyin veya buradan ekleyin. Sırayı, etiketleri ve renkleri ayarlayın.',
       pin: 'Sabitle: {name}', unpin: 'Sabitlemeyi kaldır: {name}', configure: 'Hızlı gezinmeyi ayarla',

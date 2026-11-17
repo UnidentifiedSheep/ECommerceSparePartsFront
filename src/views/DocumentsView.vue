@@ -107,7 +107,7 @@ const loadError = ref<DataLoadErrorKind | null>(null)
 let definitionsRequestId = 0
 
 const controlMap: Record<string, SchemaInputControl> = {
-  UPLOAD_FILE: 'UploadFile', TEXT_FIELD: 'TextField', DATE_PICKER: 'DatePicker',
+  UPLOAD_FILE: 'UploadFile', TEXT_FIELD: 'TextField', DATE_PICKER: 'DatePicker', MONTH_PICKER: 'MonthPicker',
   ENTITY_SELECTOR: 'EntitySelector', ENUM_SELECTOR: 'EnumSelector', NAMED_OBJECT_SELECTOR: 'NamedObjectSelector',
 }
 const typeMap: Record<string, SchemaValueType> = {

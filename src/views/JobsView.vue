@@ -820,10 +820,10 @@ import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/job
 import {
   formatStructuredSchemaValue,
   isStructuredSchemaField,
-  parseStructuredSchemaValue,
   toSchemaUiFields,
 } from '@/models/schemaModel.ts'
 import { toUtcDateTimeString } from '@/utils/dateTime.ts'
+import { parseSchemaInputValue } from '@/utils/schemaInputs'
 import { parseProductEventParts } from '@/models/productEventParts.ts'
 
 interface ServiceCard {
@@ -1681,7 +1681,7 @@ function defaultValue(field: JobSchemaField) {
   if (isStructuredSchemaField(field)) return formatStructuredSchemaValue(null)
   if (field.control === 'EnumSelector' && field.dependsOnEntity === 'ProductEventParts') return 'All'
   if (field.control === 'TextField') return ''
-  if (field.control === 'DatePicker') return ''
+  if (field.control === 'DatePicker' || field.control === 'MonthPicker') return ''
   if (field.control === 'EntitySelector' || field.control === 'EnumSelector' || field.control === 'NamedObjectSelector') return null
   if (field.type === 'Boolean') return false
   if (isNumberField(field)) return 0
@@ -1689,7 +1689,7 @@ function defaultValue(field: JobSchemaField) {
 }
 
 function isNumberField(field: JobSchemaField) {
-  if (['TextField', 'DatePicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return false
+  if (['TextField', 'DatePicker', 'MonthPicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return false
   return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
 }
 
@@ -1697,9 +1697,7 @@ function normalizedInputState() {
   return Object.fromEntries(schemaFields.value.flatMap((field): [string, unknown][] => {
     const value = inputState[field.name]
     if (!field.required && isEmptyValue(value)) return []
-    return [[field.name, isStructuredSchemaField(field)
-      ? parseStructuredSchemaValue(field, value)
-      : value ?? null]]
+    return [[field.name, value == null ? null : parseSchemaInputValue(field, value)]]
   }))
 }
 
@@ -1716,15 +1714,15 @@ function serializeInputState(): string | null {
     return JSON.stringify(normalizedInputState())
   } catch {
     const invalidField = schemaFields.value.find((field) => {
-      if (!isStructuredSchemaField(field)) return false
+      if (!field.required && isEmptyValue(inputState[field.name])) return false
       try {
-        parseStructuredSchemaValue(field, inputState[field.name])
+        parseSchemaInputValue(field, inputState[field.name])
         return false
       } catch {
         return true
       }
     })
-    ElMessage.warning(t('jobs.invalidStructuredField', { field: invalidField ? fieldLabel(invalidField) : '' }))
+    ElMessage.warning(t('schemaInputs.invalidField', { field: invalidField ? fieldLabel(invalidField) : '' }))
     return null
   }
 }
