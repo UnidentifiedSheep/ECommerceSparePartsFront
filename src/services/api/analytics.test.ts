@@ -1,14 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { print } from 'graphql'
 import { graphqlClient } from '@/services/graphql/client'
-import { getCharts, querySalesProfitChart, getAnalyticsRuns, getAnalyses, getAbcXyzItems, getAnalysisProducts } from './analytics'
+import { getCharts, querySalesProfitChart, getAnalyticsRuns, getAnalyses, getAbcXyzItems, getAnalysisProducts, setAnalyticsRunPinned, getAnalysisDefinition } from './analytics'
 
-vi.mock('@/services/graphql/client', () => ({ graphqlClient: { query: vi.fn() } }))
+vi.mock('@/services/graphql/client', () => ({ graphqlClient: { query: vi.fn(), mutate: vi.fn() } }))
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
 beforeEach(() => vi.resetAllMocks())
 const input = { startDate: '2026-11-01T00:00:00Z', endDate: '2026-11-01T23:59:59Z', granularity: 'Day' as const, size: 100 }
 
 describe('Main GraphQL analytics', () => {
+  it('pins or unpins the selected run by its ID and uses the server state', async () => {
+    vi.mocked(graphqlClient.mutate).mockResolvedValueOnce({ data: { analytics: { setRunPinned: { id: 'run-1', isPinned: false } } } } as never)
+    expect(await setAnalyticsRunPinned('run-1', false)).toEqual({ id: 'run-1', isPinned: false })
+    expect(vi.mocked(graphqlClient.mutate).mock.calls[0]?.[0].variables).toEqual({ runId: 'run-1', isPinned: false })
+    vi.mocked(graphqlClient.mutate).mockRejectedValueOnce(new Error('denied'))
+    await expect(setAnalyticsRunPinned('run-1', true)).rejects.toThrow('denied')
+  })
+  it('normalizes all result schemas including nested group summaries for a new analysis', async () => {
+    const schema = { version: 1, fields: [] }
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { analytics: { analysis: { systemName: 'NewAnalysis', name: 'New analysis', description: '', lrtSystemName: 'NewLrt', itemsChartSystemName: 'NewItems', schemaVersion: 1, parametersSchema: schema, summarySchema: { version: 1, fields: [{ name: 'groups', type: 'ARRAY', required: true, accepts: [], nestedSchema: { version: 1, fields: [{ name: 'value', type: 'NUMBER', required: true, accepts: [] }] } }] }, segmentsSchema: schema, dataSchema: schema } } } } as never)
+    const result = await getAnalysisDefinition('NewAnalysis')
+    expect(result?.summarySchema.fields[0]?.type).toBe('Array')
+    expect(result?.summarySchema.fields[0]?.nestedSchema?.fields[0]?.type).toBe('Number')
+    expect(result?.itemsChartSystemName).toBe('NewItems')
+  })
   it('converts rank cursors back to numbers and keeps Unclassified distinct from Z', async () => {
     const point = { productId: 1, rank: 40, value: 10, share: 0.1, cumulativeShare: 1, abc: 'B', quantity: 1, revenue: 10, periodsCount: 1 }
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { chart: { data: { dataPoints: [point], nextCursor: '40' } } } } } as never)

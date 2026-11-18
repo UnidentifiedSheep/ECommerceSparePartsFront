@@ -6,9 +6,14 @@
       <template v-else-if="run && !loading">
         <div class="result-heading">
           <div><strong>{{ t('analysisDetails.created') }}</strong> {{ date(run.createdAt) }}</div>
-          <el-button size="small" plain :icon="Refresh" @click="loadRun">{{ t('common.actions.refresh') }}</el-button>
+          <div class="result-actions">
+            <el-button v-if="canPin" size="small" plain :loading="pinning" :type="run.isPinned ? 'warning' : 'default'" @click="togglePinned">{{ t(run.isPinned ? 'analysisDetails.unpin' : 'analysisDetails.pin') }}</el-button>
+            <el-button size="small" plain :icon="Refresh" :disabled="pinning" @click="loadRun">{{ t('common.actions.refresh') }}</el-button>
+          </div>
         </div>
-        <el-alert v-if="!supported" :title="t('analysisDetails.unsupported')" type="info" :closable="false" />
+        <el-radio-group v-if="supported" v-model="presentation" size="small" :aria-label="t('analysisSchema.presentation')"><el-radio-button value="matrix">{{ t('analysisDetails.matrix') }}</el-radio-button><el-radio-button value="table">{{ t('analysisSchema.tableView') }}</el-radio-button></el-radio-group>
+        <el-alert v-if="!definition" :title="t('analysisSchema.missingDefinition')" type="info" :closable="false" />
+        <SchemaAnalysisResult v-else-if="!supported || presentation === 'table'" :key="run.id" :run="run" :definition="definition" />
         <template v-else>
           <div class="result-summary" v-if="summary">
             <div><span>{{ t('analyticsRuns.productsCount') }}</span><strong>{{ number(summary.productsCount) }}</strong></div>
@@ -57,21 +62,41 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useResizeObserver } from '@vueuse/core'
 import { Refresh } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import SchemaAnalysisResult from './SchemaAnalysisResult.vue'
+import { setAnalyticsRunPinned } from '@/services/api/analytics'
 import DataLoadError from '@/components/common/DataLoadError.vue'
 import { useI18n } from '@/i18n'
 import { usePermissions } from '@/composables/usePermissions'
 import { useAnalysisResult } from '@/composables/useAnalysisResult'
 import { abcClasses, type AbcClass, type XyzFilter } from '@/models/abcXyz'
 const props = defineProps<{ runId?: string }>()
+const emit = defineEmits<{ pinned: [value: { id: string; isPinned: boolean }] }>()
 const open = defineModel<boolean>({ default: false })
 const { t, locale } = useI18n()
 const { hasPermission } = usePermissions()
 const enabled = computed(() => open.value && hasPermission('CHARTS_GET'))
 const selectedId = computed(() => props.runId)
 const canReadProducts = computed(() => hasPermission('ARTICLES_GET_MAIN'))
+const canPin = computed(() => hasPermission('ANALYTICS_RUNS_EDIT'))
+const pinning = ref(false)
+const presentation = ref<'matrix' | 'table'>('matrix')
+watch(selectedId, () => { presentation.value = 'matrix' })
 const { run, definition, summary, parameters, points, products, loading, itemsLoading, hasMore, notFound, error, itemsError, productsError, abc, xyz, supported, loadRun, loadItems, loadProducts } = useAnalysisResult(selectedId, enabled, canReadProducts)
 const columns: XyzFilter[] = ['X', 'Y', 'Z', 'Unclassified']
 const scrollElement = ref<HTMLElement>()
+async function togglePinned() {
+  if (!run.value || pinning.value || !canPin.value || !enabled.value) return
+  const id = run.value.id, value = !run.value.isPinned
+  pinning.value = true
+  try {
+    const result = await setAnalyticsRunPinned(id, value)
+    if (run.value?.id === id) run.value = { ...run.value, isPinned: result.isPinned }
+    emit('pinned', result)
+    ElMessage.success(t(result.isPinned ? 'analysisDetails.pinnedSuccess' : 'analysisDetails.unpinnedSuccess'))
+  } catch (cause) { ElMessage.error(cause instanceof Error ? cause.message : t('analysisDetails.pinError')) }
+  finally { pinning.value = false }
+}
 function xyzLabel(value: XyzFilter) { return value === 'Unclassified' ? t('schemaInputs.enums.Unclassified') : value }
 function cell(row: AbcClass, column: XyzFilter) { return summary.value?.cells.find(item => item.abc === row && item.xyz === (column === 'Unclassified' ? null : column)) }
 function selectCell(row: AbcClass, column: XyzFilter) {
@@ -94,6 +119,7 @@ useResizeObserver(scrollElement, loadNearEnd)
 .analysis-result { min-height: 160px; min-width: 0; display: flex; flex-direction: column; gap: 14px; height: 100%; }
 .result-heading, .result-filters, .result-metrics { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .result-heading { justify-content: space-between; font-size: 12px; color: var(--app-text-muted); }
+.result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .result-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .result-summary > div { display: grid; gap: 6px; padding: 12px; background: var(--app-bg-soft); border: 1px solid var(--app-border); border-radius: 6px; }
 .result-summary span, .result-metrics, .result-hint { font-size: 12px; color: var(--app-text-muted); }

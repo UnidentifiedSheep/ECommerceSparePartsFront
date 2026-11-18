@@ -18,7 +18,15 @@ query AvailableAnalyses {
 }
 
 query AnalysisDefinition($systemName: String!) {
-  analytics { analysis(systemName: $systemName) { systemName name description lrtSystemName itemsChartSystemName schemaVersion parametersSchema { ...ChartSchema } } }
+  analytics { analysis(systemName: $systemName) { systemName name description lrtSystemName itemsChartSystemName schemaVersion parametersSchema { ...ChartSchema } summarySchema { ...ChartSchema } segmentsSchema { ...ChartSchema } dataSchema { ...ChartSchema } } }
+}
+
+query AnalysisItemsDefinition($systemName: String!) {
+  analytics { chart(systemName: $systemName) { systemName queryInputSchema { ...ChartSchema } dataPointSchema { ...ChartSchema } } }
+}
+
+mutation SetAnalyticsRunPinned($runId: UUID!, $isPinned: Boolean!) {
+  analytics { setRunPinned(runId: $runId, isPinned: $isPinned) { id isPinned } }
 }
 
 query AnalyticsRunDetails($id: UUID!) {

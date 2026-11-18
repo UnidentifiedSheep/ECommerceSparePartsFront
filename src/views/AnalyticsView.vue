@@ -51,7 +51,7 @@
       </div>
       <footer class="analytics-footer" role="status">{{ t('analyticsRuns.loaded', { count: runs.length }) }}</footer>
     </section>
-    <AnalyticsRunDrawer v-model="detailsOpen" :run-id="selectedRunId" />
+    <AnalyticsRunDrawer v-model="detailsOpen" :run-id="selectedRunId" @pinned="handlePinned" />
     <CreateAnalysisDialog v-model="createOpen" :definitions="definitions" @created="handleCreated" />
   </div>
 </template>
@@ -106,6 +106,10 @@ const filters = computed(() => ({
   periodTo: period.value ? new Date(Date.UTC(Number(period.value[1].slice(0, 4)), Number(period.value[1].slice(5, 7)), 1)).toISOString() : undefined,
 }))
 const { runs, loading, hasMore, error, load, retry } = useAnalyticsRuns(() => filters.value, canView)
+function handlePinned(value: { id: string; isPinned: boolean }) {
+  if (pinned.value !== 'all') void load(true)
+  else runs.value = runs.value.map(run => run.id === value.id ? { ...run, isPinned: value.isPinned } : run)
+}
 
 async function loadDefinitions() {
   const request = ++definitionsRequest

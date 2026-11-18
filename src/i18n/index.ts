@@ -11,12 +11,18 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
+    analysisSchema: {
+      yes: 'Да', no: 'Нет', empty: 'Нет значений', tooDeep: 'Вложенные данные', summary: 'Сводка', tableView: 'Таблица и сводка', presentation: 'Вид результата',
+      versionChanged: 'Описание анализа обновилось после создания этого расчёта. Часть полей может быть недоступна.', missingDefinition: 'Описание анализа недоступно.',
+      requiredFilters: 'Заполните обязательные фильтры для загрузки данных.', invalidFilters: 'Проверьте значения фильтров.', loadedRows: 'Загружено строк: {count}',
+    },
     analysisCreate: {
       title: 'Создать расчёт', submit: 'Запустить расчёт', selectType: 'Выберите вид анализа.', submitted: 'Задача расчёта создана.', failed: 'Не удалось запустить расчёт.',
       completed: 'Расчёт завершён. Результат доступен в списке сохранённых расчётов.', showResults: 'Показать расчёты', statusError: 'Не удалось обновить состояние задачи. Можно повторить запрос.',
     },
     analysisDetails: {
       title: 'Результат анализа', created: 'Создан', notFound: 'Расчёт не найден или уже удалён.', unsupported: 'Просмотр этого типа или версии анализа пока не поддерживается.',
+      pin: 'Закрепить расчёт', unpin: 'Открепить расчёт', pinnedSuccess: 'Расчёт закреплён.', unpinnedSuccess: 'Расчёт откреплён.', pinError: 'Не удалось изменить закрепление расчёта.',
       periods: 'Месяцев', total: 'Итого', fullSummary: 'Сводка по всему расчёту', matrix: 'Матрица ABC/XYZ', allAbc: 'Все классы ABC', allXyz: 'Все классы XYZ',
       rankOrder: 'Товары в порядке ранга. Выберите ячейку матрицы, чтобы отфильтровать список.', rank: 'Ранг', product: 'Товар', revenue: 'Выручка в базовой валюте',
       share: 'Доля', cumulative: 'Накопленная доля', empty: 'В этой группе товаров нет.', loaded: 'Загружено товаров: {count}', productFallback: 'Товар №{id}',
@@ -2237,12 +2243,18 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   en: {
+    analysisSchema: {
+      yes: 'Yes', no: 'No', empty: 'No values', tooDeep: 'Nested data', summary: 'Summary', tableView: 'Table and summary', presentation: 'Result view',
+      versionChanged: 'This analysis definition has changed since the run was created. Some fields may be unavailable.', missingDefinition: 'The analysis definition is unavailable.',
+      requiredFilters: 'Fill in the required filters to load data.', invalidFilters: 'Check the filter values.', loadedRows: 'Rows loaded: {count}',
+    },
     analysisCreate: {
       title: 'Create analysis run', submit: 'Run analysis', selectType: 'Select an analysis type.', submitted: 'Analysis job created.', failed: 'Could not start the analysis.',
       completed: 'Analysis completed. The result is available in saved runs.', showResults: 'Show runs', statusError: 'Could not refresh job status. You can retry the request.',
     },
     analysisDetails: {
       title: 'Analysis result', created: 'Created', notFound: 'This run was not found or has been deleted.', unsupported: 'This analysis type or version is not supported yet.',
+      pin: 'Pin run', unpin: 'Unpin run', pinnedSuccess: 'Run pinned.', unpinnedSuccess: 'Run unpinned.', pinError: 'Could not change the pin status.',
       periods: 'Months', total: 'Total', fullSummary: 'Summary of the entire run', matrix: 'ABC/XYZ matrix', allAbc: 'All ABC classes', allXyz: 'All XYZ classes',
       rankOrder: 'Products are ordered by rank. Select a matrix cell to filter the list.', rank: 'Rank', product: 'Product', revenue: 'Revenue in base currency',
       share: 'Share', cumulative: 'Cumulative share', empty: 'No products in this group.', loaded: 'Products loaded: {count}', productFallback: 'Product #{id}',
@@ -4463,12 +4475,18 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   tr: {
+    analysisSchema: {
+      yes: 'Evet', no: 'Hayır', empty: 'Değer yok', tooDeep: 'İç içe veriler', summary: 'Özet', tableView: 'Tablo ve özet', presentation: 'Sonuç görünümü',
+      versionChanged: 'Analiz tanımı bu hesaplama oluşturulduktan sonra değişti. Bazı alanlar kullanılamayabilir.', missingDefinition: 'Analiz tanımı kullanılamıyor.',
+      requiredFilters: 'Verileri yüklemek için gerekli filtreleri doldurun.', invalidFilters: 'Filtre değerlerini kontrol edin.', loadedRows: 'Yüklenen satır: {count}',
+    },
     analysisCreate: {
       title: 'Hesaplama oluştur', submit: 'Analizi başlat', selectType: 'Bir analiz türü seçin.', submitted: 'Analiz görevi oluşturuldu.', failed: 'Analiz başlatılamadı.',
       completed: 'Analiz tamamlandı. Sonuç kaydedilen hesaplamalarda bulunabilir.', showResults: 'Hesaplamaları göster', statusError: 'Görev durumu güncellenemedi. İsteği yeniden deneyebilirsiniz.',
     },
     analysisDetails: {
       title: 'Analiz sonucu', created: 'Oluşturulma', notFound: 'Hesaplama bulunamadı veya silinmiş.', unsupported: 'Bu analiz türü veya sürümü henüz desteklenmiyor.',
+      pin: 'Hesaplamayı sabitle', unpin: 'Sabitlemeyi kaldır', pinnedSuccess: 'Hesaplama sabitlendi.', unpinnedSuccess: 'Sabitleme kaldırıldı.', pinError: 'Sabitleme durumu değiştirilemedi.',
       periods: 'Ay', total: 'Toplam', fullSummary: 'Hesaplamanın tamamının özeti', matrix: 'ABC/XYZ matrisi', allAbc: 'Tüm ABC sınıfları', allXyz: 'Tüm XYZ sınıfları',
       rankOrder: 'Ürünler sıraya göre gösterilir. Listeyi filtrelemek için bir matris hücresi seçin.', rank: 'Sıra', product: 'Ürün', revenue: 'Temel para biriminde ciro',
       share: 'Pay', cumulative: 'Kümülatif pay', empty: 'Bu grupta ürün yok.', loaded: 'Yüklenen ürün: {count}', productFallback: 'Ürün #{id}',

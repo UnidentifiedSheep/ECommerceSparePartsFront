@@ -6,17 +6,32 @@ import { getGraphqlErrors } from '@/services/graphql/auth'
 import { t } from '@/i18n'
 import { AnalyticsRunsDocument, AvailableAnalysesDocument, type AnalyticsRunsQuery, type AvailableAnalysesQuery } from '@/graphql/generated/graphql'
 import { clampPageSize } from './api'
-import { AnalysisDefinitionDocument, AnalyticsRunDetailsDocument, AnalysisRunItemsDocument, AnalyticsItemProductsDocument, type AnalysisDefinitionQuery, type AnalyticsRunDetailsQuery, type AnalyticsItemProductsQuery } from '@/graphql/generated/graphql'
+import { AnalysisDefinitionDocument, AnalyticsRunDetailsDocument, AnalysisRunItemsDocument, AnalyticsItemProductsDocument, AnalysisItemsDefinitionDocument, SetAnalyticsRunPinnedDocument, type AnalysisDefinitionQuery, type AnalyticsRunDetailsQuery, type AnalyticsItemProductsQuery } from '@/graphql/generated/graphql'
 import { parseAbcXyzPoint, type AbcClass, type XyzFilter } from '@/models/abcXyz'
 
 export type AnalysisRunDetails = NonNullable<AnalyticsRunDetailsQuery['analytics']['run']>
 export type AnalysisItemProduct = AnalyticsItemProductsQuery['products']['byIds'][number]
-export type AnalysisConfiguration = Omit<NonNullable<AnalysisDefinitionQuery['analytics']['analysis']>, 'parametersSchema'> & { parametersSchema: ObjectSchema }
+export type AnalysisConfiguration = Omit<NonNullable<AnalysisDefinitionQuery['analytics']['analysis']>, 'parametersSchema' | 'summarySchema' | 'segmentsSchema' | 'dataSchema'> & { parametersSchema: ObjectSchema; summarySchema: ObjectSchema; segmentsSchema: ObjectSchema; dataSchema: ObjectSchema }
 
 export async function getAnalysisDefinition(systemName: string, signal?: AbortSignal): Promise<AnalysisConfiguration | null> {
   const { data } = await operationRequest(graphqlClient.query({ query: AnalysisDefinitionDocument, variables: { systemName }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
   const definition = data.analytics.analysis
-  return definition ? { ...definition, parametersSchema: normalizeObjectSchema(definition.parametersSchema) } : null
+  return definition ? { ...definition, parametersSchema: normalizeObjectSchema(definition.parametersSchema), summarySchema: normalizeObjectSchema(definition.summarySchema), segmentsSchema: normalizeObjectSchema(definition.segmentsSchema), dataSchema: normalizeObjectSchema(definition.dataSchema) } : null
+}
+export async function getAnalysisItemsDefinition(systemName: string, signal?: AbortSignal) {
+  const { data } = await operationRequest(graphqlClient.query({ query: AnalysisItemsDefinitionDocument, variables: { systemName }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
+  const chart = data.analytics.chart
+  return chart ? { ...chart, queryInputSchema: normalizeObjectSchema(chart.queryInputSchema), dataPointSchema: normalizeObjectSchema(chart.dataPointSchema) } : null
+}
+export async function getSchemaAnalysisItems(systemName: string, queryInput: Record<string, unknown>, signal?: AbortSignal) {
+  const { data } = await operationRequest(graphqlClient.query({ query: AnalysisRunItemsDocument, variables: { systemName, queryInput }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
+  if (!data.analytics.chart) throw new Error(t('analysisDetails.unavailable'))
+  return data.analytics.chart.data
+}
+export async function setAnalyticsRunPinned(runId: string, isPinned: boolean): Promise<{ id: string; isPinned: boolean }> {
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: SetAnalyticsRunPinnedDocument, variables: { runId, isPinned } }))
+  if (!data) throw new Error(t('analysisDetails.pinError'))
+  return data.analytics.setRunPinned
 }
 export async function getAnalyticsRun(id: string, signal?: AbortSignal): Promise<AnalysisRunDetails | null> {
   const { data } = await operationRequest(graphqlClient.query({ query: AnalyticsRunDetailsDocument, variables: { id }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))

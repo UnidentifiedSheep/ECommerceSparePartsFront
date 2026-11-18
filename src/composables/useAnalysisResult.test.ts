@@ -17,7 +17,7 @@ async function flush() { for (let i = 0; i < 20; i++) await nextTick() }
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(getAnalyticsRun).mockImplementation(async id => run(id))
-  vi.mocked(getAnalysisDefinition).mockResolvedValue({ systemName: 'AbcXyz', name: 'ABC/XYZ', description: '', lrtSystemName: 'AbcXyzCalculationLrt', itemsChartSystemName: 'Items', schemaVersion: 1, parametersSchema: { version: 1, fields: [] } })
+  vi.mocked(getAnalysisDefinition).mockResolvedValue({ systemName: 'AbcXyz', name: 'ABC/XYZ', description: '', lrtSystemName: 'AbcXyzCalculationLrt', itemsChartSystemName: 'Items', schemaVersion: 1, parametersSchema: { version: 1, fields: [] }, summarySchema: { version: 1, fields: [] }, segmentsSchema: { version: 1, fields: [] }, dataSchema: { version: 1, fields: [] } })
   vi.mocked(getAbcXyzItems).mockResolvedValue({ points: [point], nextCursor: 1 })
   vi.mocked(getAnalysisProducts).mockResolvedValue([{ id: 1, sku: 'SKU', name: 'Product', producer: { name: 'MAN' } }])
 })
