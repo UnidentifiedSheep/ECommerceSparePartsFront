@@ -26,6 +26,7 @@ import TransactionsView from '@/views/TransactionsView.vue'
 import UsersView from '@/views/UsersView.vue'
 import OrganizationsView from '@/views/OrganizationsView.vue'
 import HomeView from '@/views/HomeView.vue'
+import AnalyticsView from '@/views/AnalyticsView.vue'
 import { useAuthStore } from '@/stores/authStore.ts'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import ClearLayout from '@/layouts/ClearLayout.vue'
@@ -130,6 +131,12 @@ const routes = [
         path: '/jobs',
         name: 'jobs',
         component: JobsView,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/analytics',
+        name: 'analytics',
+        component: AnalyticsView,
         meta: { requiresAuth: true },
       },
       {

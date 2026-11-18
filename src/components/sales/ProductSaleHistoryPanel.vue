@@ -105,7 +105,7 @@
               </div>
               <div class="sale-history__details">
                 <SortableColumnHeader :label="t('common.labels.count')" field="quantity" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
-                <SortableColumnHeader :label="t('sales.history.buyPriceColumn')" field="averageBuyPrice" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="sortHistory" />
+                <span>{{ t('sales.history.buyPriceColumn') }}</span>
               </div>
             </div>
             <component

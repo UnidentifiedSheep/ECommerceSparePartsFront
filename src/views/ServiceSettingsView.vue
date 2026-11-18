@@ -161,6 +161,7 @@ import {
   type ObjectSchema,
   type SchemaField,
 } from '@/models/schemaModel.ts'
+import { parseSchemaInputValue } from '@/utils/schemaInputs'
 
 interface ServiceCard {
   key: string
@@ -415,6 +416,7 @@ function findCurrentFieldValue(source: Record<string, unknown>, fieldName: strin
 function normalizeFieldValue(field: SettingSchemaField, value: unknown) {
   if (value === null || value === undefined) return defaultValue(field)
   if (isStructuredSchemaField(field)) return formatStructuredSchemaValue(value)
+  if (field.control === 'MonthPicker' && typeof value === 'string') return value.slice(0, 7)
   if (field.control === 'DatePicker' && typeof value === 'string') return value.slice(0, 10)
   if (field.control === 'EnumSelector' && isPrimitiveSettingValue(value)) return normalizeEnumValue(field, value)
   if (isPrimitiveSettingValue(value)) return value
@@ -441,7 +443,7 @@ function isPrimitiveSettingValue(value: unknown): value is string | number | boo
 function defaultValue(field: SettingSchemaField) {
   if (isStructuredSchemaField(field)) return formatStructuredSchemaValue(null)
   if (field.control === 'TextField') return ''
-  if (field.control === 'DatePicker') return ''
+  if (field.control === 'DatePicker' || field.control === 'MonthPicker') return ''
   if (['EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return null
   if (field.type === 'Boolean') return false
   if (isNumberField(field)) return 0
@@ -449,7 +451,7 @@ function defaultValue(field: SettingSchemaField) {
 }
 
 function isNumberField(field: SettingSchemaField) {
-  if (['TextField', 'DatePicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return false
+  if (['TextField', 'DatePicker', 'MonthPicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return false
   return isNumericSchemaField(field)
 }
 
@@ -476,6 +478,8 @@ function normalizedInputState() {
 function normalizeInputValueForSave(field: SettingSchemaField, value: unknown): unknown {
   if (value === undefined || value === null) return null
   if (isEmptyValue(value)) return null
+
+  if (field.control === 'MonthPicker') return parseSchemaInputValue(field, value)
 
   if (isStructuredSchemaField(field)) return parseStructuredSchemaValue(field, value)
 

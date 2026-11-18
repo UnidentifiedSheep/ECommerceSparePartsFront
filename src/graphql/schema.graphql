@@ -20,9 +20,50 @@ input AddUserEmailInput {
   type: EmailType!
 }
 
+type Analysis {
+  systemName: String!
+  name: String!
+  description: String!
+  lrtSystemName: String!
+  itemsChartSystemName: String!
+  schemaVersion: Int!
+  parametersSchema: ObjectSchema!
+  summarySchema: ObjectSchema!
+  segmentsSchema: ObjectSchema!
+  dataSchema: ObjectSchema!
+}
+
+type AnalyticsMutations {
+  setRunPinned(runId: UUID!, isPinned: Boolean!): AnalyticsRun! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
 type AnalyticsQueries {
   charts: [Chart!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
   chart(systemName: String!): Chart @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  runs(input: GetAnalyticsRunsInput!): [AnalyticsRun!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  run(id: UUID!): AnalyticsRun @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  analyses: [Analysis!]! @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+  analysis(systemName: String!): Analysis @authorize(policy: "GraphQL.Permission.All") @cost(weight: "10")
+}
+
+type AnalyticsRun {
+  id: UUID!
+  analysisType: String!
+  schemaVersion: Int!
+  parameters: Any!
+  summary: Any
+  itemsCount: Int!
+  periodStart: DateTime
+  periodEnd: DateTime
+  jobId: UUID
+  createdBy: UUID
+  isPinned: Boolean!
+  createdAt: DateTime!
+}
+
+input AnalyticsRunCursorValueInput {
+  id: UUID!
+  createdAt: DateTime!
 }
 
 "The `Any` scalar type represents any valid GraphQL value."
@@ -129,8 +170,22 @@ type Chart {
 
 type ChartData {
   dataPoints: [Any!]!
+  points: [ChartDataPoint!]!
   nextCursor: String
 }
+
+type ChartDataPoint {
+  value: Any!
+  references: [ChartDataPointReference!]!
+}
+
+type ChartDataPointReference {
+  field: String!
+  entity: String!
+  target: ChartReferenceTarget!
+}
+
+union ChartReferenceTarget = Product | Organization | User
 
 input CreateCurrencyInput {
   shortName: String!
@@ -415,6 +470,14 @@ scalar FieldSelectionMap
 
 scalar FieldSelectionSet
 
+input GetAnalyticsRunsInput {
+  cursor: GqlCursorOfNullableOfAnalyticsRunCursorValueInput!
+  analysisType: String
+  isPinned: Boolean
+  periodFrom: DateTime
+  periodTo: DateTime
+}
+
 input GetOrdersInput {
   pagination: PaginationInput!
   rangeStartDate: DateTime
@@ -508,6 +571,11 @@ input GetUsersInput {
   roles: [String!]
 }
 
+input GqlCursorOfNullableOfAnalyticsRunCursorValueInput {
+  value: AnalyticsRunCursorValueInput
+  size: Int!
+}
+
 input GqlCursorOfNullableOfDateTimeInput {
   value: DateTime
   size: Int!
@@ -569,6 +637,7 @@ enum InputControlType {
   ENTITY_SELECTOR
   ENUM_SELECTOR
   NAMED_OBJECT_SELECTOR
+  MONTH_PICKER
 }
 
 enum JobStatus {
@@ -627,6 +696,7 @@ input MaxCandidateCrossesInput {
 }
 
 type Mutation {
+  analytics: AnalyticsMutations!
   orders: OrderMutations!
   users: UserMutations!
   roles: RoleMutations!

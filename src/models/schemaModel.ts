@@ -14,6 +14,7 @@ export type SchemaInputControl =
   | 'EntitySelector'
   | 'EnumSelector'
   | 'NamedObjectSelector'
+  | 'MonthPicker'
 
 export interface SchemaDependency {
   entityName: string
@@ -69,7 +70,7 @@ export function toSchemaUiFields(fields: SchemaField[]): SchemaUiField[] {
 }
 
 const valueTypes: SchemaValueType[] = ['String', 'Boolean', 'Integer', 'Number', 'Enum', 'Array', 'Object']
-const inputControls: SchemaInputControl[] = ['UploadFile', 'TextField', 'DatePicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector']
+const inputControls: SchemaInputControl[] = ['UploadFile', 'TextField', 'DatePicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector', 'MonthPicker']
 
 function normalizeEnumValue<T extends string>(value: unknown, values: T[]): T {
   const normalized = typeof value === 'number'

@@ -12,6 +12,52 @@ fragment ChartSchema on ObjectSchema {
 query AvailableCharts {
   analytics { charts { systemName name description queryInputSchema { ...ChartSchema } dataPointSchema { ...ChartSchema } } }
 }
+
+query AvailableAnalyses {
+  analytics { analyses { systemName name description } }
+}
+
+query AnalysisDefinition($systemName: String!) {
+  analytics { analysis(systemName: $systemName) { systemName name description lrtSystemName itemsChartSystemName schemaVersion parametersSchema { ...ChartSchema } summarySchema { ...ChartSchema } segmentsSchema { ...ChartSchema } dataSchema { ...ChartSchema } } }
+}
+
+query AnalysisItemsDefinition($systemName: String!) {
+  analytics { chart(systemName: $systemName) { systemName queryInputSchema { ...ChartSchema } dataPointSchema { ...ChartSchema } } }
+}
+
+mutation SetAnalyticsRunPinned($runId: UUID!, $isPinned: Boolean!) {
+  analytics { setRunPinned(runId: $runId, isPinned: $isPinned) { id isPinned } }
+}
+
+query AnalyticsRunDetails($id: UUID!) {
+  analytics { run(id: $id) { id analysisType schemaVersion createdAt periodStart periodEnd itemsCount isPinned jobId parameters summary } }
+}
+
+query AnalysisRunItems($systemName: String!, $queryInput: Any!, $products: Boolean!, $organizations: Boolean!, $users: Boolean!) {
+  analytics { chart(systemName: $systemName) { data(queryInput: $queryInput) {
+    points {
+      value
+      references {
+        field entity
+        target {
+          __typename
+          ... on Product @include(if: $products) { productId: id sku name producer { name } }
+          ... on Organization @include(if: $organizations) { organizationId: id name }
+          ... on User @include(if: $users) { userId: id userName info { name surname } }
+        }
+      }
+    }
+    nextCursor
+  } } }
+}
+
+query AnalyticsRuns($input: GetAnalyticsRunsInput!) {
+  analytics {
+    runs(input: $input) {
+      id analysisType schemaVersion createdAt periodStart periodEnd itemsCount isPinned
+    }
+  }
+}
 query SalesProfitChart($systemName: String!, $queryInput: Any!) {
-  analytics { chart(systemName: $systemName) { systemName data(queryInput: $queryInput) { dataPoints nextCursor } } }
+  analytics { chart(systemName: $systemName) { systemName data(queryInput: $queryInput) { points { value } nextCursor } } }
 }

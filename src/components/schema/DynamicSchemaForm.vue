@@ -84,6 +84,38 @@
           @update:model-value="(value: string | null) => setFieldValue(field.name, value)"
         />
 
+        <el-date-picker
+          v-else-if="field.control === 'MonthPicker'"
+          :model-value="dateFieldValue(field.name)?.slice(0, 7)"
+          type="month"
+          format="MM.YYYY"
+          value-format="YYYY-MM"
+          :teleported="false"
+          :placeholder="field.description || field.name"
+          @update:model-value="(value: string | null) => setFieldValue(field.name, value ? schemaMonthToUtc(value) : null)"
+        />
+
+        <el-select
+          v-else-if="hasSchemaEnumOptions(field)"
+          :model-value="enumFieldValue(field)"
+          :multiple="field.type === 'Array'"
+          clearable
+          filterable
+          :teleported="false"
+          :placeholder="field.description || field.name"
+          @update:model-value="(value: string | number | Array<string | number> | null) => setFieldValue(field.name, Array.isArray(value) ? (value.length ? JSON.stringify(value) : '') : value)"
+        >
+          <el-option v-for="option in schemaEnumOptions(field)" :key="option.value" :label="option.label" :value="option.value" />
+        </el-select>
+
+        <SchemaPartySelector
+          v-else-if="field.control === 'EntitySelector' && (schemaEntity(field) === 'Organization' || schemaEntity(field) === 'User')"
+          :entity="schemaEntity(field) === 'Organization' ? 'Organization' : 'User'"
+          :model-value="dateFieldValue(field.name)"
+          :placeholder="field.description || field.name"
+          @update:model-value="(value) => setFieldValue(field.name, value)"
+        />
+
         <el-input
           v-else-if="isStructuredSchemaField(field)"
           :model-value="String(modelValue[field.name] ?? '')"
@@ -167,6 +199,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
+import SchemaPartySelector from './SchemaPartySelector.vue'
+import { hasSchemaEnumOptions, schemaEnumOptions, schemaEntity, schemaMonthToUtc } from '@/utils/schemaInputs'
 import { attachSelectDropdownInfiniteScroll } from '@/composables/useSelectInfiniteScroll.ts'
 import { useI18n } from '@/i18n'
 import { isStructuredSchemaField, type SchemaUiField } from '@/models/schemaModel.ts'
@@ -257,6 +291,15 @@ function isSelectorControl(field: DynamicSchemaField) {
     || field.control === 'NamedObjectSelector'
 }
 
+function enumFieldValue(field: DynamicSchemaField): string | number | Array<string | number> | undefined {
+  const value = props.modelValue[field.name]
+  if (field.type !== 'Array') return typeof value === 'string' || typeof value === 'number' ? value : undefined
+  try {
+    const parsed: unknown = typeof value === 'string' && value ? JSON.parse(value) : []
+    return Array.isArray(parsed) ? parsed.filter((item): item is string | number => typeof item === 'string' || typeof item === 'number') : []
+  } catch { return [] }
+}
+
 function isProductEventPartsField(field: DynamicSchemaField) {
   return field.control === 'EnumSelector' && (field.dependency?.entityName ?? field.dependsOnEntity) === 'ProductEventParts'
 }
@@ -267,7 +310,7 @@ function isRemoteSelector(field: DynamicSchemaField) {
 }
 
 function isNumberField(field: DynamicSchemaField) {
-  if (['TextField', 'DatePicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) {
+  if (['TextField', 'DatePicker', 'MonthPicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) {
     return false
   }
   return ['int', 'integer', 'long', 'float', 'double', 'decimal', 'number'].includes(field.type.toLowerCase())
