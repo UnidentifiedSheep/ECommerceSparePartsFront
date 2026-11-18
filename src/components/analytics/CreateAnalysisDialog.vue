@@ -8,11 +8,15 @@
       <div v-loading="loading" class="analysis-create-form">
         <p v-if="definition" class="analysis-create-description">{{ definition.description }}</p>
         <DynamicSchemaForm :fields="fields" :model-value="values" :empty-text="t('analysisCreate.selectType')" @update-field="(name, value) => values[name] = value" />
+        <div v-if="windowValidation" aria-live="polite">
+          <p v-if="windowValidation.periods !== null" class="analysis-create-description">{{ t('analysisCreate.windowPeriods', { count: windowValidation.periods }) }}</p>
+          <el-alert v-if="windowValidation.error" type="warning" :closable="false" :title="t(`analysisCreate.${windowValidation.error}`, { count: windowValidation.periods ?? 0 })" />
+        </div>
       </div>
     </el-form>
     <template #footer>
       <el-button :disabled="saving" @click="guard.requestClose">{{ t('common.actions.cancel') }}</el-button>
-      <el-button type="primary" :loading="saving" :disabled="!definition || loading || !!error || !canCreate" @click="submit">{{ t('analysisCreate.submit') }}</el-button>
+      <el-button type="primary" :loading="saving" :disabled="!definition || loading || !!error || !canCreate || !!windowValidation?.error" @click="submit">{{ t('analysisCreate.submit') }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -28,7 +32,7 @@ import { useDialogGuard } from '@/composables/useDialogGuard'
 import { usePermissions } from '@/composables/usePermissions'
 import { useI18n } from '@/i18n'
 import { toSchemaUiFields } from '@/models/schemaModel'
-import { analysisFormDefaults, serializeAnalysisForm, isEmptyAnalysisValue } from '@/utils/analysisForm'
+import { analysisFormDefaults, serializeAnalysisForm, isEmptyAnalysisValue, abcXyzWindow } from '@/utils/analysisForm'
 import { parseSchemaInputValue } from '@/utils/schemaInputs'
 import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 
@@ -42,6 +46,7 @@ const selectedType = ref('')
 const definition = shallowRef<AnalysisConfiguration | null>(null)
 const fields = computed(() => definition.value ? toSchemaUiFields(definition.value.parametersSchema.fields) : [])
 const values = reactive<Record<string, FieldValue>>({})
+const windowValidation = computed(() => definition.value?.systemName === 'AbcXyz' ? abcXyzWindow(values) : null)
 const loading = ref(false), saving = ref(false)
 const error = ref<DataLoadErrorKind | null>(null)
 let requestId = 0
@@ -84,6 +89,7 @@ async function submit() {
     try { parseSchemaInputValue(field, values[field.name]); return false } catch { return true }
   })
   if (invalid) { ElMessage.warning(t('schemaInputs.invalidField', { field: invalid.label || invalid.name })); return }
+  if (windowValidation.value?.error) { ElMessage.warning(t(`analysisCreate.${windowValidation.value.error}`, { count: windowValidation.value.periods ?? 0 })); return }
   saving.value = true
   try {
     const inputState = serializeAnalysisForm(fields.value, values)

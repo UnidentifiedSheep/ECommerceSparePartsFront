@@ -17,13 +17,12 @@
         <div><el-button type="primary" plain :disabled="!canApply" @click="loadPage(true)">{{ t('common.actions.apply') }}</el-button><el-button plain @click="resetFilters">{{ t('common.actions.reset') }}</el-button></div>
       </el-form>
       <p v-if="!canApply" class="schema-hint">{{ t('analysisSchema.requiredFilters') }}</p>
-      <el-alert v-if="productsError" type="warning" :closable="false" :title="t('analysisDetails.productsError')" />
+      <el-alert v-if="referencesError" type="warning" :closable="false" :title="t('analysisSchema.referencesError')" />
       <div ref="scrollElement" v-loading="loading && !rows.length" class="schema-items" tabindex="0" :aria-busy="loading" @scroll.passive="loadNearEnd">
         <table v-if="rows.length" class="schema-result-table">
           <thead><tr><th v-for="column in columns" :key="column.name" scope="col" :title="column.description || undefined">{{ column.label || column.name }}</th></tr></thead>
           <tbody><tr v-for="(row, index) in rows" :key="index"><td v-for="column in columns" :key="column.name" :class="{ 'schema-segment': isSegment(column) }">
-            <template v-if="isProductColumn(column) && product(row[column.name])"><RouterLink :to="{ name: 'product-details', params: { id: product(row[column.name])!.id } }">{{ product(row[column.name])!.sku }}</RouterLink><small>{{ product(row[column.name])!.producer.name }} · {{ product(row[column.name])!.name }}</small></template>
-            <AnalysisSchemaValue v-else :field="column" :value="row[column.name]" />
+            <AnalysisReferenceValue :point="row.point" :field="column" :value="row.value[column.name]" />
           </td></tr></tbody>
         </table>
         <el-empty v-if="!loading && !pageError && canApply && !rows.length" :description="t('analysisDetails.empty')" />
@@ -41,13 +40,14 @@ import { useResizeObserver } from '@vueuse/core'
 import { ElMessage } from 'element-plus'
 import { useI18n } from '@/i18n'
 import { usePermissions } from '@/composables/usePermissions'
-import { getAnalysisItemsDefinition, getSchemaAnalysisItems, getAnalysisProducts, type AnalysisConfiguration, type AnalysisRunDetails, type AnalysisItemProduct } from '@/services/api/analytics'
+import { getAnalysisItemsDefinition, getSchemaAnalysisItems, type AnalysisConfiguration, type AnalysisRunDetails, type AnalysisDataPoint } from '@/services/api/analytics'
 import type { SchemaField } from '@/models/schemaModel'
 import { toSchemaUiFields } from '@/models/schemaModel'
-import { validateAnalysisRecord, analysisCursor, isProductColumn } from '@/utils/analysisSchema'
+import { validateAnalysisRecord, analysisCursor } from '@/utils/analysisSchema'
 import { analysisFormDefaults, isEmptyAnalysisValue, serializeAnalysisForm } from '@/utils/analysisForm'
 import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import AnalysisSchemaValue from './AnalysisSchemaValue.vue'
+import AnalysisReferenceValue from './AnalysisReferenceValue.vue'
 import DynamicSchemaForm, { type FieldValue } from '@/components/schema/DynamicSchemaForm.vue'
 import DataLoadError from '@/components/common/DataLoadError.vue'
 
@@ -60,9 +60,9 @@ const values = reactive<Record<string, FieldValue>>({})
 const filterFields = computed(() => toSchemaUiFields(chart.value?.queryInputSchema.fields.filter(field => !['runId', 'cursor', 'size'].includes(field.name)) ?? []))
 const columns = computed(() => chart.value?.dataPointSchema.fields.length ? chart.value.dataPointSchema.fields : [...props.definition.segmentsSchema.fields, ...props.definition.dataSchema.fields].filter((field, index, fields) => fields.findIndex(item => item.name === field.name) === index))
 const canApply = computed(() => filterFields.value.every(field => !field.required || !isEmptyAnalysisValue(values[field.name])))
-const rows = ref<Record<string, unknown>[]>([])
-const products = ref<Record<number, AnalysisItemProduct>>({})
-const loading = ref(false), hasMore = ref(false), productsError = ref(false)
+const rows = ref<{ point: AnalysisDataPoint; value: Record<string, unknown> }[]>([])
+const loading = ref(false), hasMore = ref(false)
+const referencesError = ref(false)
 const error = ref<DataLoadErrorKind | null>(null), pageError = ref<DataLoadErrorKind | null>(null)
 const scrollElement = ref<HTMLElement>()
 let generation = 0, pageGeneration = 0, disposed = false
@@ -71,13 +71,12 @@ let cursor: string | null = null, applied: Record<string, unknown> = {}
 onScopeDispose(() => { disposed = true; ++generation; ++pageGeneration; controller?.abort(); pageController?.abort() })
 const summaryInvalid = computed(() => { if (props.run.summary == null) return false; try { validateAnalysisRecord(props.definition.summarySchema, props.run.summary); return false } catch { return true } })
 function isSegment(field: SchemaField) { return props.definition.segmentsSchema.fields.some(item => item.name === field.name) }
-function product(value: unknown) { return typeof value === 'number' ? products.value[value] : undefined }
 function resetFilters() { Object.assign(values, analysisFormDefaults('', filterFields.value)); void loadPage(true) }
 
 async function loadChart() {
   const request = ++generation
   ++pageGeneration; controller?.abort(); pageController?.abort()
-  chart.value = null; rows.value = []; products.value = {}; error.value = null; pageError.value = null; cursor = null; hasMore.value = false
+  chart.value = null; rows.value = []; error.value = null; pageError.value = null; referencesError.value = false; cursor = null; hasMore.value = false
   for (const name of Object.keys(values)) delete values[name]
   if (!hasPermission('CHARTS_GET') || disposed) return
   controller = new AbortController()
@@ -104,24 +103,17 @@ async function loadPage(reset: boolean) {
   const request = ++pageGeneration
   pageController?.abort(); pageController = new AbortController()
   const signal = pageController.signal
-  if (reset) { rows.value = []; cursor = null; hasMore.value = false; scrollElement.value?.scrollTo({ top: 0 }) }
+  if (reset) { rows.value = []; referencesError.value = false; cursor = null; hasMore.value = false; scrollElement.value?.scrollTo({ top: 0 }) }
   const previous = cursor
-  loading.value = true; pageError.value = null; productsError.value = false
+  loading.value = true; pageError.value = null
   try {
-    const result = await getSchemaAnalysisItems(props.definition.itemsChartSystemName, { ...applied, runId: props.run.id, size: 40, cursor: analysisCursor(cursor, chart.value.queryInputSchema.fields.find(field => field.name === 'cursor')) }, signal)
+    const result = await getSchemaAnalysisItems(props.definition.itemsChartSystemName, { ...applied, runId: props.run.id, size: 40, cursor: analysisCursor(cursor, chart.value.queryInputSchema.fields.find(field => field.name === 'cursor')) }, signal, { products: hasPermission('ARTICLES_GET_MAIN'), organizations: hasPermission('ORGANIZATIONS_GET'), users: hasPermission('USERS_GET') })
     if (disposed || request !== pageGeneration) return
-    const added = result.dataPoints.map(row => validateAnalysisRecord({ version: chart.value!.dataPointSchema.version, fields: columns.value }, row))
+    const added = result.points.map(point => ({ point, value: validateAnalysisRecord({ version: chart.value!.dataPointSchema.version, fields: columns.value }, point.value) }))
     rows.value.push(...added)
+    referencesError.value ||= result.referencesUnavailable
     cursor = result.nextCursor
     hasMore.value = cursor !== null && cursor !== previous && added.length > 0
-    if (hasPermission('ARTICLES_GET_MAIN')) {
-      const productFields = columns.value.filter(isProductColumn)
-      const ids = [...new Set(added.flatMap(row => productFields.map(field => row[field.name])).filter((id): id is number => typeof id === 'number' && Number.isInteger(id) && !products.value[id]))]
-      try {
-        const refs = await getAnalysisProducts(ids, signal)
-        if (!disposed && request === pageGeneration) for (const item of refs) products.value[item.id] = item
-      } catch { if (!disposed && request === pageGeneration) productsError.value = true }
-    }
   } catch (cause) { if (!disposed && request === pageGeneration) pageError.value = classifyDataLoadError(cause) }
   finally { if (!disposed && request === pageGeneration) loading.value = false }
 }
@@ -143,8 +135,8 @@ useResizeObserver(scrollElement, loadNearEnd)
 .schema-result-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12px; }
 .schema-result-table th { position: sticky; top: 0; z-index: 1; text-align: left; color: var(--app-text-muted); background: var(--app-surface); }
 .schema-result-table th, .schema-result-table td { padding: 10px 8px; border-bottom: 1px solid var(--app-border); white-space: nowrap; }
-.schema-result-table a { color: var(--app-primary); font-weight: 600; }
-.schema-result-table small { display: block; color: var(--app-text-muted); margin-top: 3px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.schema-result-table :deep(a) { color: var(--app-primary); font-weight: 600; }
+.schema-result-table :deep(small) { display: block; color: var(--app-text-muted); margin-top: 3px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
 .schema-segment { font-weight: 600; }
 .schema-hint { font-size: 12px; color: var(--app-text-muted); margin: 0; }
 @media (max-width: 600px) { .schema-result { min-height: 65dvh; } .schema-items { max-height: 55dvh; } }

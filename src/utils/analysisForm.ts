@@ -1,6 +1,6 @@
 import type { SchemaField } from '@/models/schemaModel'
 import { isStructuredSchemaField } from '@/models/schemaModel'
-import { parseSchemaInputValue } from '@/utils/schemaInputs'
+import { parseSchemaInputValue, schemaMonthToUtc } from '@/utils/schemaInputs'
 import type { FieldValue } from '@/components/schema/DynamicSchemaForm.vue'
 
 export function analysisFormDefaults(type: string, fields: SchemaField[], now = new Date()): Record<string, FieldValue> {
@@ -24,4 +24,22 @@ export function serializeAnalysisForm(fields: SchemaField[], values: Record<stri
     }
     return [[field.name, parseSchemaInputValue(field, value)]]
   })))
+}
+
+export function abcXyzWindow(values: Record<string, FieldValue>): { periods: number | null; error: 'invalidWindow' | 'minPeriodsInvalid' | 'minPeriodsExceedWindow' | null } {
+  let from: string, to: string
+  let months: unknown
+  try {
+    from = schemaMonthToUtc(values.from); to = schemaMonthToUtc(values.to)
+    months = isEmptyAnalysisValue(values.months) ? [] : typeof values.months === 'string' ? JSON.parse(values.months) : values.months
+  } catch { return { periods: null, error: 'invalidWindow' } }
+  if (!Array.isArray(months) || months.some(month => !Number.isInteger(month) || month < 1 || month > 12)) return { periods: null, error: 'invalidWindow' }
+  const index = (month: string) => Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1
+  const start = index(from), end = index(to)
+  if (end < start) return { periods: null, error: 'invalidWindow' }
+  const selected: number[] = months.length ? [...new Set(months)] : Array.from({ length: 12 }, (_, i) => i + 1)
+  const periods = selected.reduce((count, month) => count + Math.max(0, Math.floor((end - month + 1) / 12) - Math.ceil((start - month + 1) / 12) + 1), 0)
+  const minimum = typeof values.minPeriods === 'number' || typeof values.minPeriods === 'string' ? Number(values.minPeriods) : NaN
+  if (!Number.isSafeInteger(minimum) || minimum < 2) return { periods, error: 'minPeriodsInvalid' }
+  return { periods, error: minimum > periods ? 'minPeriodsExceedWindow' : null }
 }

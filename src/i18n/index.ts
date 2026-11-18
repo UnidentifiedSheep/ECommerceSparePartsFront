@@ -12,12 +12,14 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
     analysisSchema: {
+      referencesError: 'Названия связанных сущностей недоступны. Показаны сохранённые значения.',
       yes: 'Да', no: 'Нет', empty: 'Нет значений', tooDeep: 'Вложенные данные', summary: 'Сводка', tableView: 'Таблица и сводка', presentation: 'Вид результата',
       versionChanged: 'Описание анализа обновилось после создания этого расчёта. Часть полей может быть недоступна.', missingDefinition: 'Описание анализа недоступно.',
       requiredFilters: 'Заполните обязательные фильтры для загрузки данных.', invalidFilters: 'Проверьте значения фильтров.', loadedRows: 'Загружено строк: {count}',
     },
     analysisCreate: {
       title: 'Создать расчёт', submit: 'Запустить расчёт', selectType: 'Выберите вид анализа.', submitted: 'Задача расчёта создана.', failed: 'Не удалось запустить расчёт.',
+      windowPeriods: 'Месяцев в расчёте с учётом выбранного сезона: {count}.', invalidWindow: 'Проверьте диапазон и выбранные месяцы расчёта.', minPeriodsInvalid: 'Минимальное число периодов должно быть целым числом не меньше 2.', minPeriodsExceedWindow: 'Минимальное число периодов превышает количество выбранных месяцев ({count}). Увеличьте период или уменьшите минимум.',
       completed: 'Расчёт завершён. Результат доступен в списке сохранённых расчётов.', showResults: 'Показать расчёты', statusError: 'Не удалось обновить состояние задачи. Можно повторить запрос.',
     },
     analysisDetails: {
@@ -2244,12 +2246,14 @@ const messages: Record<AppLocale, MessageTree> = {
   },
   en: {
     analysisSchema: {
+      referencesError: 'Linked entity names are unavailable. Saved values are shown.',
       yes: 'Yes', no: 'No', empty: 'No values', tooDeep: 'Nested data', summary: 'Summary', tableView: 'Table and summary', presentation: 'Result view',
       versionChanged: 'This analysis definition has changed since the run was created. Some fields may be unavailable.', missingDefinition: 'The analysis definition is unavailable.',
       requiredFilters: 'Fill in the required filters to load data.', invalidFilters: 'Check the filter values.', loadedRows: 'Rows loaded: {count}',
     },
     analysisCreate: {
       title: 'Create analysis run', submit: 'Run analysis', selectType: 'Select an analysis type.', submitted: 'Analysis job created.', failed: 'Could not start the analysis.',
+      windowPeriods: 'Months in the calculation after seasonal selection: {count}.', invalidWindow: 'Check the date range and selected months.', minPeriodsInvalid: 'The minimum number of periods must be an integer of at least 2.', minPeriodsExceedWindow: 'The minimum number of periods exceeds the selected months ({count}). Extend the period or lower the minimum.',
       completed: 'Analysis completed. The result is available in saved runs.', showResults: 'Show runs', statusError: 'Could not refresh job status. You can retry the request.',
     },
     analysisDetails: {
@@ -4476,12 +4480,14 @@ const messages: Record<AppLocale, MessageTree> = {
   },
   tr: {
     analysisSchema: {
+      referencesError: 'İlişkili kayıt adları kullanılamıyor. Kaydedilen değerler gösteriliyor.',
       yes: 'Evet', no: 'Hayır', empty: 'Değer yok', tooDeep: 'İç içe veriler', summary: 'Özet', tableView: 'Tablo ve özet', presentation: 'Sonuç görünümü',
       versionChanged: 'Analiz tanımı bu hesaplama oluşturulduktan sonra değişti. Bazı alanlar kullanılamayabilir.', missingDefinition: 'Analiz tanımı kullanılamıyor.',
       requiredFilters: 'Verileri yüklemek için gerekli filtreleri doldurun.', invalidFilters: 'Filtre değerlerini kontrol edin.', loadedRows: 'Yüklenen satır: {count}',
     },
     analysisCreate: {
       title: 'Hesaplama oluştur', submit: 'Analizi başlat', selectType: 'Bir analiz türü seçin.', submitted: 'Analiz görevi oluşturuldu.', failed: 'Analiz başlatılamadı.',
+      windowPeriods: 'Mevsim seçimine göre hesaplamadaki ay sayısı: {count}.', invalidWindow: 'Tarih aralığını ve seçilen ayları kontrol edin.', minPeriodsInvalid: 'Asgari dönem sayısı en az 2 olan bir tam sayı olmalıdır.', minPeriodsExceedWindow: 'Asgari dönem sayısı seçilen ay sayısını ({count}) aşıyor. Dönemi uzatın veya asgari sayıyı azaltın.',
       completed: 'Analiz tamamlandı. Sonuç kaydedilen hesaplamalarda bulunabilir.', showResults: 'Hesaplamaları göster', statusError: 'Görev durumu güncellenemedi. İsteği yeniden deneyebilirsiniz.',
     },
     analysisDetails: {

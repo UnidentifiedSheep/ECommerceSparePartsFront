@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, ref, type EffectScope } from 'vue'
 import { useAnalysisResult } from './useAnalysisResult'
-import { getAnalyticsRun, getAnalysisDefinition, getAbcXyzItems, getAnalysisProducts } from '@/services/api/analytics'
-vi.mock('@/services/api/analytics', () => ({ getAnalyticsRun: vi.fn(), getAnalysisDefinition: vi.fn(), getAbcXyzItems: vi.fn(), getAnalysisProducts: vi.fn() }))
+import { getAnalyticsRun, getAnalysisDefinition, getAbcXyzItems } from '@/services/api/analytics'
+vi.mock('@/services/api/analytics', () => ({ getAnalyticsRun: vi.fn(), getAnalysisDefinition: vi.fn(), getAbcXyzItems: vi.fn() }))
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
 const point = { productId: 1, rank: 1, value: 10, share: 1, cumulativeShare: 1, abc: 'A' as const, xyz: null, quantity: 1, revenue: 10, coefficientOfVariation: null, periodsCount: 1 }
 const summary = { productsCount: 1, periodsCount: 1, totalValue: 10, cells: [{ abc: 'A', productsCount: 1, value: 10 }] }
@@ -11,26 +11,26 @@ let scope: EffectScope
 function setup(enabled = true) {
   const id = ref<string | undefined>('run-1'), active = ref(enabled), products = ref(true)
   scope = effectScope()
-  return { ...scope.run(() => useAnalysisResult(id, active, products))!, id, active }
+  return { ...scope.run(() => useAnalysisResult(id, active, products))!, id, active, canReadProducts: products }
 }
 async function flush() { for (let i = 0; i < 20; i++) await nextTick() }
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(getAnalyticsRun).mockImplementation(async id => run(id))
   vi.mocked(getAnalysisDefinition).mockResolvedValue({ systemName: 'AbcXyz', name: 'ABC/XYZ', description: '', lrtSystemName: 'AbcXyzCalculationLrt', itemsChartSystemName: 'Items', schemaVersion: 1, parametersSchema: { version: 1, fields: [] }, summarySchema: { version: 1, fields: [] }, segmentsSchema: { version: 1, fields: [] }, dataSchema: { version: 1, fields: [] } })
-  vi.mocked(getAbcXyzItems).mockResolvedValue({ points: [point], nextCursor: 1 })
-  vi.mocked(getAnalysisProducts).mockResolvedValue([{ id: 1, sku: 'SKU', name: 'Product', producer: { name: 'MAN' } }])
+  vi.mocked(getAbcXyzItems).mockResolvedValue({ points: [point], products: [{ id: 1, sku: 'SKU', name: 'Product', producer: { name: 'MAN' } }], nextCursor: 1, referencesUnavailable: false })
 })
 afterEach(() => scope.stop())
 describe('selected analytics result', () => {
-  it('loads only when open and fetches product names in a batch after the selected run', async () => {
+  it('loads only when open and uses product names from the same result', async () => {
     const state = setup(false)
     await flush()
     expect(getAnalyticsRun).not.toHaveBeenCalled()
     state.active.value = true
     await flush()
     expect(getAnalyticsRun).toHaveBeenCalledTimes(1)
-    expect(getAnalysisProducts).toHaveBeenCalledWith([1], expect.any(AbortSignal))
+    expect(getAbcXyzItems).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(getAbcXyzItems).mock.calls[0]?.[3]).toBe(true)
     expect(state.products.value[1]?.sku).toBe('SKU')
     state.active.value = false
     await flush()
@@ -58,8 +58,8 @@ describe('selected analytics result', () => {
     expect(state.run.value?.id).toBe('run-2')
     expect(getAbcXyzItems).toHaveBeenCalledTimes(1)
   })
-  it('keeps analytics rows when product loading fails and retries a failed page with the same cursor', async () => {
-    vi.mocked(getAnalysisProducts).mockRejectedValue(new Error('product request failed'))
+  it('keeps rows without references and retries a failed page with the same cursor', async () => {
+    vi.mocked(getAbcXyzItems).mockResolvedValueOnce({ points: [point], products: [], nextCursor: 1, referencesUnavailable: true })
     const state = setup()
     await flush()
     expect(state.points.value).toHaveLength(1)
@@ -68,9 +68,18 @@ describe('selected analytics result', () => {
     await state.loadItems(false)
     expect(state.points.value).toHaveLength(1)
     expect(state.itemsError.value).toBe('failed')
-    vi.mocked(getAbcXyzItems).mockResolvedValueOnce({ points: [{ ...point, productId: 2, rank: 2 }], nextCursor: null })
+    vi.mocked(getAbcXyzItems).mockResolvedValueOnce({ points: [{ ...point, productId: 2, rank: 2 }], products: [], nextCursor: null, referencesUnavailable: false })
     await state.loadItems(false)
     expect(vi.mocked(getAbcXyzItems).mock.calls[2]?.[1].cursor).toBe(1)
     expect(state.points.value).toHaveLength(2)
+  })
+  it('does not request or show product names without permission', async () => {
+    const state = setup(false)
+    state.canReadProducts.value = false
+    state.active.value = true
+    await flush()
+    expect(vi.mocked(getAbcXyzItems).mock.calls[0]?.[3]).toBe(false)
+    expect(state.products.value).toEqual({})
+    expect(state.points.value).toHaveLength(1)
   })
 })

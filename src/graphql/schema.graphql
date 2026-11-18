@@ -170,8 +170,22 @@ type Chart {
 
 type ChartData {
   dataPoints: [Any!]!
+  points: [ChartDataPoint!]!
   nextCursor: String
 }
+
+type ChartDataPoint {
+  value: Any!
+  references: [ChartDataPointReference!]!
+}
+
+type ChartDataPointReference {
+  field: String!
+  entity: String!
+  target: ChartReferenceTarget!
+}
+
+union ChartReferenceTarget = Product | Organization | User
 
 input CreateCurrencyInput {
   shortName: String!

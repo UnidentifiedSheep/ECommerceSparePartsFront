@@ -55,4 +55,3 @@ export function formatAnalysisValue(value: unknown, field?: SchemaField): string
   if (field?.type === 'Enum') return schemaEnumOptions(field).find(option => option.value === value)?.label ?? String(value)
   return String(value)
 }
-export function isProductColumn(field: SchemaField) { return field.dependency?.entityName === 'Product' && (!field.dependency.fieldName || field.dependency.fieldName === 'id') || field.name === 'productId' }

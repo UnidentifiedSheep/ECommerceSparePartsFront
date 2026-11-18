@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { print } from 'graphql'
 import { graphqlClient } from '@/services/graphql/client'
-import { getCharts, querySalesProfitChart, getAnalyticsRuns, getAnalyses, getAbcXyzItems, getAnalysisProducts, setAnalyticsRunPinned, getAnalysisDefinition } from './analytics'
+import { getCharts, querySalesProfitChart, getAnalyticsRuns, getAnalyses, getAbcXyzItems, getSchemaAnalysisItems, setAnalyticsRunPinned, getAnalysisDefinition } from './analytics'
 
 vi.mock('@/services/graphql/client', () => ({ graphqlClient: { query: vi.fn(), mutate: vi.fn() } }))
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
@@ -26,18 +26,32 @@ describe('Main GraphQL analytics', () => {
   })
   it('converts rank cursors back to numbers and keeps Unclassified distinct from Z', async () => {
     const point = { productId: 1, rank: 40, value: 10, share: 0.1, cumulativeShare: 1, abc: 'B', quantity: 1, revenue: 10, periodsCount: 1 }
-    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { chart: { data: { dataPoints: [point], nextCursor: '40' } } } } } as never)
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { chart: { data: { points: [{ value: point, references: [] }], nextCursor: '40' } } } } } as never)
     expect((await getAbcXyzItems('Items', { runId: 'run-1', xyz: 'Unclassified', cursor: 20, size: 40 })).nextCursor).toBe(40)
-    expect(vi.mocked(graphqlClient.query).mock.calls[0]?.[0].variables).toEqual({ systemName: 'Items', queryInput: { runId: 'run-1', xyz: 'Unclassified', cursor: 20, size: 40 } })
-    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { analytics: { chart: { data: { dataPoints: [], nextCursor: 'bad' } } } } } as never)
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]?.[0].variables).toEqual({ systemName: 'Items', queryInput: { runId: 'run-1', xyz: 'Unclassified', cursor: 20, size: 40 }, products: false, organizations: false, users: false })
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { analytics: { chart: { data: { points: [], nextCursor: 'bad' } } } } } as never)
     await expect(getAbcXyzItems('Items', { runId: 'run-1', size: 40 })).rejects.toThrow()
   })
-  it('batches unique product IDs and avoids empty product requests', async () => {
-    expect(await getAnalysisProducts([])).toEqual([])
-    expect(graphqlClient.query).not.toHaveBeenCalled()
-    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { products: { byIds: [] } } } as never)
-    await getAnalysisProducts([1, 2, 1])
-    expect(vi.mocked(graphqlClient.query).mock.calls[0]?.[0].variables).toEqual({ ids: [1, 2] })
+  it('gets linked products with the page in one request', async () => {
+    const point = { productId: 7, rank: 1, value: 10, share: 1, cumulativeShare: 1, abc: 'A', quantity: 1, revenue: 10, periodsCount: 2 }
+    const target = { __typename: 'Product', productId: 7, sku: 'SKU', name: 'Filter', producer: { name: 'MAN' } }
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { analytics: { chart: { data: { points: [{ value: point, references: [{ field: 'productId', entity: 'Product', target }] }], nextCursor: null } } } } } as never)
+    const result = await getAbcXyzItems('Items', { runId: 'run-1', size: 40 }, undefined, true)
+    expect(result.products).toEqual([{ id: 7, sku: 'SKU', name: 'Filter', producer: { name: 'MAN' } }])
+    expect(graphqlClient.query).toHaveBeenCalledTimes(1)
+  })
+  it('retries without entity details only when references fail, preserving the rows', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: null, errors: [{ message: 'Deleted product', path: ['analytics', 'chart', 'data', 'points', 0, 'references', 0, 'target', 'name'] }] } as never)
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { analytics: { chart: { data: { points: [{ value: { subject: 7 }, references: [] }], nextCursor: null } } } } } as never)
+    const result = await getSchemaAnalysisItems('Items', { runId: 'run-1' }, undefined, { products: true })
+    expect(result.referencesUnavailable).toBe(true)
+    expect(result.points[0]?.value).toEqual({ subject: 7 })
+    expect(vi.mocked(graphqlClient.query).mock.calls[1]?.[0].variables).toMatchObject({ products: false, organizations: false, users: false })
+  })
+  it('does not mask general GraphQL errors as missing entity names', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: null, errors: [{ message: 'Invalid filter', path: ['analytics', 'chart', 'data'] }] } as never)
+    await expect(getSchemaAnalysisItems('Items', {}, undefined, { products: true })).rejects.toMatchObject({ graphQLErrors: [{ message: 'Invalid filter' }] })
+    expect(graphqlClient.query).toHaveBeenCalledTimes(1)
   })
   it('reads analysis labels without loading schemas or result details', async () => {
     const definitions = [{ systemName: 'AbcXyz', name: 'ABC/XYZ', description: 'Analysis' }]
@@ -64,14 +78,14 @@ describe('Main GraphQL analytics', () => {
   })
   it('keeps filters, UTC boundaries, cursor and cancellation when loading points', async () => {
     const point = { periodStart: '2026-11-01T00:00:00Z', revenue: 90, cost: 50, grossProfit: 40, margin: 40 / 90, salesCount: 1, productsCount: 2 }
-    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { chart: { data: { dataPoints: [point], nextCursor: '2026-11-02T00:00:00Z' } } } } } as never)
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { chart: { data: { points: [{ value: point }], nextCursor: '2026-11-02T00:00:00Z' } } } } } as never)
     const controller = new AbortController()
     const filters = { ...input, organizationId: 'org-1', buyerId: 'user-1', cursor: '2026-11-01T00:00:00Z' }
     expect(await querySalesProfitChart(filters, controller.signal)).toEqual({ dataPoints: [point], nextCursor: '2026-11-02T00:00:00Z' })
     expect(vi.mocked(graphqlClient.query).mock.calls[0]![0]).toMatchObject({ variables: { queryInput: filters }, context: { fetchOptions: { signal: controller.signal } }, fetchPolicy: 'no-cache' })
   })
   it('refuses malformed scalar points instead of rendering misleading totals', async () => {
-    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { chart: { data: { dataPoints: [{ periodStart: 'bad', revenue: '90' }], nextCursor: null } } } } } as never)
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { analytics: { chart: { data: { points: [{ value: { periodStart: 'bad', revenue: '90' } }], nextCursor: null } } } } } as never)
     await expect(querySalesProfitChart(input)).rejects.toThrow('home.loadError')
   })
   it('explains missing historical analytics without treating it as an empty report', async () => {

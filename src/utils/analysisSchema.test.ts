@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { validateAnalysisRecord, analysisCursor, formatAnalysisValue, isProductColumn } from './analysisSchema'
+import { validateAnalysisRecord, analysisCursor, formatAnalysisValue } from './analysisSchema'
 import type { ObjectSchema, SchemaField } from '@/models/schemaModel'
 vi.mock('@/i18n', () => ({ getCurrentLocale: () => 'en', t: (key: string) => key }))
 const field = (name: string, type: SchemaField['type'], required = true): SchemaField => ({ name, type, required, accepts: [] })
@@ -24,12 +24,9 @@ describe('schema based analysis results', () => {
     expect(() => analysisCursor('9007199254740993', field('cursor', 'Integer'))).toThrow()
     expect(() => analysisCursor('abc', field('cursor', 'Integer'))).toThrow()
   })
-  it('does not erase false or zero, and detects product reference metadata', () => {
+  it('does not erase false or zero', () => {
     expect(formatAnalysisValue(0)).toBe('0')
     expect(formatAnalysisValue(false)).toBe('analysisSchema.no')
     expect(formatAnalysisValue(null)).toBe('—')
-    expect(isProductColumn({ ...field('subject', 'Integer'), dependency: { entityName: 'Product', fieldName: 'id' } })).toBe(true)
-    expect(isProductColumn(field('productId', 'Integer'))).toBe(true)
-    expect(isProductColumn(field('count', 'Integer'))).toBe(false)
   })
 })

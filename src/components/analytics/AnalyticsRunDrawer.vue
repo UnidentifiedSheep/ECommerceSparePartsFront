@@ -37,7 +37,7 @@
             <el-button plain :disabled="!abc && !xyz" @click="abc = undefined; xyz = undefined">{{ t('common.actions.reset') }}</el-button>
           </div>
           <p class="result-hint">{{ t('analysisDetails.rankOrder') }}</p>
-          <el-alert v-if="productsError" type="warning" :closable="false"><template #title>{{ t('analysisDetails.productsError') }} <el-button link @click="loadProducts()">{{ t('common.loadError.retry') }}</el-button></template></el-alert>
+          <el-alert v-if="productsError" type="warning" :closable="false" :title="t('analysisDetails.productsError')" />
           <div ref="scrollElement" class="result-items" :aria-busy="itemsLoading" tabindex="0" @scroll.passive="loadNearEnd">
             <table v-if="points.length" class="result-table">
               <thead><tr><th scope="col">{{ t('analysisDetails.rank') }}</th><th scope="col">{{ t('analysisDetails.product') }}</th><th scope="col">ABC / XYZ</th><th scope="col">{{ t('schemaInputs.enums.Quantity') }}</th><th scope="col">{{ t('analysisDetails.revenue') }}</th><th scope="col">{{ t('analysisDetails.share') }}</th><th scope="col">{{ t('analysisDetails.cumulative') }}</th><th scope="col">CV</th></tr></thead>
@@ -82,7 +82,7 @@ const canPin = computed(() => hasPermission('ANALYTICS_RUNS_EDIT'))
 const pinning = ref(false)
 const presentation = ref<'matrix' | 'table'>('matrix')
 watch(selectedId, () => { presentation.value = 'matrix' })
-const { run, definition, summary, parameters, points, products, loading, itemsLoading, hasMore, notFound, error, itemsError, productsError, abc, xyz, supported, loadRun, loadItems, loadProducts } = useAnalysisResult(selectedId, enabled, canReadProducts)
+const { run, definition, summary, parameters, points, products, loading, itemsLoading, hasMore, notFound, error, itemsError, productsError, abc, xyz, supported, loadRun, loadItems } = useAnalysisResult(selectedId, enabled, canReadProducts)
 const columns: XyzFilter[] = ['X', 'Y', 'Z', 'Unclassified']
 const scrollElement = ref<HTMLElement>()
 async function togglePinned() {
