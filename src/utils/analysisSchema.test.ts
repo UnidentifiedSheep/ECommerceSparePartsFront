@@ -28,5 +28,6 @@ describe('schema based analysis results', () => {
     expect(formatAnalysisValue(0)).toBe('0')
     expect(formatAnalysisValue(false)).toBe('analysisSchema.no')
     expect(formatAnalysisValue(null)).toBe('—')
+    expect(formatAnalysisValue('Lumpy', field('demandPattern', 'Enum'))).toBe('schemaInputs.enums.Lumpy')
   })
 })

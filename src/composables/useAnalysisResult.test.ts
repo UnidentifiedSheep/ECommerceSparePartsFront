@@ -82,4 +82,32 @@ describe('selected analytics result', () => {
     expect(state.products.value).toEqual({})
     expect(state.points.value).toHaveLength(1)
   })
+  it('keeps the old v1 matrix available with a v2 analysis definition', async () => {
+    vi.mocked(getAnalysisDefinition).mockResolvedValue({ ...(await getAnalysisDefinition('AbcXyz'))!, schemaVersion: 2 })
+    const state = setup()
+    await flush()
+    expect(state.supported.value).toBe(true)
+    expect(state.points.value).toHaveLength(1)
+    expect(vi.mocked(getAbcXyzItems).mock.calls[0]?.[1]).not.toHaveProperty('pattern')
+  })
+  it('loads v2 and sends demand pattern filters, resetting the rank cursor', async () => {
+    vi.mocked(getAnalyticsRun).mockImplementation(async id => ({ ...run(id), schemaVersion: 2 }))
+    vi.mocked(getAnalysisDefinition).mockResolvedValue({ ...(await getAnalysisDefinition('AbcXyz'))!, schemaVersion: 2 })
+    const state = setup()
+    await flush()
+    expect(state.supported.value).toBe(true)
+    state.pattern.value = 'Unclassified'
+    await flush()
+    expect(vi.mocked(getAbcXyzItems).mock.calls[1]?.[1]).toMatchObject({ pattern: 'Unclassified', cursor: undefined })
+    state.pattern.value = 'Lumpy'
+    await flush()
+    expect(vi.mocked(getAbcXyzItems).mock.calls[2]?.[1]).toMatchObject({ pattern: 'Lumpy', cursor: undefined })
+  })
+  it('leaves unknown versions for the generic schema viewer', async () => {
+    vi.mocked(getAnalyticsRun).mockImplementation(async id => ({ ...run(id), schemaVersion: 3 }))
+    const state = setup()
+    await flush()
+    expect(state.supported.value).toBe(false)
+    expect(getAbcXyzItems).not.toHaveBeenCalled()
+  })
 })

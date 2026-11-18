@@ -7,9 +7,10 @@
       <DataLoadError v-if="error" :error="error" @retry="loadDefinition" />
       <div v-loading="loading" class="analysis-create-form">
         <p v-if="definition" class="analysis-create-description">{{ definition.description }}</p>
-        <DynamicSchemaForm :fields="fields" :model-value="values" :empty-text="t('analysisCreate.selectType')" @update-field="(name, value) => values[name] = value" />
+        <DynamicSchemaForm :fields="visibleFields" :model-value="values" :empty-text="t('analysisCreate.selectType')" @update-field="updateField" />
         <div v-if="windowValidation" aria-live="polite">
-          <p v-if="windowValidation.periods !== null" class="analysis-create-description">{{ t('analysisCreate.windowPeriods', { count: windowValidation.periods }) }}</p>
+          <p v-if="values.granularity === 'Quarter'" class="analysis-create-description">{{ t('analysisCreate.quarterHint') }}</p>
+          <p v-if="windowValidation.periods !== null" class="analysis-create-description">{{ t(values.granularity === 'Quarter' ? 'analysisCreate.windowQuarters' : 'analysisCreate.windowPeriods', { count: windowValidation.periods }) }}</p>
           <el-alert v-if="windowValidation.error" type="warning" :closable="false" :title="t(`analysisCreate.${windowValidation.error}`, { count: windowValidation.periods ?? 0 })" />
         </div>
       </div>
@@ -46,6 +47,11 @@ const selectedType = ref('')
 const definition = shallowRef<AnalysisConfiguration | null>(null)
 const fields = computed(() => definition.value ? toSchemaUiFields(definition.value.parametersSchema.fields) : [])
 const values = reactive<Record<string, FieldValue>>({})
+const visibleFields = computed(() => fields.value.filter(field => !(definition.value?.systemName === 'AbcXyz' && values.granularity === 'Quarter' && field.name === 'months')))
+function updateField(name: string, value: FieldValue) {
+  values[name] = value
+  if (definition.value?.systemName === 'AbcXyz' && name === 'granularity' && value === 'Quarter') values.months = ''
+}
 const windowValidation = computed(() => definition.value?.systemName === 'AbcXyz' ? abcXyzWindow(values) : null)
 const loading = ref(false), saving = ref(false)
 const error = ref<DataLoadErrorKind | null>(null)

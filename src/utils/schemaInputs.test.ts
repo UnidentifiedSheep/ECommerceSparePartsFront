@@ -41,4 +41,8 @@ describe('analytics schema input compatibility', () => {
     expect(() => parseSchemaInputValue(field({ type: 'Number' }), 'abc')).toThrow()
     expect(parseSchemaInputValue(field({ type: 'Object', control: 'TextField' }), '00:30:00')).toBe('00:30:00')
   })
+  it('provides localized period and demand pattern choices while preserving contract values', () => {
+    expect(schemaEnumOptions(field({ control: 'EnumSelector', dependency: { entityName: 'AnalysisPeriodGranularity' } }))).toEqual([{ value: 'Month', label: 'schemaInputs.enums.Month' }, { value: 'Quarter', label: 'schemaInputs.enums.Quarter' }])
+    expect(schemaEnumOptions(field({ control: 'EnumSelector', dependency: { entityName: 'AbcXyzRunItemsPatternFilter' } })).map(option => option.value)).toEqual(['Smooth', 'Erratic', 'Intermittent', 'Lumpy', 'Unclassified'])
+  })
 })

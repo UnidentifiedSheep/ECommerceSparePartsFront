@@ -1,6 +1,6 @@
 import { computed, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue'
 import { getAnalyticsRun, getAnalysisDefinition, getAbcXyzItems, type AnalysisRunDetails, type AnalysisConfiguration, type AnalysisItemProduct } from '@/services/api/analytics'
-import { parseAbcXyzSummary, analyticsParameters, type AbcClass, type XyzFilter, type AbcXyzSummary, type AbcXyzPoint } from '@/models/abcXyz'
+import { parseAbcXyzSummary, analyticsParameters, type AbcClass, type XyzFilter, type PatternFilter, type AbcXyzSummary, type AbcXyzPoint } from '@/models/abcXyz'
 import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 
 export function useAnalysisResult(runId: Ref<string | undefined>, enabled: Ref<boolean>, canReadProducts: Ref<boolean>) {
@@ -13,8 +13,8 @@ export function useAnalysisResult(runId: Ref<string | undefined>, enabled: Ref<b
   const loading = ref(false), itemsLoading = ref(false), hasMore = ref(false), notFound = ref(false)
   const error = ref<DataLoadErrorKind | null>(null), itemsError = ref<DataLoadErrorKind | null>(null)
   const productsError = ref(false)
-  const abc = ref<AbcClass>(), xyz = ref<XyzFilter>()
-  const supported = computed(() => run.value?.analysisType === 'AbcXyz' && run.value.schemaVersion === 1 && definition.value?.schemaVersion === 1)
+  const abc = ref<AbcClass>(), xyz = ref<XyzFilter>(), pattern = ref<PatternFilter>()
+  const supported = computed(() => run.value?.analysisType === 'AbcXyz' && [1, 2].includes(run.value.schemaVersion) && !!definition.value && [1, 2].includes(definition.value.schemaVersion))
   let generation = 0, pageGeneration = 0, disposed = false
   let controller: AbortController | undefined, pageController: AbortController | undefined
   let cursor: number | undefined
@@ -31,7 +31,7 @@ export function useAnalysisResult(runId: Ref<string | undefined>, enabled: Ref<b
     itemsError.value = null
     itemsLoading.value = true
     try {
-      const result = await getAbcXyzItems(definition.value.itemsChartSystemName, { runId: run.value.id, abc: abc.value || undefined, xyz: xyz.value || undefined, cursor, size: 40 }, signal, canReadProducts.value)
+      const result = await getAbcXyzItems(definition.value.itemsChartSystemName, { runId: run.value.id, abc: abc.value || undefined, xyz: xyz.value || undefined, ...(run.value.schemaVersion === 2 ? { pattern: pattern.value || undefined } : {}), cursor, size: 40 }, signal, canReadProducts.value)
       if (disposed || request !== pageGeneration) return
       const ids = new Set(points.value.map(point => point.productId))
       const added = result.points.filter(point => !ids.has(point.productId))
@@ -50,7 +50,7 @@ export function useAnalysisResult(runId: Ref<string | undefined>, enabled: Ref<b
     ++pageGeneration
     controller?.abort(); pageController?.abort()
     run.value = null; definition.value = null; summary.value = null; parameters.value = {}; points.value = []; products.value = {}
-    abc.value = undefined; xyz.value = undefined; cursor = undefined; hasMore.value = false; notFound.value = false
+    abc.value = undefined; xyz.value = undefined; pattern.value = undefined; cursor = undefined; hasMore.value = false; notFound.value = false
     error.value = null; itemsError.value = null; productsError.value = false; loading.value = false; itemsLoading.value = false
     if (!runId.value || !enabled.value || disposed) return
     controller = new AbortController()
@@ -74,6 +74,6 @@ export function useAnalysisResult(runId: Ref<string | undefined>, enabled: Ref<b
     } finally { if (!disposed && request === generation) loading.value = false }
   }
   watch([runId, enabled], () => { void loadRun() }, { immediate: true })
-  watch([abc, xyz], () => { if (!loading.value) void loadItems() })
-  return { run, definition, summary, parameters, points, products, loading, itemsLoading, hasMore, notFound, error, itemsError, productsError, abc, xyz, supported, loadRun, loadItems }
+  watch([abc, xyz, pattern], () => { if (!loading.value) void loadItems() })
+  return { run, definition, summary, parameters, points, products, loading, itemsLoading, hasMore, notFound, error, itemsError, productsError, abc, xyz, pattern, supported, loadRun, loadItems }
 }

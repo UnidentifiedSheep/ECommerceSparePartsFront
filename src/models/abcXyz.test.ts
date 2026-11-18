@@ -11,4 +11,13 @@ describe('ABC/XYZ JSON contract', () => {
     for (const data of [{ ...point, revenue: '100' }, { ...point, share: NaN }, { ...point, abc: 'D' }, { ...point, xyz: 'Unclassified' }, { ...point, rank: 1.5 }]) expect(() => parseAbcXyzPoint(data)).toThrow()
     expect(() => parseAbcXyzSummary({ productsCount: 1, periodsCount: 1, totalValue: '100', cells: [] })).toThrow()
   })
+  it('reads v2 demand patterns and preserves zero CV² and missing classifications', () => {
+    expect(parseAbcXyzPoint({ ...point, demandPattern: 'Intermittent', adi: 4, cv2: 0 })).toMatchObject({ demandPattern: 'Intermittent', adi: 4, cv2: 0 })
+    expect(parseAbcXyzPoint(point)).toMatchObject({ demandPattern: null, adi: null, cv2: null })
+    const summary = { productsCount: 2, periodsCount: 4, totalValue: 100, cells: [], patternCells: [{ abc: 'A', pattern: 'Smooth', productsCount: 1, value: 80 }, { abc: 'C', pattern: null, productsCount: 1, value: 20 }] }
+    expect(parseAbcXyzSummary(summary).patternCells).toEqual(summary.patternCells)
+    expect(() => parseAbcXyzPoint({ ...point, demandPattern: 'Unclassified' })).toThrow()
+    expect(() => parseAbcXyzPoint({ ...point, cv2: '0.49' })).toThrow()
+    expect(() => parseAbcXyzSummary({ ...summary, patternCells: {} })).toThrow()
+  })
 })

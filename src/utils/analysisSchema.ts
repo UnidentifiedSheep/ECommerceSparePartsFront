@@ -1,6 +1,7 @@
 import { isStructuredSchemaField, parseStructuredSchemaValue, type ObjectSchema, type SchemaField } from '@/models/schemaModel'
 import { t, getCurrentLocale } from '@/i18n'
 import { schemaEnumOptions } from '@/utils/schemaInputs'
+import { demandPatterns } from '@/models/abcXyz'
 
 export function analysisRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid analysis record')
@@ -52,6 +53,6 @@ export function formatAnalysisValue(value: unknown, field?: SchemaField): string
   if (typeof value === 'number') return value.toLocaleString(getCurrentLocale(), { maximumFractionDigits: 12 })
   if (field?.control === 'MonthPicker' && typeof value === 'string' && Number.isFinite(Date.parse(value))) return new Intl.DateTimeFormat(getCurrentLocale(), { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(value))
   if (field?.control === 'DatePicker' && typeof value === 'string' && Number.isFinite(Date.parse(value))) return new Intl.DateTimeFormat(getCurrentLocale(), { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(value))
-  if (field?.type === 'Enum') return schemaEnumOptions(field).find(option => option.value === value)?.label ?? String(value)
+  if (field?.type === 'Enum') return schemaEnumOptions(field).find(option => option.value === value)?.label ?? (demandPatterns.includes(value as typeof demandPatterns[number]) ? t(`schemaInputs.enums.${value}`) : String(value))
   return String(value)
 }

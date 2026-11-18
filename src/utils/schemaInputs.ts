@@ -1,6 +1,7 @@
 import type { SchemaField } from '@/models/schemaModel'
 import { parseStructuredSchemaValue } from '@/models/schemaModel'
 import { getCurrentLocale, t } from '@/i18n'
+import { demandPatterns } from '@/models/abcXyz'
 
 export function schemaEntity(field: SchemaField) { return field.dependency?.entityName }
 
@@ -9,6 +10,9 @@ const enumValues: Record<string, string[]> = {
   AbcClass: ['A', 'B', 'C'],
   XyzClass: ['X', 'Y', 'Z'],
   AbcXyzRunItemsXyzFilter: ['X', 'Y', 'Z', 'Unclassified'],
+  AbcXyzRunItemsPatternFilter: [...demandPatterns, 'Unclassified'],
+  DemandPattern: [...demandPatterns],
+  AnalysisPeriodGranularity: ['Month', 'Quarter'],
 }
 
 export function hasSchemaEnumOptions(field: SchemaField) {
@@ -22,7 +26,7 @@ export function schemaEnumOptions(field: SchemaField): Array<{ value: string | n
   }
   return (enumValues[schemaEntity(field) ?? ''] ?? []).map(value => ({
     value,
-    label: ['Revenue', 'Quantity', 'Unclassified'].includes(value) ? t(`schemaInputs.enums.${value}`) : value,
+    label: ['Revenue', 'Quantity', 'Unclassified', 'Month', 'Quarter', ...demandPatterns].includes(value) ? t(`schemaInputs.enums.${value}`) : value,
   }))
 }
 

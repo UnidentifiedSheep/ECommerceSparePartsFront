@@ -7,7 +7,7 @@ import { t } from '@/i18n'
 import { AnalyticsRunsDocument, AvailableAnalysesDocument, type AnalyticsRunsQuery, type AvailableAnalysesQuery } from '@/graphql/generated/graphql'
 import { clampPageSize } from './api'
 import { AnalysisDefinitionDocument, AnalyticsRunDetailsDocument, AnalysisRunItemsDocument, AnalysisItemsDefinitionDocument, SetAnalyticsRunPinnedDocument, type AnalysisDefinitionQuery, type AnalyticsRunDetailsQuery, type AnalysisRunItemsQuery } from '@/graphql/generated/graphql'
-import { parseAbcXyzPoint, type AbcClass, type XyzFilter } from '@/models/abcXyz'
+import { parseAbcXyzPoint, type AbcClass, type XyzFilter, type PatternFilter } from '@/models/abcXyz'
 
 export type AnalysisRunDetails = NonNullable<AnalyticsRunDetailsQuery['analytics']['run']>
 export interface AnalysisItemProduct { id: number; sku: string; name: string; producer: { name: string } }
@@ -49,7 +49,7 @@ export async function getAnalyticsRun(id: string, signal?: AbortSignal): Promise
   const { data } = await operationRequest(graphqlClient.query({ query: AnalyticsRunDetailsDocument, variables: { id }, fetchPolicy: 'no-cache', context: { fetchOptions: { signal } } }))
   return data.analytics.run
 }
-export async function getAbcXyzItems(systemName: string, input: { runId: string; abc?: AbcClass; xyz?: XyzFilter; cursor?: number; size: number }, signal?: AbortSignal, canReadProducts = false) {
+export async function getAbcXyzItems(systemName: string, input: { runId: string; abc?: AbcClass; xyz?: XyzFilter; pattern?: PatternFilter; cursor?: number; size: number }, signal?: AbortSignal, canReadProducts = false) {
   const result = await getSchemaAnalysisItems(systemName, { ...input, size: clampPageSize(input.size) }, signal, { products: canReadProducts })
   const nextCursor = result.nextCursor == null ? null : Number(result.nextCursor)
   if (nextCursor !== null && (!/^\d+$/.test(result.nextCursor!) || !Number.isSafeInteger(nextCursor) || nextCursor < 0)) throw new Error(t('analysisDetails.invalidData'))
