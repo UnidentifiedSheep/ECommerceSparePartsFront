@@ -67,7 +67,7 @@ export interface CreatePurchaseResponse {
 export async function getPurchases(req: GetPurchasesRequest): Promise<GetPurchasesResponse> {
   const { page, limit, rangeStartDate, rangeEndDate, sortBy, ...filters } = req
   const { data } = await operationRequest(graphqlClient.query({ query: ListPurchasesDocument, variables: { input: {
-    ...filters, pagination: { page, size: clampPageSize(limit) }, sortBy: gqlSort(sortBy),
+    ...filters, pagination: { page, size: clampPageSize(limit) }, sortBy: gqlSort('Purchase', sortBy),
     rangeStartDate: rangeStartDate ? toUtcDateTimeString(rangeStartDate) : undefined,
     rangeEndDate: rangeEndDate ? toUtcDateTimeString(rangeEndDate) : undefined,
   } }, fetchPolicy: 'no-cache' }))

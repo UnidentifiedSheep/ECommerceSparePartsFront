@@ -77,6 +77,6 @@ describe('GraphQL users', () => {
   it('filters organizations by user on the server', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { organizations: { list: [] } } } as never)
     await getUserOrganizations(user.id, { page: 1, limit: 10, sortBy: ['Name_desc'] })
-    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables!.input).toMatchObject({ userId: user.id, pagination: { page: 1, size: 10 }, sortBy: [{ field: 'Name', isDescending: true }] })
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables!.input).toMatchObject({ userId: user.id, pagination: { page: 1, size: 10 }, sortBy: [{ field: 'NAME', isDescending: true }] })
   })
 })

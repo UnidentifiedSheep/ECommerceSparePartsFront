@@ -45,7 +45,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from '@/i18n'
-import { useMultiSort, sortField } from '@/composables/useMultiSort.ts'
+import { useMultiSort } from '@/composables/useMultiSort.ts'
+import { gqlSort } from '@/services/graphql/sorting'
 import SortableColumnHeader from '@/components/common/SortableColumnHeader.vue'
 import DataLoadError from '@/components/common/DataLoadError.vue'
 import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
@@ -87,7 +88,7 @@ async function loadRequests(reset: boolean) {
     const result = await searchDocuments({
       documentSystemName: documentSystemName.value || undefined,
       pagination: { page: nextPage, size: pageSize },
-      sortBy: sortBy.value.map((value) => ({ field: sortField(value), isDescending: value.startsWith('-') })),
+      sortBy: gqlSort('DocumentGenerationRequest', sortBy.value),
     })
     if (version !== requestVersion) return
     if (reset) {

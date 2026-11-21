@@ -11,6 +11,7 @@ import type { CatalogueCandidateReviewModel, SupplierProductModel } from '@/mode
 import type { ProducerModel, Supplier } from '@/models/producerModel.ts'
 import { graphqlClient } from './client.ts'
 import { operationRequest } from './operationErrors'
+import { gqlSort, type SortExpression } from './sorting'
 import {
   CandidateToCatalogueDocument,
   CatalogueCandidateByIdDocument,
@@ -38,7 +39,6 @@ import {
   ProductContentsDocument,
   ProductCrossesDocument,
   ProductPairDocument,
-  ProductStorageContentsDocument,
   StorageContentsSearchDocument,
   type CandidateToCatalogueMutation,
   type CatalogueCandidateByIdQuery,
@@ -73,7 +73,6 @@ import {
   type ProductContentsQuery,
   type ProductCrossesQuery,
   type ProductPairQuery,
-  type ProductStorageContentsQuery,
   type StorageContentsSearchQuery,
   type ProductDetailsFieldsFragment,
   type ProductListFieldsFragment,
@@ -87,7 +86,6 @@ type ProductByIdResponse = ProductByIdQuery
 type ProductPairResponse = ProductPairQuery
 type ProductContentsResponse = ProductContentsQuery
 type ProductCrossesResponse = ProductCrossesQuery
-type ProductStorageContentsResponse = ProductStorageContentsQuery
 type StorageContentsSearchResponse = StorageContentsSearchQuery
 type CatalogueSearchResponse = CatalogueSearchQuery
 type ProducerSearchResponse = ProducerSearchQuery
@@ -184,13 +182,6 @@ function mapHighlights(items?: Array<{ field: string, fragments: string[] }> | n
   return highlights && Object.keys(highlights).length > 0 ? highlights : null
 }
 
-function mapSortBy(values: string[] = []) {
-  return values.map((value) => ({
-    field: value.replace(/^-/, '').replace(/_desc$/, ''),
-    isDescending: value.startsWith('-') || value.endsWith('_desc'),
-  }))
-}
-
 function mapSearchProduct(item: CatalogueSearchResponse['catalogue']['search']['products']['items'][number]): ProductSearchModel {
   const product = item.item
 
@@ -229,7 +220,7 @@ function mapSearchCandidate(
   }
 }
 
-type ProductStorageContent = NonNullable<ProductStorageContentsResponse['products']['byId']>['storageContents'][number]
+type ProductStorageContent = StorageContentsSearchResponse['storageContents']['search'][number]
 
 function mapCurrency(currency: ProductStorageContent['currency']): CurrencyModel {
   return {
@@ -270,7 +261,7 @@ export async function getProductByIdGraphql(
     query: ProductByIdDocument,
     variables: {
       id: productId,
-      crossesInput: { pagination: { page: 0, size: crossesPageSize ?? 1 }, sortBy: mapSortBy(crossesSortBy) },
+      crossesInput: { pagination: { page: 0, size: crossesPageSize ?? 1 }, sortBy: gqlSort('Product', crossesSortBy) },
       includeCrosses: crossesPageSize !== undefined,
       includeCatalogueCandidate,
       includeEans,
@@ -437,11 +428,8 @@ export async function searchCatalogueGraphql(options: {
         producerIds: options.producerIds ?? [],
         productGroupIds: options.productGroupIds ?? [],
         pagination: { page: options.page, size: options.size },
-        productSortBy: mapSortBy(options.productSortBy).map(sort =>
-          sort.field === 'stock' && options.storageCode?.trim()
-            ? { ...sort, argument: options.storageCode.trim() }
-            : sort),
-        catalogueCandidateSortBy: mapSortBy(options.catalogueCandidateSortBy),
+        productSortBy: gqlSort('SearchProduct', options.productSortBy ?? [], options.storageCode),
+        catalogueCandidateSortBy: gqlSort('SearchCatalogueCandidate', options.catalogueCandidateSortBy ?? []),
         candidateMappingStatus: options.candidateMappingStatus ?? 'UNMAPPED',
         includeHighlights: options.includeHighlights ?? false,
         productCriteria: options.productCriteria ?? null,
@@ -651,9 +639,7 @@ export async function getProductCrossesGraphql(options: {
   sortBy?: string[]
 }): Promise<ProductModel[]> {
   const storageCode = options.storageCode?.trim()
-  const sortBy = mapSortBy(options.sortBy).map(sort => (
-    sort.field === 'count' && storageCode ? { ...sort, argument: storageCode } : sort
-  ))
+  const sortBy = gqlSort('Product', options.sortBy ?? [], storageCode)
   const response = await graphqlClient.query<ProductCrossesResponse>({
     query: ProductCrossesDocument,
     variables: {
@@ -675,22 +661,9 @@ export async function getProductStorageContentsGraphql(options: {
   page: number
   size: number
   showZeroCount?: boolean
-  sortBy?: Array<{ field: string; isDescending: boolean }>
+  sortBy?: Array<string | SortExpression>
 }): Promise<StorageContentModel[]> {
-  const response = await graphqlClient.query<ProductStorageContentsResponse>({
-    query: ProductStorageContentsDocument,
-    variables: {
-      id: options.productId,
-      input: {
-        pagination: { page: options.page, size: options.size },
-        storageCode: options.storageCode,
-        showZeroCount: options.showZeroCount ?? false,
-        sortBy: options.sortBy ?? [],
-      },
-    },
-    fetchPolicy: 'network-only',
-  })
-  return (response.data.products.byId?.storageContents ?? []).map(mapStorageContent)
+  return searchStorageContentsGraphql(options)
 }
 
 export async function searchStorageContentsGraphql(options: {
@@ -699,7 +672,7 @@ export async function searchStorageContentsGraphql(options: {
   page: number
   size: number
   showZeroCount?: boolean
-  sortBy?: Array<{ field: string; isDescending: boolean }>
+  sortBy?: Array<string | SortExpression>
 }): Promise<StorageContentModel[]> {
   const response = await graphqlClient.query<StorageContentsSearchResponse>({
     query: StorageContentsSearchDocument,
@@ -709,7 +682,7 @@ export async function searchStorageContentsGraphql(options: {
         storageCode: options.storageCode,
         pagination: { page: options.page, size: options.size },
         showZeroCount: options.showZeroCount ?? false,
-        sortBy: options.sortBy ?? [],
+        sortBy: gqlSort('StorageContent', options.sortBy ?? []),
       },
     },
     fetchPolicy: 'network-only',

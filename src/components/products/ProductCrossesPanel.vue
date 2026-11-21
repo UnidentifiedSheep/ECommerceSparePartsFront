@@ -32,7 +32,7 @@
         <template #default="{ row }">{{ row.producerName || '-' }}</template>
       </el-table-column>
       <el-table-column prop="count" width="128" align="right">
-        <template #header><SortableColumnHeader :label="t('products.stock')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
+        <template #header><SortableColumnHeader :label="t('products.stock')" field="stock" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="forwardSortToggle" /></template>
         <template #default="{ row }"><ProductStockCell :stock="row.stock" /></template>
       </el-table-column>
       <el-table-column label="" width="72" align="right">

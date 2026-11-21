@@ -1,4 +1,4 @@
-import type { OrganizationFieldsFragment, UserSummaryFieldsFragment, SortByInput } from '@/graphql/generated/graphql'
+import type { OrganizationFieldsFragment, UserSummaryFieldsFragment } from '@/graphql/generated/graphql'
 import { mapUserModel } from '@/models/userModel'
 import type { OrganizationModel } from '@/models/organizationModel'
 
@@ -15,9 +15,4 @@ export function mapGqlOrganization(org: OrganizationFieldsFragment): Organizatio
   }
 }
 
-export function gqlSort(expressions?: string[]): SortByInput[] | undefined {
-  return expressions?.map(expression => ({
-    field: expression.replace(/^[+-]/, '').replace(/_(asc|desc)$/, ''),
-    isDescending: expression.startsWith('-') || expression.endsWith('_desc'),
-  }))
-}
+export { gqlSort } from './sorting'

@@ -18,14 +18,14 @@ describe('cross sorting in the initial product details request', () => {
     await getProductById(4, false, 20, false, ['-count'])
     expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables).toMatchObject({
       includeCrosses: true,
-      crossesInput: { pagination: { page: 0, size: 20 }, sortBy: [{ field: 'count', isDescending: true }] },
+      crossesInput: { pagination: { page: 0, size: 20 }, sortBy: [{ field: 'STOCK', isDescending: true }] },
     })
   })
 
   it('preserves user sorting when a product summary refresh includes crosses', async () => {
     await getProductById(4, false, 30, false, ['sku', '-count'])
     expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables?.crossesInput).toMatchObject({
-      sortBy: [{ field: 'sku', isDescending: false }, { field: 'count', isDescending: true }],
+      sortBy: [{ field: 'SKU', isDescending: false }, { field: 'STOCK', isDescending: true }],
     })
   })
 })

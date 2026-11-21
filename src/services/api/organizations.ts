@@ -85,7 +85,7 @@ export function organizationsInput(req: GetOrganizationsRequest): GetOrganizatio
     pagination: { page: req.page, size: clampPageSize(req.limit) },
     searchTerm: req.searchTerm?.trim() || undefined,
     ids: req.ids, types: req.types?.map(type => organizationTypes[type]),
-    sortBy: gqlSort(req.sortBy), showHidden: req.showHidden,
+    sortBy: gqlSort('Organization', req.sortBy), showHidden: req.showHidden,
   }
 }
 export async function getOrganizations(req: GetOrganizationsRequest): Promise<GetOrganizationsResponse> {

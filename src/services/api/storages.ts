@@ -143,10 +143,7 @@ export async function getStorageContent(req: GetStorageContentRequest): Promise<
       page: req.page,
       size: clampPageSize(size),
       showZeroCount: req.showZeroContent,
-      sortBy: (req.sortBy ?? []).map((field) => ({
-        field: field.replace(/^-/, ''),
-        isDescending: field.startsWith('-'),
-      })),
+      sortBy: req.sortBy,
     }),
   }
 }

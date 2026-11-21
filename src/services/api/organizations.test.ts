@@ -11,7 +11,7 @@ describe('GraphQL organizations', () => {
   it.each([10, 20, 30, 40, 50, 100])('sends server pagination with size %i, enums, search and sorting', async limit => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { organizations: { list: [org] } } } as never)
     const result = await getOrganizations({ page: 2, limit, searchTerm: ' ACME ', types: ['Business'], showHidden: true, sortBy: ['name_desc', '-systemName', 'id_asc'] })
-    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0]).toMatchObject({ fetchPolicy: 'no-cache', variables: { input: { pagination: { page: 2, size: limit }, searchTerm: 'ACME', types: ['BUSINESS'], showHidden: true, sortBy: [{ field: 'name', isDescending: true }, { field: 'systemName', isDescending: true }, { field: 'id', isDescending: false }] } } })
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0]).toMatchObject({ fetchPolicy: 'no-cache', variables: { input: { pagination: { page: 2, size: limit }, searchTerm: 'ACME', types: ['BUSINESS'], showHidden: true, sortBy: [{ field: 'NAME', isDescending: true }, { field: 'SYSTEM_NAME', isDescending: true }, { field: 'ID', isDescending: false }] } } })
     expect(result.organizations[0]).toMatchObject({ type: 'Business', owner: { organizationId: org.id, role: 'Owner', user: { id: 'user-1', name: 'Alice' } } })
   })
   it('paginates members and restores membership shape', async () => {

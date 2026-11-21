@@ -29,7 +29,7 @@ export async function getPriceOffersForProduct(
     variables: { id: req.productId, input: {
       currencyId: req.currencyId, storageCode: req.storageCode,
       sources: req.sources?.map(source => sources[source]) ?? [],
-      pagination: { page: req.page, size: clampPageSize(req.size) }, sortBy: gqlSort(req.sortBy),
+      pagination: { page: req.page, size: clampPageSize(req.size) }, sortBy: gqlSort('ProductPriceOption', req.sortBy),
     } },
     fetchPolicy: 'no-cache',
   }))
