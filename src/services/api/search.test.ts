@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { graphqlClient } from '@/services/graphql/client'
 import { searchCatalogue, searchProducts, searchProductsBySku } from './search'
 import { getProductCrosses } from './products'
+import { getProductStorageContentsGraphql } from '@/services/graphql/products'
 import { emptyProductCriteria, parseProductCriteriaDraft, toProductCriteriaInput } from '@/models/productCriteriaModel'
 
 vi.mock('@/i18n', () => ({ t: (key: string) => key, getAcceptLanguage: () => 'ru' }))
@@ -19,6 +20,12 @@ const queryInput = () => {
 beforeEach(() => vi.resetAllMocks())
 
 describe('warehouse stock search contracts', () => {
+  it('uses the sortable root endpoint for product storage contents', async () => {
+    vi.mocked(graphqlClient.query).mockResolvedValue({ data: { storageContents: { search: [] } } } as never)
+    await getProductStorageContentsGraphql({ productId: 7, storageCode: 'Main_Warehouse', page: 1, size: 20, showZeroCount: true, sortBy: ['-count', 'buyPrice'] })
+    expect(queryInput()).toEqual({ productId: 7, storageCode: 'Main_Warehouse', pagination: { page: 1, size: 20 }, showZeroCount: true, sortBy: [{ field: 'COUNT', isDescending: true }, { field: 'BUY_PRICE', isDescending: false }] })
+    expect(vi.mocked(graphqlClient.query).mock.calls[0]![0].variables).not.toHaveProperty('id')
+  })
   it('keeps total stock sorting independent of warehouse selection and preserves Long quantities', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue(catalogueResponse as never)
     const result = await searchCatalogue({ page: 0, size: 20, sortBy: { products: ['-stock'] } })

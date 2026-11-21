@@ -39,7 +39,6 @@ import {
   ProductContentsDocument,
   ProductCrossesDocument,
   ProductPairDocument,
-  ProductStorageContentsDocument,
   StorageContentsSearchDocument,
   type CandidateToCatalogueMutation,
   type CatalogueCandidateByIdQuery,
@@ -74,7 +73,6 @@ import {
   type ProductContentsQuery,
   type ProductCrossesQuery,
   type ProductPairQuery,
-  type ProductStorageContentsQuery,
   type StorageContentsSearchQuery,
   type ProductDetailsFieldsFragment,
   type ProductListFieldsFragment,
@@ -88,7 +86,6 @@ type ProductByIdResponse = ProductByIdQuery
 type ProductPairResponse = ProductPairQuery
 type ProductContentsResponse = ProductContentsQuery
 type ProductCrossesResponse = ProductCrossesQuery
-type ProductStorageContentsResponse = ProductStorageContentsQuery
 type StorageContentsSearchResponse = StorageContentsSearchQuery
 type CatalogueSearchResponse = CatalogueSearchQuery
 type ProducerSearchResponse = ProducerSearchQuery
@@ -223,7 +220,7 @@ function mapSearchCandidate(
   }
 }
 
-type ProductStorageContent = NonNullable<ProductStorageContentsResponse['products']['byId']>['storageContents'][number]
+type ProductStorageContent = StorageContentsSearchResponse['storageContents']['search'][number]
 
 function mapCurrency(currency: ProductStorageContent['currency']): CurrencyModel {
   return {
@@ -666,20 +663,7 @@ export async function getProductStorageContentsGraphql(options: {
   showZeroCount?: boolean
   sortBy?: Array<string | SortExpression>
 }): Promise<StorageContentModel[]> {
-  const response = await graphqlClient.query<ProductStorageContentsResponse>({
-    query: ProductStorageContentsDocument,
-    variables: {
-      id: options.productId,
-      input: {
-        pagination: { page: options.page, size: options.size },
-        storageCode: options.storageCode,
-        showZeroCount: options.showZeroCount ?? false,
-        sortBy: gqlSort('StorageContent', options.sortBy ?? []),
-      },
-    },
-    fetchPolicy: 'network-only',
-  })
-  return (response.data.products.byId?.storageContents ?? []).map(mapStorageContent)
+  return searchStorageContentsGraphql(options)
 }
 
 export async function searchStorageContentsGraphql(options: {

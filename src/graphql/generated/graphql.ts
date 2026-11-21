@@ -637,6 +637,7 @@ export type ProductSortField =
   | 'POPULARITY'
   | 'PRODUCER_NAME'
   | 'SKU'
+  /** Accepts optional argument of type String. */
   | 'STOCK';
 
 export type ProductStorageContentsInput = {
@@ -681,6 +682,7 @@ export type SaleContentSortBy = {
 
 export type SaleContentSortField =
   | 'DISCOUNTED_PRICE'
+  /** Requires argument of type Guid. */
   | 'ORGANIZATION_MATCH'
   | 'ORIGINAL_PRICE'
   | 'QUANTITY'
@@ -773,6 +775,7 @@ export type SearchProductSortField =
   | 'LENGTH'
   | 'PRODUCER_ID'
   | 'SKU'
+  /** Accepts optional argument of type String. */
   | 'STOCK'
   | 'VOLUME'
   | 'WEIGHT'
