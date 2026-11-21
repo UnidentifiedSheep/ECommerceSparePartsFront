@@ -337,7 +337,7 @@ const storageContentPage = ref(0)
 const storageContentSize = ref(20)
 const storageContentHasNext = ref(false)
 const showZeroStorageContent = ref(false)
-const { sortBy: crossesSortBy, toggleSort: toggleCrossesSort } = useMultiSort(['-count'])
+const { sortBy: crossesSortBy, toggleSort: toggleCrossesSort } = useMultiSort(['-stock'])
 const { sortBy: storageSortBy, toggleSort: toggleStorageSort } = useMultiSort()
 
 const isLoading = ref(false)
@@ -834,7 +834,7 @@ function resetPageState() {
   productContent.value = []
   alternativeProductNames.value = []
   page.value = 0
-  crossesSortBy.value = ['-count']
+  crossesSortBy.value = ['-stock']
   storageContentPage.value = 0
   storageSortBy.value = []
   hasNext.value = false

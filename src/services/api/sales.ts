@@ -107,7 +107,7 @@ export async function createSale(req: CreateSaleRequest): Promise<CreateSaleResp
 export async function getSales(req: GetSalesRequest): Promise<GetSalesResponse> {
   const { page, limit, sortBy, rangeStartDate, rangeEndDate, states, ...filters } = req
   const { data } = await operationRequest(graphqlClient.query({ query: ListSalesDocument, variables: { input: {
-    ...filters, pagination: { page, size: clampPageSize(limit) }, sortBy: gqlSort(sortBy),
+    ...filters, pagination: { page, size: clampPageSize(limit) }, sortBy: gqlSort('Sale', sortBy),
     rangeStartDate: rangeStartDate ? toUtcDateTimeString(rangeStartDate) : undefined,
     rangeEndDate: rangeEndDate ? toUtcDateTimeString(rangeEndDate) : undefined,
     states: states?.map(state => state.toUpperCase() as GqlSaleState),
@@ -131,7 +131,7 @@ export async function getSaleContent(id: string): Promise<GetSaleContentResponse
 export async function getProductSaleHistory(req: GetProductSaleHistoryRequest): Promise<GetProductSaleHistoryResponse> {
   const { productId, page, size, sortBy, preferredOrganizationId, ...filters } = req
   const prioritizeOrganization = preferredOrganizationId && !filters.organizationId
-  const historySort = gqlSort(prioritizeOrganization && !sortBy?.length ? ['-saleDate'] : sortBy)
+  const historySort = gqlSort('SaleContent', prioritizeOrganization && !sortBy?.length ? ['-saleDate'] : sortBy)
   const { data } = await operationRequest(graphqlClient.query({
     query: ProductSalesHistoryDocument,
     variables: {
@@ -140,7 +140,7 @@ export async function getProductSaleHistory(req: GetProductSaleHistoryRequest): 
         ...filters,
         pagination: { page, size: clampPageSize(size) },
         sortBy: prioritizeOrganization
-          ? [{ field: 'organizationMatch', argument: preferredOrganizationId, isDescending: true }, ...(historySort ?? [])]
+          ? [{ field: 'ORGANIZATION_MATCH', argument: preferredOrganizationId, isDescending: true }, ...(historySort ?? [])]
           : historySort,
       },
     },

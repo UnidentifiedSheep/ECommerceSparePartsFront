@@ -22,7 +22,7 @@ describe('GraphQL operation contracts', () => {
   it('sends paginated sale filters, enum states and sort keys and maps the result', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { sales: { list: [sale] } } } as never)
     const result = await getSales({ page: 2, limit: 20, organizationIds: [org.id], productIds: [1], states: ['Completed'], sortBy: ['totalSum_desc'], rangeStartDate: '2026-10-27T13:00:00+03:00' })
-    expect(input()).toMatchObject({ pagination: { page: 2, size: 20 }, organizationIds: [org.id], productIds: [1], states: ['COMPLETED'], sortBy: [{ field: 'totalSum', isDescending: true }], rangeStartDate: '2026-10-27T10:00:00.000Z' })
+    expect(input()).toMatchObject({ pagination: { page: 2, size: 20 }, organizationIds: [org.id], productIds: [1], states: ['COMPLETED'], sortBy: [{ field: 'TOTAL_SUM', isDescending: true }], rangeStartDate: '2026-10-27T10:00:00.000Z' })
     expect(result.sales[0]).toMatchObject({ buyer: { name: 'Alice' }, organization: { type: 'Business' }, storageCode: 'MAIN', state: 'Completed', rowVersion: 7 })
     expect(print(vi.mocked(graphqlClient.query).mock.calls[0]![0].query)).not.toMatch(/\btransaction\s*\{/)
   })
@@ -51,7 +51,7 @@ describe('GraphQL operation contracts', () => {
   it('loads purchase filters using server pagination and sorting', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { purchases: { list: [purchase] } } } as never)
     const result = await getPurchases({ page: 1, limit: 500, supplierOrganizationIds: [org.id], sortBy: ['dateTime_desc'] })
-    expect(input()).toMatchObject({ pagination: { page: 1, size: 100 }, supplierOrganizationIds: [org.id], sortBy: [{ field: 'dateTime', isDescending: true }] })
+    expect(input()).toMatchObject({ pagination: { page: 1, size: 100 }, supplierOrganizationIds: [org.id], sortBy: [{ field: 'DATE_TIME', isDescending: true }] })
     expect(result.purchases[0]?.supplierOrganization.id).toBe(org.id)
   })
   it('maps purchase content and sends the supported contents field on creation and update', async () => {
@@ -73,24 +73,24 @@ describe('GraphQL operation contracts', () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { saleHistory: [{ saleContentId: 3, product, organization: { id: org.id, name: org.name, systemName: org.systemName }, storage: { code: 'MAIN' }, currency, quantity: 1, originalPrice: 12, discountedPrice: 10, averageBuyPrice: 5, saleDate: sale.saleDatetime, createdBy: { id: user.id } }] } } } } as never)
     const result = await getProductSaleHistory({ productId: 42, page: 1, size: 10, showCrosses: true, preferredOrganizationId: org.id, sortBy: ['discountedPrice_asc'] })
     expect(input()).toMatchObject({ showCrosses: true, pagination: { page: 1, size: 10 } })
-    expect(input().sortBy).toEqual([{ field: 'organizationMatch', argument: org.id, isDescending: true }, { field: 'discountedPrice', isDescending: false }])
+    expect(input().sortBy).toEqual([{ field: 'ORGANIZATION_MATCH', argument: org.id, isDescending: true }, { field: 'DISCOUNTED_PRICE', isDescending: false }])
     expect(input()).not.toHaveProperty('preferredOrganizationId')
     expect(result.history[0]).toMatchObject({ productId: product.id, product: { sku: 'ABC', producerName: 'ACME' }, organization: { name: 'ACME' }, currency: { currencySign: '₽' }, whoCreated: user.id })
   })
   it('keeps default date ordering after organization priority and preserves explicit multi-sort', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { saleHistory: [] } } } } as never)
     await getProductSaleHistory({ productId: 42, page: 0, size: 20, preferredOrganizationId: org.id })
-    expect(input().sortBy).toEqual([{ field: 'organizationMatch', argument: org.id, isDescending: true }, { field: 'saleDate', isDescending: true }])
+    expect(input().sortBy).toEqual([{ field: 'ORGANIZATION_MATCH', argument: org.id, isDescending: true }, { field: 'SALE_DATE', isDescending: true }])
     vi.mocked(graphqlClient.query).mockClear()
     await getProductSaleHistory({ productId: 42, page: 0, size: 20, preferredOrganizationId: org.id, sortBy: ['quantity', '-saleDate'] })
-    expect(input().sortBy).toEqual([{ field: 'organizationMatch', argument: org.id, isDescending: true }, { field: 'quantity', isDescending: false }, { field: 'saleDate', isDescending: true }])
+    expect(input().sortBy).toEqual([{ field: 'ORGANIZATION_MATCH', argument: org.id, isDescending: true }, { field: 'QUANTITY', isDescending: false }, { field: 'SALE_DATE', isDescending: true }])
   })
   it('does not prioritize an organization when filtering one explicitly or when no preference is set', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { saleHistory: [] } } } } as never)
     for (const filters of [{ organizationId: 'another-org', preferredOrganizationId: org.id }, {}]) {
       vi.mocked(graphqlClient.query).mockClear()
       await getProductSaleHistory({ productId: 42, page: 0, size: 20, ...filters, sortBy: ['-saleDate'] })
-      expect(input().sortBy).toEqual([{ field: 'saleDate', isDescending: true }])
+      expect(input().sortBy).toEqual([{ field: 'SALE_DATE', isDescending: true }])
       expect(input()).not.toHaveProperty('preferredOrganizationId')
       if ('organizationId' in filters) expect(input().organizationId).toBe('another-org')
     }

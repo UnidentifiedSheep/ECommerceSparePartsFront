@@ -47,9 +47,9 @@
       <el-table-column prop="stock" min-width="120" align="right">
         <template #header>
           <el-tooltip v-if="storageCode" :content="t('products.storageStockSortHint')" :popper-style="{ maxWidth: 'min(360px, calc(100vw - 32px))' }" placement="top">
-            <span><SortableColumnHeader :label="t('sales.available')" field="count" :sort-by="sortBy" @toggle="toggleSort" /></span>
+            <span><SortableColumnHeader :label="t('sales.available')" field="stock" :sort-by="sortBy" @toggle="toggleSort" /></span>
           </el-tooltip>
-          <SortableColumnHeader v-else :label="t('products.stock')" field="count" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
+          <SortableColumnHeader v-else :label="t('products.stock')" field="stock" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="toggleSort" />
         </template>
         <template #default="{ row }"><ProductStockCell :stock="storageCode ? row.availableStock ?? 0 : row.stock" /></template>
       </el-table-column>
@@ -81,7 +81,7 @@ const pickerRoot = ref<HTMLElement>()
 const crosses = ref<ProductSearchModel[]>([])
 const page = ref(0)
 const size = ref(20)
-const sortBy = ref<string[]>(['-count'])
+const sortBy = ref<string[]>(['-stock'])
 const query = ref('')
 const selectedProductId = ref<number>()
 const hasNext = ref(false)

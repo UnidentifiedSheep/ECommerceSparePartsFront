@@ -127,8 +127,8 @@ input CatalogueSearchInput {
   productGroupIds: [Int!]
   candidateMappingStatus: CandidateMappingStatus
   pagination: PaginationInput!
-  productSortBy: [SortByInput!]
-  catalogueCandidateSortBy: [SortByInput!]
+  productSortBy: [SearchProductSortBy!]
+  catalogueCandidateSortBy: [SearchCatalogueCandidateSortBy!]
   productCriteria: ProductSearchCriteriaInput
   includeHighlights: Boolean
 }
@@ -489,13 +489,13 @@ input GetOrdersInput {
   statuses: [OrderStatus!]
   fulfillmentStatuses: [OrderFulfillmentStatus!]
   sources: [OrderSource!]
-  sortBy: [SortByInput!]
+  sortBy: [OrderSortBy!]
   searchTerm: String
 }
 
 input GetOrganizationsInput {
   pagination: PaginationInput!
-  sortBy: [SortByInput!]
+  sortBy: [OrganizationSortBy!]
   searchTerm: String
   userId: UUID
   ids: [UUID!]
@@ -516,7 +516,7 @@ input GetPurchasesInput {
   supplierOrganizationIds: [UUID!]
   currencyIds: [Int!]
   productIds: [Int!]
-  sortBy: [SortByInput!]
+  sortBy: [PurchaseSortBy!]
   searchTerm: String
 }
 
@@ -533,7 +533,7 @@ input GetSalesInput {
   currencyIds: [Int!]
   productIds: [Int!]
   states: [SaleState!]
-  sortBy: [SortByInput!]
+  sortBy: [SaleSortBy!]
   searchTerm: String
 }
 
@@ -1158,7 +1158,7 @@ input ProductContentItemInput {
 input ProductCrossesInput {
   pagination: PaginationInput!
   searchTerm: String
-  sortBy: [SortByInput!]
+  sortBy: [ProductSortBy!]
 }
 
 input ProductDimensionsCriteriaInput {
@@ -1229,7 +1229,7 @@ input ProductOffersInput {
   storageCode: String!
   sources: [PriceOfferSource!]!
   pagination: PaginationInput!
-  sortBy: [SortByInput!]
+  sortBy: [ProductPriceOptionSortBy!]
 }
 
 type ProductQueries {
@@ -1264,7 +1264,7 @@ input ProductSaleHistoryInput {
   storageCode: String
   organizationId: UUID
   currencyId: Int
-  sortBy: [SortByInput!]
+  sortBy: [SaleContentSortBy!]
   showCrosses: Boolean
 }
 
@@ -1520,7 +1520,7 @@ type SearchCatalogueSectionOfProduct {
 
 input SearchCharacteristicsInput {
   searchTerm: String
-  sortBy: [SortByInput!]
+  sortBy: [CharacteristicSortBy!]
   pagination: PaginationInput!
 }
 
@@ -1528,7 +1528,7 @@ input SearchDocumentsInput {
   requesterId: UUID
   documentSystemName: String
   pagination: PaginationInput!
-  sortBy: [SortByInput!]
+  sortBy: [DocumentGenerationRequestSortBy!]
 }
 
 input SearchMarkupGroupsInput {
@@ -1552,7 +1552,7 @@ input SearchNumericRangeInput {
 
 input SearchProductGroupsInput {
   searchTerm: String
-  sortBy: [SortByInput!]
+  sortBy: [ProductGroupSortBy!]
   pagination: PaginationInput!
 }
 
@@ -1592,10 +1592,187 @@ type SortBy {
   isDescending: Boolean!
 }
 
-input SortByInput {
+input SearchProductSortBy {
   argument: String
-  field: String!
+  field: SearchProductSortField!
   isDescending: Boolean!
+}
+
+enum SearchProductSortField {
+  HEIGHT
+  ID
+  LENGTH
+  PRODUCER_ID
+  SKU
+  STOCK
+  VOLUME
+  WEIGHT
+  WIDTH
+}
+
+input SearchCatalogueCandidateSortBy {
+  argument: String
+  field: SearchCatalogueCandidateSortField!
+  isDescending: Boolean!
+}
+
+enum SearchCatalogueCandidateSortField {
+  ID
+  PRODUCER_ID
+  SKU
+}
+
+input DocumentGenerationRequestSortBy {
+  argument: String
+  field: DocumentGenerationRequestSortField!
+  isDescending: Boolean!
+}
+
+enum DocumentGenerationRequestSortField {
+  CREATED_AT
+  DOCUMENT_SYSTEM_NAME
+  EXPIRES_AT
+  GENERATED_AT
+  JOB_ID
+  REQUESTER_ID
+  REQUEST_ID
+}
+
+input OrderSortBy {
+  argument: String
+  field: OrderSortField!
+  isDescending: Boolean!
+}
+
+enum OrderSortField {
+  CONFIRMED_AT
+  CREATED_AT
+  FULFILLMENT_STATUS
+  ID
+  SOURCE
+  STATUS
+  UPDATED_AT
+}
+
+input OrganizationSortBy {
+  argument: String
+  field: OrganizationSortField!
+  isDescending: Boolean!
+}
+
+enum OrganizationSortField {
+  APPROXIMATE_BALANCE
+  ID
+  NAME
+  SYSTEM_NAME
+  TYPE
+}
+
+input ProductSortBy {
+  argument: String
+  field: ProductSortField!
+  isDescending: Boolean!
+}
+
+enum ProductSortField {
+  ID
+  INDICATOR
+  NAME
+  POPULARITY
+  PRODUCER_NAME
+  SKU
+  STOCK
+}
+
+input SaleContentSortBy {
+  argument: String
+  field: SaleContentSortField!
+  isDescending: Boolean!
+}
+
+enum SaleContentSortField {
+  DISCOUNTED_PRICE
+  ORGANIZATION_MATCH
+  ORIGINAL_PRICE
+  QUANTITY
+  SALE_CONTENT_ID
+  SALE_DATE
+  STORAGE_CODE
+}
+
+input CharacteristicSortBy {
+  argument: String
+  field: CharacteristicSortField!
+  isDescending: Boolean!
+}
+
+enum CharacteristicSortField {
+  ID
+  NAME
+  NORMALIZED_NAME
+}
+
+input ProductGroupSortBy {
+  argument: String
+  field: ProductGroupSortField!
+  isDescending: Boolean!
+}
+
+enum ProductGroupSortField {
+  ID
+  NAME
+  NORMALIZED_NAME
+}
+
+input PurchaseSortBy {
+  argument: String
+  field: PurchaseSortField!
+  isDescending: Boolean!
+}
+
+enum PurchaseSortField {
+  DATE_TIME
+  ID
+  TOTAL_SUM
+}
+
+input SaleSortBy {
+  argument: String
+  field: SaleSortField!
+  isDescending: Boolean!
+}
+
+enum SaleSortField {
+  DATE_TIME
+  ID
+  TOTAL_SUM
+}
+
+input StorageContentSortBy {
+  argument: String
+  field: StorageContentSortField!
+  isDescending: Boolean!
+}
+
+enum StorageContentSortField {
+  AVAILABLE_COUNT
+  BUY_PRICE
+  COUNT
+  CURRENCY_ID
+  ID
+  PRODUCT_ID
+  PURCHASE_DATETIME
+  STORAGE_CODE
+}
+
+input ProductPriceOptionSortBy {
+  argument: String
+  field: ProductPriceOptionSortField!
+  isDescending: Boolean!
+}
+
+enum ProductPriceOptionSortField {
+  SCORE
 }
 
 type Storage {
@@ -1629,7 +1806,7 @@ type StorageContentQueries {
 input StorageContentsSearchInput {
   productId: Int
   storageCode: String
-  sortBy: [SortByInput!]
+  sortBy: [StorageContentSortBy!]
   pagination: PaginationInput!
   showZeroCount: Boolean!
 }

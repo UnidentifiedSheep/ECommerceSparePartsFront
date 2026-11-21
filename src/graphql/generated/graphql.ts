@@ -37,18 +37,29 @@ export type CandidateToCatalogueInput = {
 
 export type CatalogueSearchInput = {
   candidateMappingStatus?: CandidateMappingStatus | null | undefined;
-  catalogueCandidateSortBy?: Array<SortByInput> | null | undefined;
+  catalogueCandidateSortBy?: Array<SearchCatalogueCandidateSortBy> | null | undefined;
   includeHighlights?: boolean | null | undefined;
   nameModes?: Array<SearchMatchType> | null | undefined;
   pagination: PaginationInput;
   producerIds?: Array<number> | null | undefined;
   productCriteria?: ProductSearchCriteriaInput | null | undefined;
   productGroupIds?: Array<number> | null | undefined;
-  productSortBy?: Array<SortByInput> | null | undefined;
+  productSortBy?: Array<SearchProductSortBy> | null | undefined;
   query?: string | null | undefined;
   skuModes?: Array<SearchMatchType> | null | undefined;
   targets: Array<SearchTarget>;
 };
+
+export type CharacteristicSortBy = {
+  argument?: string | null | undefined;
+  field: CharacteristicSortField;
+  isDescending: boolean;
+};
+
+export type CharacteristicSortField =
+  | 'ID'
+  | 'NAME'
+  | 'NORMALIZED_NAME';
 
 export type CreateCurrencyInput = {
   code: string;
@@ -175,6 +186,21 @@ export type DimensionUnit =
   | 'METER'
   | 'MILLIMETER';
 
+export type DocumentGenerationRequestSortBy = {
+  argument?: string | null | undefined;
+  field: DocumentGenerationRequestSortField;
+  isDescending: boolean;
+};
+
+export type DocumentGenerationRequestSortField =
+  | 'CREATED_AT'
+  | 'DOCUMENT_SYSTEM_NAME'
+  | 'EXPIRES_AT'
+  | 'GENERATED_AT'
+  | 'JOB_ID'
+  | 'REQUESTER_ID'
+  | 'REQUEST_ID';
+
 export type DocumentType =
   | 'DOCX'
   | 'EXCEL'
@@ -230,7 +256,7 @@ export type GetOrganizationsInput = {
   pagination: PaginationInput;
   searchTerm?: string | null | undefined;
   showHidden?: boolean | null | undefined;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<OrganizationSortBy> | null | undefined;
   types?: Array<OrganizationType> | null | undefined;
   userId?: string | null | undefined;
 };
@@ -248,7 +274,7 @@ export type GetPurchasesInput = {
   rangeEndDate?: string | null | undefined;
   rangeStartDate?: string | null | undefined;
   searchTerm?: string | null | undefined;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<PurchaseSortBy> | null | undefined;
   supplierOrganizationIds?: Array<string> | null | undefined;
 };
 
@@ -265,7 +291,7 @@ export type GetSalesInput = {
   rangeEndDate?: string | null | undefined;
   rangeStartDate?: string | null | undefined;
   searchTerm?: string | null | undefined;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<SaleSortBy> | null | undefined;
   states?: Array<SaleState> | null | undefined;
 };
 
@@ -431,6 +457,19 @@ export type OrganizationRole =
   | 'MEMBER'
   | 'OWNER';
 
+export type OrganizationSortBy = {
+  argument?: string | null | undefined;
+  field: OrganizationSortField;
+  isDescending: boolean;
+};
+
+export type OrganizationSortField =
+  | 'APPROXIMATE_BALANCE'
+  | 'ID'
+  | 'NAME'
+  | 'SYSTEM_NAME'
+  | 'TYPE';
+
 export type OrganizationType =
   | 'BUSINESS'
   | 'INDIVIDUAL'
@@ -508,7 +547,7 @@ export type ProductContentItemInput = {
 export type ProductCrossesInput = {
   pagination: PaginationInput;
   searchTerm?: string | null | undefined;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<ProductSortBy> | null | undefined;
 };
 
 export type ProductDimensionsCriteriaInput = {
@@ -523,6 +562,17 @@ export type ProductEanInput = {
   ean: string;
   productId: number;
 };
+
+export type ProductGroupSortBy = {
+  argument?: string | null | undefined;
+  field: ProductGroupSortField;
+  isDescending: boolean;
+};
+
+export type ProductGroupSortField =
+  | 'ID'
+  | 'NAME'
+  | 'NORMALIZED_NAME';
 
 export type ProductLinkageInput = {
   crossProductId: number;
@@ -539,10 +589,19 @@ export type ProductLinkageType =
 export type ProductOffersInput = {
   currencyId: number;
   pagination: PaginationInput;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<ProductPriceOptionSortBy> | null | undefined;
   sources: Array<PriceOfferSource>;
   storageCode: string;
 };
+
+export type ProductPriceOptionSortBy = {
+  argument?: string | null | undefined;
+  field: ProductPriceOptionSortField;
+  isDescending: boolean;
+};
+
+export type ProductPriceOptionSortField =
+  | 'SCORE';
 
 export type ProductReferenceInput = {
   producerName: string;
@@ -555,7 +614,7 @@ export type ProductSaleHistoryInput = {
   organizationId?: string | null | undefined;
   pagination: PaginationInput;
   showCrosses?: boolean | null | undefined;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<SaleContentSortBy> | null | undefined;
   storageCode?: string | null | undefined;
 };
 
@@ -564,6 +623,21 @@ export type ProductSearchCriteriaInput = {
   dimensions?: ProductDimensionsCriteriaInput | null | undefined;
   weight?: ProductWeightCriteriaInput | null | undefined;
 };
+
+export type ProductSortBy = {
+  argument?: string | null | undefined;
+  field: ProductSortField;
+  isDescending: boolean;
+};
+
+export type ProductSortField =
+  | 'ID'
+  | 'INDICATOR'
+  | 'NAME'
+  | 'POPULARITY'
+  | 'PRODUCER_NAME'
+  | 'SKU'
+  | 'STOCK';
 
 export type ProductStorageContentsInput = {
   pagination: PaginationInput;
@@ -576,6 +650,17 @@ export type ProductWeightCriteriaInput = {
   unit: WeightUnit;
 };
 
+export type PurchaseSortBy = {
+  argument?: string | null | undefined;
+  field: PurchaseSortField;
+  isDescending: boolean;
+};
+
+export type PurchaseSortField =
+  | 'DATE_TIME'
+  | 'ID'
+  | 'TOTAL_SUM';
+
 export type RecommendedPriceInput = {
   currencyId: number;
   quantity: number;
@@ -587,6 +672,32 @@ export type ReverseTransactionInput = {
   forcePayment?: boolean | null | undefined;
   transactionId: string;
 };
+
+export type SaleContentSortBy = {
+  argument?: string | null | undefined;
+  field: SaleContentSortField;
+  isDescending: boolean;
+};
+
+export type SaleContentSortField =
+  | 'DISCOUNTED_PRICE'
+  | 'ORGANIZATION_MATCH'
+  | 'ORIGINAL_PRICE'
+  | 'QUANTITY'
+  | 'SALE_CONTENT_ID'
+  | 'SALE_DATE'
+  | 'STORAGE_CODE';
+
+export type SaleSortBy = {
+  argument?: string | null | undefined;
+  field: SaleSortField;
+  isDescending: boolean;
+};
+
+export type SaleSortField =
+  | 'DATE_TIME'
+  | 'ID'
+  | 'TOTAL_SUM';
 
 export type SaleState =
   | 'COMPLETED'
@@ -602,17 +713,28 @@ export type SchemaValueType =
   | 'OBJECT'
   | 'STRING';
 
+export type SearchCatalogueCandidateSortBy = {
+  argument?: string | null | undefined;
+  field: SearchCatalogueCandidateSortField;
+  isDescending: boolean;
+};
+
+export type SearchCatalogueCandidateSortField =
+  | 'ID'
+  | 'PRODUCER_ID'
+  | 'SKU';
+
 export type SearchCharacteristicsInput = {
   pagination: PaginationInput;
   searchTerm?: string | null | undefined;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<CharacteristicSortBy> | null | undefined;
 };
 
 export type SearchDocumentsInput = {
   documentSystemName?: string | null | undefined;
   pagination: PaginationInput;
   requesterId?: string | null | undefined;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<DocumentGenerationRequestSortBy> | null | undefined;
 };
 
 export type SearchMarkupGroupsInput = {
@@ -636,8 +758,25 @@ export type SearchNumericRangeInput = {
 export type SearchProductGroupsInput = {
   pagination: PaginationInput;
   searchTerm?: string | null | undefined;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<ProductGroupSortBy> | null | undefined;
 };
+
+export type SearchProductSortBy = {
+  argument?: string | null | undefined;
+  field: SearchProductSortField;
+  isDescending: boolean;
+};
+
+export type SearchProductSortField =
+  | 'HEIGHT'
+  | 'ID'
+  | 'LENGTH'
+  | 'PRODUCER_ID'
+  | 'SKU'
+  | 'STOCK'
+  | 'VOLUME'
+  | 'WEIGHT'
+  | 'WIDTH';
 
 export type SearchTarget =
   | 'CATALOGUE_CANDIDATES'
@@ -663,17 +802,27 @@ export type SetProductWeightInput = {
   weight: number;
 };
 
-export type SortByInput = {
+export type StorageContentSortBy = {
   argument?: string | null | undefined;
-  field: string;
+  field: StorageContentSortField;
   isDescending: boolean;
 };
+
+export type StorageContentSortField =
+  | 'AVAILABLE_COUNT'
+  | 'BUY_PRICE'
+  | 'COUNT'
+  | 'CURRENCY_ID'
+  | 'ID'
+  | 'PRODUCT_ID'
+  | 'PURCHASE_DATETIME'
+  | 'STORAGE_CODE';
 
 export type StorageContentsSearchInput = {
   pagination: PaginationInput;
   productId?: number | null | undefined;
   showZeroCount: boolean;
-  sortBy?: Array<SortByInput> | null | undefined;
+  sortBy?: Array<StorageContentSortBy> | null | undefined;
   storageCode?: string | null | undefined;
 };
 
