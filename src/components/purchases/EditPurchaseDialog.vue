@@ -102,7 +102,7 @@
           </div>
         </section>
 
-        <section class="purchase-section">
+        <section class="purchase-section document-positions">
           <div class="section-header">
             <div>
               <div class="section-title">{{ t('purchases.positions') }}</div>
@@ -388,3 +388,4 @@ watch(isOpen, (open) => {
 </script>
 
 <style scoped src="@/assets/edit-purchase-dialog.css"></style>
+<style scoped src="@/assets/document-positions.css"></style>
