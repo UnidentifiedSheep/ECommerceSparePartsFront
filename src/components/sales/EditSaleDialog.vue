@@ -143,7 +143,7 @@
           </div>
         </section>
 
-        <section class="sale-section">
+        <section class="sale-section document-positions">
           <div class="section-header">
             <div>
               <div class="section-title">{{ t('sales.salePositions') }}</div>
@@ -845,6 +845,7 @@ watch(
 </script>
 
 <style scoped src="@/assets/sale-dialog.css"></style>
+<style scoped src="@/assets/document-positions.css"></style>
 
 <style>
 .edit-sale-dialog.edit-sale-dialog--history-open {

@@ -1,0 +1,10 @@
+.document-positions > .items-list {
+  max-height: clamp(220px, 45dvh, 480px);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  /* Leave room for the selected row outline and focused input rings. */
+  padding: 3px;
+  scroll-padding-block: 3px;
+  align-content: start;
+}
