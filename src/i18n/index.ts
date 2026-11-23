@@ -11,6 +11,7 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
+    deliverySchedules: {"title": "Расписания доставки", "description": "Дни доставки поставщиков и исключения по датам.", "supplier": "Поставщик", "storageCode": "Код склада поставщика", "days": "Дни доставки", "exceptions": "Исключения", "exceptionsHint": "В эти даты доставка не выполняется.", "exceptionDate": "Дата исключения", "noExceptions": "Исключений нет", "empty": "Расписания не найдены", "noPermission": "Нет разрешения на просмотр расписаний доставки", "saved": "Расписание сохранено.", "saveError": "Не удалось сохранить расписание.", "loading": "Загружаем расписания…", "deleteConfirm": "Удалить расписание {supplier}, склад {code}?", "week": {"MONDAY": "Пн", "TUESDAY": "Вт", "WEDNESDAY": "Ср", "THURSDAY": "Чт", "FRIDAY": "Пт", "SATURDAY": "Сб", "SUNDAY": "Вс"}},
     analysisSchema: {
       referencesError: 'Названия связанных сущностей недоступны. Показаны сохранённые значения.',
       yes: 'Да', no: 'Нет', empty: 'Нет значений', tooDeep: 'Вложенные данные', summary: 'Сводка', tableView: 'Таблица и сводка', presentation: 'Вид результата',
@@ -176,6 +177,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     nav: {
+      deliverySchedules: "Расписания доставки",
       menu: 'Меню',
       overview: 'Обзор',
       operations: 'Операции',
@@ -2071,6 +2073,9 @@ const messages: Record<AppLocale, MessageTree> = {
       no: 'Нет',
     },
     documents: {
+      printSalesList: "Печать списка",
+      salesListHint: "Excel со всеми продажами по текущим фильтрам, независимо от страницы. Итоги разделены по валютам.",
+      salesListUnavailable: "Печать списка продаж пока недоступна.",
       title: 'Документы', description: 'Создание документов по доступным шаблонам.',
       createTab: 'Создать', history: 'История', historyHint: 'Созданные документы и состояние их подготовки.',
       allTemplates: 'Все шаблоны', historyEmpty: 'Заявок пока нет', historyLoadError: 'Не удалось загрузить историю документов',
@@ -2102,6 +2107,12 @@ const messages: Record<AppLocale, MessageTree> = {
       invalidLink: 'Сервис вернул некорректную ссылку',
     },
     jobs: {
+      notFound: "Задача не найдена.",
+      serviceUnavailable: "Задачи этого сервиса недоступны.",
+      requestFailed: "Не удалось выполнить запрос задачи.",
+      unknownDefinition: "Тип задачи недоступен",
+      output: "Результат выполнения",
+      pollingFallback: "Нет соединения с обновлениями. Состояние задач проверяется каждые 10 секунд.",
       title: 'Задачи',
       description: 'Запуск фоновых задач сервисов и подготовка входных данных.',
       availableTab: 'Доступные задачи',
@@ -2247,6 +2258,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   en: {
+    deliverySchedules: {"title": "Delivery schedules", "description": "Supplier delivery days and date exceptions.", "supplier": "Supplier", "storageCode": "Supplier warehouse code", "days": "Delivery days", "exceptions": "Exceptions", "exceptionsHint": "Deliveries do not take place on these dates.", "exceptionDate": "Exception date", "noExceptions": "No exceptions", "empty": "No delivery schedules found", "noPermission": "No permission to view delivery schedules", "saved": "Schedule saved.", "saveError": "Could not save the schedule.", "loading": "Loading schedules…", "deleteConfirm": "Delete the schedule for {supplier}, warehouse {code}?", "week": {"MONDAY": "Mon", "TUESDAY": "Tue", "WEDNESDAY": "Wed", "THURSDAY": "Thu", "FRIDAY": "Fri", "SATURDAY": "Sat", "SUNDAY": "Sun"}},
     analysisSchema: {
       referencesError: 'Linked entity names are unavailable. Saved values are shown.',
       yes: 'Yes', no: 'No', empty: 'No values', tooDeep: 'Nested data', summary: 'Summary', tableView: 'Table and summary', presentation: 'Result view',
@@ -2412,6 +2424,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     nav: {
+      deliverySchedules: "Delivery schedules",
       menu: 'Menu',
       overview: 'Overview',
       operations: 'Operations',
@@ -4307,6 +4320,9 @@ const messages: Record<AppLocale, MessageTree> = {
       no: 'No',
     },
     documents: {
+      printSalesList: "Print list",
+      salesListHint: "Excel with all sales matching the current filters, across all pages. Totals are separated by currency.",
+      salesListUnavailable: "Sales list printing is unavailable.",
       title: 'Documents', description: 'Generate documents from available templates.',
       createTab: 'Create', history: 'History', historyHint: 'Generated documents and their preparation status.',
       allTemplates: 'All templates', historyEmpty: 'No requests yet', historyLoadError: 'Could not load document history',
@@ -4338,6 +4354,12 @@ const messages: Record<AppLocale, MessageTree> = {
       invalidLink: 'The service returned an invalid link',
     },
     jobs: {
+      notFound: "Job not found.",
+      serviceUnavailable: "Jobs for this service are unavailable.",
+      requestFailed: "Could not complete the job request.",
+      unknownDefinition: "Job type unavailable",
+      output: "Execution output",
+      pollingFallback: "Live updates are unavailable. Job status is checked every 10 seconds.",
       title: 'Jobs',
       description: 'Run service background jobs and prepare input data.',
       availableTab: 'Available jobs',
@@ -4483,6 +4505,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   tr: {
+    deliverySchedules: {"title": "Teslimat takvimleri", "description": "Tedarikçi teslimat günleri ve tarih istisnaları.", "supplier": "Tedarikçi", "storageCode": "Tedarikçi depo kodu", "days": "Teslimat günleri", "exceptions": "İstisnalar", "exceptionsHint": "Bu tarihlerde teslimat yapılmaz.", "exceptionDate": "İstisna tarihi", "noExceptions": "İstisna yok", "empty": "Teslimat takvimi bulunamadı", "noPermission": "Teslimat takvimlerini görüntüleme izni yok", "saved": "Takvim kaydedildi.", "saveError": "Takvim kaydedilemedi.", "loading": "Takvimler yükleniyor…", "deleteConfirm": "{supplier}, {code} deposunun takvimi silinsin mi?", "week": {"MONDAY": "Pzt", "TUESDAY": "Sal", "WEDNESDAY": "Çar", "THURSDAY": "Per", "FRIDAY": "Cum", "SATURDAY": "Cmt", "SUNDAY": "Paz"}},
     analysisSchema: {
       referencesError: 'İlişkili kayıt adları kullanılamıyor. Kaydedilen değerler gösteriliyor.',
       yes: 'Evet', no: 'Hayır', empty: 'Değer yok', tooDeep: 'İç içe veriler', summary: 'Özet', tableView: 'Tablo ve özet', presentation: 'Sonuç görünümü',
@@ -4648,6 +4671,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     nav: {
+      deliverySchedules: "Teslimat takvimleri",
       menu: 'Menü',
       overview: 'Genel bakış',
       operations: 'İşlemler',
@@ -6543,6 +6567,9 @@ const messages: Record<AppLocale, MessageTree> = {
       no: 'Hayır',
     },
     documents: {
+      printSalesList: "Listeyi yazdır",
+      salesListHint: "Geçerli filtrelere uyan tüm satışları içeren Excel; sayfadan bağımsızdır. Toplamlar para birimine göre ayrılır.",
+      salesListUnavailable: "Satış listesi yazdırma kullanılamıyor.",
       title: 'Belgeler', description: 'Mevcut şablonlardan belge oluşturun.',
       createTab: 'Oluştur', history: 'Geçmiş', historyHint: 'Oluşturulan belgeler ve hazırlık durumları.',
       allTemplates: 'Tüm şablonlar', historyEmpty: 'Henüz istek yok', historyLoadError: 'Belge geçmişi yüklenemedi',
@@ -6574,6 +6601,12 @@ const messages: Record<AppLocale, MessageTree> = {
       invalidLink: 'Servis geçersiz bir bağlantı döndürdü',
     },
     jobs: {
+      notFound: "Görev bulunamadı.",
+      serviceUnavailable: "Bu hizmetin görevleri kullanılamıyor.",
+      requestFailed: "Görev isteği tamamlanamadı.",
+      unknownDefinition: "Görev türü kullanılamıyor",
+      output: "Çalıştırma sonucu",
+      pollingFallback: "Canlı güncellemeler kullanılamıyor. Görev durumu her 10 saniyede kontrol ediliyor.",
       title: 'Görevler',
       description: 'Servis arka plan görevlerini çalıştırın ve giriş verilerini hazırlayın.',
       availableTab: 'Kullanılabilir görevler',

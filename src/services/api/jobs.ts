@@ -1,4 +1,10 @@
-import api from '@/services/api/api.ts'
+import api, { clampPageSize } from '@/services/api/api.ts'
+import { graphqlClient } from '@/services/graphql/client'
+import { operationRequest } from '@/services/graphql/operationErrors'
+import { gqlSort } from '@/services/graphql/sorting'
+import { toUtcDateTimeString } from '@/utils/dateTime'
+import { t } from '@/i18n'
+import { AvailableJobsDocument, SearchJobsDocument, JobByIdDocument, JobStateByIdDocument, CreateJobDocument, CancelJobDocument, SearchJobSchedulesDocument, CreateJobScheduleDocument, UpdateJobScheduleDocument, RemoveJobScheduleDocument, type JobFieldsFragment, type JobScheduleFieldsFragment, type JobStatus as GqlJobStatus } from '@/graphql/generated/graphql'
 import { normalizeObjectSchema, type CsvColumnSchema, type ObjectSchema, type SchemaUiField } from '@/models/schemaModel.ts'
 
 export interface JobDefinitionModel {
@@ -19,16 +25,6 @@ export interface GetGatewayJobsResponse {
   services: Record<string, JobsServiceModel>
 }
 
-interface GatewayServiceJobsDto {
-  serviceName: string
-  available: boolean
-  jobs: JobDefinitionModel[]
-}
-
-interface GetAggregatedAvailableJobsResponse {
-  jobs: GatewayServiceJobsDto[]
-}
-
 export interface JobModel {
   id: string
   isStep: boolean
@@ -42,6 +38,8 @@ export interface JobModel {
   createdAt: string
   updatedAt: string
   createdBy: string | null
+  stepKey?: string | null
+  inputInitialized?: boolean
 }
 
 export type JobStatus =
@@ -69,6 +67,8 @@ export interface GetServiceJobsResponse {
 
 export interface GetJobStateResponse {
   state: string
+  output?: string | null
+  inputInitialized?: boolean
 }
 
 export interface CreateJobRequest {
@@ -161,54 +161,46 @@ export interface GetNamedObjectsResponse {
 }
 
 export async function getGatewayJobs(): Promise<GetGatewayJobsResponse> {
-  const resp = await api.get<GetAggregatedAvailableJobsResponse>('/jobs/available')
-  return {
-    services: Object.fromEntries(resp.data.jobs.map((service) => [
-      service.serviceName,
-      {
-        available: service.available,
-        statusCode: null,
-        jobs: service.jobs.map((job) => ({
-          ...job,
-          initStateSchema: normalizeObjectSchema(job.initStateSchema),
-        })),
-        error: null,
-      },
-    ])),
-  }
+  const { data } = await operationRequest(graphqlClient.query({ query: AvailableJobsDocument, fetchPolicy: 'no-cache' }))
+  return { services: { main: { available: true, statusCode: null, error: null, jobs: data.jobs.available.map(job => ({ ...job, initStateSchema: normalizeObjectSchema(job.initStateSchema) })) } } }
 }
 
-export async function getServiceJobs(serviceKey: string, req: GetServiceJobsRequest): Promise<GetServiceJobsResponse> {
-  const params = new URLSearchParams()
-  params.append('page', String(req.page))
-  params.append('size', String(req.size))
-  req.sortBy?.forEach((sort) => params.append('sortBy', sort))
-  req.systemNames?.forEach((systemName) => params.append('systemName', systemName))
-  req.statuses?.forEach((status) => params.append('status', status))
+function requireMain(serviceKey: string) { if (serviceKey.toLowerCase() !== 'main') throw new Error(t('jobs.serviceUnavailable')) }
+export function mapJob(job: JobFieldsFragment): JobModel {
+  return { ...job, systemName: job.info?.systemName ?? '', status: job.status.toLowerCase().replace(/(^|_)([a-z])/g, (_, _prefix, letter: string) => letter.toUpperCase()), multiStepJobId: job.multiStepJob?.id ?? null, createdBy: job.createdBy?.id ?? null }
+}
+function mapSchedule(schedule: JobScheduleFieldsFragment): JobScheduleModel { return { ...schedule, jobSystemName: schedule.jobInfo?.systemName ?? '' } }
 
-  const resp = await api.get<GetServiceJobsResponse>(`/${serviceKey}/jobs`, {
-    params,
-  })
-  return resp.data
+export async function getServiceJobs(serviceKey: string, req: GetServiceJobsRequest): Promise<GetServiceJobsResponse> {
+  requireMain(serviceKey)
+  const { data } = await operationRequest(graphqlClient.query({ query: SearchJobsDocument, variables: { input: { pagination: { page: req.page, size: clampPageSize(req.size) }, systemNames: req.systemNames ?? [], statuses: req.statuses?.map(status => status.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase() as GqlJobStatus) ?? [], sortBy: gqlSort('Job', req.sortBy) } }, fetchPolicy: 'no-cache' }))
+  return { jobs: data.jobs.search.map(mapJob) }
 }
 
 export async function getServiceJobState(serviceKey: string, jobId: string): Promise<GetJobStateResponse> {
-  const resp = await api.get<GetJobStateResponse>(`/${serviceKey}/jobs/${jobId}/state`)
-  return resp.data
+  requireMain(serviceKey)
+  const { data } = await operationRequest(graphqlClient.query({ query: JobStateByIdDocument, variables: { id: jobId }, fetchPolicy: 'no-cache' }))
+  if (!data.jobs.byId) throw new Error(t('jobs.notFound'))
+  return data.jobs.byId.state
 }
 
 export async function getServiceJob(serviceKey: string, jobId: string): Promise<CreateJobResponse> {
-  const response = await api.get<CreateJobResponse>(`/${serviceKey}/jobs/${encodeURIComponent(jobId)}`)
-  return response.data
+  requireMain(serviceKey)
+  const { data } = await operationRequest(graphqlClient.query({ query: JobByIdDocument, variables: { id: jobId }, fetchPolicy: 'no-cache' }))
+  if (!data.jobs.byId) throw new Error(t('jobs.notFound'))
+  return { job: mapJob(data.jobs.byId) }
 }
 
 export async function createServiceJob(serviceKey: string, req: CreateJobRequest): Promise<CreateJobResponse> {
-  const resp = await api.post<CreateJobResponse>(`/${serviceKey}/jobs`, req)
-  return resp.data
+  requireMain(serviceKey)
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateJobDocument, variables: { input: req } }))
+  if (!data) throw new Error(t('jobs.requestFailed'))
+  return { job: mapJob(data.jobs.create) }
 }
 
 export async function cancelServiceJob(serviceKey: string, jobId: string): Promise<void> {
-  await api.get(`/${serviceKey}/jobs/${jobId}/cancel`)
+  requireMain(serviceKey)
+  await operationRequest(graphqlClient.mutate({ mutation: CancelJobDocument, variables: { id: jobId } }))
 }
 
 export function patchField<T>(value: T): PatchField<T> {
@@ -222,26 +214,19 @@ export async function getServiceJobSchedules(
   serviceKey: string,
   req: GetJobSchedulesRequest,
 ): Promise<GetJobSchedulesResponse> {
-  const params = new URLSearchParams()
-  params.append('page', String(req.page))
-  params.append('size', String(req.size))
-  req.sortBy?.forEach((sort) => params.append('sortBy', sort))
-  if (req.nextRunFrom) params.append('nextRunFrom', req.nextRunFrom)
-  if (req.nextRunTo) params.append('nextRunTo', req.nextRunTo)
-  req.systemNames?.forEach((systemName) => params.append('systemName', systemName))
-
-  const resp = await api.get<GetJobSchedulesResponse>(`/${serviceKey}/jobs/schedules`, {
-    params,
-  })
-  return resp.data
+  requireMain(serviceKey)
+  const { data } = await operationRequest(graphqlClient.query({ query: SearchJobSchedulesDocument, variables: { input: { pagination: { page: req.page, size: clampPageSize(req.size) }, jobSystemNames: req.systemNames ?? [], nextRunFrom: req.nextRunFrom ? toUtcDateTimeString(req.nextRunFrom) : undefined, nextRunTo: req.nextRunTo ? toUtcDateTimeString(req.nextRunTo) : undefined, sortBy: gqlSort('JobSchedule', req.sortBy) } }, fetchPolicy: 'no-cache' }))
+  return { schedules: data.jobSchedules.search.map(mapSchedule) }
 }
 
 export async function createServiceJobSchedule(
   serviceKey: string,
   req: NewJobScheduleRequest,
 ): Promise<CreateJobScheduleResponse> {
-  const resp = await api.post<CreateJobScheduleResponse>(`/${serviceKey}/jobs/schedules`, req)
-  return resp.data
+  requireMain(serviceKey)
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: CreateJobScheduleDocument, variables: { input: req } }))
+  if (!data) throw new Error(t('jobs.requestFailed'))
+  return { schedule: mapSchedule(data.jobSchedules.create) }
 }
 
 export async function updateServiceJobSchedule(
@@ -249,12 +234,15 @@ export async function updateServiceJobSchedule(
   scheduleId: string,
   patch: PatchJobScheduleRequest,
 ): Promise<UpdateJobScheduleResponse> {
-  const resp = await api.patch<UpdateJobScheduleResponse>(`/${serviceKey}/jobs/schedules/${scheduleId}`, patch)
-  return resp.data
+  requireMain(serviceKey)
+  const { data } = await operationRequest(graphqlClient.mutate({ mutation: UpdateJobScheduleDocument, variables: { input: { scheduleId, ...patch } } }))
+  if (!data) throw new Error(t('jobs.requestFailed'))
+  return { schedule: mapSchedule(data.jobSchedules.update) }
 }
 
 export async function deleteServiceJobSchedule(serviceKey: string, scheduleId: string): Promise<void> {
-  await api.delete(`/${serviceKey}/jobs/schedules/${scheduleId}`)
+  requireMain(serviceKey)
+  await operationRequest(graphqlClient.mutate({ mutation: RemoveJobScheduleDocument, variables: { id: scheduleId } }))
 }
 
 export async function getServiceNamedObjects(serviceKey: string, groupName: string): Promise<GetNamedObjectsResponse> {

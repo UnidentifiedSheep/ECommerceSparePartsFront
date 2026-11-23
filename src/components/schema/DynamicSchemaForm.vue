@@ -108,6 +108,7 @@
           <el-option v-for="option in schemaEnumOptions(field)" :key="option.value" :label="option.label" :value="option.value" />
         </el-select>
 
+        <SchemaEntityArraySelector v-else-if="field.type === 'Array' && field.control === 'EntitySelector' && ['Organization', 'User', 'Currency', 'Product'].includes(schemaEntity(field) || '')" :entity="schemaEntity(field)!" :model-value="modelValue[field.name]" :placeholder="field.description || field.name" @update:model-value="value => setFieldValue(field.name, value)" />
         <SchemaPartySelector
           v-else-if="field.control === 'EntitySelector' && (schemaEntity(field) === 'Organization' || schemaEntity(field) === 'User')"
           :entity="schemaEntity(field) === 'Organization' ? 'Organization' : 'User'"
@@ -200,6 +201,7 @@
 import { onBeforeUnmount } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import SchemaPartySelector from './SchemaPartySelector.vue'
+import SchemaEntityArraySelector from './SchemaEntityArraySelector.vue'
 import { hasSchemaEnumOptions, schemaEnumOptions, schemaEntity, schemaMonthToUtc } from '@/utils/schemaInputs'
 import { attachSelectDropdownInfiniteScroll } from '@/composables/useSelectInfiniteScroll.ts'
 import { useI18n } from '@/i18n'

@@ -2,6 +2,7 @@
   <div class="sales-page">
     <PageHeader :title="t('sales.title')" :description="t('sales.description')">
       <template #actions>
+      <SalesListPrintButton v-if="canGenerateDocuments && hasPermission('SALES_GET')" :filters="listFilters" :disabled="queryState.restoring.value || salesLoading" />
       <el-button v-if="canCreateSales" type="primary" size="large" @click="createSaleDialogOpen = true">
         {{ t('sales.create') }}
       </el-button>
@@ -282,6 +283,7 @@ import CreateSaleDialog from '@/components/sales/CreateSaleDialog.vue'
 import EditSaleDialog from '@/components/sales/EditSaleDialog.vue'
 import SaleDetails from '@/components/sales/SaleDetails.vue'
 import SaleActionsMenu from '@/components/sales/SaleActionsMenu.vue'
+import SalesListPrintButton from '@/components/documents/SalesListPrintButton.vue'
 import ProductSelectorDialog from '@/components/selectors/ProductSelectorDialog.vue'
 import OrganizationSelector from '@/components/selectors/OrganizationSelector.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -342,6 +344,11 @@ let contentRequestVersion = 0
 const contentDebounce = useSelectionDebounce()
 onScopeDispose(() => { ++contentRequestVersion })
 
+const listFilters = computed(() => ({
+  rangeStartDate: dateRange.value?.[0], rangeEndDate: dateRange.value?.[1],
+  organizationIds: selectedBuyerOrganizations.value.map(buyer => buyer.id), currencyIds: currencyIds.value,
+  productIds: selectedProducts.value.map(product => product.id), states: saleStates.value, searchTerm: searchTerm.value,
+}))
 const saleStateOptions = computed<Array<{ label: string, value: SaleState }>>(() => [
   { label: t('sales.states.Draft'), value: 'Draft' },
   { label: t('sales.states.Completed'), value: 'Completed' },
@@ -507,16 +514,10 @@ async function loadSales(resetPage: boolean, navigation?: { page: number; direct
     if (resetPage) page.value = 0
 
     const resp = await getSales({
-      rangeStartDate: dateRange.value?.[0],
-      rangeEndDate: dateRange.value?.[1],
+      ...listFilters.value,
       page: navigation?.page ?? page.value,
       limit: limit.value,
-      organizationIds: selectedBuyerOrganizations.value.map((buyer) => buyer.id),
-      currencyIds: currencyIds.value,
-      productIds: selectedProducts.value.map((product) => product.id),
-      states: saleStates.value,
       sortBy: toSortExpressions(sortBy.value),
-      searchTerm: searchTerm.value,
     })
 
     // A full final page may advertise a successor which is actually empty.

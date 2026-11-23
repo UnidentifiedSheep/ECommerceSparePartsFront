@@ -1,0 +1,7 @@
+fragment DeliveryScheduleFields on DeliverySchedule { supplier storageCode days exceptions }
+query SearchDeliverySchedules($input: SearchDeliverySchedulesInput!) { deliverySchedules { search(input: $input) { ...DeliveryScheduleFields } } }
+mutation CreateDeliverySchedule($input: CreateDeliveryScheduleInput!) { deliverySchedules { create(input: $input) { ...DeliveryScheduleFields } } }
+mutation UpdateDeliverySchedule($input: UpdateDeliveryScheduleInput!) { deliverySchedules { update(input: $input) { ...DeliveryScheduleFields } } }
+mutation DeleteDeliverySchedule($supplier: Supplier!, $storageCode: String!) { deliverySchedules { delete(supplier: $supplier, storageCode: $storageCode) } }
+mutation AddDeliveryScheduleException($input: DeliveryScheduleExceptionInput!) { deliverySchedules { addException(input: $input) { ...DeliveryScheduleFields } } }
+mutation RemoveDeliveryScheduleException($input: DeliveryScheduleExceptionInput!) { deliverySchedules { removeException(input: $input) { ...DeliveryScheduleFields } } }

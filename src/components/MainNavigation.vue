@@ -89,6 +89,7 @@
 
       <el-menu-item v-if="canOpen('/analytics')" index="/analytics" @click="openRoute('/analytics')"><span class="main-nav__item-label" :title="t('nav.analytics')">{{ t('nav.analytics') }}</span><PinMenuButton path="/analytics" /></el-menu-item>
       <el-menu-item v-if="canOpen('/jobs')" index="/jobs" @click="openRoute('/jobs')"><span class="main-nav__item-label" :title="t('nav.jobs')">{{ t('nav.jobs') }}</span><PinMenuButton path="/jobs" /></el-menu-item>
+      <el-menu-item v-if="canOpen('/delivery-schedules')" index="/delivery-schedules" @click="openRoute('/delivery-schedules')"><span class="main-nav__item-label" :title="t('nav.deliverySchedules')">{{ t('nav.deliverySchedules') }}</span><PinMenuButton path="/delivery-schedules" /></el-menu-item>
       <el-menu-item v-if="canViewDocuments" index="/documents" @click="openRoute('/documents')"><span class="main-nav__item-label" :title="t('nav.documents')">{{ t('nav.documents') }}</span><PinMenuButton path="/documents" /></el-menu-item>
       <el-menu-item v-if="canOpen('/extensions')" index="/extensions" @click="openRoute('/extensions')"><span class="main-nav__item-label" :title="t('nav.extensions')">{{ t('nav.extensions') }}</span><PinMenuButton path="/extensions" /></el-menu-item>
     </el-sub-menu>
@@ -133,7 +134,7 @@ function canOpen(path: string) {
 const operationsRoutes = ['/purchases', '/sales', '/transactions']
 const adminRoutes = ['/users', '/organizations', '/roles', '/currencies', '/service-settings']
 const pricingRoutes = ['/markups', '/price-appliers']
-const controlRoutes = ['/analytics', '/jobs', '/documents', '/extensions']
+const controlRoutes = ['/analytics', '/jobs', '/delivery-schedules', '/documents', '/extensions']
 
 const activeMenuIndex = computed(() => activeNavigationPath(route.path) ?? route.path)
 const menu = ref<MenuInstance>()

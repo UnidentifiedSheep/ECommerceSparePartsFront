@@ -4,6 +4,69 @@ schema {
   subscription: Subscription
 }
 
+type JobInfo { systemName: String! name: String! description: String! initStateSchema: ObjectSchema! }
+type Job {
+  id: UUID!
+  isStep: Boolean!
+  multiStepJob: Job
+  stepKey: String
+  inputInitialized: Boolean!
+  info: JobInfo
+  status: JobStatus!
+  attempts: Int!
+  maxAttempts: Int!
+  errorMessage: String
+  lockedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  createdBy: User
+  state: JobState!
+}
+type JobState { state: String! inputInitialized: Boolean! output: String }
+type JobSchedule {
+  id: UUID!
+  name: String!
+  description: String
+  jobInfo: JobInfo
+  inputState: String!
+  maxAttempts: Int!
+  cron: String!
+  localizedCron: String!
+  lastQueuedAt: DateTime
+  nextRunAt: DateTime
+  enabled: Boolean!
+}
+type JobQueries { available: [JobInfo!]! byId(id: UUID!): Job byIds(ids: [UUID!]!): [Job!]! search(input: SearchJobsInput!): [Job!]! }
+type JobScheduleQueries { byId(id: UUID!): JobSchedule byIds(ids: [UUID!]!): [JobSchedule!]! search(input: SearchJobSchedulesInput!): [JobSchedule!]! }
+type JobMutations { create(input: CreateJobInput!): Job! cancel(id: UUID!): Boolean! }
+type JobScheduleMutations { create(input: CreateJobScheduleInput!): JobSchedule! update(input: UpdateJobScheduleInput!): JobSchedule! remove(id: UUID!): Boolean! }
+type JobUpdated { job: Job! }
+input SearchJobsInput { systemNames: [String!] statuses: [JobStatus!] pagination: PaginationInput! sortBy: [JobSortBy!] }
+input SearchJobSchedulesInput { jobSystemNames: [String!] nextRunFrom: DateTime nextRunTo: DateTime pagination: PaginationInput! sortBy: [JobScheduleSortBy!] }
+input JobSortBy { field: JobSortField! isDescending: Boolean! argument: String }
+enum JobSortField { ID CREATED_AT UPDATED_AT STATUS }
+input JobScheduleSortBy { field: JobScheduleSortField! isDescending: Boolean! argument: String }
+enum JobScheduleSortField { ID NAME JOB_SYSTEM_NAME NEXT_RUN_AT LAST_QUEUED_AT ENABLED }
+input CreateJobInput { systemName: String! inputState: String! maxAttempts: Int! = 3 }
+input CreateJobScheduleInput { name: String! description: String jobSystemName: String! inputState: String! maxAttempts: Int! = 3 cron: String! enabled: Boolean! }
+input UpdateJobScheduleInput { scheduleId: UUID! name: GqlPatchFieldOfStringInput description: GqlPatchFieldOfStringInput inputState: GqlPatchFieldOfStringInput maxAttempts: GqlPatchFieldOfInt32Input cron: GqlPatchFieldOfStringInput enabled: GqlPatchFieldOfBooleanInput }
+
+scalar LocalDate
+enum DayOfWeek { SUNDAY MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY }
+type DeliverySchedule { supplier: Supplier! storageCode: String! storage: Storage! days: [DayOfWeek!]! exceptions: [LocalDate!]! }
+type DeliveryScheduleQueries { byKey(supplier: Supplier!, storageCode: String!): DeliverySchedule search(input: SearchDeliverySchedulesInput!): [DeliverySchedule!]! }
+type DeliveryScheduleMutations {
+  create(input: CreateDeliveryScheduleInput!): DeliverySchedule!
+  update(input: UpdateDeliveryScheduleInput!): DeliverySchedule!
+  delete(supplier: Supplier!, storageCode: String!): Boolean!
+  addException(input: DeliveryScheduleExceptionInput!): DeliverySchedule!
+  removeException(input: DeliveryScheduleExceptionInput!): DeliverySchedule!
+}
+input SearchDeliverySchedulesInput { suppliers: [Supplier!] storageCode: String pagination: PaginationInput! }
+input CreateDeliveryScheduleInput { supplier: Supplier! storageCode: String! days: [DayOfWeek!]! }
+input UpdateDeliveryScheduleInput { supplier: Supplier! storageCode: String! days: [DayOfWeek!]! }
+input DeliveryScheduleExceptionInput { supplier: Supplier! storageCode: String! date: LocalDate! }
+
 input AddPermissionToRoleInput {
   roleName: String!
   permissionName: String!
@@ -373,7 +436,7 @@ type DocumentDefinition {
 }
 
 type DocumentGenerationRequest {
-  jobId: UUID! @cost(weight: "10")
+  job: Job @cost(weight: "10")
   status: JobStatus! @cost(weight: "10")
   documentSystemName: String! @cost(weight: "10")
   requesterId: UUID @cost(weight: "10")
@@ -696,6 +759,9 @@ input MaxCandidateCrossesInput {
 }
 
 type Mutation {
+  jobs: JobMutations!
+  jobSchedules: JobScheduleMutations!
+  deliverySchedules: DeliveryScheduleMutations!
   analytics: AnalyticsMutations!
   orders: OrderMutations!
   users: UserMutations!
@@ -1000,7 +1066,7 @@ type PriceApplierState {
 
 type PriceOffer {
   id: UUID!
-  offerForStorage: String!
+  offerForStorage: Storage!
   purchasePrice: Decimal!
   source: PriceOfferSource!
   availableQuantity: Int!
@@ -1029,11 +1095,10 @@ enum PriceOfferSourceType {
 }
 
 type PriceOption {
-  priceOfferId: UUID!
   score: Decimal!
   sellPrice: Decimal!
   markup: Decimal!
-  forStorage: String!
+  forStorage: Storage!
   deliveryTime: Duration!
   guaranteedDeliveryTime: Duration!
   deliveryProbability: Int!
@@ -1350,6 +1415,9 @@ type PurchaseUpdated {
 }
 
 type Query {
+  jobs: JobQueries!
+  jobSchedules: JobScheduleQueries!
+  deliverySchedules: DeliveryScheduleQueries!
   analytics: AnalyticsQueries!
   catalogue: CatalogueQueries!
   catalogueCandidates: CatalogueCandidateQueries!
@@ -1831,6 +1899,7 @@ enum StorageType {
 }
 
 type Subscription {
+  onJobUpdated: JobUpdated!
   onNotificationCreated: NotificationCreated! @eventStream(message: "notification { id }") @authorize(policy: "GraphQL.Permission.All")
   onPurchaseCreated: PurchaseCreated! @eventStream(message: "purchase { id }") @authorize(policy: "GraphQL.Permission.All")
   onPurchaseUpdated: PurchaseUpdated! @eventStream(message: "purchase { id }") @authorize(policy: "GraphQL.Permission.All")

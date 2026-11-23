@@ -1,5 +1,6 @@
 import type {
   CharacteristicSortField, DocumentGenerationRequestSortField,
+  JobSortField, JobScheduleSortField,
   OrganizationSortField, ProductGroupSortField, ProductPriceOptionSortField,
   ProductSortField, PurchaseSortField, SaleContentSortField, SaleSortField,
   SearchCatalogueCandidateSortField, SearchProductSortField, StorageContentSortField,
@@ -7,6 +8,8 @@ import type {
 
 // Registered fields in backend master bb6f8254. Keep Main and Search distinct.
 export const sortFields = {
+  Job: ['ID', 'CREATED_AT', 'UPDATED_AT', 'STATUS'],
+  JobSchedule: ['ID', 'NAME', 'JOB_SYSTEM_NAME', 'NEXT_RUN_AT', 'LAST_QUEUED_AT', 'ENABLED'],
   Characteristic: ['ID', 'NAME', 'NORMALIZED_NAME'],
   DocumentGenerationRequest: ['REQUEST_ID', 'JOB_ID', 'REQUESTER_ID', 'DOCUMENT_SYSTEM_NAME', 'CREATED_AT', 'GENERATED_AT', 'EXPIRES_AT'],
   Organization: ['ID', 'NAME', 'SYSTEM_NAME', 'TYPE', 'APPROXIMATE_BALANCE'],
@@ -20,6 +23,7 @@ export const sortFields = {
   SearchProduct: ['ID', 'SKU', 'PRODUCER_ID', 'STOCK', 'LENGTH', 'WIDTH', 'HEIGHT', 'VOLUME', 'WEIGHT'],
   StorageContent: ['ID', 'PRODUCT_ID', 'STORAGE_CODE', 'COUNT', 'BUY_PRICE', 'PURCHASE_DATETIME', 'CURRENCY_ID', 'AVAILABLE_COUNT'],
 } as const satisfies {
+  Job: readonly JobSortField[]; JobSchedule: readonly JobScheduleSortField[];
   Characteristic: readonly CharacteristicSortField[]; DocumentGenerationRequest: readonly DocumentGenerationRequestSortField[];
   Organization: readonly OrganizationSortField[]; ProductGroup: readonly ProductGroupSortField[];
   ProductPriceOption: readonly ProductPriceOptionSortField[]; Product: readonly ProductSortField[]; Purchase: readonly PurchaseSortField[];

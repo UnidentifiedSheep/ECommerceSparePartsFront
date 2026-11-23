@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, ref, type EffectScope } from 'vue'
 import { useAnalysisJob } from './useAnalysisJob'
 import { getServiceJob, type JobModel } from '@/services/api/jobs'
-import { startJobHub } from '@/services/realtime/jobHub'
+import { startJobUpdates } from '@/services/realtime/jobUpdates'
 vi.mock('@/services/api/jobs', () => ({ getServiceJob: vi.fn() }))
-vi.mock('@/services/realtime/jobHub', () => ({ startJobHub: vi.fn() }))
+vi.mock('@/services/realtime/jobUpdates', () => ({ startJobUpdates: vi.fn() }))
 const job = (id = 'job-1', status = 'Pending'): JobModel => ({ id, status, isStep: false, multiStepJobId: null, systemName: 'AbcXyzCalculationLrt', attempts: 0, maxAttempts: 3, errorMessage: null, lockedAt: null, createdAt: '2026-11-17T00:00:00Z', updatedAt: '2026-11-17T00:00:00Z', createdBy: null })
 let scope: EffectScope
 const stop = vi.fn(async () => {})
@@ -17,7 +17,7 @@ async function flush() { for (let i = 0; i < 10; i++) await nextTick() }
 beforeEach(() => {
   vi.useFakeTimers(); vi.resetAllMocks()
   vi.mocked(getServiceJob).mockResolvedValue({ job: job() })
-  vi.mocked(startJobHub).mockResolvedValue({ stop } as never)
+  vi.mocked(startJobUpdates).mockResolvedValue({ stop } as never)
 })
 afterEach(() => { scope.stop(); vi.useRealTimers() })
 describe('analysis job tracking', () => {
@@ -26,7 +26,7 @@ describe('analysis job tracking', () => {
     vi.mocked(getServiceJob).mockReturnValueOnce(new Promise(done => { resolve = done }))
     const state = setup()
     await flush()
-    const event = vi.mocked(startJobHub).mock.calls[0]![1]
+    const event = vi.mocked(startJobUpdates).mock.calls[0]![1]
     await event({ jobId: 'another-job', status: 'Succeeded', attempts: 1 })
     expect(state.job.value?.status).toBe('Pending')
     await event({ jobId: 'job-1', status: 'Succeeded', attempts: 1 })
@@ -37,7 +37,7 @@ describe('analysis job tracking', () => {
     expect(stop).toHaveBeenCalled()
   })
   it('polls when realtime is unavailable, then stops after completion', async () => {
-    vi.mocked(startJobHub).mockRejectedValue(new Error('offline'))
+    vi.mocked(startJobUpdates).mockRejectedValue(new Error('offline'))
     vi.mocked(getServiceJob).mockResolvedValueOnce({ job: job() }).mockResolvedValueOnce({ job: job('job-1', 'Succeeded') })
     const state = setup()
     await flush()
@@ -51,7 +51,7 @@ describe('analysis job tracking', () => {
     await flush()
     expect(state.job.value?.id).toBe('job-1')
     expect(getServiceJob).not.toHaveBeenCalled()
-    expect(startJobHub).not.toHaveBeenCalled()
+    expect(startJobUpdates).not.toHaveBeenCalled()
   })
   it('closes the connection and stops polling on unmount', async () => {
     setup()

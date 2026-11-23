@@ -1,0 +1,19 @@
+fragment JobFields on Job {
+  id isStep stepKey inputInitialized multiStepJob { id }
+  info { systemName name description }
+  status attempts maxAttempts errorMessage lockedAt createdAt updatedAt createdBy { id }
+}
+fragment JobScheduleFields on JobSchedule {
+  id name description jobInfo { systemName name } inputState maxAttempts cron localizedCron lastQueuedAt nextRunAt enabled
+}
+query AvailableJobs { jobs { available { systemName name description initStateSchema { ...ChartSchema } } } }
+query SearchJobs($input: SearchJobsInput!) { jobs { search(input: $input) { ...JobFields } } }
+query JobById($id: UUID!) { jobs { byId(id: $id) { ...JobFields } } }
+query JobStateById($id: UUID!) { jobs { byId(id: $id) { id state { state inputInitialized output } } } }
+mutation CreateJob($input: CreateJobInput!) { jobs { create(input: $input) { ...JobFields } } }
+mutation CancelJob($id: UUID!) { jobs { cancel(id: $id) } }
+query SearchJobSchedules($input: SearchJobSchedulesInput!) { jobSchedules { search(input: $input) { ...JobScheduleFields } } }
+mutation CreateJobSchedule($input: CreateJobScheduleInput!) { jobSchedules { create(input: $input) { ...JobScheduleFields } } }
+mutation UpdateJobSchedule($input: UpdateJobScheduleInput!) { jobSchedules { update(input: $input) { ...JobScheduleFields } } }
+mutation RemoveJobSchedule($id: UUID!) { jobSchedules { remove(id: $id) } }
+subscription JobUpdated { onJobUpdated { job { ...JobFields } } }

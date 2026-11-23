@@ -28,7 +28,7 @@ query AvailableDocuments {
 
 fragment DocumentGenerationRequestFields on DocumentGenerationRequest {
   requestId
-  jobId
+  job { id }
   status
   documentSystemName
   requesterId

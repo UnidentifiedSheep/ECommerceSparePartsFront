@@ -19,7 +19,7 @@
       <div class="document-requests__header">
         <SortableColumnHeader :label="t('documents.documentColumn')" field="documentSystemName" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSort" />
         <SortableColumnHeader :label="t('documents.createdAt')" field="createdAt" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSort" />
-        <SortableColumnHeader :label="t('documents.status')" field="status" :sort-by="sortBy" :title="t('products.multiSortHint')" @toggle="handleSort" />
+        <span>{{ t('documents.status') }}</span>
         <span>{{ t('documents.actions') }}</span>
       </div>
       <div v-loading="loading && !requests.length" class="document-requests__rows">
