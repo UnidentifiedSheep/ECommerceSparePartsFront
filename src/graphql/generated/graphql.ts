@@ -81,7 +81,7 @@ export type CreateGenerationRequestInput = {
 
 export type CreateJobInput = {
   inputState: string;
-  maxAttempts?: number;
+  maxAttempts: number;
   systemName: string;
 };
 
@@ -91,7 +91,7 @@ export type CreateJobScheduleInput = {
   enabled: boolean;
   inputState: string;
   jobSystemName: string;
-  maxAttempts?: number;
+  maxAttempts: number;
   name: string;
 };
 
@@ -798,7 +798,7 @@ export type SearchCharacteristicsInput = {
 export type SearchDeliverySchedulesInput = {
   pagination: PaginationInput;
   storageCode?: string | null | undefined;
-  suppliers?: Array<Supplier> | null | undefined;
+  suppliers: Array<Supplier>;
 };
 
 export type SearchDocumentsInput = {
@@ -809,7 +809,7 @@ export type SearchDocumentsInput = {
 };
 
 export type SearchJobSchedulesInput = {
-  jobSystemNames?: Array<string> | null | undefined;
+  jobSystemNames: Array<string>;
   nextRunFrom?: string | null | undefined;
   nextRunTo?: string | null | undefined;
   pagination: PaginationInput;
@@ -819,8 +819,8 @@ export type SearchJobSchedulesInput = {
 export type SearchJobsInput = {
   pagination: PaginationInput;
   sortBy?: Array<JobSortBy> | null | undefined;
-  statuses?: Array<JobStatus> | null | undefined;
-  systemNames?: Array<string> | null | undefined;
+  statuses: Array<JobStatus>;
+  systemNames: Array<string>;
 };
 
 export type SearchMarkupGroupsInput = {

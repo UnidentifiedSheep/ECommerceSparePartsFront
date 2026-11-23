@@ -41,14 +41,14 @@ type JobScheduleQueries { byId(id: UUID!): JobSchedule byIds(ids: [UUID!]!): [Jo
 type JobMutations { create(input: CreateJobInput!): Job! cancel(id: UUID!): Boolean! }
 type JobScheduleMutations { create(input: CreateJobScheduleInput!): JobSchedule! update(input: UpdateJobScheduleInput!): JobSchedule! remove(id: UUID!): Boolean! }
 type JobUpdated { job: Job! }
-input SearchJobsInput { systemNames: [String!] statuses: [JobStatus!] pagination: PaginationInput! sortBy: [JobSortBy!] }
-input SearchJobSchedulesInput { jobSystemNames: [String!] nextRunFrom: DateTime nextRunTo: DateTime pagination: PaginationInput! sortBy: [JobScheduleSortBy!] }
+input SearchJobsInput { systemNames: [String!]! statuses: [JobStatus!]! pagination: PaginationInput! sortBy: [JobSortBy!] }
+input SearchJobSchedulesInput { jobSystemNames: [String!]! nextRunFrom: DateTime nextRunTo: DateTime pagination: PaginationInput! sortBy: [JobScheduleSortBy!] }
 input JobSortBy { field: JobSortField! isDescending: Boolean! argument: String }
 enum JobSortField { ID CREATED_AT UPDATED_AT STATUS }
 input JobScheduleSortBy { field: JobScheduleSortField! isDescending: Boolean! argument: String }
 enum JobScheduleSortField { ID NAME JOB_SYSTEM_NAME NEXT_RUN_AT LAST_QUEUED_AT ENABLED }
-input CreateJobInput { systemName: String! inputState: String! maxAttempts: Int! = 3 }
-input CreateJobScheduleInput { name: String! description: String jobSystemName: String! inputState: String! maxAttempts: Int! = 3 cron: String! enabled: Boolean! }
+input CreateJobInput { systemName: String! inputState: String! maxAttempts: Int! }
+input CreateJobScheduleInput { name: String! description: String jobSystemName: String! inputState: String! maxAttempts: Int! cron: String! enabled: Boolean! }
 input UpdateJobScheduleInput { scheduleId: UUID! name: GqlPatchFieldOfStringInput description: GqlPatchFieldOfStringInput inputState: GqlPatchFieldOfStringInput maxAttempts: GqlPatchFieldOfInt32Input cron: GqlPatchFieldOfStringInput enabled: GqlPatchFieldOfBooleanInput }
 
 scalar LocalDate
@@ -62,7 +62,7 @@ type DeliveryScheduleMutations {
   addException(input: DeliveryScheduleExceptionInput!): DeliverySchedule!
   removeException(input: DeliveryScheduleExceptionInput!): DeliverySchedule!
 }
-input SearchDeliverySchedulesInput { suppliers: [Supplier!] storageCode: String pagination: PaginationInput! }
+input SearchDeliverySchedulesInput { suppliers: [Supplier!]! storageCode: String pagination: PaginationInput! }
 input CreateDeliveryScheduleInput { supplier: Supplier! storageCode: String! days: [DayOfWeek!]! }
 input UpdateDeliveryScheduleInput { supplier: Supplier! storageCode: String! days: [DayOfWeek!]! }
 input DeliveryScheduleExceptionInput { supplier: Supplier! storageCode: String! date: LocalDate! }
