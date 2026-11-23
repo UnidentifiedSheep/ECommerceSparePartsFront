@@ -1,3 +1,5 @@
+query SchemaProductsByIds($ids: [Int!]!) { products { byIds(ids: $ids) { id sku name } } }
+
 fragment ProductFields on Product {
   id
   sku

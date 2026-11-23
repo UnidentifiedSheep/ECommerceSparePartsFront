@@ -68,12 +68,11 @@ query ProductPriceOffers($id: Int!, $input: ProductOffersInput!) {
     byId(id: $id) {
       id
       offers(input: $input) {
-        priceOfferId
         score
         currency { id }
         sellPrice
         markup
-        forStorage
+        forStorage { code }
         deliveryTime
         guaranteedDeliveryTime
         deliveryProbability
@@ -81,7 +80,7 @@ query ProductPriceOffers($id: Int!, $input: ProductOffersInput!) {
           id
           product { id }
           currency { id }
-          offerForStorage
+          offerForStorage { code }
           purchasePrice
           source
           availableQuantity

@@ -35,9 +35,9 @@ export async function getPriceOffersForProduct(
   }))
   if (!data.products.byId) throw new Error('Product not found')
   return { priceOptions: data.products.byId.offers.map(option => ({
-    ...option, currencyId: option.currency.id,
+    ...option, priceOfferId: option.offer.id, forStorage: option.forStorage.code, currencyId: option.currency.id,
     offer: { ...option.offer, productId: option.offer.product.id, currencyId: option.offer.currency.id,
-      source: modelSources[option.offer.source], deliveryDate: option.offer.deliveryDate ?? null,
+      source: modelSources[option.offer.source], offerForStorage: option.offer.offerForStorage.code, deliveryDate: option.offer.deliveryDate ?? null,
       guaranteedDeliveryDate: option.offer.guaranteedDeliveryDate ?? null, orderTill: option.offer.orderTill ?? null },
   })) }
 }

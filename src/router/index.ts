@@ -133,6 +133,7 @@ const routes = [
         component: JobsView,
         meta: { requiresAuth: true },
       },
+      { path: '/delivery-schedules', name: 'delivery-schedules', component: () => import('@/views/DeliverySchedulesView.vue'), meta: { requiresAuth: true } },
       {
         path: '/analytics',
         name: 'analytics',

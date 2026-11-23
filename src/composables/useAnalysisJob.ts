@@ -1,14 +1,13 @@
 import { computed, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue'
-import type { HubConnection } from '@microsoft/signalr'
 import { getServiceJob, type JobModel } from '@/services/api/jobs'
-import { startJobHub } from '@/services/realtime/jobHub'
+import { startJobUpdates, type JobUpdatesConnection } from '@/services/realtime/jobUpdates'
 
 export function useAnalysisJob(initial: Ref<JobModel | undefined>, canTrack: Ref<boolean>) {
   const job = shallowRef<JobModel>()
   const failedToRead = ref(false), refreshing = ref(false)
   const terminal = computed(() => Boolean(job.value && ['Succeeded', 'Failed', 'Cancelled'].includes(job.value.status)))
   let generation = 0, revision = 0
-  let connection: HubConnection | undefined
+  let connection: JobUpdatesConnection | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   function stop() { clearTimeout(timer); timer = undefined; void connection?.stop(); connection = undefined }
   onScopeDispose(() => { ++generation; stop() })
@@ -34,13 +33,13 @@ export function useAnalysisJob(initial: Ref<JobModel | undefined>, canTrack: Ref
     if (!value || !allowed || terminal.value) return
     void refresh()
     poll(request)
-    void startJobHub('main', event => {
+    void startJobUpdates('main', event => {
       if (request !== generation || event.jobId !== job.value?.id) return
       ++revision
-      job.value = { ...job.value, status: event.status, attempts: event.attempts }
+      job.value = event.job ?? { ...job.value, status: event.status, attempts: event.attempts }
       failedToRead.value = false
       if (event.status === 'Failed') void refresh()
-    }).then(result => {
+    }, () => { void refresh() }).then(result => {
       if (request !== generation || terminal.value) void result.stop()
       else connection = result
     }).catch(() => { /* Polling continues when realtime is unavailable. */ })

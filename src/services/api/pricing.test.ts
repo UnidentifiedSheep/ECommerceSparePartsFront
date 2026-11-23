@@ -94,12 +94,12 @@ describe('Pricing GraphQL contracts', () => {
 
   it('loads product offers with server paging, source enums and ordered sort keys; maps currencies and dates', async () => {
     vi.mocked(graphqlClient.query).mockResolvedValue({ data: { products: { byId: { id: 4, offers: [{
-      priceOfferId: 'offer-1', score: 1, currency: { id: 2 }, sellPrice: 120, markup: 0.2, forStorage: 'MAIN', deliveryTime: 'PT24H', guaranteedDeliveryTime: 'P2D', deliveryProbability: 90,
-      offer: { id: 'offer-1', product: { id: 4 }, currency: { id: 3 }, source: 'FAVORITE_PARTS', offerForStorage: 'SUPPLIER', purchasePrice: 100, availableQuantity: 5, minimumPurchaseQuantity: 1, quantityCoefficient: 1, daysToRefund: 14, deliveryDate: null, guaranteedDeliveryDate: '2026-10-30T00:00:00Z', deliveryProbability: 90, orderTill: null, expiresAt: '2026-10-31T00:00:00Z' },
+      score: 1, currency: { id: 2 }, sellPrice: 120, markup: 0.2, forStorage: { code: 'MAIN' }, deliveryTime: 'PT24H', guaranteedDeliveryTime: 'P2D', deliveryProbability: 90,
+      offer: { id: 'offer-1', product: { id: 4 }, currency: { id: 3 }, source: 'FAVORITE_PARTS', offerForStorage: { code: 'SUPPLIER' }, purchasePrice: 100, availableQuantity: 5, minimumPurchaseQuantity: 1, quantityCoefficient: 1, daysToRefund: 14, deliveryDate: null, guaranteedDeliveryDate: '2026-10-30T00:00:00Z', deliveryProbability: 90, orderTill: null, expiresAt: '2026-10-31T00:00:00Z' },
     }] } } } } as never)
     const result = await getPriceOffersForProduct({ productId: 4, currencyId: 2, storageCode: 'MAIN', page: 3, size: 500, sources: ['OurWarehouse', 'Armtek', 'FavoriteParts', 'Tmtr'], sortBy: ['-score', 'sellPrice_asc'] })
     expect(queryInput()).toEqual({ currencyId: 2, storageCode: 'MAIN', pagination: { page: 3, size: 100 }, sources: ['OUR_WAREHOUSE', 'ARMTEK', 'FAVORITE_PARTS', 'TMTR'], sortBy: [{ field: 'SCORE', isDescending: true }] })
-    expect(result.priceOptions[0]).toMatchObject({ currencyId: 2, sellPrice: 120, deliveryTime: 'PT24H', offer: { productId: 4, currencyId: 3, source: 'FavoriteParts', orderTill: null, guaranteedDeliveryDate: '2026-10-30T00:00:00Z' } })
+    expect(result.priceOptions[0]).toMatchObject({ priceOfferId: 'offer-1', forStorage: 'MAIN', currencyId: 2, sellPrice: 120, deliveryTime: 'PT24H', offer: { offerForStorage: 'SUPPLIER', productId: 4, currencyId: 3, source: 'FavoriteParts', orderTill: null, guaranteedDeliveryDate: '2026-10-30T00:00:00Z' } })
   })
 
   it('keeps business validation errors localized and typed for the UI', async () => {

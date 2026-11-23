@@ -22,7 +22,6 @@
   "dependencies": {
     "@apollo/client": "^3.14.1",
     "@element-plus/icons-vue": "^2.3.2",
-    "@microsoft/signalr": "^10.0.0",
     "@tailwindcss/vite": "^4.2.1",
     "@vue/apollo-composable": "^4.2.2",
     "@vueuse/core": "^14.2.1",

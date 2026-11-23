@@ -90,6 +90,7 @@
     </section>
 
     <section v-else-if="activeJobsTab === 'current'" class="current-jobs-panel">
+      <el-alert v-if="jobRealtimeUnavailable" type="info" :closable="false" :title="t('jobs.pollingFallback')" />
       <div class="current-jobs-toolbar current-jobs-toolbar--split">
         <div class="current-jobs-toolbar-main">
           <el-select
@@ -760,7 +761,7 @@
       </div>
 
       <el-skeleton v-if="isLoadingJobState" :rows="8" animated />
-      <pre v-else class="state-preview">{{ formattedJobState }}</pre>
+      <template v-else><pre class="state-preview">{{ formattedJobState }}</pre><template v-if="jobOutput !== null"><h3>{{ t('jobs.output') }}</h3><pre class="state-preview">{{ jobOutput }}</pre></template></template>
 
       <template #footer>
         <el-button @click="stateDialogOpen = false">{{ t('common.actions.close') }}</el-button>
@@ -772,7 +773,6 @@
 <script setup lang="ts">
 import { useDialogGuard } from '@/composables/useDialogGuard'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import type { HubConnection } from '@microsoft/signalr'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { Close, Delete, Edit, Filter, View } from '@element-plus/icons-vue'
 import ActionIconButton from '@/components/common/ActionIconButton.vue'
@@ -816,7 +816,7 @@ import { usePermissions } from '@/composables/usePermissions.ts'
 import { toSortExpressions, useMultiSort } from '@/composables/useMultiSort.ts'
 import { useStorageEntityOptions } from '@/composables/useStorageEntityOptions.ts'
 import { useI18n } from '@/i18n'
-import { startJobHub, type JobStatusUpdatedEvent } from '@/services/realtime/jobHub.ts'
+import { startJobUpdates, type JobStatusUpdatedEvent, type JobUpdatesConnection } from '@/services/realtime/jobUpdates'
 import {
   formatStructuredSchemaValue,
   isStructuredSchemaField,
@@ -911,6 +911,7 @@ const currentJobs = ref<JobModel[]>([])
 const schedules = ref<JobScheduleModel[]>([])
 const selectedStateJob = ref<JobModel | null>(null)
 const jobState = ref('')
+const jobOutput = ref<string | null>(null)
 const loadingStateJobId = ref<string | null>(null)
 const cancellingJobId = ref<string | null>(null)
 const updatingScheduleId = ref<string | null>(null)
@@ -925,8 +926,13 @@ const productsHasNext = ref(true)
 const namedObjects = ref<Record<string, NamedObjectModel[]>>({})
 const inputState = reactive<Record<string, string | number | boolean | null>>({})
 const loadingNamedObjectGroups = ref<Set<string>>(new Set())
-let jobHubConnection: HubConnection | null = null
-let jobHubServiceKey: string | null = null
+let jobUpdatesConnection: JobUpdatesConnection | null = null
+let jobConnectionVersion = 0
+let currentJobsRequestVersion = 0, schedulesRequestVersion = 0, stateRequestVersion = 0
+let jobEventRevision = 0
+const jobRealtimeUnavailable = ref(true)
+let jobPollTimer: ReturnType<typeof setInterval> | undefined
+let jobUpdatesServiceKey: string | null = null
 const { locale, t } = useI18n()
 const { hasPermission } = usePermissions()
 const {
@@ -1074,31 +1080,34 @@ const drawerSubmitLabel = computed(() => {
 })
 
 onMounted(async () => {
+  jobPollTimer = setInterval(() => { if (activeJobsTab.value === 'current' && jobRealtimeUnavailable.value && !isLoadingCurrentJobs.value && hasPermission('JOBS_GET') && document.visibilityState === 'visible') void loadCurrentJobs() }, 10000)
   await loadJobs()
 })
 
 onBeforeUnmount(async () => {
-  await stopJobHubConnection()
+  ++currentJobsRequestVersion; ++schedulesRequestVersion; ++stateRequestVersion
+  clearInterval(jobPollTimer)
+  await stopJobUpdatesConnection()
 })
 
 watch(activeJobsTab, async (tab) => {
   if (tab === 'current') {
     ensureCurrentServiceSelected()
-    await syncJobHubConnection()
+    await syncJobUpdatesConnection()
     await loadCurrentJobs(true)
   } else if (tab === 'schedules') {
     ensureScheduleServiceSelected()
-    await stopJobHubConnection()
+    await stopJobUpdatesConnection()
     await loadSchedules(true)
   } else {
-    await stopJobHubConnection()
+    await stopJobUpdatesConnection()
   }
 })
 
 watch(selectedCurrentService, async () => {
   currentJobSystemNames.value = []
   if (activeJobsTab.value === 'current') {
-    await syncJobHubConnection()
+    await syncJobUpdatesConnection()
     await loadCurrentJobs(true)
   }
 })
@@ -1180,6 +1189,7 @@ async function loadCurrentJobs(resetPage = false) {
     return
   }
 
+  const request = ++currentJobsRequestVersion
   isLoadingCurrentJobs.value = true
   try {
     const response = await getServiceJobs(selectedCurrentService.value, {
@@ -1189,14 +1199,17 @@ async function loadCurrentJobs(resetPage = false) {
       systemNames: currentJobSystemNames.value,
       sortBy: toSortExpressions(currentJobsSortBy.value),
     })
-    currentJobs.value = response.jobs
+    if (request !== currentJobsRequestVersion) return
+    const latest = new Map(currentJobs.value.map(job => [job.id, job]))
+    currentJobs.value = response.jobs.map(job => { const existing = latest.get(job.id); return existing && Date.parse(existing.updatedAt) > Date.parse(job.updatedAt) ? existing : job })
     currentJobsHasNext.value = response.jobs.length === currentJobsLimit.value
   } catch (error) {
+    if (request !== currentJobsRequestVersion) return
     currentJobs.value = []
     currentJobsHasNext.value = false
     ElMessage.error(error instanceof Error ? error.message : t('jobs.loadCurrentError'))
   } finally {
-    isLoadingCurrentJobs.value = false
+    if (request === currentJobsRequestVersion) isLoadingCurrentJobs.value = false
   }
 }
 
@@ -1208,6 +1221,7 @@ async function loadSchedules(resetPage = false) {
     return
   }
 
+  const request = ++schedulesRequestVersion
   isLoadingSchedules.value = true
   try {
     const response = await getServiceJobSchedules(selectedScheduleService.value, {
@@ -1222,14 +1236,16 @@ async function loadSchedules(resetPage = false) {
         : null,
       sortBy: toSortExpressions(schedulesSortBy.value),
     })
+    if (request !== schedulesRequestVersion) return
     schedules.value = response.schedules
     schedulesHasNext.value = response.schedules.length === schedulesLimit.value
   } catch (error) {
+    if (request !== schedulesRequestVersion) return
     schedules.value = []
     schedulesHasNext.value = false
     ElMessage.error(error instanceof Error ? error.message : t('jobs.loadSchedulesError'))
   } finally {
-    isLoadingSchedules.value = false
+    if (request === schedulesRequestVersion) isLoadingSchedules.value = false
   }
 }
 
@@ -1924,6 +1940,8 @@ async function submitSchedule() {
 }
 
 function addOrReplaceSchedule(schedule: JobScheduleModel) {
+  ++schedulesRequestVersion
+  isLoadingSchedules.value = false
   const index = schedules.value.findIndex((item) => item.id === schedule.id)
   if (index >= 0) {
     schedules.value.splice(index, 1, schedule)
@@ -1947,26 +1965,29 @@ function ensureScheduleServiceSelected() {
   selectedScheduleService.value = serviceCards.value.find((service) => service.available)?.key ?? null
 }
 
-async function syncJobHubConnection() {
+async function syncJobUpdatesConnection() {
   const serviceKey = activeJobsTab.value === 'current'
     ? selectedCurrentService.value
     : null
 
   if (!serviceKey) {
-    await stopJobHubConnection()
+    await stopJobUpdatesConnection()
     return
   }
 
-  if (jobHubConnection && jobHubServiceKey === serviceKey) return
+  if (jobUpdatesConnection && jobUpdatesServiceKey === serviceKey) return
 
-  await stopJobHubConnection()
+  await stopJobUpdatesConnection()
 
+  const request = jobConnectionVersion
   try {
-    jobHubConnection = await startJobHub(serviceKey, handleJobStatusUpdated)
-    jobHubServiceKey = serviceKey
+    const connection = await startJobUpdates(serviceKey, handleJobStatusUpdated, () => { if (request === jobConnectionVersion) { jobRealtimeUnavailable.value = false; if (!isLoadingCurrentJobs.value) void loadCurrentJobs() } }, () => { if (request === jobConnectionVersion) jobRealtimeUnavailable.value = true })
+    if (request !== jobConnectionVersion) { await connection.stop(); return }
+    jobUpdatesConnection = connection
+    jobUpdatesServiceKey = serviceKey
   } catch {
-    jobHubConnection = null
-    jobHubServiceKey = null
+    jobUpdatesConnection = null
+    jobUpdatesServiceKey = null
     ElNotification.warning({
       title: t('common.messages.realtimeUnavailableTitle'),
       message: t('jobs.realtimeUnavailable', { service: serviceLabel(serviceKey) }),
@@ -1974,10 +1995,12 @@ async function syncJobHubConnection() {
   }
 }
 
-async function stopJobHubConnection() {
-  const connection = jobHubConnection
-  jobHubConnection = null
-  jobHubServiceKey = null
+async function stopJobUpdatesConnection() {
+  ++jobConnectionVersion
+  jobRealtimeUnavailable.value = true
+  const connection = jobUpdatesConnection
+  jobUpdatesConnection = null
+  jobUpdatesServiceKey = null
   await connection?.stop()
 }
 
@@ -1985,9 +2008,8 @@ function handleJobStatusUpdated(event: JobStatusUpdatedEvent) {
   const job = currentJobs.value.find((item) => item.id.toLowerCase() === event.jobId.toLowerCase())
   if (!job) return
 
-  job.status = event.status
-  job.attempts = event.attempts
-  job.updatedAt = new Date().toISOString()
+  ++jobEventRevision
+  Object.assign(job, event.job ?? { status: event.status, attempts: event.attempts, updatedAt: new Date().toISOString() })
 }
 
 function handleCurrentJobsSortToggle(field: string, event: MouseEvent) {
@@ -2079,10 +2101,10 @@ async function cancelJob(row: JobModel) {
   const cancelsImmediately = ['Pending', 'Waiting', 'Blocked'].includes(row.status)
 
   cancellingJobId.value = row.id
+  const revision = jobEventRevision
   try {
     await cancelServiceJob(serviceKey, row.id)
-    row.status = cancelsImmediately ? 'Cancelled' : 'CancellationRequested'
-    row.updatedAt = new Date().toISOString()
+    if (revision === jobEventRevision) row.status = cancelsImmediately ? 'Cancelled' : 'CancellationRequested'
     ElMessage.success(t(cancelsImmediately ? 'jobs.cancelled' : 'jobs.cancelRequested'))
     if (selectedCurrentService.value === serviceKey) await loadCurrentJobs()
   } catch (error) {
@@ -2094,26 +2116,31 @@ async function cancelJob(row: JobModel) {
 
 async function openJobState(row: JobModel) {
   if (!selectedCurrentService.value) return
+  const request = ++stateRequestVersion
 
   selectedStateJob.value = row
   jobState.value = ''
+  jobOutput.value = null
   stateDialogOpen.value = true
   isLoadingJobState.value = true
   loadingStateJobId.value = row.id
 
   try {
     const response = await getServiceJobState(selectedCurrentService.value, row.id)
+    if (request !== stateRequestVersion) return
     jobState.value = response.state
+    jobOutput.value = response.output ?? null
   } catch (error) {
+    if (request !== stateRequestVersion) return
     stateDialogOpen.value = false
     ElMessage.error(error instanceof Error ? error.message : t('jobs.stateLoadError'))
   } finally {
-    isLoadingJobState.value = false
-    loadingStateJobId.value = null
+    if (request === stateRequestVersion) { isLoadingJobState.value = false; loadingStateJobId.value = null }
   }
 }
 
 function jobDefinitionName(systemName: string) {
+  if (!systemName) return t('jobs.unknownDefinition')
   return currentServiceAvailableJobs.value.find((job) => job.systemName === systemName)?.name ?? systemName
 }
 

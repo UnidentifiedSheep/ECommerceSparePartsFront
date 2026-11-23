@@ -19,6 +19,7 @@ const config: CodegenConfig = {
           UUID: 'string',
           DateTime: 'string',
           Duration: 'string',
+          LocalDate: 'string',
           Any: 'unknown',
         },
       },

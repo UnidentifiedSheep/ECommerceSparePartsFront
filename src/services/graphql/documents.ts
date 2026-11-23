@@ -11,10 +11,27 @@ import {
   type SearchDocumentsInput,
 } from '@/graphql/generated/graphql.ts'
 import { getAcceptLanguage, t } from '@/i18n'
+import { toUtcDateTimeString } from '@/utils/dateTime'
+import type { GetSalesRequest } from '@/services/api/sales'
 
 export type DocumentDefinition = AvailableDocumentsQuery['documents']['available'][number]
 export type DocumentRequest = DocumentGenerationRequestFieldsFragment
 const singleSaleDocumentSystemName = 'SingleSale'
+export type SalesListFilters = Omit<GetSalesRequest, 'page' | 'limit' | 'sortBy'>
+export function salesListDocumentRequest(filters: SalesListFilters) {
+  return {
+    documentType: 'Excel', culture: getAcceptLanguage(),
+    rangeStartDate: filters.rangeStartDate ? toUtcDateTimeString(filters.rangeStartDate) : undefined,
+    rangeEndDate: filters.rangeEndDate ? toUtcDateTimeString(filters.rangeEndDate) : undefined,
+    organizationIds: [...(filters.organizationIds ?? [])], currencyIds: [...(filters.currencyIds ?? [])],
+    productIds: [...(filters.productIds ?? [])], states: [...(filters.states ?? [])], searchTerm: filters.searchTerm?.trim() || undefined,
+  }
+}
+export async function createSalesListDocumentRequest(filters: SalesListFilters): Promise<DocumentRequest> {
+  const definitions = await getAvailableDocuments()
+  if (!definitions.some(item => item.systemName === 'SalesList' && item.supportedDocumentTypes.includes('EXCEL'))) throw new Error(t('documents.salesListUnavailable'))
+  return createDocumentGenerationRequest('SalesList', salesListDocumentRequest(filters))
+}
 const documentRequestTypes: Record<DocumentType, string> = {
   PDF: 'Pdf',
   EXCEL: 'Excel',
