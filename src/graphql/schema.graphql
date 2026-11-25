@@ -52,8 +52,9 @@ input CreateJobScheduleInput { name: String! description: String jobSystemName: 
 input UpdateJobScheduleInput { scheduleId: UUID! name: GqlPatchFieldOfStringInput description: GqlPatchFieldOfStringInput inputState: GqlPatchFieldOfStringInput maxAttempts: GqlPatchFieldOfInt32Input cron: GqlPatchFieldOfStringInput enabled: GqlPatchFieldOfBooleanInput }
 
 scalar LocalDate
+scalar LocalTime
 enum DayOfWeek { SUNDAY MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY }
-type DeliverySchedule { supplier: Supplier! storageCode: String! storage: Storage! days: [DayOfWeek!]! exceptions: [LocalDate!]! }
+type DeliverySchedule { supplier: Supplier! storageCode: String! storage: Storage! days: [DayOfWeek!]! arrivalTime: LocalTime! exceptions: [LocalDate!]! }
 type DeliveryScheduleQueries { byKey(supplier: Supplier!, storageCode: String!): DeliverySchedule search(input: SearchDeliverySchedulesInput!): [DeliverySchedule!]! }
 type DeliveryScheduleMutations {
   create(input: CreateDeliveryScheduleInput!): DeliverySchedule!
@@ -63,8 +64,8 @@ type DeliveryScheduleMutations {
   removeException(input: DeliveryScheduleExceptionInput!): DeliverySchedule!
 }
 input SearchDeliverySchedulesInput { suppliers: [Supplier!]! storageCode: String pagination: PaginationInput! }
-input CreateDeliveryScheduleInput { supplier: Supplier! storageCode: String! days: [DayOfWeek!]! }
-input UpdateDeliveryScheduleInput { supplier: Supplier! storageCode: String! days: [DayOfWeek!]! }
+input CreateDeliveryScheduleInput { supplier: Supplier! storageCode: String! days: [DayOfWeek!]! arrivalTime: LocalTime! }
+input UpdateDeliveryScheduleInput { supplier: Supplier! storageCode: String! days: [DayOfWeek!]! arrivalTime: LocalTime! }
 input DeliveryScheduleExceptionInput { supplier: Supplier! storageCode: String! date: LocalDate! }
 
 input AddPermissionToRoleInput {
@@ -1099,8 +1100,8 @@ type PriceOption {
   sellPrice: Decimal!
   markup: Decimal!
   forStorage: Storage!
-  deliveryTime: Duration!
-  guaranteedDeliveryTime: Duration!
+  deliveryDays: Int!
+  guaranteedDeliveryDays: Int!
   deliveryProbability: Int!
   offer: PriceOffer!
   currency: Currency! @cost(weight: "10")

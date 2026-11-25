@@ -155,9 +155,10 @@
               </span>
             </div>
             <div class="price-offer-cell price-offer-delivery" :data-label="t('priceOffers.deliveryDates')">
-              <strong>{{ formatShortDate(option.offer.deliveryDate) }}</strong>
-              <span>
-                {{ t('priceOffers.guaranteedCompact', { date: formatShortDate(option.offer.guaranteedDeliveryDate) }) }}
+              <strong v-if="option.offer.source === 'OurWarehouse' && option.offer.availableQuantity > 0">{{ t('priceOffers.inStock') }}</strong>
+              <strong v-else>{{ formatShortDateTime(option.offer.deliveryDate) }}</strong>
+              <span v-if="option.offer.guaranteedDeliveryDate">
+                {{ t('priceOffers.guaranteedCompact', { date: formatShortDateTime(option.offer.guaranteedDeliveryDate) }) }}
               </span>
             </div>
             <div
@@ -327,14 +328,6 @@ function formatPercent(value: number | string) {
   return `${(numericValue * 100).toLocaleString(locale.value, {
     maximumFractionDigits: 2,
   })}%`
-}
-
-function formatShortDate(value?: string | null) {
-  if (!value) return '—'
-  return new Date(value).toLocaleDateString(locale.value, {
-    day: '2-digit',
-    month: 'short',
-  })
 }
 
 function formatShortDateTime(value?: string | null) {

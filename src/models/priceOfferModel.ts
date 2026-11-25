@@ -32,8 +32,8 @@ export interface PriceOptionModel {
   sellPrice: number
   markup: number
   forStorage: string
-  deliveryTime: string
-  guaranteedDeliveryTime: string
+  deliveryDays: number
+  guaranteedDeliveryDays: number
   deliveryProbability: number
   offer: PriceOfferModel
 }

@@ -20,6 +20,7 @@ const config: CodegenConfig = {
           DateTime: 'string',
           Duration: 'string',
           LocalDate: 'string',
+          LocalTime: 'string',
           Any: 'unknown',
         },
       },

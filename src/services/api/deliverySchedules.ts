@@ -10,7 +10,12 @@ export async function getDeliverySchedules(input: { suppliers?: Supplier[]; stor
   return data.deliverySchedules.search
 }
 export async function saveDeliverySchedule(input: DeliveryScheduleInput, existing: boolean): Promise<DeliverySchedule> {
-  input = { supplier: input.supplier, storageCode: input.storageCode.trim(), days: [...new Set(input.days)] }
+  input = {
+    supplier: input.supplier,
+    storageCode: input.storageCode.trim(),
+    days: [...new Set(input.days)],
+    arrivalTime: input.arrivalTime.length === 5 ? `${input.arrivalTime}:00` : input.arrivalTime,
+  }
   if (existing) {
     const { data } = await operationRequest(graphqlClient.mutate({ mutation: UpdateDeliveryScheduleDocument, variables: { input } }))
     if (!data) throw new Error(t('deliverySchedules.saveError'))

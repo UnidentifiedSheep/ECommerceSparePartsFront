@@ -56,12 +56,9 @@ export const variableDefinitions: VariableDefinition[] = [
   { path: 'candidate.cost', type: 'number' },
   { path: 'candidate.currencyId', type: 'number' },
   { path: 'candidate.availableQuantity', type: 'number' },
-  { path: 'candidate.fulfillment.sourceStorageCode', type: 'text' },
-  { path: 'candidate.fulfillment.targetStorageCode', type: 'text' },
-  { path: 'candidate.fulfillment.logisticsCostInBaseCurrency', type: 'number' },
-  { path: 'candidate.fulfillment.deliveryTime', type: 'text' },
-  { path: 'candidate.fulfillment.guaranteedDeliveryTime', type: 'text' },
-  { path: 'candidate.fulfillment.deliveryProbability', type: 'number' },
+  { path: 'candidate.deliveryDays', type: 'number' },
+  { path: 'candidate.guaranteedDeliveryDays', type: 'number' },
+  { path: 'candidate.deliveryProbability', type: 'number' },
   { path: 'market.offerCount', type: 'number' },
   { path: 'market.availableQuantity', type: 'number' },
   { path: 'market.hasMarket', type: 'boolean' },
@@ -126,6 +123,20 @@ export function serializeJsonLogic(node: LogicNode): JsonLogicValue {
   if (node.kind === 'variable') return { var: node.path }
   if (node.kind === 'number' || node.kind === 'text' || node.kind === 'boolean') return node.value
   return { [node.operator]: node.args.map(serializeJsonLogic) }
+}
+
+export function obsoleteDeliveryVariables(root: LogicNode): string[] {
+  const paths = new Set<string>()
+
+  function visit(node: LogicNode) {
+    if (node.kind === 'operation') node.args.forEach(visit)
+    if (node.kind === 'variable' && (node.path === 'candidate.fulfillment' || node.path.startsWith('candidate.fulfillment.'))) {
+      paths.add(node.path)
+    }
+  }
+
+  visit(root)
+  return [...paths]
 }
 
 export function cloneNode(node: LogicNode): LogicNode {
