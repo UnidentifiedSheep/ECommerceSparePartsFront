@@ -8,11 +8,14 @@ const job = { id: 'job-1', isStep: true, stepKey: 'step', inputInitialized: true
 const schedule = { id: 'schedule', name: 'Schedule', description: null, jobInfo: { systemName: 'Test', name: 'Task' }, inputState: '{}', maxAttempts: 3, cron: '0 3 * * 0', localizedCron: 'Weekly', lastQueuedAt: null, nextRunAt: null, enabled: true }
 beforeEach(() => vi.resetAllMocks())
 describe('GraphQL job contracts', () => {
-  it('loads the available Main definitions and normalizes schema fields', async () => {
-    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { jobs: { available: [{ systemName: 'Test', name: 'Task', description: '', initStateSchema: { version: 1, fields: [{ name: 'x', type: 'STRING', required: false, accepts: [] }] } }] } } } as never)
+  it('loads the available Main definitions and normalizes schema fields and CSV columns', async () => {
+    const column = { propertyName: 'sku', names: ['SKU', 'Article'], type: 'STRING', required: true, label: 'SKU' }
+    const csvSchema = { columns: [column] }
+    vi.mocked(graphqlClient.query).mockResolvedValueOnce({ data: { jobs: { available: [{ systemName: 'Test', name: 'Task', description: '', initStateSchema: { version: 1, fields: [{ name: 'x', type: 'STRING', required: false, accepts: [] }], csvSchema } }] } } } as never)
     const result = await getGatewayJobs()
     expect(Object.keys(result.services)).toEqual(['main'])
     expect(result.services.main?.jobs[0]?.initStateSchema.fields[0]?.type).toBe('String')
+    expect(result.services.main?.jobs[0]?.initStateSchema.csvSchema?.columns).toEqual([{ ...column, type: 'String' }])
   })
   it('maps nested metadata and accepts missing definitions for historical jobs', () => {
     expect(mapJob(job)).toMatchObject({ status: 'CancellationRequested', systemName: 'Test', multiStepJobId: 'parent', createdBy: 'user', stepKey: 'step' })
