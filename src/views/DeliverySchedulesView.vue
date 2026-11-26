@@ -9,9 +9,13 @@
     </PageHeader>
     <el-empty v-if="!canRead" :description="t('deliverySchedules.noPermission')" />
     <section v-else class="delivery-panel">
-      <div class="delivery-filters"><el-select v-model="suppliers" multiple clearable :placeholder="t('deliverySchedules.supplier')" :aria-label="t('deliverySchedules.supplier')"><el-option v-for="supplier in deliverySuppliers" :key="supplier.value" :value="supplier.value" :label="supplier.label" /></el-select><el-input v-model="storageCode" clearable maxlength="128" :placeholder="t('deliverySchedules.storageCode')" :aria-label="t('deliverySchedules.storageCode')" /><el-button :loading="loading" @click="load(true)">{{ t('common.actions.refresh') }}</el-button></div>
       <div class="delivery-workspace">
-        <div ref="scrollElement" class="delivery-list" :aria-busy="loading" @scroll.passive="loadNearEnd">
+        <aside class="delivery-sidebar">
+          <div class="delivery-filters">
+            <el-input v-model="searchText" clearable :prefix-icon="Search" :placeholder="t('deliverySchedules.search')" :aria-label="t('deliverySchedules.search')" />
+            <el-button :icon="Refresh" :loading="loading" :aria-label="t('common.actions.refresh')" @click="load(true)" />
+          </div>
+          <div ref="scrollElement" class="delivery-list" :aria-busy="loading" @scroll.passive="loadNearEnd">
           <button
             v-for="row in visibleSchedules"
             :key="scheduleKey(row)"
@@ -20,22 +24,29 @@
             :aria-pressed="!!activeSchedule && scheduleKey(activeSchedule) === scheduleKey(row)"
             @click="activeSchedule = row"
           >
-            <strong>{{ supplierLabel(row.supplier) }}</strong>
-            <span>{{ row.storageCode }}</span>
+            <span>{{ supplierLabel(row.supplier) }} · {{ row.storageCode }}</span>
           </button>
-          <el-empty v-if="!loading && !error && !visibleSchedules.length" :description="t('deliverySchedules.empty')" :image-size="64" />
+          <el-empty v-if="!loading && !waitingForSearchPages && !error && !visibleSchedules.length" :description="t('deliverySchedules.empty')" :image-size="64" />
           <DataLoadError v-if="error" :error="error" @retry="load(rows.length === 0)" />
-          <p v-if="loading" role="status">{{ t('deliverySchedules.loading') }}</p>
-        </div>
+          <p v-if="loading || waitingForSearchPages" role="status">{{ t('deliverySchedules.loading') }}</p>
+          </div>
+        </aside>
         <section v-if="activeSchedule" class="delivery-detail">
           <div class="detail-header">
-            <div>
+            <div class="detail-title">
               <h2>{{ supplierLabel(activeSchedule.supplier) }} · {{ activeSchedule.storageCode }}</h2>
               <p>{{ scheduleSummary(activeSchedule) }}</p>
             </div>
             <div v-if="canEdit" class="detail-actions">
-              <el-button :disabled="changingException || deleting" @click="edit(activeSchedule)">{{ t('common.actions.edit') }}</el-button>
-              <el-button type="danger" plain :disabled="changingException || deleting" @click="remove(activeSchedule)">{{ t('common.actions.delete') }}</el-button>
+              <el-button size="small" :icon="EditPen" :disabled="changingException || deleting" @click="edit(activeSchedule)">{{ t('common.actions.edit') }}</el-button>
+              <el-dropdown trigger="click" :disabled="changingException || deleting">
+                <el-button size="small" :icon="MoreFilled" :aria-label="t('common.labels.actions')" />
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click="remove(activeSchedule)">{{ t('common.actions.delete') }}</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </div>
           <DeliveryScheduleCalendar
@@ -57,6 +68,7 @@
 import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { useDebounceFn, useResizeObserver } from '@vueuse/core'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { EditPen, MoreFilled, Refresh, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import DataLoadError from '@/components/common/DataLoadError.vue'
 import DeliveryScheduleEditor from '@/components/logistics/DeliveryScheduleEditor.vue'
@@ -72,14 +84,16 @@ const localOffset = -new Date().getTimezoneOffset()
 const { hasPermission } = usePermissions()
 const canRead = computed(() => hasPermission('DELIVERY_SCHEDULES_GET')), canEdit = computed(() => hasPermission('DELIVERY_SCHEDULES_EDIT'))
 const canListStorages = computed(() => hasPermission('STORAGES_GET'))
-const suppliers = ref<Supplier[]>([]), storageCode = ref(''), rows = ref<DeliverySchedule[]>([]), loading = ref(false), deleting = ref(false), hasMore = ref(false)
+const searchText = ref(''), searchTerm = ref(''), rows = ref<DeliverySchedule[]>([]), loading = ref(false), deleting = ref(false), hasMore = ref(false)
 const activeSchedule = ref<DeliverySchedule>(), editingSchedule = ref<DeliverySchedule>()
 const visibleSchedules = computed(() => {
   const active = activeSchedule.value
-  return active && !rows.value.some(row => scheduleKey(row) === scheduleKey(active))
+  const all = active && !rows.value.some(row => scheduleKey(row) === scheduleKey(active))
     ? [active, ...rows.value]
     : rows.value
+  return all.filter(matchesSearch)
 })
+const waitingForSearchPages = computed(() => !!searchTerm.value && hasMore.value)
 const changingException = ref(false)
 const editorOpen = ref(false), scrollElement = ref<HTMLElement>(), error = ref<DataLoadErrorKind | null>(null)
 let page = 0, version = 0, disposed = false, controller: AbortController | undefined
@@ -91,7 +105,7 @@ async function load(reset: boolean) {
   const nextPage = reset ? 0 : page + 1
   loading.value = true; error.value = null
   try {
-    const result = await getDeliverySchedules({ suppliers: [...suppliers.value], storageCode: storageCode.value, page: nextPage, size: 20 }, controller.signal)
+    const result = await getDeliverySchedules({ page: nextPage, size: 20 }, controller.signal)
     if (request !== version || disposed) return
     const existing = new Set(rows.value.map(scheduleKey))
     rows.value.push(...result.filter(row => !existing.has(scheduleKey(row))))
@@ -100,28 +114,27 @@ async function load(reset: boolean) {
     const active = activeSchedule.value
     activeSchedule.value = active
       ? rows.value.find(row => scheduleKey(row) === scheduleKey(active)) ?? active
-      : rows.value[0]
+      : visibleSchedules.value[0]
   }
   catch (cause) { if (request === version && !disposed) error.value = classifyDataLoadError(cause) }
   finally { if (request === version && !disposed) loading.value = false }
 }
-const reload = useDebounceFn(() => { void load(true) }, 300)
-watch([suppliers, storageCode], () => {
-  ++version
-  controller?.abort()
-  error.value = null
-  hasMore.value = false
-  const active = activeSchedule.value
-  if (active && ((suppliers.value.length && !suppliers.value.includes(active.supplier))
-    || (storageCode.value.trim() && active.storageCode !== storageCode.value.trim()))) activeSchedule.value = undefined
-  void reload()
-}, { deep: true })
+const applySearch = useDebounceFn(() => {
+  searchTerm.value = searchText.value.trim().toLowerCase()
+  if (!activeSchedule.value || !matchesSearch(activeSchedule.value)) activeSchedule.value = visibleSchedules.value[0]
+  loadNearEnd()
+}, 250)
+watch(searchText, () => void applySearch())
 watch(canRead, () => { void load(true) }, { immediate: true })
-function loadNearEnd() { const el = scrollElement.value; if (el && !error.value && el.scrollHeight - el.scrollTop - el.clientHeight < 100) void load(false) }
+function loadNearEnd() { const el = scrollElement.value; if (el && !error.value && (waitingForSearchPages.value || el.scrollHeight - el.scrollTop - el.clientHeight < 100)) void load(false) }
 watch([loading, scrollElement], async () => { await nextTick(); loadNearEnd() }, { flush: 'post' })
 useResizeObserver(scrollElement, loadNearEnd)
 function scheduleKey(row: DeliverySchedule) { return JSON.stringify([row.supplier, row.storageCode]) }
 function supplierLabel(supplier: Supplier) { return deliverySuppliers.find(item => item.value === supplier)?.label ?? supplier }
+function matchesSearch(row: DeliverySchedule) {
+  const label = `${supplierLabel(row.supplier)} ${row.storageCode}`.toLowerCase()
+  return searchTerm.value.split(/\s+/).every(part => label.includes(part))
+}
 function scheduleSummary(row: DeliverySchedule) {
   const weekdays = shiftDeliveryWeekdays(row.days, deliveryDateOffset(row.arrivalTime, localOffset))
   const days = weekdays.map(day => t(`deliverySchedules.week.${day}`)).join(', ')
@@ -142,12 +155,9 @@ function saved(row: DeliverySchedule, created: boolean) {
     return
   }
   activeSchedule.value = row
-  if (suppliers.value.length || storageCode.value) {
-    suppliers.value = []
-    storageCode.value = ''
-  } else {
-    void load(true)
-  }
+  searchText.value = ''
+  searchTerm.value = ''
+  void load(true)
 }
 async function toggleException(date: string, add: boolean) {
   const schedule = activeSchedule.value
@@ -177,29 +187,31 @@ async function remove(row: DeliverySchedule) {
 </script>
 <style scoped>
 .delivery-page { padding: 24px; }
-.delivery-panel { padding: 16px; border: 1px solid var(--app-border); background: var(--app-surface); border-radius: 8px; }
-.delivery-filters, .detail-header, .detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.delivery-filters { margin-bottom: 16px; }
-.delivery-filters .el-select, .delivery-filters .el-input { width: 260px; max-width: 100%; }
-.delivery-workspace { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 16px; }
-.delivery-list { max-height: 65dvh; overflow: auto; padding: 2px; }
+.delivery-panel { border: 1px solid var(--app-border); background: var(--app-surface); border-radius: 8px; }
+.delivery-workspace { display: grid; grid-template-columns: minmax(170px, 218px) minmax(0, 1fr); }
+.delivery-sidebar { min-width: 0; padding: 10px; border-inline-end: 1px solid var(--app-border); }
+.delivery-filters, .detail-header, .detail-title, .detail-actions { display: flex; align-items: center; gap: 8px; }
+.delivery-filters { margin-bottom: 6px; }
+.delivery-filters .el-button { margin: 0; padding-inline: 7px; }
+.delivery-list { max-height: 57dvh; overflow: auto; padding: 2px; }
 .schedule-row {
-  width: 100%; display: grid; gap: 2px; text-align: start; padding: 10px 12px; margin-bottom: 4px;
-  border: 1px solid transparent; border-radius: 6px; color: var(--el-text-color-regular);
+  width: 100%; display: block; text-align: start; padding: 7px 8px;
+  border-bottom: 1px solid var(--app-border); color: var(--el-text-color-regular);
   background: transparent; cursor: pointer; overflow-wrap: anywhere;
 }
-.schedule-row span, .detail-header p { color: var(--app-text-muted); }
-.schedule-row:hover, .schedule-row[aria-pressed="true"] { border-color: var(--app-border); background: var(--el-color-primary-light-9); }
-.schedule-row:focus-visible { outline: 2px solid var(--el-color-primary); }
-.delivery-detail { min-width: 0; padding-inline-start: 16px; border-inline-start: 1px solid var(--app-border); }
-.detail-header { justify-content: space-between; margin-bottom: 16px; }
-.detail-header h2 { margin: 0; font-size: 1.15em; overflow-wrap: anywhere; }
-.detail-header p { margin: 4px 0 0; }
-.detail-actions .el-button { margin: 0; }
+.schedule-row:hover, .schedule-row[aria-pressed="true"] { background: var(--el-color-primary-light-9); }
+.schedule-row[aria-pressed="true"] { color: var(--el-color-primary); font-weight: 650; }
+.schedule-row:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
+.delivery-detail { min-width: 0; padding: 10px 14px 14px; }
+.detail-header { justify-content: space-between; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--app-border); }
+.detail-title { flex-wrap: wrap; }
+.detail-title h2 { margin: 0; font-size: 1.05em; overflow-wrap: anywhere; }
+.detail-title p { margin: 0; color: var(--app-text-muted); font-size: .87em; }
 @media (max-width: 700px) {
   .delivery-page { padding: 12px; }
   .delivery-workspace { grid-template-columns: minmax(0, 1fr); }
-  .delivery-list { max-height: 28dvh; }
-  .delivery-detail { border-inline-start: 0; padding-inline-start: 0; border-top: 1px solid var(--app-border); padding-top: 16px; }
+  .delivery-sidebar { border-inline-end: 0; border-bottom: 1px solid var(--app-border); }
+  .delivery-list { max-height: 22dvh; }
+  .delivery-detail { padding-inline: 8px; }
 }
 </style>
