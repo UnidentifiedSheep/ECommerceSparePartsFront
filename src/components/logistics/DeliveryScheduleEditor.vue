@@ -13,7 +13,16 @@
       </el-form-item>
       <el-form-item :label="t('deliverySchedules.days')" required><el-checkbox-group v-model="form.days"><el-checkbox v-for="day in deliveryWeekDays" :key="day" :value="day">{{ t(`deliverySchedules.week.${day}`) }}</el-checkbox></el-checkbox-group></el-form-item>
       <el-form-item :label="t('deliverySchedules.arrivalTime')" required>
-        <input v-model="form.arrivalTime" type="time" step="any" required :aria-label="t('deliverySchedules.arrivalTime')" :disabled="busy || !canEdit" class="arrival-time-input" />
+        <el-time-picker
+          v-model="localArrivalTime"
+          format="HH:mm:ss"
+          value-format="HH:mm:ss"
+          :clearable="false"
+          :aria-label="t('deliverySchedules.arrivalTime')"
+        />
+        <p v-if="form.arrivalTime" class="arrival-hint">
+          {{ t('deliverySchedules.arrivalTimeHint', { time: form.arrivalTime }) }}
+        </p>
       </el-form-item>
       <template v-if="current">
         <h3>{{ t('deliverySchedules.exceptions') }}</h3><p>{{ t('deliverySchedules.exceptionsHint') }}</p>
@@ -34,7 +43,7 @@ import { useDialogGuard } from '@/composables/useDialogGuard'
 import StorageSelector from '@/components/selectors/StorageSelector.vue'
 import { StorageType } from '@/enums/storageType'
 import { saveDeliverySchedule, changeDeliveryException, type DeliverySchedule, type DeliveryScheduleInput } from '@/services/api/deliverySchedules'
-import { deliverySuppliers, deliveryWeekDays } from '@/utils/deliverySchedule'
+import { deliverySuppliers, deliveryWeekDays, shiftDeliveryTime } from '@/utils/deliverySchedule'
 const props = defineProps<{ schedule?: DeliverySchedule }>()
 const open = defineModel<boolean>({ default: false })
 const emit = defineEmits<{ saved: [value: DeliverySchedule, created: boolean] }>()
@@ -45,10 +54,18 @@ const defaultArrivalTime = '23:59:59'
 const form = reactive<Omit<DeliveryScheduleInput, 'storageCode'> & { storageCode?: string }>({
   supplier: 'ARMTEK', days: [], arrivalTime: defaultArrivalTime,
 })
+const utcOffset = ref(new Date().getTimezoneOffset())
+const localArrivalTime = computed<string>({
+  get: () => shiftDeliveryTime(form.arrivalTime, -utcOffset.value).slice(0, 8),
+  set: (value) => {
+    if (value && value !== localArrivalTime.value) form.arrivalTime = shiftDeliveryTime(value, utcOffset.value)
+  },
+})
 const current = ref<DeliverySchedule>(), busy = ref(false), exceptionDate = ref<string>('')
 const guard = useDialogGuard(open, busy, () => form)
 watch(open, value => {
   if (!value) return
+  utcOffset.value = new Date().getTimezoneOffset()
   const schedule = props.schedule
   current.value = schedule
   form.supplier = schedule?.supplier ?? 'ARMTEK'
@@ -76,14 +93,6 @@ async function changeException(date: string, add: boolean) {
 }
 </script>
 <style scoped>
-.arrival-time-input {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-fill-color-blank);
-  color: var(--el-text-color-regular);
-}
-.arrival-time-input:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.arrival-hint { flex-basis: 100%; margin: 4px 0 0; line-height: 1.4; }
 h3 { font-size: 15px; margin-top: 18px; } p { color: var(--app-text-muted); font-size: 13px; } .exception-entry { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 10px 0; }
 </style>

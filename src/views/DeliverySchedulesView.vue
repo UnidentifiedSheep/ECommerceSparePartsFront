@@ -11,7 +11,7 @@
     <section v-else class="delivery-panel">
       <div class="delivery-filters"><el-select v-model="suppliers" multiple clearable :placeholder="t('deliverySchedules.supplier')" :aria-label="t('deliverySchedules.supplier')"><el-option v-for="supplier in deliverySuppliers" :key="supplier.value" :value="supplier.value" :label="supplier.label" /></el-select><el-input v-model="storageCode" clearable maxlength="128" :placeholder="t('deliverySchedules.storageCode')" :aria-label="t('deliverySchedules.storageCode')" /><el-button :loading="loading" @click="load(true)">{{ t('common.actions.refresh') }}</el-button></div>
       <div ref="scrollElement" class="delivery-list" :aria-busy="loading" @scroll.passive="loadNearEnd">
-        <table v-if="rows.length"><thead><tr><th>{{ t('deliverySchedules.supplier') }}</th><th>{{ t('deliverySchedules.storageCode') }}</th><th>{{ t('deliverySchedules.days') }}</th><th>{{ t('deliverySchedules.arrivalTime') }}</th><th>{{ t('deliverySchedules.exceptions') }}</th><th>{{ t('common.labels.actions') }}</th></tr></thead><tbody><tr v-for="row in rows" :key="`${row.supplier}:${row.storageCode}`"><td>{{ deliverySuppliers.find(item => item.value === row.supplier)?.label || row.supplier }}</td><td>{{ row.storageCode }}</td><td>{{ deliveryWeekDays.filter(day => row.days.includes(day)).map(day => t(`deliverySchedules.week.${day}`)).join(', ') }}</td><td>{{ row.arrivalTime }}</td><td>{{ row.exceptions.length }}</td><td><el-button link @click="edit(row)">{{ t('common.actions.open') }}</el-button><el-button v-if="canEdit" link type="danger" :disabled="deleting" @click="remove(row)">{{ t('common.actions.delete') }}</el-button></td></tr></tbody></table>
+        <table v-if="rows.length"><thead><tr><th>{{ t('deliverySchedules.supplier') }}</th><th>{{ t('deliverySchedules.storageCode') }}</th><th>{{ t('deliverySchedules.days') }}</th><th>{{ t('deliverySchedules.arrivalTime') }}</th><th>{{ t('deliverySchedules.exceptions') }}</th><th>{{ t('common.labels.actions') }}</th></tr></thead><tbody><tr v-for="row in rows" :key="`${row.supplier}:${row.storageCode}`"><td>{{ deliverySuppliers.find(item => item.value === row.supplier)?.label || row.supplier }}</td><td>{{ row.storageCode }}</td><td>{{ deliveryWeekDays.filter(day => row.days.includes(day)).map(day => t(`deliverySchedules.week.${day}`)).join(', ') }}</td><td>{{ shiftDeliveryTime(row.arrivalTime, localOffset).slice(0, 8) }}</td><td>{{ row.exceptions.length }}</td><td><el-button link @click="edit(row)">{{ t('common.actions.open') }}</el-button><el-button v-if="canEdit" link type="danger" :disabled="deleting" @click="remove(row)">{{ t('common.actions.delete') }}</el-button></td></tr></tbody></table>
         <el-empty v-if="!loading && !error && !rows.length" :description="t('deliverySchedules.empty')" />
         <DataLoadError v-if="error" :error="error" @retry="load(rows.length === 0)" />
         <p v-if="loading" role="status">{{ t('deliverySchedules.loading') }}</p>
@@ -29,11 +29,12 @@ import DataLoadError from '@/components/common/DataLoadError.vue'
 import DeliveryScheduleEditor from '@/components/logistics/DeliveryScheduleEditor.vue'
 import { getDeliverySchedules, deleteDeliverySchedule, type DeliverySchedule } from '@/services/api/deliverySchedules'
 import type { Supplier } from '@/graphql/generated/graphql'
-import { deliverySuppliers, deliveryWeekDays } from '@/utils/deliverySchedule'
+import { deliverySuppliers, deliveryWeekDays, shiftDeliveryTime } from '@/utils/deliverySchedule'
 import { classifyDataLoadError, type DataLoadErrorKind } from '@/utils/dataLoadError'
 import { usePermissions } from '@/composables/usePermissions'
 import { useI18n } from '@/i18n'
 const { t } = useI18n()
+const localOffset = -new Date().getTimezoneOffset()
 const { hasPermission } = usePermissions()
 const canRead = computed(() => hasPermission('DELIVERY_SCHEDULES_GET')), canEdit = computed(() => hasPermission('DELIVERY_SCHEDULES_EDIT'))
 const canListStorages = computed(() => hasPermission('STORAGES_GET'))
