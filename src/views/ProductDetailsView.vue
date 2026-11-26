@@ -154,6 +154,10 @@
             />
           </el-tab-pane>
 
+          <el-tab-pane :label="t('products.details.alsoBought')" name="also-bought" lazy>
+            <ProductAlsoBoughtPanel v-if="activeTab === 'also-bought'" :key="product.id" :product-id="product.id" />
+          </el-tab-pane>
+
           <el-tab-pane v-if="canViewSalesHistory" :label="t('sales.history.title')" name="history" lazy>
             <ProductSaleHistoryPanel v-if="activeTab === 'history'" :key="product.id" :model-value="true" :product="product" inline read-only />
           </el-tab-pane>
@@ -254,6 +258,7 @@ import ProductCharacteristicsPanel from '@/components/products/ProductCharacteri
 import ProductContentDialog from '@/components/products/ProductContentDialog.vue'
 import ProductContentPanel from '@/components/products/ProductContentPanel.vue'
 import ProductCrossesPanel from '@/components/products/ProductCrossesPanel.vue'
+import ProductAlsoBoughtPanel from '@/components/products/ProductAlsoBoughtPanel.vue'
 import ProductSaleHistoryPanel from '@/components/sales/ProductSaleHistoryPanel.vue'
 import ProductEditDialog from '@/components/products/ProductEditDialog.vue'
 import ProductEansPanel from '@/components/products/ProductEansPanel.vue'
@@ -293,7 +298,7 @@ import { groupCatalogueCandidateNames, type CatalogueNameGroup } from '@/utils/c
 import { useMultiSort } from '@/composables/useMultiSort.ts'
 import { createProductEanGraphql, deleteProductEanGraphql } from '@/services/graphql/products.ts'
 
-type ProductTab = 'crosses' | 'storage' | 'content' | 'eans' | 'history'
+type ProductTab = 'crosses' | 'storage' | 'content' | 'eans' | 'history' | 'also-bought'
 
 const route = useRoute()
 const router = useRouter()
@@ -310,7 +315,7 @@ const storageContent = ref<StorageContentModel[]>([])
 const productContent = ref<ProductContentModel[]>([])
 const alternativeProductNames = ref<CatalogueNameGroup[]>([])
 const activeTab = ref<ProductTab>('crosses')
-const loadedTabs = ref<Record<ProductTab, boolean>>({
+const loadedTabs = ref<Record<Exclude<ProductTab, 'also-bought'>, boolean>>({
   crosses: false,
   storage: false,
   content: false,
@@ -768,6 +773,7 @@ async function loadProductContent() {
 }
 
 async function ensureTabLoaded(tab: ProductTab, force = false) {
+  if (tab === 'also-bought') return
   if (loadedTabs.value[tab] && !force) return
   if (tab === 'crosses' && !await loadCrosses()) return
   if (tab === 'storage') await loadStorageContent()

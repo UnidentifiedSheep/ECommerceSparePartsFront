@@ -36,6 +36,7 @@ import {
   ProductAvailableStockDocument,
   ProductsAvailableStockDocument,
   ProductByIdDocument,
+  ProductAlsoBoughtDocument,
   ProductContentsDocument,
   ProductCrossesDocument,
   ProductPairDocument,
@@ -616,6 +617,16 @@ export async function getProductPairGraphql(productId: number): Promise<ProductM
   })
   const pair = response.data.products.byId?.pair
   return pair ? mapProduct(pair) : null
+}
+
+export async function getProductAlsoBoughtGraphql(productId: number, signal?: AbortSignal) {
+  const { data } = await operationRequest(graphqlClient.query({
+    query: ProductAlsoBoughtDocument,
+    variables: { id: productId },
+    fetchPolicy: 'no-cache',
+    context: { fetchOptions: { signal }, queryDeduplication: false },
+  }))
+  return data.products.byId?.alsoBought ?? []
 }
 
 export async function getProductContentsGraphql(productId: number): Promise<ProductContentModel[]> {

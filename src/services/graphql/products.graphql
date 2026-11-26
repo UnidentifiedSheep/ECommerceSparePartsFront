@@ -82,6 +82,14 @@ query ProductById($id: Int!, $crossesInput: ProductCrossesInput!, $includeCrosse
   }
 }
 
+query ProductAlsoBought($id: Int!) {
+  products {
+    byId(id: $id) {
+      alsoBought { id sku name producer { name } }
+    }
+  }
+}
+
 query CatalogueSearch($input: CatalogueSearchInput!) {
   catalogue {
     search(input: $input) {
