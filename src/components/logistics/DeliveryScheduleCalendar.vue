@@ -6,6 +6,26 @@
       <el-button :aria-label="t('deliverySchedules.nextMonth')" @click="moveMonth(1)">›</el-button>
     </div>
 
+    <div class="day-details" aria-live="polite">
+      <template v-if="selectedDay">
+        <span><strong>{{ formatDate(selectedDay.date) }}</strong> · {{ statusLabel(selectedDay.status) }}</span>
+        <el-button
+          v-if="canEdit && selectedDay.actionable"
+          :type="selectedDay.status === 'exception' ? 'primary' : 'danger'"
+          plain
+          :loading="busy"
+          @click="emit('changeException', selectedDay.utcDate, selectedDay.status !== 'exception')"
+        >
+          {{ t(selectedDay.status === 'exception' ? 'deliverySchedules.restoreDelivery' : 'deliverySchedules.cancelDelivery') }}
+        </el-button>
+        <span v-else-if="selectedDay.status !== 'off'" class="day-hint">
+          {{ t(canEdit ? 'deliverySchedules.pastDelivery' : 'deliverySchedules.readOnlyCalendar') }}
+        </span>
+      </template>
+      <span v-else-if="canEdit" class="day-hint">{{ t('deliverySchedules.pickDeliveryDay') }}</span>
+      <span v-else class="day-hint">{{ t('deliverySchedules.readOnlyCalendar') }}</span>
+    </div>
+
     <div class="calendar-grid">
       <span v-for="day in deliveryWeekDays" :key="day" class="weekday">{{ t(`deliverySchedules.week.${day}`) }}</span>
       <template v-for="(day, index) in cells" :key="day?.date ?? `empty-${index}`">
@@ -30,18 +50,7 @@
       <span class="delivery">● {{ t('deliverySchedules.deliveryDay') }}</span>
       <span class="exception">× {{ t('deliverySchedules.exceptionDay') }}</span>
     </div>
-    <div v-if="selectedDay" class="day-details" aria-live="polite">
-      <span><strong>{{ formatDate(selectedDay.date) }}</strong> · {{ statusLabel(selectedDay.status) }}</span>
-      <el-button
-        v-if="canEdit && selectedDay.actionable"
-        :type="selectedDay.status === 'exception' ? 'primary' : 'danger'"
-        plain
-        :loading="busy"
-        @click="emit('changeException', selectedDay.utcDate, selectedDay.status !== 'exception')"
-      >
-        {{ t(selectedDay.status === 'exception' ? 'deliverySchedules.restoreDelivery' : 'deliverySchedules.cancelDelivery') }}
-      </el-button>
-    </div>
+
   </section>
 </template>
 
@@ -116,8 +125,9 @@ const selectedDay = computed(() => {
 .day-marker { min-height: 1em; line-height: 1; }
 .delivery .day-marker, .calendar-legend .delivery { color: var(--el-color-success); }
 .exception .day-marker, .calendar-legend .exception { color: var(--el-color-danger); }
-.calendar-legend, .day-details { margin-top: 14px; flex-wrap: wrap; }
+.calendar-legend { margin-top: 14px; flex-wrap: wrap; }
 .calendar-legend { font-size: .82em; }
-.day-details { justify-content: space-between; border-top: 1px solid var(--app-border); padding-top: 12px; }
+.day-details { justify-content: space-between; flex-wrap: wrap; min-height: 52px; padding: 6px 10px; margin-bottom: 8px; border: 1px solid var(--app-border); border-radius: 6px; }
+.day-hint { color: var(--app-text-muted); font-size: .9em; }
 .day-details :deep(.el-button) { max-width: 100%; height: auto; min-height: 32px; white-space: normal; }
 </style>
