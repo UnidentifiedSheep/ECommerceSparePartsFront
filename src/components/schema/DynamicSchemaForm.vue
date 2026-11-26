@@ -66,6 +66,8 @@
 
         <el-input
           v-else-if="field.control === 'TextField'"
+          :type="isSecretField(field) ? 'password' : 'text'"
+          :autocomplete="isSecretField(field) ? 'new-password' : undefined"
           :model-value="textFieldValue(field.name)"
           clearable
           :placeholder="field.description || field.name"
@@ -116,6 +118,28 @@
           :placeholder="field.description || field.name"
           @update:model-value="(value) => setFieldValue(field.name, value)"
         />
+
+        <StorageSelector
+          v-else-if="editNestedObjects && field.type !== 'Array' && field.control === 'EntitySelector' && schemaEntity(field) === 'Storage' && !isSupportedSelector(field)"
+          :model-value="dateFieldValue(field.name) ?? undefined"
+          :placeholder="field.description || undefined"
+          @update:model-value="value => setFieldValue(field.name, value ?? null)"
+        />
+
+        <SchemaObjectEditor
+          v-else-if="editNestedObjects && field.nestedSchema?.fields.length && canEditNestedValue(field, modelValue[field.name])"
+          :field="field"
+          :value="modelValue[field.name] ?? null"
+          @change="value => setFieldValue(field.name, value)"
+          v-slot="{ row, update }"
+        >
+          <DynamicSchemaForm
+            v-bind="props"
+            :fields="field.nestedSchema.fields"
+            :model-value="nestedModel(row)"
+            @update-field="(name, value) => update(name, nestedValue(field, name, value))"
+          />
+        </SchemaObjectEditor>
 
         <el-input
           v-else-if="isStructuredSchemaField(field)"
@@ -200,12 +224,14 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
+import SchemaObjectEditor from './SchemaObjectEditor.vue'
+import StorageSelector from '@/components/selectors/StorageSelector.vue'
 import SchemaPartySelector from './SchemaPartySelector.vue'
 import SchemaEntityArraySelector from './SchemaEntityArraySelector.vue'
-import { hasSchemaEnumOptions, schemaEnumOptions, schemaEntity, schemaMonthToUtc } from '@/utils/schemaInputs'
+import { hasSchemaEnumOptions, schemaEnumOptions, schemaEntity, schemaMonthToUtc, parseSchemaInputValue } from '@/utils/schemaInputs'
 import { attachSelectDropdownInfiniteScroll } from '@/composables/useSelectInfiniteScroll.ts'
 import { useI18n } from '@/i18n'
-import { isStructuredSchemaField, type SchemaUiField } from '@/models/schemaModel.ts'
+import { isStructuredSchemaField, parseStructuredSchemaValue, type SchemaUiField } from '@/models/schemaModel.ts'
 import { formatProductEventParts, parseProductEventParts, productEventParts, type ProductEventPart } from '@/models/productEventParts.ts'
 
 export type FieldValue = string | number | boolean | null
@@ -222,6 +248,8 @@ const props = withDefaults(defineProps<{
   fields: DynamicSchemaField[]
   modelValue: Record<string, FieldValue>
   emptyText: string
+  editNestedObjects?: boolean
+  isSecretField?: (field: DynamicSchemaField) => boolean
   uploadFiles?: UploadOption[]
   uploadLoading?: boolean
   uploadingField?: string | null
@@ -235,6 +263,8 @@ const props = withDefaults(defineProps<{
   loadSelectorOptionsOnOpen?: (field: DynamicSchemaField, isOpen: boolean) => void | Promise<void>
   loadMoreSelectorOptions?: (field: DynamicSchemaField) => void | Promise<void>
 }>(), {
+  editNestedObjects: false,
+  isSecretField: () => false,
   uploadFiles: () => [],
   uploadLoading: false,
   uploadingField: null,
@@ -344,6 +374,33 @@ function fileMeta(file: UploadOption) {
     unitIndex += 1
   }
   return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+function canEditNestedValue(field: DynamicSchemaField, value: FieldValue | undefined) {
+  if (!isStructuredSchemaField(field)) return false
+  if (value == null || value === '') return true
+  try {
+    const parsed = parseStructuredSchemaValue(field, value)
+    return !Array.isArray(parsed) || parsed.every(item => item !== null && typeof item === 'object' && !Array.isArray(item))
+  } catch {
+    return false
+  }
+}
+
+function nestedModel(row: Record<string, unknown>): Record<string, FieldValue> {
+  return Object.fromEntries(Object.entries(row).map(([name, value]) => [
+    name, value !== null && typeof value === 'object' ? JSON.stringify(value) : value as FieldValue,
+  ]))
+}
+
+function nestedValue(parent: DynamicSchemaField, name: string, value: FieldValue) {
+  const field = parent.nestedSchema?.fields.find(item => item.name === name)
+  if (!field || value === null || value === '') return value
+  try {
+    return parseSchemaInputValue(field, value)
+  } catch {
+    return value
+  }
 }
 
 function setFieldValue(name: string, value: FieldValue) {

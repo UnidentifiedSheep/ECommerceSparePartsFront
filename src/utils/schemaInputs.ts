@@ -14,6 +14,7 @@ const enumValues: Record<string, string[]> = {
   DemandPattern: [...demandPatterns],
   AnalysisPeriodGranularity: ['Month', 'Quarter'],
   SaleState: ['Draft', 'Completed', 'Deleted'],
+  DeliveryMode: ['Pickup', 'Delivery'],
 }
 
 export function hasSchemaEnumOptions(field: SchemaField) {
@@ -27,7 +28,7 @@ export function schemaEnumOptions(field: SchemaField): Array<{ value: string | n
   }
   return (enumValues[schemaEntity(field) ?? ''] ?? []).map(value => ({
     value,
-    label: schemaEntity(field) === 'SaleState' ? t(`sales.states.${value}`) : ['Revenue', 'Quantity', 'Unclassified', 'Month', 'Quarter', ...demandPatterns].includes(value) ? t(`schemaInputs.enums.${value}`) : value,
+    label: schemaEntity(field) === 'SaleState' ? t(`sales.states.${value}`) : schemaEntity(field) === 'DeliveryMode' ? t(`schemaInputs.deliveryModes.${value}`) : ['Revenue', 'Quantity', 'Unclassified', 'Month', 'Quarter', ...demandPatterns].includes(value) ? t(`schemaInputs.enums.${value}`) : value,
   }))
 }
 

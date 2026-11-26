@@ -97,6 +97,9 @@
 
           <el-form v-else label-position="top" class="setting-form">
             <DynamicSchemaForm
+              :key="selectedSetting.systemName"
+              edit-nested-objects
+              :is-secret-field="isSecretField"
               :fields="schemaFields"
               :model-value="inputState"
               :empty-text="t('serviceSettings.noInput')"
@@ -330,7 +333,7 @@ function hydrateOutputData(rawOutput: string, outputMetadata: ObjectSchema) {
     const outputMetadataFields = outputMetadata.fields
     schemaFields.value.forEach((field) => {
       const currentValue = findCurrentFieldValue(parsed, field.name)
-      if (currentValue.found) {
+      if (currentValue.found && !isSecretField(field)) {
         inputState[field.name] = normalizeFieldValue(field, currentValue.value)
       }
     })
@@ -346,7 +349,7 @@ function buildReadonlyOutputFields(source: Record<string, unknown>, outputMetada
     const describedFields = outputMetadataFields
       .map((field): ReadonlyOutputField | null => {
         const currentValue = findCurrentFieldValue(source, field.name)
-        if (!currentValue.found) return null
+        if (!currentValue.found || isSecretField(field)) return null
 
         const readonlyField: ReadonlyOutputField = {
           name: field.name,
@@ -374,7 +377,7 @@ function buildFallbackReadonlyOutputFields(source: Record<string, unknown>, excl
   const editableFieldNames = new Set(schemaFields.value.map((field) => normalizeKey(field.name)))
 
   return Object.entries(source)
-    .filter(([key]) => !editableFieldNames.has(normalizeKey(key)) && !excludedFieldNames.has(normalizeKey(key)))
+    .filter(([key]) => !['password', 'apikey'].includes(normalizeKey(key)) && !editableFieldNames.has(normalizeKey(key)) && !excludedFieldNames.has(normalizeKey(key)))
     .map(([key, value]) => ({
       name: key,
       label: key,
@@ -453,6 +456,10 @@ function defaultValue(field: SettingSchemaField) {
 function isNumberField(field: SettingSchemaField) {
   if (['TextField', 'DatePicker', 'MonthPicker', 'EntitySelector', 'EnumSelector', 'NamedObjectSelector'].includes(field.control ?? '')) return false
   return isNumericSchemaField(field)
+}
+
+function isSecretField(field: SettingSchemaField) {
+  return ['password', 'apikey'].includes(normalizeKey(field.name))
 }
 
 function fieldLabel(field: SettingSchemaField) {
