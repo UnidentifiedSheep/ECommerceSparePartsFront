@@ -42,6 +42,8 @@ const messages: Record<AppLocale, MessageTree> = {
       newestFirst: 'Сначала новые расчёты', empty: 'По выбранным фильтрам расчётов пока нет.', loaded: 'Загружено расчётов: {count}',
     },
     schemaInputs: {
+      item: 'Строка {index}',
+      deliveryModes: { Pickup: 'Самовывоз', Delivery: 'Доставка' },
       enums: { Revenue: 'Выручка', Quantity: 'Количество', Unclassified: 'Без классификации', Month: 'Месяц', Quarter: 'Квартал', Smooth: 'Ровный', Erratic: 'Неравномерный', Intermittent: 'Прерывистый', Lumpy: 'Прерывистый и неравномерный' },
       invalidField: 'Проверьте значение в поле «{field}».',
       loadPartyError: 'Не удалось загрузить выбранную организацию или пользователя.',
@@ -2286,6 +2288,8 @@ const messages: Record<AppLocale, MessageTree> = {
       newestFirst: 'Newest runs first', empty: 'No runs match these filters yet.', loaded: 'Runs loaded: {count}',
     },
     schemaInputs: {
+      item: 'Row {index}',
+      deliveryModes: { Pickup: 'Pickup', Delivery: 'Delivery' },
       enums: { Revenue: 'Revenue', Quantity: 'Quantity', Unclassified: 'Unclassified', Month: 'Month', Quarter: 'Quarter', Smooth: 'Smooth', Erratic: 'Erratic', Intermittent: 'Intermittent', Lumpy: 'Lumpy' },
       invalidField: 'Check the value in “{field}”.',
       loadPartyError: 'Could not load the selected organization or user.',
@@ -4530,6 +4534,8 @@ const messages: Record<AppLocale, MessageTree> = {
       newestFirst: 'En yeni hesaplamalar önce', empty: 'Bu filtrelerle eşleşen hesaplama henüz yok.', loaded: 'Yüklenen hesaplama: {count}',
     },
     schemaInputs: {
+      item: 'Satır {index}',
+      deliveryModes: { Pickup: 'Teslim alma', Delivery: 'Teslimat' },
       enums: { Revenue: 'Ciro', Quantity: 'Miktar', Unclassified: 'Sınıflandırılmamış', Month: 'Ay', Quarter: 'Çeyrek', Smooth: 'Düzgün', Erratic: 'Düzensiz', Intermittent: 'Kesikli', Lumpy: 'Kümeli' },
       invalidField: '“{field}” alanındaki değeri kontrol edin.',
       loadPartyError: 'Seçilen kuruluş veya kullanıcı yüklenemedi.',
