@@ -41,7 +41,7 @@
       :visible="!!selectedDay"
       :virtual-ref="anchor"
       virtual-triggering
-      placement="right-start"
+      :placement="compactViewport ? 'bottom' : 'right-start'"
       :width="224"
       :persistent="false"
     >
@@ -67,7 +67,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { onClickOutside, useEventListener } from '@vueuse/core'
+import { onClickOutside, useEventListener, useMediaQuery } from '@vueuse/core'
 import { ArrowLeft, ArrowRight, Close } from '@element-plus/icons-vue'
 import { useI18n } from '@/i18n'
 import type { DeliverySchedule } from '@/services/api/deliverySchedules'
@@ -77,6 +77,7 @@ type DayStatus = 'delivery' | 'exception' | 'off'
 const props = defineProps<{ schedule: DeliverySchedule; canEdit: boolean; busy: boolean; localOffset: number }>()
 const emit = defineEmits<{ changeException: [date: string, add: boolean] }>()
 const { t, locale } = useI18n()
+const compactViewport = useMediaQuery('(max-width: 580px)')
 const statusKeys: Record<DayStatus, string> = {
   delivery: 'deliverySchedules.deliveryDay',
   exception: 'deliverySchedules.exceptionDay',
