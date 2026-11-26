@@ -65,9 +65,9 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
+import { computed, h, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { useDebounceFn, useResizeObserver } from '@vueuse/core'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElButton, ElMessage, ElMessageBox } from 'element-plus'
 import { EditPen, MoreFilled, Refresh, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import DataLoadError from '@/components/common/DataLoadError.vue'
@@ -97,7 +97,8 @@ const waitingForSearchPages = computed(() => !!searchTerm.value && hasMore.value
 const changingException = ref(false)
 const editorOpen = ref(false), scrollElement = ref<HTMLElement>(), error = ref<DataLoadErrorKind | null>(null)
 let page = 0, version = 0, disposed = false, controller: AbortController | undefined
-onScopeDispose(() => { disposed = true; ++version; controller?.abort() })
+let undoMessage: { key: string; date: string; close: () => void } | undefined
+onScopeDispose(() => { disposed = true; ++version; controller?.abort(); undoMessage?.close() })
 async function load(reset: boolean) {
   if (disposed || !canRead.value || (!reset && (loading.value || !hasMore.value))) return
   const request = ++version; controller?.abort(); controller = new AbortController()
@@ -159,15 +160,41 @@ function saved(row: DeliverySchedule, created: boolean) {
   searchTerm.value = ''
   void load(true)
 }
-async function toggleException(date: string, add: boolean) {
+function toggleException(date: string, add: boolean, dateLabel: string) {
   const schedule = activeSchedule.value
-  if (!schedule || !canEdit.value || changingException.value || deleting.value) return
+  if (schedule) void setException(schedule, date, add, dateLabel)
+}
+function showUndo(schedule: DeliverySchedule, date: string, dateLabel: string) {
+  undoMessage?.close()
+  const { close } = ElMessage.success({
+    duration: 8000,
+    showClose: true,
+    message: () => h('span', { style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' } }, [
+      t('deliverySchedules.cancelledNotice', { date: dateLabel }),
+      h(ElButton, {
+        link: true,
+        type: 'primary',
+        disabled: changingException.value || deleting.value || !canEdit.value,
+        onClick: () => void setException(schedule, date, false, dateLabel),
+      }, () => t('deliverySchedules.undoCancellation')),
+    ]),
+  })
+  undoMessage = { key: scheduleKey(schedule), date, close }
+}
+async function setException(schedule: DeliverySchedule, date: string, add: boolean, dateLabel: string) {
+  if (disposed || !canEdit.value || changingException.value || deleting.value) return
   changingException.value = true
   try {
     const result = await changeDeliveryException({ supplier: schedule.supplier, storageCode: schedule.storageCode, date }, add)
+    if (disposed) return
     updateSchedule(result)
+    if (add) showUndo(result, date, dateLabel)
+    else if (undoMessage?.key === scheduleKey(result) && undoMessage.date === date) {
+      undoMessage.close()
+      undoMessage = undefined
+    }
   } catch (cause) {
-    ElMessage.error(cause instanceof Error ? cause.message : t('deliverySchedules.saveError'))
+    if (!disposed) ElMessage.error(cause instanceof Error ? cause.message : t('deliverySchedules.saveError'))
   } finally {
     changingException.value = false
   }
@@ -178,6 +205,10 @@ async function remove(row: DeliverySchedule) {
   deleting.value = true
   try {
     await deleteDeliverySchedule(row.supplier, row.storageCode)
+    if (undoMessage?.key === scheduleKey(row)) {
+      undoMessage.close()
+      undoMessage = undefined
+    }
     if (activeSchedule.value && scheduleKey(activeSchedule.value) === scheduleKey(row)) activeSchedule.value = undefined
     await load(true)
   }

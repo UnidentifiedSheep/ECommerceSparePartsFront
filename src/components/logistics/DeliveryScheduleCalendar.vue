@@ -53,7 +53,7 @@
           :type="selectedDay.status === 'exception' ? 'primary' : 'danger'"
           link
           :loading="busy"
-          @click="emit('changeException', selectedDay.utcDate, selectedDay.status !== 'exception')"
+          @click="emit('changeException', selectedDay.utcDate, selectedDay.status !== 'exception', formatDate(selectedDay.date))"
         >
           {{ t(selectedDay.status === 'exception' ? 'deliverySchedules.restoreDelivery' : 'deliverySchedules.cancelDeliveryShort') }}
         </el-button>
@@ -75,7 +75,7 @@ import { deliveryDateOffset, deliveryScheduleDate, deliveryWeekDays, shiftDelive
 
 type DayStatus = 'delivery' | 'exception' | 'off'
 const props = defineProps<{ schedule: DeliverySchedule; canEdit: boolean; busy: boolean; localOffset: number }>()
-const emit = defineEmits<{ changeException: [date: string, add: boolean] }>()
+const emit = defineEmits<{ changeException: [date: string, add: boolean, dateLabel: string] }>()
 const { t, locale } = useI18n()
 const compactViewport = useMediaQuery('(max-width: 580px)')
 const statusKeys: Record<DayStatus, string> = {
