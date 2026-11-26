@@ -30,6 +30,14 @@
       <el-form-item :label="t('priceAppliers.builder.title')" required>
         <div class="builder-field">
           <div class="field-hint">{{ t('priceAppliers.builder.hint') }}</div>
+          <el-alert
+            v-if="obsoleteVariables.length"
+            type="warning"
+            :closable="false"
+            :title="t('priceAppliers.builder.obsoleteDeliveryVariables')"
+          >
+            <ul><li v-for="path in obsoleteVariables" :key="path"><code>{{ path }}</code></li></ul>
+          </el-alert>
           <JsonLogicBuilder v-model="logicRoot" />
           <el-collapse class="json-preview">
             <el-collapse-item name="json" :title="t('priceAppliers.builder.preview')">
@@ -53,7 +61,7 @@
 
     <template #footer>
       <el-button @click="draftGuard0.requestClose">{{ t('common.actions.cancel') }}</el-button>
-      <el-button type="primary" :loading="isSaving" @click="save">
+      <el-button type="primary" :loading="isSaving" :disabled="obsoleteVariables.length > 0" @click="save">
         {{ t('common.actions.save') }}
       </el-button>
     </template>
@@ -69,6 +77,7 @@ import JsonLogicBuilder from '@/components/pricing/JsonLogicBuilder.vue'
 import {
   createNode,
   parseJsonLogic,
+  obsoleteDeliveryVariables,
   serializeJsonLogic,
   type LogicNode,
 } from '@/components/pricing/jsonLogicBuilder.ts'
@@ -109,6 +118,7 @@ const visible = computed({
   set: (value) => emit('update:modelValue', value),
 })
 const isEditing = computed(() => props.applier !== null)
+const obsoleteVariables = computed(() => obsoleteDeliveryVariables(logicRoot.value))
 const dslLogic = computed(() => JSON.stringify(serializeJsonLogic(logicRoot.value), null, 2))
 
 watch(
@@ -137,6 +147,8 @@ function resetForm() {
 }
 
 async function save() {
+  if (obsoleteVariables.value.length) return
+
   const name = form.name.trim()
   const systemName = form.systemName.trim()
   if (!name) {

@@ -11,7 +11,7 @@ const supportedLocales: AppLocale[] = ['ru', 'en', 'tr']
 
 const messages: Record<AppLocale, MessageTree> = {
   ru: {
-    deliverySchedules: {"title": "Расписания доставки", "description": "Дни доставки поставщиков и исключения по датам.", "supplier": "Поставщик", "storageCode": "Код склада поставщика", "days": "Дни доставки", "exceptions": "Исключения", "exceptionsHint": "В эти даты доставка не выполняется.", "exceptionDate": "Дата исключения", "noExceptions": "Исключений нет", "empty": "Расписания не найдены", "noPermission": "Нет разрешения на просмотр расписаний доставки", "saved": "Расписание сохранено.", "saveError": "Не удалось сохранить расписание.", "loading": "Загружаем расписания…", "deleteConfirm": "Удалить расписание {supplier}, склад {code}?", "week": {"MONDAY": "Пн", "TUESDAY": "Вт", "WEDNESDAY": "Ср", "THURSDAY": "Чт", "FRIDAY": "Пт", "SATURDAY": "Сб", "SUNDAY": "Вс"}},
+    deliverySchedules: {"cancelledNotice": "Доставка отменена · {date}", "undoCancellation": "Вернуть", "today": "Сегодня", "search": "Поставщик или склад", "cancelDeliveryShort": "Отменить доставку", "calendar": "Календарь доставки", "previousMonth": "Предыдущий месяц", "nextMonth": "Следующий месяц", "deliveryDay": "Доставка", "exceptionDay": "Отменена", "noDeliveryDay": "Доставки нет", "cancelDelivery": "Отменить доставку на этот день", "restoreDelivery": "Восстановить доставку", "selectSchedule": "Выберите расписание", "pickDeliveryDay": "Выберите день с точкой ●, чтобы отменить доставку.", "pastDelivery": "Доставку за прошедшую дату отменить нельзя.", "readOnlyCalendar": "Для отмены доставки нужен доступ к редактированию расписаний.", "arrivalTime": "Время прибытия", "title": "Расписания доставки", "description": "Дни доставки поставщиков на наши склады и исключения по датам.", "supplier": "Поставщик", "storageCode": "Наш склад", "storagePermissionRequired": "Для создания расписания нужен доступ к списку складов.", "days": "Дни доставки", "exceptions": "Исключения", "exceptionsHint": "В эти даты доставка не выполняется.", "exceptionDate": "Дата исключения", "noExceptions": "Исключений нет", "empty": "Расписания не найдены", "noPermission": "Нет разрешения на просмотр расписаний доставки", "saved": "Расписание сохранено.", "saveError": "Не удалось сохранить расписание.", "loading": "Загружаем расписания…", "deleteConfirm": "Удалить расписание {supplier}, склад {code}?", "week": {"MONDAY": "Пн", "TUESDAY": "Вт", "WEDNESDAY": "Ср", "THURSDAY": "Чт", "FRIDAY": "Пт", "SATURDAY": "Сб", "SUNDAY": "Вс"}},
     analysisSchema: {
       referencesError: 'Названия связанных сущностей недоступны. Показаны сохранённые значения.',
       yes: 'Да', no: 'Нет', empty: 'Нет значений', tooDeep: 'Вложенные данные', summary: 'Сводка', tableView: 'Таблица и сводка', presentation: 'Вид результата',
@@ -640,6 +640,7 @@ const messages: Record<AppLocale, MessageTree> = {
           '0': 'Левое значение',
           '1': 'Правое значение',
         },
+        obsoleteDeliveryVariables: 'Замените устаревшие переменные доставки перед сохранением.',
         variables: {
           salePrice: 'Текущая цена продажи',
           cost: 'Себестоимость',
@@ -652,14 +653,9 @@ const messages: Record<AppLocale, MessageTree> = {
             productId: 'Кандидат: ID товара',
             targetStorageCode: 'Кандидат: целевой склад',
             sourceType: 'Кандидат: тип источника',
-            fulfillment: {
-              sourceStorageCode: 'Маршрут: исходный склад',
-              targetStorageCode: 'Маршрут: целевой склад',
-              logisticsCostInBaseCurrency: 'Маршрут: стоимость логистики',
-              deliveryTime: 'Маршрут: срок доставки',
-              guaranteedDeliveryTime: 'Маршрут: гарантированный срок',
-              deliveryProbability: 'Маршрут: вероятность доставки',
-            },
+            deliveryDays: 'Срок доставки (дни)',
+            guaranteedDeliveryDays: 'Гарантированный срок доставки (дни)',
+            deliveryProbability: 'Вероятность доставки',
           },
           market: {
             offerCount: 'Рынок: количество предложений',
@@ -1699,6 +1695,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     priceOffers: {
+      inStock: 'На складе',
       kicker: 'Проценка',
       title: 'Цены и поставщики',
       open: 'Цены',
@@ -2258,7 +2255,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   en: {
-    deliverySchedules: {"title": "Delivery schedules", "description": "Supplier delivery days and date exceptions.", "supplier": "Supplier", "storageCode": "Supplier warehouse code", "days": "Delivery days", "exceptions": "Exceptions", "exceptionsHint": "Deliveries do not take place on these dates.", "exceptionDate": "Exception date", "noExceptions": "No exceptions", "empty": "No delivery schedules found", "noPermission": "No permission to view delivery schedules", "saved": "Schedule saved.", "saveError": "Could not save the schedule.", "loading": "Loading schedules…", "deleteConfirm": "Delete the schedule for {supplier}, warehouse {code}?", "week": {"MONDAY": "Mon", "TUESDAY": "Tue", "WEDNESDAY": "Wed", "THURSDAY": "Thu", "FRIDAY": "Fri", "SATURDAY": "Sat", "SUNDAY": "Sun"}},
+    deliverySchedules: {"cancelledNotice": "Delivery cancelled · {date}", "undoCancellation": "Undo", "today": "Today", "search": "Supplier or warehouse", "cancelDeliveryShort": "Cancel delivery", "calendar": "Delivery calendar", "previousMonth": "Previous month", "nextMonth": "Next month", "deliveryDay": "Delivery", "exceptionDay": "Cancelled", "noDeliveryDay": "No delivery", "cancelDelivery": "Cancel delivery for this day", "restoreDelivery": "Restore delivery", "selectSchedule": "Select a schedule", "pickDeliveryDay": "Select a day marked ● to cancel delivery.", "pastDelivery": "Past deliveries cannot be cancelled.", "readOnlyCalendar": "Editing access is required to cancel deliveries.", "arrivalTime": "Arrival time", "title": "Delivery schedules", "description": "Supplier delivery days to our warehouses and date exceptions.", "supplier": "Supplier", "storageCode": "Our warehouse", "storagePermissionRequired": "Access to the warehouse list is required to create a schedule.", "days": "Delivery days", "exceptions": "Exceptions", "exceptionsHint": "Deliveries do not take place on these dates.", "exceptionDate": "Exception date", "noExceptions": "No exceptions", "empty": "No delivery schedules found", "noPermission": "No permission to view delivery schedules", "saved": "Schedule saved.", "saveError": "Could not save the schedule.", "loading": "Loading schedules…", "deleteConfirm": "Delete the schedule for {supplier}, warehouse {code}?", "week": {"MONDAY": "Mon", "TUESDAY": "Tue", "WEDNESDAY": "Wed", "THURSDAY": "Thu", "FRIDAY": "Fri", "SATURDAY": "Sat", "SUNDAY": "Sun"}},
     analysisSchema: {
       referencesError: 'Linked entity names are unavailable. Saved values are shown.',
       yes: 'Yes', no: 'No', empty: 'No values', tooDeep: 'Nested data', summary: 'Summary', tableView: 'Table and summary', presentation: 'Result view',
@@ -2887,6 +2884,7 @@ const messages: Record<AppLocale, MessageTree> = {
           '0': 'Left value',
           '1': 'Right value',
         },
+        obsoleteDeliveryVariables: 'Replace the obsolete delivery variables before saving.',
         variables: {
           salePrice: 'Current sale price',
           cost: 'Cost',
@@ -2899,14 +2897,9 @@ const messages: Record<AppLocale, MessageTree> = {
             productId: 'Candidate: product ID',
             targetStorageCode: 'Candidate: target storage',
             sourceType: 'Candidate: source type',
-            fulfillment: {
-              sourceStorageCode: 'Route: source storage',
-              targetStorageCode: 'Route: target storage',
-              logisticsCostInBaseCurrency: 'Route: logistics cost',
-              deliveryTime: 'Route: delivery time',
-              guaranteedDeliveryTime: 'Route: guaranteed delivery time',
-              deliveryProbability: 'Route: delivery probability',
-            },
+            deliveryDays: 'Delivery days',
+            guaranteedDeliveryDays: 'Guaranteed delivery days',
+            deliveryProbability: 'Delivery probability',
           },
           market: {
             offerCount: 'Market: offer count',
@@ -3946,6 +3939,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     priceOffers: {
+      inStock: 'In stock',
       kicker: 'Pricing',
       title: 'Prices and suppliers',
       open: 'Prices',
@@ -4505,7 +4499,7 @@ const messages: Record<AppLocale, MessageTree> = {
     },
   },
   tr: {
-    deliverySchedules: {"title": "Teslimat takvimleri", "description": "Tedarikçi teslimat günleri ve tarih istisnaları.", "supplier": "Tedarikçi", "storageCode": "Tedarikçi depo kodu", "days": "Teslimat günleri", "exceptions": "İstisnalar", "exceptionsHint": "Bu tarihlerde teslimat yapılmaz.", "exceptionDate": "İstisna tarihi", "noExceptions": "İstisna yok", "empty": "Teslimat takvimi bulunamadı", "noPermission": "Teslimat takvimlerini görüntüleme izni yok", "saved": "Takvim kaydedildi.", "saveError": "Takvim kaydedilemedi.", "loading": "Takvimler yükleniyor…", "deleteConfirm": "{supplier}, {code} deposunun takvimi silinsin mi?", "week": {"MONDAY": "Pzt", "TUESDAY": "Sal", "WEDNESDAY": "Çar", "THURSDAY": "Per", "FRIDAY": "Cum", "SATURDAY": "Cmt", "SUNDAY": "Paz"}},
+    deliverySchedules: {"cancelledNotice": "Teslimat iptal edildi · {date}", "undoCancellation": "Geri al", "today": "Bugün", "search": "Tedarikçi veya depo", "cancelDeliveryShort": "Teslimatı iptal et", "calendar": "Teslimat takvimi", "previousMonth": "Önceki ay", "nextMonth": "Sonraki ay", "deliveryDay": "Teslimat", "exceptionDay": "İptal edildi", "noDeliveryDay": "Teslimat yok", "cancelDelivery": "Bu günkü teslimatı iptal et", "restoreDelivery": "Teslimatı geri yükle", "selectSchedule": "Bir takvim seçin", "pickDeliveryDay": "Teslimatı iptal etmek için ● işaretli bir gün seçin.", "pastDelivery": "Geçmiş teslimatlar iptal edilemez.", "readOnlyCalendar": "Teslimatları iptal etmek için düzenleme yetkisi gerekir.", "arrivalTime": "Varış saati", "title": "Teslimat takvimleri", "description": "Tedarikçilerin depolarımıza teslimat günleri ve tarih istisnaları.", "supplier": "Tedarikçi", "storageCode": "Kendi depomuz", "storagePermissionRequired": "Takvim oluşturmak için depo listesine erişim gerekir.", "days": "Teslimat günleri", "exceptions": "İstisnalar", "exceptionsHint": "Bu tarihlerde teslimat yapılmaz.", "exceptionDate": "İstisna tarihi", "noExceptions": "İstisna yok", "empty": "Teslimat takvimi bulunamadı", "noPermission": "Teslimat takvimlerini görüntüleme izni yok", "saved": "Takvim kaydedildi.", "saveError": "Takvim kaydedilemedi.", "loading": "Takvimler yükleniyor…", "deleteConfirm": "{supplier}, {code} deposunun takvimi silinsin mi?", "week": {"MONDAY": "Pzt", "TUESDAY": "Sal", "WEDNESDAY": "Çar", "THURSDAY": "Per", "FRIDAY": "Cum", "SATURDAY": "Cmt", "SUNDAY": "Paz"}},
     analysisSchema: {
       referencesError: 'İlişkili kayıt adları kullanılamıyor. Kaydedilen değerler gösteriliyor.',
       yes: 'Evet', no: 'Hayır', empty: 'Değer yok', tooDeep: 'İç içe veriler', summary: 'Özet', tableView: 'Tablo ve özet', presentation: 'Sonuç görünümü',
@@ -5134,6 +5128,7 @@ const messages: Record<AppLocale, MessageTree> = {
           '0': 'Sol değer',
           '1': 'Sağ değer',
         },
+        obsoleteDeliveryVariables: 'Kaydetmeden önce eski teslimat değişkenlerini değiştirin.',
         variables: {
           salePrice: 'Geçerli satış fiyatı',
           cost: 'Maliyet',
@@ -5146,14 +5141,9 @@ const messages: Record<AppLocale, MessageTree> = {
             productId: 'Aday: ürün kimliği',
             targetStorageCode: 'Aday: hedef depo',
             sourceType: 'Aday: kaynak türü',
-            fulfillment: {
-              sourceStorageCode: 'Rota: kaynak depo',
-              targetStorageCode: 'Rota: hedef depo',
-              logisticsCostInBaseCurrency: 'Rota: lojistik maliyeti',
-              deliveryTime: 'Rota: teslimat süresi',
-              guaranteedDeliveryTime: 'Rota: garantili teslimat süresi',
-              deliveryProbability: 'Rota: teslimat olasılığı',
-            },
+            deliveryDays: 'Teslimat günü',
+            guaranteedDeliveryDays: 'Garantili teslimat günü',
+            deliveryProbability: 'Teslimat olasılığı',
           },
           market: {
             offerCount: 'Pazar: teklif sayısı',
@@ -6193,6 +6183,7 @@ const messages: Record<AppLocale, MessageTree> = {
       },
     },
     priceOffers: {
+      inStock: 'Stokta',
       kicker: 'Fiyatlama',
       title: 'Fiyatlar ve tedarikçiler',
       open: 'Fiyatlar',
