@@ -1,6 +1,12 @@
 <template>
   <div class="delivery-page">
-    <PageHeader :title="t('deliverySchedules.title')" :description="t('deliverySchedules.description')"><template #actions><el-button v-if="canEdit && canRead" type="primary" @click="edit()">{{ t('common.actions.create') }}</el-button></template></PageHeader>
+    <PageHeader :title="t('deliverySchedules.title')" :description="t('deliverySchedules.description')">
+      <template #actions>
+        <el-tooltip v-if="canEdit && canRead" :disabled="canListStorages" :content="t('deliverySchedules.storagePermissionRequired')">
+          <span><el-button type="primary" :disabled="!canListStorages" @click="edit()">{{ t('common.actions.create') }}</el-button></span>
+        </el-tooltip>
+      </template>
+    </PageHeader>
     <el-empty v-if="!canRead" :description="t('deliverySchedules.noPermission')" />
     <section v-else class="delivery-panel">
       <div class="delivery-filters"><el-select v-model="suppliers" multiple clearable :placeholder="t('deliverySchedules.supplier')" :aria-label="t('deliverySchedules.supplier')"><el-option v-for="supplier in deliverySuppliers" :key="supplier.value" :value="supplier.value" :label="supplier.label" /></el-select><el-input v-model="storageCode" clearable maxlength="128" :placeholder="t('deliverySchedules.storageCode')" :aria-label="t('deliverySchedules.storageCode')" /><el-button :loading="loading" @click="load(true)">{{ t('common.actions.refresh') }}</el-button></div>
@@ -30,6 +36,7 @@ import { useI18n } from '@/i18n'
 const { t } = useI18n()
 const { hasPermission } = usePermissions()
 const canRead = computed(() => hasPermission('DELIVERY_SCHEDULES_GET')), canEdit = computed(() => hasPermission('DELIVERY_SCHEDULES_EDIT'))
+const canListStorages = computed(() => hasPermission('STORAGES_GET'))
 const suppliers = ref<Supplier[]>([]), storageCode = ref(''), rows = ref<DeliverySchedule[]>([]), loading = ref(false), deleting = ref(false), hasMore = ref(false)
 const editorOpen = ref(false), selected = ref<DeliverySchedule>(), scrollElement = ref<HTMLElement>(), error = ref<DataLoadErrorKind | null>(null)
 let page = 0, version = 0, disposed = false, controller: AbortController | undefined

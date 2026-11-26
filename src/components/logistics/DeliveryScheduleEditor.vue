@@ -2,7 +2,15 @@
   <el-dialog v-model="open" :title="t('deliverySchedules.title')" width="min(620px, 96vw)" :before-close="guard.beforeClose">
     <el-form label-position="top" :disabled="busy || !canEdit" @submit.prevent="save">
       <el-form-item :label="t('deliverySchedules.supplier')" required><el-select v-model="form.supplier" :disabled="!!current"><el-option v-for="supplier in deliverySuppliers" :key="supplier.value" :value="supplier.value" :label="supplier.label" /></el-select></el-form-item>
-      <el-form-item :label="t('deliverySchedules.storageCode')" required><el-input v-model="form.storageCode" :disabled="!!current" maxlength="128" /></el-form-item>
+      <el-form-item :label="t('deliverySchedules.storageCode')" required>
+        <el-input v-if="current" :model-value="current.storageCode" disabled />
+        <StorageSelector
+          v-else-if="open"
+          v-model="form.storageCode"
+          :type="StorageType.Warehouse"
+          :disabled="busy || !canEdit"
+        />
+      </el-form-item>
       <el-form-item :label="t('deliverySchedules.days')" required><el-checkbox-group v-model="form.days"><el-checkbox v-for="day in deliveryWeekDays" :key="day" :value="day">{{ t(`deliverySchedules.week.${day}`) }}</el-checkbox></el-checkbox-group></el-form-item>
       <el-form-item :label="t('deliverySchedules.arrivalTime')" required>
         <input v-model="form.arrivalTime" type="time" step="any" required :aria-label="t('deliverySchedules.arrivalTime')" :disabled="busy || !canEdit" class="arrival-time-input" />
@@ -14,7 +22,7 @@
         <div v-for="date in current.exceptions" :key="date" class="exception-entry"><span>{{ formatDate(date) }}</span><el-button link type="danger" @click="changeException(date, false)">{{ t('common.actions.delete') }}</el-button></div>
       </template>
     </el-form>
-    <template #footer><el-button :disabled="busy" @click="guard.requestClose">{{ t('common.actions.close') }}</el-button><el-button v-if="canEdit" type="primary" :loading="busy" :disabled="!form.storageCode.trim() || !form.days.length || !form.arrivalTime" @click="save">{{ t('common.actions.save') }}</el-button></template>
+    <template #footer><el-button :disabled="busy" @click="guard.requestClose">{{ t('common.actions.close') }}</el-button><el-button v-if="canEdit" type="primary" :loading="busy" :disabled="!form.storageCode || !form.days.length || !form.arrivalTime" @click="save">{{ t('common.actions.save') }}</el-button></template>
   </el-dialog>
 </template>
 <script setup lang="ts">
@@ -23,6 +31,8 @@ import { ElMessage } from 'element-plus'
 import { useI18n } from '@/i18n'
 import { usePermissions } from '@/composables/usePermissions'
 import { useDialogGuard } from '@/composables/useDialogGuard'
+import StorageSelector from '@/components/selectors/StorageSelector.vue'
+import { StorageType } from '@/enums/storageType'
 import { saveDeliverySchedule, changeDeliveryException, type DeliverySchedule, type DeliveryScheduleInput } from '@/services/api/deliverySchedules'
 import { deliverySuppliers, deliveryWeekDays } from '@/utils/deliverySchedule'
 const props = defineProps<{ schedule?: DeliverySchedule }>()
@@ -32,7 +42,9 @@ const { t, locale } = useI18n()
 const { hasPermission } = usePermissions()
 const canEdit = computed(() => hasPermission('DELIVERY_SCHEDULES_EDIT'))
 const defaultArrivalTime = '23:59:59'
-const form = reactive<DeliveryScheduleInput>({ supplier: 'ARMTEK', storageCode: '', days: [], arrivalTime: defaultArrivalTime })
+const form = reactive<Omit<DeliveryScheduleInput, 'storageCode'> & { storageCode?: string }>({
+  supplier: 'ARMTEK', days: [], arrivalTime: defaultArrivalTime,
+})
 const current = ref<DeliverySchedule>(), busy = ref(false), exceptionDate = ref<string>('')
 const guard = useDialogGuard(open, busy, () => form)
 watch(open, value => {
@@ -40,7 +52,7 @@ watch(open, value => {
   const schedule = props.schedule
   current.value = schedule
   form.supplier = schedule?.supplier ?? 'ARMTEK'
-  form.storageCode = schedule?.storageCode ?? ''
+  form.storageCode = schedule?.storageCode
   form.days = [...(schedule?.days ?? [])]
   form.arrivalTime = schedule?.arrivalTime ?? defaultArrivalTime
   exceptionDate.value = ''
@@ -48,9 +60,10 @@ watch(open, value => {
 })
 function formatDate(value: string) { return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(`${value}T12:00:00`)) }
 async function save() {
-  if (busy.value || !canEdit.value || !form.storageCode.trim() || !form.days.length || !form.arrivalTime) return
+  const storageCode = form.storageCode
+  if (busy.value || !canEdit.value || !storageCode || !form.days.length || !form.arrivalTime) return
   busy.value = true
-  try { const created = !current.value; const result = await saveDeliverySchedule({ ...form, days: [...form.days] }, !created); current.value = result; emit('saved', result, created); guard.markClean(); ElMessage.success(t('deliverySchedules.saved')) }
+  try { const created = !current.value; const result = await saveDeliverySchedule({ ...form, storageCode, days: [...form.days] }, !created); current.value = result; emit('saved', result, created); guard.markClean(); ElMessage.success(t('deliverySchedules.saved')) }
   catch (error) { ElMessage.error(error instanceof Error ? error.message : t('deliverySchedules.saveError')) }
   finally { busy.value = false }
 }
