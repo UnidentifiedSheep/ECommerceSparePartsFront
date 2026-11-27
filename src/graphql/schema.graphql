@@ -1171,6 +1171,7 @@ type ProducerSupplierMapping {
 }
 
 type Product {
+  alsoBought: [Product!]! @cost(weight: "10")
   availableStock(input: ProductAvailableStocksInput!): Int! @cost(weight: "10")
   characteristics: [ProductCharacteristic!]! @cost(weight: "10")
   contents: [ProductContent!]! @cost(weight: "10")
